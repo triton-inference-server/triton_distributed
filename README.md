@@ -31,16 +31,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Triton Distributed is a flexible, component based, data center scale
 inference serving framework designed to leverage the strengths of the
 standalone Triton Inference Server while expanding it's capabilities
-to meet the demands of future complex cases including those of
-Generative AI. It is desinged to enable developers to implement
-complex routing, load balancing, scaling and workflow definitions at
-the data center scale without sacrificing performance or ease of use.
+to meet the demands of complex use cases including those of Generative
+AI. It is designed to enable developers to implement and customize
+routing, load balancing, scaling and workflow definitions at the data
+center scale without sacrificing performance or ease of use.
 
 The project is currently in the alpha / experimental / rapid-protyping
 stage.
+
+<!--
+
+## Goals
 
 ## Concepts
 
 ## Examples
 
-
+-->
