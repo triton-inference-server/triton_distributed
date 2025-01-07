@@ -40,7 +40,7 @@ routing, load balancing, scaling and workflow definitions at the data
 center scale without sacrificing performance or ease of use.
 
 > [!NOTE] 
-> The project is currently in the alpha / experimental /
+> This project is currently in the alpha / experimental /
 > rapid-protyping stage and we are actively looking for feedback and
 > collaborators.
 
