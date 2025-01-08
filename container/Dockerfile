@@ -90,7 +90,6 @@ RUN git clone https://github.com/triton-inference-server/server.git && \
 ##########################################################
 
 # Todo Pull in from network and not local to repo
-# Or Remote
 #
 # RUN --mount=type=bind,source=./container/deps/llama3-tok.tgz,target=/tmp/llama3-tok.tgz \
 #    mkdir -p /genai-perf/tokenizers && cd /genai-perf/tokenizers && tar -xzf /tmp/llama3-tok.tgz
@@ -105,8 +104,9 @@ COPY . /workspace
 # TODO Protobuf
 # RUN /workspace/icp/protos/gen_python.sh
 
+# TODO 
 # Sets pythonpath for python modules
-ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/python:/workspace/icp/python/icp/protos:/workspace/worker/python:/workspace/triton/api_server/src/:/workspaces/tekit_backend/tensorrt_llm"
+#ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/python:/workspace/icp/python/icp/protos:/workspace/worker/python:/workspace/triton/api_server/src/:/workspaces/tekit_backend/tensorrt_llm"
 
 # Command and Entrypoint
 CMD []
