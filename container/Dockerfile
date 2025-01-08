@@ -27,44 +27,27 @@ RUN pyright --help > /dev/null 2>&1
 RUN find /opt/tritonserver/python -maxdepth 1 -type f -name \
     "tritonserver-*.whl" | xargs -I {} pip3 install --force-reinstall --upgrade {}[all]
 
-# Triton CLI Install
-#ARG TRITON_CLI_TAG="0.0.10"
-#RUN pip install git+https://github.com/triton-inference-server/triton_cli.git@${TRITON_CLI_TAG}
-
-# Installing triton-cli downgrades protobuf and tritonclient
-# TODO find a better way to handle this
-# consider moving to poetry
-#RUN pip install --upgrade protobuf==5.27.3 tritonclient==2.49.0
-
 # GENAI Perf Install
-ARG GENAI_PERF_TAG="nnshah1-triton-generate"
+ARG GENAI_PERF_TAG="r24.12"
 RUN pip install "git+https://github.com/triton-inference-server/perf_analyzer.git@${GENAI_PERF_TAG}#subdirectory=genai-perf"
 
 # Backend & Framework Specific Installation
-ARG FRAMEWORK="IDENTITY"
-ARG TRTLLM_BACKEND_COMMIT=
-ARG GITLAB_TOKEN=
+ARG FRAMEWORK="STANDARD"
+ARG TENSORRTLLM_BACKEND_COMMIT=
 RUN --mount=type=bind,source=./container/deps/requirements.tensorrtllm.txt,target=/tmp/requirements.txt \
     --mount=type=bind,source=./container/deps/clone_tensorrtllm.sh,target=/tmp/clone_tensorrtllm.sh \
-    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --trtllm-backend-commit ${TRTLLM_BACKEND_COMMIT} --gitlab-token ${GITLAB_TOKEN}; fi
+    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-commit ${TENSORRTLLM_BACKEND_COMMIT} ; fi
 
 RUN --mount=type=bind,source=./container/deps/requirements.vllm.txt,target=/tmp/requirements.txt \
     if [[ "$FRAMEWORK" == "VLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt ; fi
 
-RUN --mount=type=bind,source=./container/deps/requirements.identity.txt,target=/tmp/requirements.txt \
-    if [[ "$FRAMEWORK" == "IDENTITY" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt ; fi
+RUN --mount=type=bind,source=./container/deps/requirements.standard.txt,target=/tmp/requirements.txt \
+    if [[ "$FRAMEWORK" == "STANDARD" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt ; fi
 
 # Backend & Framework Specific LD_LIBRARY_PATH
 ARG TENSORRTLLM_FRAMEWORK
 ENV FRAMEWORK_LD_LIBRARY_PATH=${TENSORRTLLM_FRAMEWORK:+/opt/tritonserver/backends/tensorrtllm/}
 ENV LD_LIBRARY_PATH=${FRAMEWORK_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
-
-# Install router dependencies
-RUN if [[ "$FRAMEWORK" != "IDENTITY" ]] ; then \
-    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential cmake \
-    git clone https://oauth2:${GITLAB_TOKEN}@gitlab-master.nvidia.com/jothomson/kv-aware-router.git \
-    cd kv-aware-router && git fetch &&  git checkout rm-tekit-submodule  && git submodule update --init --recursive && pip install -e . ;\
-    fi
 
 # Install NATS - pointing toward NATS github instead of binaries.nats.dev due to server instability
 RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb

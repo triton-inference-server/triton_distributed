@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-License-Identifier: Apache-2.0
+
+# Necessary for vLLM engine.
+--extra-index-url https://flashinfer.ai/whl/cu121/torch2.4
+flashinfer
+ucx-py-cu12
+git+https://oauth2:${GITLAB_TOKEN}@gitlab-master.nvidia.com/dl/vllm/vllm.git@ptarasiewicz/disaggregated_inference#egg=vllm[all]

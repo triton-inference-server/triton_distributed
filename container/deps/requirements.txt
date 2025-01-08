@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-License-Identifier: Apache-2.0
+
+fastapi==0.97.0
+ftfy
+grpcio-tools==1.66.0
+httpx
+mypy
+numpy
+opentelemetry-api
+opentelemetry-sdk
+pre-commit
+protobuf==5.27.3
+pyright
+sentencepiece
+starlette==0.27.0
+transformers
+tritonclient==2.49.0
+# TODO: See whether TRT-LLM installs a different version of UCX. Need to revisit and track this dependency.
+ucx-py-cu12
+uvicorn==0.30.6
