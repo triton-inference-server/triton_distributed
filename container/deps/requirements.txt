@@ -13,7 +13,6 @@ pre-commit
 protobuf==5.27.3
 pyright
 sentencepiece
-starlette==0.27.0
 transformers
 tritonclient==2.53.0
 # TODO: See whether TRT-LLM installs a different version of UCX. Need to revisit and track this dependency.
