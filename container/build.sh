@@ -4,6 +4,7 @@
 
 TAG=
 RUN_PREFIX=
+PLATFORM=linux/amd64
 
 # Frameworks
 #
@@ -40,6 +41,14 @@ get_options() {
         -h | -\? | --help)
             show_help
             exit
+            ;;
+	--platform)
+            if [ "$2" ]; then
+                PLATFORM=$2
+                shift
+            else
+		missing_requirement $1
+            fi
             ;;
 	--framework)
             if [ "$2" ]; then
@@ -151,6 +160,11 @@ get_options() {
         TAG="triton-distributed:${FRAMEWORK,,}-${BASE_VERSION}"
     fi
 
+    if [ ! -z "$PLATFORM" ]; then
+        PLATFORM="--platform ${PLATFORM}"
+    fi
+
+
 }
 
 
@@ -173,6 +187,7 @@ show_help() {
     echo "usage: build.sh"
     echo "  [--base base image]"
     echo "  [--base-imge-tag base image tag]"
+    echo "  [--platform platform for docker build"
     echo "  [--framework framework one of ${!FRAMEWORKS[@]}]"
     echo "  [--tensorrtllm-backend-commit commit or tag]"
     echo "  [--build-arg additional build args to pass to docker build]"
@@ -221,7 +236,7 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker build -f $DOCKERFILE $BUILD_OPTIONS $BUILD_ARGS -t $TAG $BUILD_CONTEXT $NO_CACHE
+$RUN_PREFIX docker build -f $DOCKERFILE $PLATFORM $BUILD_ARGS -t $TAG $BUILD_CONTEXT $NO_CACHE 
 
 { set +x; } 2>/dev/null
 
