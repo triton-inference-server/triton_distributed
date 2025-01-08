@@ -5,7 +5,7 @@
 TAG=
 RUN_PREFIX=
 
-# Supported Frameworks
+# Frameworks
 #
 # Each framework has a corresponding base image.  Additional
 # dependencies are specified in the /container/deps folder and
@@ -194,7 +194,7 @@ error() {
 get_options "$@"
 
 
-# BUILD RUN TIME IMAGE
+# BUILD DEV IMAGE
 
 BUILD_ARGS+=" --build-arg BASE_IMAGE=$BASE_IMAGE --build-arg BASE_IMAGE_TAG=$BASE_IMAGE_TAG --build-arg FRAMEWORK=$FRAMEWORK --build-arg ${FRAMEWORK}_FRAMEWORK=1"
 
@@ -228,7 +228,5 @@ $RUN_PREFIX docker build -f $DOCKERFILE $BUILD_OPTIONS $BUILD_ARGS -t $TAG $BUIL
 if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
-
-$RUN_PREFIX docker run --rm -t -v ${SOURCE_DIR}/..:/workspace -w /workspace $TAG /workspace/icp/protos/gen_python.sh > /dev/null 2>&1
 
 { set +x; } 2>/dev/null

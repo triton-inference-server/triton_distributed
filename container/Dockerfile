@@ -10,6 +10,8 @@ FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS triton-distributed
 
 USER root
 
+# TODO: seperate dev from runtime dependendcies
+
 RUN apt-get update; apt-get install -y gdb
 
 # Common dependencies
@@ -48,6 +50,7 @@ RUN --mount=type=bind,source=./container/deps/requirements.standard.txt,target=/
 ARG TENSORRTLLM_FRAMEWORK
 ENV FRAMEWORK_LD_LIBRARY_PATH=${TENSORRTLLM_FRAMEWORK:+/opt/tritonserver/backends/tensorrtllm/}
 ENV LD_LIBRARY_PATH=${FRAMEWORK_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
+ENV TENSORRTLLM_BACKEND_COMMIT=$TENSORRTLLM_BACKEND_COMMIT
 
 # Install NATS - pointing toward NATS github instead of binaries.nats.dev due to server instability
 RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
@@ -86,11 +89,21 @@ RUN git clone https://github.com/triton-inference-server/server.git && \
 # Tokenizers                                             #
 ##########################################################
 
-RUN --mount=type=bind,source=./container/deps/llama3-tok.tgz,target=/tmp/llama3-tok.tgz \
-    mkdir -p /genai-perf/tokenizers && cd /genai-perf/tokenizers && tar -xzf /tmp/llama3-tok.tgz
+# Todo Pull in from network and not local to repo
+# Or Remote
+#
+# RUN --mount=type=bind,source=./container/deps/llama3-tok.tgz,target=/tmp/llama3-tok.tgz \
+#    mkdir -p /genai-perf/tokenizers && cd /genai-perf/tokenizers && tar -xzf /tmp/llama3-tok.tgz
 
 # Working directory
 WORKDIR /workspace
+
+#TODO Exclude container directory
+COPY . /workspace
+
+
+# TODO Protobuf
+# RUN /workspace/icp/protos/gen_python.sh
 
 # Sets pythonpath for python modules
 ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/python:/workspace/icp/python/icp/protos:/workspace/worker/python:/workspace/triton/api_server/src/:/workspaces/tekit_backend/tensorrt_llm"

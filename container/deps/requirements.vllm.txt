@@ -5,4 +5,5 @@
 --extra-index-url https://flashinfer.ai/whl/cu121/torch2.4
 flashinfer
 ucx-py-cu12
-git+https://oauth2:${GITLAB_TOKEN}@gitlab-master.nvidia.com/dl/vllm/vllm.git@ptarasiewicz/disaggregated_inference#egg=vllm[all]
+# TODO update to branch / fork
+vllm==0.6.6.post1
