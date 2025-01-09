@@ -22,7 +22,7 @@ FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS triton-distributed
 
 USER root
 
-# TODO: seperate dev from runtime dependendcies
+# TODO: separate dev from runtime dependendcies
 
 RUN apt-get update; apt-get install -y gdb
 
@@ -116,7 +116,7 @@ COPY . /workspace
 # TODO Protobuf
 # RUN /workspace/icp/protos/gen_python.sh
 
-# TODO 
+# TODO
 # Sets pythonpath for python modules
 #ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/python:/workspace/icp/python/icp/protos:/workspace/worker/python:/workspace/triton/api_server/src/:/workspaces/tekit_backend/tensorrt_llm"
 

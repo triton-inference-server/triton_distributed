@@ -23,7 +23,7 @@ PLATFORM=linux/amd64
 # Each framework has a corresponding base image.  Additional
 # dependencies are specified in the /container/deps folder and
 # installed within framework specific sections of the Dockerfile.
- 
+
 declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3)
 DEFAULT_FRAMEWORK=STANDARD
 
@@ -148,7 +148,7 @@ get_options() {
 	if [[ ! -n "${FRAMEWORKS[$FRAMEWORK]}" ]]; then
 	    error 'ERROR: Unknown framework: ' $FRAMEWORK
 	fi
-	
+
 	if [ -z $BASE_IMAGE_TAG ]; then
 	    BASE_IMAGE_TAG=${FRAMEWORK}_BASE_IMAGE_TAG
 	    BASE_IMAGE_TAG=${!BASE_IMAGE_TAG}
@@ -248,7 +248,7 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker build -f $DOCKERFILE $PLATFORM $BUILD_ARGS -t $TAG $BUILD_CONTEXT $NO_CACHE 
+$RUN_PREFIX docker build -f $DOCKERFILE $PLATFORM $BUILD_ARGS -t $TAG $BUILD_CONTEXT $NO_CACHE
 
 { set +x; } 2>/dev/null
 

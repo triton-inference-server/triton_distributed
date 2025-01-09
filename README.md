@@ -30,7 +30,7 @@ AI. It is designed to enable developers to implement and customize
 routing, load balancing, scaling and workflow definitions at the data
 center scale without sacrificing performance or ease of use.
 
-> [!NOTE] 
+> [!NOTE]
 > This project is currently in the alpha / experimental /
 > rapid-prototyping stage and we are actively looking for feedback and
 > collaborators.
@@ -39,15 +39,15 @@ center scale without sacrificing performance or ease of use.
 
 Triton Distributed development and examples are container based.
 
-You can build the Triton Distributed container using the build scripts in `container/`. 
+You can build the Triton Distributed container using the build scripts in `container/`.
 
-We provide 3 types of builds: 
+We provide 3 types of builds:
 
 1. `STANDARD` which includes our default set of backends (onnx, openvino...)
 2. `TENSORRTLLM` which includes our TRT-LLM backend
 3. `VLLM` which includes our VLLM backend
 
-For example, if you want to build a container for the `VLLM` backend you can run 
+For example, if you want to build a container for the `VLLM` backend you can run
 
 `./container/build.sh --framework VLLM`
 

@@ -77,7 +77,7 @@ show_help() {
     echo "usage: clone_tensorrtllm.sh"
     echo "  [--tensorrtllm-backend-commit commit]"
     echo "  [--git-token git-token]"
-    echo "  [--git-repo git-repo]"	
+    echo "  [--git-repo git-repo]"
     exit 0
 }
 
