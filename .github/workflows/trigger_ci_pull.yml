@@ -15,9 +15,7 @@
 
 on:
   pull_request:
-    branches:
-      - 'main'
-      - 'r*'
+
 jobs:
   mirror_repo:
     environment: GITLAB
