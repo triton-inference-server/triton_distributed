@@ -104,7 +104,7 @@ get_options() {
             ;;
         --tag)
             if [ "$2" ]; then
-                TAG=$2
+                TAG="--tag $2"
                 shift
             else
 		missing_requirement $1
@@ -120,6 +120,14 @@ get_options() {
             ;;
 	--no-cache)
 	    NO_CACHE=" --no-cache"
+            ;;
+	--cache-from)
+	    if [ "$2" ]; then
+                CACHE_FROM="--cache-from $2"
+                shift
+            else
+		missing_requirement $1
+            fi
             ;;
         --)
             shift
@@ -169,7 +177,7 @@ get_options() {
     fi
 
     if [ -z "$TAG" ]; then
-        TAG="triton-distributed:${FRAMEWORK,,}-${BASE_VERSION}"
+        TAG="--tag triton-distributed:${FRAMEWORK,,}-${BASE_VERSION}"
     fi
 
     if [ ! -z "$PLATFORM" ]; then
@@ -241,6 +249,8 @@ if [ ! -z ${HF_TOKEN} ]; then
     BUILD_ARGS+=" --build-arg HF_TOKEN=${HF_TOKEN} "
 fi
 
+LATEST_TAG="--tag triton-distributed:${FRAMEWORK,,}-latest"
+
 show_image_options
 
 
@@ -248,7 +258,7 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker build -f $DOCKERFILE $PLATFORM $BUILD_ARGS -t $TAG $BUILD_CONTEXT $NO_CACHE
+$RUN_PREFIX docker build -f $DOCKERFILE $PLATFORM $BUILD_ARGS $CACHE_FROM $TAG $LATEST_TAG $BUILD_CONTEXT $NO_CACHE
 
 { set +x; } 2>/dev/null
 
