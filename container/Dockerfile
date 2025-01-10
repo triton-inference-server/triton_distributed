@@ -112,12 +112,10 @@ WORKDIR /workspace
 #TODO Exclude container directory
 COPY . /workspace
 
-
 RUN /workspace/icp/protos/gen_python.sh
 
-# TODO
 # Sets pythonpath for python modules
-#ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/python:/workspace/icp/python/icp/protos:/workspace/worker/python:/workspace/triton/api_server/src/:/workspaces/tekit_backend/tensorrt_llm"
+ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/src/python"
 
 # Command and Entrypoint
 CMD []

@@ -20,5 +20,5 @@ PROTO_OUT=$SOURCE_ROOT/src/python/tdist/icp/protos
 
 mkdir -p $PROTO_OUT
 
-python3 -m grpc_tools.protoc -I$PROTO_SRC --python_out=$PROTO_OUT --pyi_out=$PROTO_OUT triton_distributed_icp.proto \
+python3 -m grpc_tools.protoc -I$PROTO_SRC --python_out=$PROTO_OUT --pyi_out=$PROTO_OUT icp.proto \
   && ls $PROTO_OUT
