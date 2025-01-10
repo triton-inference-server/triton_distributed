@@ -113,8 +113,7 @@ WORKDIR /workspace
 COPY . /workspace
 
 
-# TODO Protobuf
-# RUN /workspace/icp/protos/gen_python.sh
+RUN /workspace/icp/protos/gen_python.sh
 
 # TODO
 # Sets pythonpath for python modules
