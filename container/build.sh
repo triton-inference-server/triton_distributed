@@ -1,6 +1,18 @@
 #!/bin/bash -e
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 TAG=
 RUN_PREFIX=
@@ -11,7 +23,7 @@ PLATFORM=linux/amd64
 # Each framework has a corresponding base image.  Additional
 # dependencies are specified in the /container/deps folder and
 # installed within framework specific sections of the Dockerfile.
- 
+
 declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3)
 DEFAULT_FRAMEWORK=STANDARD
 
@@ -136,7 +148,7 @@ get_options() {
 	if [[ ! -n "${FRAMEWORKS[$FRAMEWORK]}" ]]; then
 	    error 'ERROR: Unknown framework: ' $FRAMEWORK
 	fi
-	
+
 	if [ -z $BASE_IMAGE_TAG ]; then
 	    BASE_IMAGE_TAG=${FRAMEWORK}_BASE_IMAGE_TAG
 	    BASE_IMAGE_TAG=${!BASE_IMAGE_TAG}
@@ -236,7 +248,7 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker build -f $DOCKERFILE $PLATFORM $BUILD_ARGS -t $TAG $BUILD_CONTEXT $NO_CACHE 
+$RUN_PREFIX docker build -f $DOCKERFILE $PLATFORM $BUILD_ARGS -t $TAG $BUILD_CONTEXT $NO_CACHE
 
 { set +x; } 2>/dev/null
 

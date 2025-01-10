@@ -1,0 +1,9 @@
+*                   text  eol=lf
+*.sln               text  eol=crlf
+*.[Ii][Cc][Oo]      binary
+*.[Jj][Pp][Ee][Gg]  binary
+*.[Jj][Pp][Gg]      binary
+*.[Pp][Dd][Ff]      binary
+*.[Pp][Nn][Gg]      binary
+*.[Zz][Ii][Pp]      binary
+*.[Tt][Gg][Zz]      binary

@@ -1,5 +1,17 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 ARG BASE_IMAGE="nvcr.io/nvidia/tritonserver"
 ARG BASE_IMAGE_TAG="24.12-py3"
@@ -10,7 +22,7 @@ FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS triton-distributed
 
 USER root
 
-# TODO: seperate dev from runtime dependendcies
+# TODO: separate dev from runtime dependendcies
 
 RUN apt-get update; apt-get install -y gdb
 
@@ -100,13 +112,10 @@ WORKDIR /workspace
 #TODO Exclude container directory
 COPY . /workspace
 
+RUN /workspace/icp/protos/gen_python.sh
 
-# TODO Protobuf
-# RUN /workspace/icp/protos/gen_python.sh
-
-# TODO 
 # Sets pythonpath for python modules
-#ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/python:/workspace/icp/python/icp/protos:/workspace/worker/python:/workspace/triton/api_server/src/:/workspaces/tekit_backend/tensorrt_llm"
+ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/src/python"
 
 # Command and Entrypoint
 CMD []

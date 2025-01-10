@@ -1,6 +1,18 @@
 <!--
-SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES.
+SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 SPDX-License-Identifier: Apache-2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 -->
 
 
@@ -18,7 +30,7 @@ AI. It is designed to enable developers to implement and customize
 routing, load balancing, scaling and workflow definitions at the data
 center scale without sacrificing performance or ease of use.
 
-> [!NOTE] 
+> [!NOTE]
 > This project is currently in the alpha / experimental /
 > rapid-prototyping stage and we are actively looking for feedback and
 > collaborators.
@@ -27,15 +39,15 @@ center scale without sacrificing performance or ease of use.
 
 Triton Distributed development and examples are container based.
 
-You can build the Triton Distributed container using the build scripts in `container/`. 
+You can build the Triton Distributed container using the build scripts in `container/`.
 
-We provide 3 types of builds: 
+We provide 3 types of builds:
 
 1. `STANDARD` which includes our default set of backends (onnx, openvino...)
 2. `TENSORRTLLM` which includes our TRT-LLM backend
 3. `VLLM` which includes our VLLM backend
 
-For example, if you want to build a container for the `VLLM` backend you can run 
+For example, if you want to build a container for the `VLLM` backend you can run
 
 `./container/build.sh --framework VLLM`
 

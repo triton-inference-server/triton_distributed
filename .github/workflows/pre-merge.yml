@@ -1,0 +1,90 @@
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: pre_merge
+
+run-name: Pre Merge Validation of (${{ github.repository }}/${{ github.ref }}) by ${{ github.actor }}.
+
+on:
+  pull_request:
+
+jobs:
+
+  # icp_validation:
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: ghcr.io/triton-inference-server/triton3/python_ci:0.1.9
+  #     env:
+  #       BUILD_NUMBER: ${{ github.job }}
+  #       CUDA_VISIBLE_DEVICES: -1
+  #       PATH: /opt/tritonserver/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/ucx/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/mpi/bin:/usr/local/sbin
+  #     volumes:
+  #     - ${{ github.workspace }}:/workspace
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - run: ./icp/protos/gen_python.sh
+  #   - run: pytest --verbose icp
+  #     timeout-minutes: 3
+
+  pre-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+    - uses: pre-commit/action@v3.0.0
+      timeout-minutes: 3
+
+  # providers_validation:
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: ghcr.io/triton-inference-server/triton3/python_ci:0.1.9
+  #     env:
+  #       BUILD_NUMBER: ${{ github.job }}
+  #       CUDA_VISIBLE_DEVICES: -1
+  #       PATH: /opt/tritonserver/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/ucx/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/mpi/bin:/usr/local/sbin
+  #       PROTO_OUT: /python/icp/protos
+  #     volumes:
+  #     - ${{ github.workspace }}:/workspace
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - run: pytest --verbose providers
+
+  # worker_validation:
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: ghcr.io/triton-inference-server/triton3/python_ci:0.1.9
+  #     env:
+  #       BUILD_NUMBER: ${{ github.job }}
+  #       CUDA_VISIBLE_DEVICES: -1
+  #       PATH: /opt/tritonserver/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/ucx/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/mpi/bin:/usr/local/sbin
+  #       PROTO_OUT: /python/icp/protos
+  #     volumes:
+  #     - ${{ github.workspace }}:/workspace
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - run: ./icp/protos/gen_python.sh
+  #   - run: pytest -p no:warnings --verbose worker/python/tests
+  #     timeout-minutes: 2
