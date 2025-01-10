@@ -163,7 +163,7 @@ get_options() {
     fi
 
     if [ -z "$IMAGE" ]; then
-        IMAGE="triton-distributed:${FRAMEWORK,,}-latest"
+        IMAGE="triton-distributed:latest-${FRAMEWORK,,}"
     fi
 
     if [[ ${GPUS^^} == "NONE" ]]; then

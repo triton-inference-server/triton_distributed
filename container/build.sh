@@ -17,6 +17,7 @@
 TAG=
 RUN_PREFIX=
 PLATFORM=linux/amd64
+VERSION=0.1.0
 
 # Frameworks
 #
@@ -177,7 +178,7 @@ get_options() {
     fi
 
     if [ -z "$TAG" ]; then
-        TAG="--tag triton-distributed:${FRAMEWORK,,}-${BASE_VERSION}"
+        TAG="--tag triton-distributed:${VERSION}-${FRAMEWORK,,}"
     fi
 
     if [ ! -z "$PLATFORM" ]; then
@@ -249,7 +250,7 @@ if [ ! -z ${HF_TOKEN} ]; then
     BUILD_ARGS+=" --build-arg HF_TOKEN=${HF_TOKEN} "
 fi
 
-LATEST_TAG="--tag triton-distributed:${FRAMEWORK,,}-latest"
+LATEST_TAG="--tag triton-distributed:latest-${FRAMEWORK,,}"
 
 show_image_options
 
