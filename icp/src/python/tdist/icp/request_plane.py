@@ -19,7 +19,7 @@ import abc
 import uuid
 from typing import AsyncIterator, Awaitable, Callable, Optional
 
-from icp.protos.triton_icp_pb2 import ModelInferRequest, ModelInferResponse
+from tdist.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 from tritonserver import TritonError
 
 ICP_REQUEST_ID = "icp_request_id"
