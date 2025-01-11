@@ -157,17 +157,19 @@ async def request_generator(request_queue, response_queue, direct_requests=False
     await request_plane.connect()
     target_component_id = None
     while True:
-        request = request_queue.get()
-        if request is None:
+        request_bytes = request_queue.get()
+        if request_bytes is None:
             response_queue.put(None)
             break
+        request = ModelInferRequest()
+        request.ParseFromString(request_bytes)
         async for response in await request_plane.post_request(
             request, response_iterator=True, component_id=target_component_id
         ):
             if direct_requests:
                 target_component_id = get_icp_component_id(response)
             print(response)
-            response_queue.put(response)
+            response_queue.put(response.SerializeToString())
 
 
 def run_worker(model_name, model_version, batch_size, request_count, pull_timeout=0.1):
@@ -219,7 +221,7 @@ async def test_iterator(nats_server):
         request_queue.put(
             ModelInferRequest(
                 model_name=model_name, model_version=model_version, id=str(index)
-            )
+            ).SerializeToString()
         )
     request_queue.put(None)
 
@@ -275,7 +277,7 @@ async def test_direct_requests(nats_server, pull_timeout, batch_size):
         request_queue.put(
             ModelInferRequest(
                 model_name=model_name, model_version=model_version, id=str(index)
-            )
+            ).SerializeToString()
         )
     request_queue.put(None)
 
@@ -290,9 +292,11 @@ async def test_direct_requests(nats_server, pull_timeout, batch_size):
     responders = set()
 
     while True:
-        response = response_queue.get()
-        if response is None:
+        request_bytes = response_queue.get()
+        if request_bytes is None:
             break
+        response = ModelInferResponse()
+        response.ParseFromString(request_bytes)
         response_count += 1
         responders.add(get_icp_component_id(response))
 
