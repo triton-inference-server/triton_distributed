@@ -63,11 +63,14 @@ repos:
   - id: requirements-txt-fixer
   - id: trailing-whitespace
 
-- repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.13.0
-  hooks:
-  - id: mypy
-    exclude: model.py # WAR errors about 'model.py' duplicate module name
+# NOTE: removing from pre commit
+# will move to gitlab ci to run in proper
+# container
+#- repo: https://github.com/pre-commit/mirrors-mypy
+#  rev: v1.13.0
+#  hooks:
+#  - id: mypy
+#    exclude: model.py # WAR errors about 'model.py' duplicate module name
 
 # Fast linting
 - repo: https://github.com/astral-sh/ruff-pre-commit
