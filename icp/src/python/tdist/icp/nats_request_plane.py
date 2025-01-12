@@ -21,7 +21,7 @@ import shutil
 import subprocess
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import Optional
+from typing import Dict, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import nats
@@ -163,8 +163,26 @@ class NatsRequestPlane(RequestPlane):
         split_uri = urlsplit(self._request_plane_uri)._asdict()
         split_uri["path"] = self._response_stream_name
         self._response_uri = str(urlunsplit(split_uri.values()))
-        self._model_streams = {}
-        self._posted_requests = {}
+
+        self._model_streams: Dict[
+            tuple[str, str],  # model_name, model_version
+            tuple[
+                str,  # stream_name
+                nats.js.JetStreamContext.PullSubscription,  # general requests
+                nats.js.JetStreamContext.PullSubscription,  # direct requests
+            ],
+        ] = {}
+
+        self._posted_requests: Dict[
+            str,  # request id
+            tuple[
+                Optional[asyncio.Queue],  # response queue
+                Optional[
+                    Callable[[ModelInferResponse], None | Awaitable[None]]
+                ],  # response handler
+                bool,  # is async handler
+            ],
+        ] = {}
         self._jet_stream = None
         self._event_loop = None
 
@@ -261,7 +279,7 @@ class NatsRequestPlane(RequestPlane):
         # first. If there are more requests than the batch size
         # then extra requests are scheduled for redlivery via nak
 
-        requests = []
+        requests: list[ModelInferRequest] = []
         acks = []
         _, general, directed = await self._get_model_stream(
             model_name, model_version, subscribe=True

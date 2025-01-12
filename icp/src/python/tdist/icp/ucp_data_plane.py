@@ -17,7 +17,6 @@ import asyncio
 import contextlib
 import logging
 import threading
-import typing
 import uuid
 from enum import IntEnum, auto
 from functools import cached_property
@@ -39,7 +38,6 @@ from tdist.icp.data_plane import (
     get_icp_tensor_contents,
     get_icp_tensor_size,
     get_icp_tensor_uri,
-    is_icp_using_tensor_contents,
     set_icp_data_type,
     set_icp_memory_type,
     set_icp_memory_type_id,
@@ -49,7 +47,7 @@ from tdist.icp.data_plane import (
     set_icp_tensor_uri,
 )
 from tdist.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
-from tritonserver import MemoryBuffer, MemoryType, Tensor
+from tritonserver import InvalidArgumentError, MemoryBuffer, MemoryType, Tensor
 
 LOGGER = logging.getLogger(__name__)
 
@@ -60,25 +58,22 @@ class UCP_DATA_PLANE_COMMANDS(IntEnum):
     RELEASE = auto()
 
 
-# TODO this is a temporary workaround to avoid deadlocks in the UCP data plane
+# UCP has deadlocks when created multiple instances in a single process
+# Create a singleton
+
 _ucp_data_plane_singleton = None
 
 
-def get_ucp_data_plane_singleton(
-    hostname: Optional[str] = None,
-    port: int = 0,
-    keep_endpoints_open: bool = False,
-) -> "UcpDataPlane":
+def UcpDataPlane(
+    hostname: Optional[str] = None, port: int = 0, keep_endpoints_open: bool = False
+):
     global _ucp_data_plane_singleton
     if _ucp_data_plane_singleton is None:
-        _ucp_data_plane_singleton = UcpDataPlane(hostname, port, keep_endpoints_open)
-        from worker.remote_connector import set_data_plane
-
-        set_data_plane(_ucp_data_plane_singleton)
+        _ucp_data_plane_singleton = _UcpDataPlane(hostname, port, keep_endpoints_open)
     return _ucp_data_plane_singleton
 
 
-class UcpDataPlane(DataPlane):
+class _UcpDataPlane(DataPlane):
     def __init__(
         self,
         hostname: Optional[str] = None,
@@ -86,7 +81,7 @@ class UcpDataPlane(DataPlane):
         keep_endpoints_open: bool = False,
     ) -> None:
         self._listener = None
-        self._tensor_store: typing.Dict[uuid.UUID, Tensor] = {}
+        self._tensor_store: Dict[uuid.UUID, Tensor] = {}
         self._id_size = len(uuid.uuid1().bytes)
         self._port = port
         self._hostname = hostname or ucp.get_address()
@@ -188,6 +183,10 @@ class UcpDataPlane(DataPlane):
                         device_manager = cupy.cuda.Device(
                             tensor.memory_buffer.memory_type_id
                         )
+                    else:
+                        raise InvalidArgumentError(
+                            f"Invalid Memory Type {tensor.memory_type}"
+                        )
                     with device_manager:
                         if tensor.data_type == tritonserver.DataType.BYTES:
                             array = tensor.memory_buffer.owner
@@ -216,7 +215,7 @@ class UcpDataPlane(DataPlane):
         result: ModelInferRequest.InferInputTensor
         | ModelInferResponse.InferOutputTensor,
         tensor: Tensor,
-        tensor_id: typing.Optional[uuid.UUID] = None,
+        tensor_id: Optional[uuid.UUID] = None,
         use_tensor_contents: bool = False,
     ):
         if self._closed:
@@ -241,7 +240,7 @@ class UcpDataPlane(DataPlane):
     def put_input_tensor(
         self,
         tensor: Tensor,
-        tensor_id: typing.Optional[uuid.UUID] = None,
+        tensor_id: Optional[uuid.UUID] = None,
         use_tensor_contents: bool = False,
     ) -> ModelInferRequest.InferInputTensor:
         """Put an input tensor into the data plane or within
@@ -272,7 +271,7 @@ class UcpDataPlane(DataPlane):
     def put_output_tensor(
         self,
         tensor: Tensor,
-        tensor_id: typing.Optional[uuid.UUID] = None,
+        tensor_id: Optional[uuid.UUID] = None,
         use_tensor_contents: bool = False,
     ) -> ModelInferResponse.InferOutputTensor:
         """Put an output tensor into the data plane or within
@@ -299,26 +298,43 @@ class UcpDataPlane(DataPlane):
         )
         return result
 
+    def _split_tensor_uri(
+        self,
+        remote_tensor: ModelInferRequest.InferInputTensor
+        | ModelInferResponse.InferOutputTensor,
+    ) -> tuple[uuid.UUID, str, int]:
+        tensor_uri = get_icp_tensor_uri(remote_tensor)
+
+        split_uri = urlsplit(tensor_uri)
+        path = str(split_uri.path).replace("/", "")
+        tensor_id = uuid.UUID(path)
+        host = split_uri.hostname
+        port = split_uri.port
+
+        if host is None or not isinstance(host, str):
+            raise DataPlaneError(f"Invalid host {host}")
+
+        if port is None:
+            raise DataPlaneError(f"Invalid Port {port}")
+
+        return tensor_id, host, port
+
     async def _get_remote_tensor(
         self,
         remote_tensor: ModelInferRequest.InferInputTensor
         | ModelInferResponse.InferOutputTensor,
         requested_memory_type: Optional[MemoryType],
         requested_memory_type_id: Optional[int],
-    ) -> Tensor | None:
-        if is_icp_using_tensor_contents(remote_tensor):
-            return get_icp_tensor_contents(remote_tensor)
+    ) -> Tensor:
+        tensor_contents = get_icp_tensor_contents(remote_tensor)
+        if tensor_contents is not None:
+            return tensor_contents
 
-        tensor_uri = get_icp_tensor_uri(remote_tensor)
         tensor_size = get_icp_tensor_size(remote_tensor)
         memory_type = get_icp_memory_type(remote_tensor)
         data_type = get_icp_data_type(remote_tensor)
         shape = get_icp_shape(remote_tensor)
-        split_uri = urlsplit(tensor_uri)
-        path = str(split_uri.path).replace("/", "")
-        tensor_id = uuid.UUID(path)
-        host = split_uri.hostname
-        port = split_uri.port
+        tensor_id, host, port = self._split_tensor_uri(remote_tensor)
         storage = None
 
         if tensor_size is None:
@@ -374,17 +390,12 @@ class UcpDataPlane(DataPlane):
         set_icp_memory_type(result, memory_type)
         set_icp_memory_type_id(result, memory_type_id)
 
-        if is_icp_using_tensor_contents(remote_tensor):
+        if remote_tensor.HasField("contents"):
             for value in remote_tensor.contents.bytes_contents:
                 result.contents.bytes_contents.append(value)
             return
 
-        tensor_uri = get_icp_tensor_uri(remote_tensor)
-        split_uri = urlsplit(tensor_uri)
-        path = str(split_uri.path).replace("/", "")
-        tensor_id = uuid.UUID(path)
-        host = split_uri.hostname
-        port = split_uri.port
+        tensor_id, host, port = self._split_tensor_uri(remote_tensor)
 
         try:
             endpoint = await self._create_endpoint(host, port)
@@ -392,11 +403,11 @@ class UcpDataPlane(DataPlane):
             await endpoint.send(
                 numpy.array(UCP_DATA_PLANE_COMMANDS.CREATE_REFERENCE, dtype="u1")
             )
-            reference_tensor_id = numpy.empty(self._id_size, dtype="u1")
-            await endpoint.recv(reference_tensor_id)
+            reference_tensor_id_bytes = numpy.empty(self._id_size, dtype="u1")
+            await endpoint.recv(reference_tensor_id_bytes)
             if not self._keep_endpoints_open:
                 await self._close_endpoint(host, port)
-            reference_tensor_id = uuid.UUID(bytes=reference_tensor_id.tobytes())
+            reference_tensor_id = uuid.UUID(bytes=reference_tensor_id_bytes.tobytes())
             set_icp_tensor_uri(result, f"ucp://{host}:{port}/{reference_tensor_id}")
         except Exception as e:
             raise DataPlaneError("Error Referencing Tensor:\n{remote_tensor}") from e
@@ -406,12 +417,8 @@ class UcpDataPlane(DataPlane):
         remote_tensor: ModelInferRequest.InferInputTensor
         | ModelInferResponse.InferOutputTensor,
     ):
-        tensor_uri = get_icp_tensor_uri(remote_tensor)
-        split_uri = urlsplit(tensor_uri)
-        path = str(split_uri.path).replace("/", "")
-        tensor_id = uuid.UUID(path)
-        host = split_uri.hostname
-        port = split_uri.port
+        tensor_id, host, port = self._split_tensor_uri(remote_tensor)
+
         try:
             endpoint = await self._create_endpoint(host, port)
             await endpoint.send(numpy.array(tensor_id.bytes))
@@ -431,7 +438,7 @@ class UcpDataPlane(DataPlane):
         | ModelInferResponse.InferOutputTensor,
         requested_memory_type: Optional[MemoryType] = None,
         requested_memory_type_id: Optional[int] = None,
-    ) -> Tensor | None:
+    ) -> Tensor:
         if self._event_loop is None:
             raise DataPlaneError("Not connected")
         return asyncio.run_coroutine_threadsafe(
@@ -475,7 +482,7 @@ class UcpDataPlane(DataPlane):
         remote_tensor: ModelInferRequest.InferInputTensor
         | ModelInferResponse.InferOutputTensor,
     ) -> None:
-        if is_icp_using_tensor_contents(remote_tensor):
+        if remote_tensor.HasField("contents"):
             return None
 
         if self._event_loop is None:

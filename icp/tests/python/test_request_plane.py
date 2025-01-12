@@ -41,7 +41,7 @@ from tdist.icp.request_plane import get_icp_component_id
 NATS_PORT = 4222
 
 
-def is_port_in_use(port: int) -> None:
+def is_port_in_use(port: int) -> bool:
     import socket
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

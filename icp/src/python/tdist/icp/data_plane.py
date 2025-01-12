@@ -16,12 +16,19 @@
 """Abstract Class for interacting with Triton Inference Serving Platform Inter-Component Protocol Data Plane"""
 
 import abc
+import uuid
 from typing import Optional, Sequence
 
 import cupy
 import numpy
 from tdist.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
-from tritonserver import DataType, MemoryBuffer, MemoryType, Tensor
+from tritonserver import (
+    DataType,
+    InvalidArgumentError,
+    MemoryBuffer,
+    MemoryType,
+    Tensor,
+)
 from tritonserver._api._datautils import (
     STRING_TO_TRITON_MEMORY_TYPE,
     TRITON_TO_NUMPY_DTYPE,
@@ -140,7 +147,6 @@ def set_icp_tensor_contents(
     message: ModelInferRequest.InferInputTensor | ModelInferResponse.InferOutputTensor,
     tensor: Tensor,
 ) -> None:
-    array = None
     set_icp_memory_type(message, MemoryType.CPU)
     set_icp_memory_type_id(message, 0)
     set_icp_tensor_size(message, tensor.size)
@@ -155,19 +161,17 @@ def set_icp_tensor_contents(
         elif tensor.memory_type == MemoryType.GPU:
             with cupy.cuda.Device(tensor.memory_buffer.memory_type_id):
                 array = cupy.from_dlpack(tensor)
+        else:
+            raise InvalidArgumentError(
+                f"Invalid Tensor Memory Type {tensor.memory_type}"
+            )
         message.contents.bytes_contents.append(array.tobytes())
-
-
-def is_icp_using_tensor_contents(
-    message: ModelInferRequest.InferInputTensor | ModelInferResponse.InferOutputTensor,
-) -> bool:
-    return message.HasField("contents")
 
 
 def get_icp_tensor_contents(
     message: ModelInferRequest.InferInputTensor | ModelInferResponse.InferOutputTensor,
 ) -> Tensor | None:
-    if not is_icp_using_tensor_contents(message):
+    if not message.HasField("contents"):
         # Return None if the content is not part of message
         return None
 
@@ -206,13 +210,13 @@ class DataPlane(abc.ABC):
 
     @abc.abstractmethod
     def put_input_tensor(
-        self, tensor: Tensor, use_tensor_contents: bool
+        self, tensor: Tensor, tensor_id: Optional[uuid.UUID], use_tensor_contents: bool
     ) -> ModelInferRequest.InferInputTensor:
         pass
 
     @abc.abstractmethod
     def put_output_tensor(
-        self, tensor: Tensor, use_tensor_contents: bool
+        self, tensor: Tensor, tensor_id: Optional[uuid.UUID], use_tensor_contents: bool
     ) -> ModelInferResponse.InferOutputTensor:
         pass
 

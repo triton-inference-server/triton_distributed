@@ -77,10 +77,6 @@ def data_plane_reader(
                 requested_memory_type=memory_type,
                 requested_memory_type_id=memory_type_id,
             )
-        except DataPlaneError as e:
-            get_error = e
-
-        if not get_error:
             if output_tensor.data_type == DataType.BYTES:
                 output_tensor = output_tensor.to_bytes_array()
             else:
@@ -88,6 +84,10 @@ def data_plane_reader(
                     output_tensor = cupy.from_dlpack(output_tensor)
                 else:
                     output_tensor = numpy.from_dlpack(output_tensor)
+
+        except DataPlaneError as e:
+            get_error = e
+
         try:
             data_plane.release_tensor(input_tensor)
         except DataPlaneError as e:
