@@ -24,6 +24,7 @@ opentelemetry-sdk
 pre-commit
 protobuf==5.27.3
 pyright
+pytest-md-report
 pytest-mypy
 sentencepiece
 transformers
