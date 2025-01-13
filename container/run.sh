@@ -103,6 +103,14 @@ get_options() {
 		missing_requirement $1
             fi
             ;;
+	--rm)
+            if [ "$2" ]; then
+                RM=$2
+                shift
+            else
+		missing_requirement $1
+            fi
+            ;;
 	-v)
             if [ "$2" ]; then
                 VOLUME_MOUNTS+=" -v $2 "
@@ -212,11 +220,22 @@ get_options() {
 	PRIVILEGED="FALSE"
     fi
 
+    if [ -z ${RM} ]; then
+	RM="TRUE"
+    fi
+
     if [[ ${PRIVILEGED^^} == "FALSE" ]]; then
 	PRIVILEGED_STRING=""
     else
 	PRIVILEGED_STRING="--privileged"
     fi
+
+    if [[ ${RM^^} == "FALSE" ]]; then
+	RM_STRING=""
+    else
+	RM_STRING=" --rm "
+    fi
+
 
     REMAINING_ARGS=("$@")
 }
@@ -254,6 +273,6 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-${RUN_PREFIX} docker run ${GPU_STRING} ${INTERACTIVE} --rm --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 ${ENVIRONMENT_VARIABLES} ${VOLUME_MOUNTS} -w /workspace --cap-add CAP_SYS_PTRACE --ipc host ${PRIVILEGED_STRING} ${NAME_STRING} ${IMAGE} "${REMAINING_ARGS[@]}"
+${RUN_PREFIX} docker run ${GPU_STRING} ${INTERACTIVE} ${RM_STRING} --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 ${ENVIRONMENT_VARIABLES} ${VOLUME_MOUNTS} -w /workspace --cap-add CAP_SYS_PTRACE --ipc host ${PRIVILEGED_STRING} ${NAME_STRING} ${IMAGE} "${REMAINING_ARGS[@]}"
 
 { set +x; } 2>/dev/null
