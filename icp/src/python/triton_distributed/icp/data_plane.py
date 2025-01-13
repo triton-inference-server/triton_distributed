@@ -21,7 +21,7 @@ from typing import Optional, Sequence
 
 import cupy
 import numpy
-from tdist.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
+from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 from tritonserver import (
     DataType,
     InvalidArgumentError,

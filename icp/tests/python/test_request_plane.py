@@ -21,10 +21,12 @@ import uuid
 from multiprocessing import Process, Queue
 
 import pytest
-import tdist
-from tdist.icp.nats_request_plane import NatsRequestPlane
-from tdist.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
-from tdist.icp.request_plane import get_icp_component_id
+from triton_distributed.icp.nats_request_plane import NatsRequestPlane
+from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
+from triton_distributed.icp.request_plane import (
+    get_icp_component_id,
+    set_icp_final_response,
+)
 
 NATS_PORT = 4222
 
@@ -120,7 +122,7 @@ async def test_handler(nats_server):
         async for request in requests:
             request_count -= 1
             response = ModelInferResponse()
-            tdist.icp.request_plane.set_icp_final_response(response, True)
+            set_icp_final_response(response, True)
             acks.append(worker_request_plane.post_response(request, response))
         print(request_count)
         await asyncio.gather(*acks)
@@ -185,7 +187,7 @@ async def worker(
             print(request)
             request_count -= 1
             response = ModelInferResponse()
-            tdist.icp.request_plane.set_icp_final_response(response, True)
+            set_icp_final_response(response, True)
             acks.append(request_plane.post_response(request, responses=response))
         await asyncio.gather(*acks)
 

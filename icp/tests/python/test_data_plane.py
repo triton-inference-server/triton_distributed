@@ -24,8 +24,8 @@ import numpy
 import pytest
 import ucp
 from cupy_backends.cuda.api.runtime import CUDARuntimeError
-from tdist.icp.data_plane import DataPlaneError
-from tdist.icp.ucp_data_plane import (
+from triton_distributed.icp.data_plane import DataPlaneError
+from triton_distributed.icp.ucp_data_plane import (
     UcpDataPlane,
     get_icp_tensor_uri,
     set_icp_tensor_uri,

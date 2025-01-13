@@ -15,7 +15,7 @@
 
 syntax = "proto3";
 
-package tritondistributed.icp;
+package triton.distributed.icp;
 
 //@@
 //@@.. cpp:var:: message ModelInferRequest

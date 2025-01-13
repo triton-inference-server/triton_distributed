@@ -28,7 +28,7 @@ import numpy
 import tritonserver
 import ucp
 from cupy_backends.cuda.api.runtime import CUDARuntimeError
-from tdist.icp.data_plane import (
+from triton_distributed.icp.data_plane import (
     DataPlane,
     DataPlaneError,
     get_icp_data_type,
@@ -46,7 +46,7 @@ from tdist.icp.data_plane import (
     set_icp_tensor_size,
     set_icp_tensor_uri,
 )
-from tdist.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
+from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 from tritonserver import InvalidArgumentError, MemoryBuffer, MemoryType, Tensor
 
 LOGGER = logging.getLogger(__name__)

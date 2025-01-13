@@ -25,8 +25,8 @@ from typing import Dict, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import nats
-from tdist.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
-from tdist.icp.request_plane import (
+from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
+from triton_distributed.icp.request_plane import (
     RequestPlane,
     get_icp_final_response,
     get_icp_request_id,
