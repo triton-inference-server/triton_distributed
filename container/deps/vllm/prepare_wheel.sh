@@ -16,11 +16,7 @@
 
 # A script to download a Python wheel, patch it, copy additional files,
 # repackage it, and optionally install the new wheel.
-#
-# Usage examples:
-#   ./script.sh --debug
-#   ./script.sh --install --force
-#   ./script.sh --help
+
 
 ###############################################################################
 #  CONFIGURATION & DEFAULTS
@@ -126,7 +122,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -D|--debug)
-      DEBUG=false
+      DEBUG=true
       shift
       ;;
     -h|--help)
@@ -148,6 +144,18 @@ if [[ "$DEBUG" == true ]]; then
 fi
 
 info_log "Starting wheel patching script..."
+
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1 || { echo >&2 "I require $1 but it's not installed. Aborting."; exit 1; }
+}
+
+# Check for required commands
+command_exists pip
+command_exists unzip
+command_exists zip
+command_exists patch
 
 # ---------------------------------------------------------------------------
 # 1. Check for existing wheel file or directory
