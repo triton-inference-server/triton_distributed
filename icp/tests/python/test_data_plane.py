@@ -154,9 +154,9 @@ def tensors():
 
 @pytest.mark.timeout(60, method="thread")
 def test_data_plane_error_invalid_tensor_uri(request):
-    input_tensor_queue = Queue()
-    tensor_descriptor_queue = Queue()
-    output_tensor_queue = Queue()
+    input_tensor_queue: Queue = Queue()
+    tensor_descriptor_queue: Queue = Queue()
+    output_tensor_queue: Queue = Queue()
     input_tensors = []
     memory_type = MemoryType.CPU
     memory_type_id = 0
@@ -309,9 +309,9 @@ def _get_random_tensor(data_type: DataType, size: Sequence[int]):
     ],
 )
 def test_tensor_types(request, data_type):
-    input_tensor_queue = Queue()
-    tensor_descriptor_queue = Queue()
-    output_tensor_queue = Queue()
+    input_tensor_queue: Queue = Queue()
+    tensor_descriptor_queue: Queue = Queue()
+    output_tensor_queue: Queue = Queue()
     input_tensors = []
     output_tensors = []
     memory_type = MemoryType.CPU
@@ -405,9 +405,9 @@ def test_tensor_types(request, data_type):
     ],
 )
 def test_use_tensor_contents(request, data_type):
-    input_tensor_queue = Queue()
-    tensor_descriptor_queue = Queue()
-    output_tensor_queue = Queue()
+    input_tensor_queue: Queue = Queue()
+    tensor_descriptor_queue: Queue = Queue()
+    output_tensor_queue: Queue = Queue()
     input_tensors = []
     output_tensors = []
     memory_type = MemoryType.CPU

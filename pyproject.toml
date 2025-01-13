@@ -73,3 +73,5 @@ explicit_package_bases = true
 #   NOTE: Can possibly move mypy from pre-commit to a github action run only in
 #   a container with the expected environment and PYTHONPATH setup.
 ignore_missing_imports = true
+
+check_untyped_defs = true

@@ -204,8 +204,8 @@ async def test_iterator(nats_server):
     request_count = 100
     model_name = str(uuid.uuid1())
     model_version = "1"
-    request_queue = Queue()
-    response_queue = Queue()
+    request_queue: Queue = Queue()
+    response_queue: Queue = Queue()
     generator_process = Process(
         target=run_request_generator, args=(request_queue, response_queue)
     )
@@ -245,8 +245,8 @@ async def test_direct_requests(nats_server, pull_timeout, batch_size):
     request_count = 100
     model_name = str(uuid.uuid1())
     model_version = "1"
-    request_queue = Queue()
-    response_queue = Queue()
+    request_queue: Queue = Queue()
+    response_queue: Queue = Queue()
 
     # Note with direct_requests == True
     # all requests should target a single worker

@@ -80,7 +80,6 @@ class _UcpDataPlane(DataPlane):
         port: int = 0,
         keep_endpoints_open: bool = False,
     ) -> None:
-        self._listener = None
         self._tensor_store: Dict[uuid.UUID, Tensor] = {}
         self._id_size = len(uuid.uuid1().bytes)
         self._port = port
@@ -89,8 +88,8 @@ class _UcpDataPlane(DataPlane):
             target=self._run_event_loop, daemon=True
         )
         self._start_event = threading.Event()
-        self._listener = None
-        self._event_loop = None
+        self._listener: Optional[ucp.Listener] = None
+        self._event_loop: Optional[asyncio.AbstractEventLoop] = None
         self._closed = False
         self._keep_endpoints_open = keep_endpoints_open
         self._endpoints: Dict[Tuple[str, int], ucp.Endpoint] = {}
@@ -165,9 +164,9 @@ class _UcpDataPlane(DataPlane):
 
     async def _send_receive(self, ep):
         while True:
-            tensor_id = numpy.empty(self._id_size, dtype="u1")
-            await ep.recv(tensor_id)
-            tensor_id = uuid.UUID(bytes=tensor_id.tobytes())
+            tensor_id_bytes = numpy.empty(self._id_size, dtype="u1")
+            await ep.recv(tensor_id_bytes)
+            tensor_id = uuid.UUID(bytes=tensor_id_bytes.tobytes())
             command = numpy.empty(1, dtype="u1")
 
             await ep.recv(command)

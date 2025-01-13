@@ -168,23 +168,21 @@ class NatsRequestPlane(RequestPlane):
             tuple[str, str],  # model_name, model_version
             tuple[
                 str,  # stream_name
-                nats.js.JetStreamContext.PullSubscription,  # general requests
-                nats.js.JetStreamContext.PullSubscription,  # direct requests
+                Optional[nats.js.JetStreamContext.PullSubscription],  # general requests
+                Optional[nats.js.JetStreamContext.PullSubscription],  # direct requests
             ],
         ] = {}
 
         self._posted_requests: Dict[
-            str,  # request id
+            uuid.UUID,  # request id
             tuple[
                 Optional[asyncio.Queue],  # response queue
-                Optional[
-                    Callable[[ModelInferResponse], None | Awaitable[None]]
-                ],  # response handler
-                bool,  # is async handler
+                Optional[Callable[[ModelInferResponse], None | Awaitable[None]]],
+                Optional[Callable[[ModelInferResponse], Awaitable[None]]],
             ],
         ] = {}
-        self._jet_stream = None
-        self._event_loop = None
+        self._jet_stream: Optional[nats.js.JetStreamContext] = None
+        self._event_loop: Optional[asyncio.AbstractEventLoop] = None
 
     def _replace_special_chars(self, stream_name):
         return stream_name.replace(".", "-")
@@ -193,8 +191,8 @@ class NatsRequestPlane(RequestPlane):
         self, model_name: str, model_version: str, subscribe: bool
     ) -> tuple[
         str,
-        nats.js.JetStreamContext.PullSubscription,
-        nats.js.JetStreamContext.PullSubscription,
+        Optional[nats.js.JetStreamContext.PullSubscription],
+        Optional[nats.js.JetStreamContext.PullSubscription],
     ]:
         if self._jet_stream is None:
             raise InvalidArgumentError("Not Connected!")
@@ -243,11 +241,11 @@ class NatsRequestPlane(RequestPlane):
             if get_icp_final_response(response):
                 del self._posted_requests[request_id]
             if response_queue:
-                await response_queue.put(response)
-            elif async_handler:
-                await handler(response)
-            else:
-                handler(response)
+                return await response_queue.put(response)
+            if async_handler is not None:
+                return await async_handler(response)
+            if handler is not None:
+                return handler(response)
 
     async def connect(self):
         self._nats_client = await nats.connect(self._request_plane_uri)
@@ -290,6 +288,7 @@ class NatsRequestPlane(RequestPlane):
                 subscription.fetch(batch=number_requests, timeout=timeout)
             )
             for subscription in [directed, general]
+            if subscription
         ]
 
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
@@ -374,7 +373,7 @@ class NatsRequestPlane(RequestPlane):
                 "Can only specify either response handler or response iterator"
             )
 
-        async_response_handler = False
+        async_response_handler = None
 
         response_queue = None
         if response_handler or response_iterator:
@@ -386,7 +385,11 @@ class NatsRequestPlane(RequestPlane):
             set_icp_response_to_uri(request, self._response_uri)
             set_icp_component_id(request, self._component_id)
 
-            async_response_handler = asyncio.iscoroutinefunction(response_handler)
+            async_response_handler = (
+                response_handler
+                if asyncio.iscoroutinefunction(response_handler)
+                else None
+            )
 
             response_queue = None
 
