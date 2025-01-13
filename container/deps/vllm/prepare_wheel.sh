@@ -254,7 +254,7 @@ if [[ "$INSTALL_WHEEL" == true ]]; then
   fi
 
   info_log "Installing newly created wheel '$OUTPUT_WHEEL'..."
-  pip install --force-reinstall --upgrade "$OUTPUT_WHEEL"
+  pip install --force-reinstall --upgrade --break-system-packages "$OUTPUT_WHEEL"
 fi
 
 info_log "Patch and repackage completed successfully!"

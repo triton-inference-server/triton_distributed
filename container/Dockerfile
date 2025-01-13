@@ -14,7 +14,7 @@
 # limitations under the License.
 
 ARG BASE_IMAGE="nvcr.io/nvidia/tritonserver"
-ARG BASE_IMAGE_TAG="24.12-py3"
+ARG BASE_IMAGE_TAG="24.08-py3"
 ARG VLLM_WHEEL
 
 FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS triton-distributed
@@ -61,7 +61,7 @@ RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
       apt-get install zip -y && \
       cp -r /tmp/deps/vllm /tmp/local_vllm && \
       cd /tmp/local_vllm && \
-      bash ./prepare_wheel.sh --install --debug ; \
+      bash ./prepare_wheel.sh --install --debug --force ; \
     fi
 
 RUN --mount=type=bind,source=./container/deps/requirements.standard.txt,target=/tmp/requirements.txt \
