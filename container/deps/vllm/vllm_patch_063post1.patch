@@ -19,7 +19,7 @@ diff -Naur v0.6.3.post1_vllm/_version.py patched_vllm/_version.py
 @@ -12,5 +12,5 @@
  __version_tuple__: VERSION_TUPLE
  version_tuple: VERSION_TUPLE
- 
+
 -__version__ = version = '0.6.3.post1'
 -__version_tuple__ = version_tuple = (0, 6, 3)
 +__version__ = version = '0.6.3.post2.dev16+gf61960ce'
@@ -30,7 +30,7 @@ diff -Naur v0.6.3.post1_vllm/config.py patched_vllm/config.py
 @@ -1046,7 +1046,7 @@
                  "sequences. Please increase max_num_batched_tokens or "
                  "decrease max_model_len.")
- 
+
 -        if self.max_num_batched_tokens < self.max_num_seqs:
 +        if self.max_num_seqs is not None and self.max_num_batched_tokens < self.max_num_seqs:
              raise ValueError(
@@ -44,9 +44,9 @@ diff -Naur v0.6.3.post1_vllm/core/scheduler.py patched_vllm/core/scheduler.py
                             SequenceStatus)
  from vllm.utils import Device, PyObjectCache
 +import vllm.envs as envs
- 
+
  logger = init_logger(__name__)
- 
+
 @@ -883,12 +884,17 @@
              assert len(waiting_seqs) == 1, (
                  "Waiting sequence group should have only one prompt "
@@ -68,25 +68,25 @@ diff -Naur v0.6.3.post1_vllm/core/scheduler.py patched_vllm/core/scheduler.py
 +                if not enable_chunking:
 +                    num_prompt_tokens = waiting_seqs[0].get_len()
 +                    assert num_new_tokens == num_prompt_tokens
- 
+
              prompt_limit = self._get_prompt_limit(seq_group)
              if num_new_tokens > prompt_limit:
 @@ -967,7 +973,7 @@
- 
+
              seq_groups.append(
                  ScheduledSequenceGroup(seq_group=seq_group,
 -                                       token_chunk_size=num_new_tokens))
 +                                       token_chunk_size=real_num_new_tokens))
              budget.add_num_batched_tokens(seq_group.request_id, num_new_tokens)
              budget.add_num_seqs(seq_group.request_id, num_new_seqs)
- 
+
 diff -Naur v0.6.3.post1_vllm/distributed/parallel_state.py patched_vllm/distributed/parallel_state.py
 --- v0.6.3.post1_vllm/distributed/parallel_state.py	2025-01-09 03:03:32.291290245 -0800
 +++ patched_vllm/distributed/parallel_state.py	2025-01-09 01:49:43.785300620 -0800
 @@ -889,6 +889,14 @@
  get_pipeline_model_parallel_group = get_pp_group
- 
- 
+
+
 +_STORE: Optional[Any] = None
 +
 +def get_store() -> Any:
@@ -102,7 +102,7 @@ diff -Naur v0.6.3.post1_vllm/distributed/parallel_state.py patched_vllm/distribu
      local_rank: int = -1,
      backend: str = "nccl",
  ):
-+    
++
 +    # TODO ptarasiewicz this is a hack to get the stage from the environment
 +    logger.info("="*50)
 +    logger.info("Patching init_distributed_environment")
@@ -160,12 +160,12 @@ diff -Naur v0.6.3.post1_vllm/distributed/parallel_state.py patched_vllm/distribu
 @@ -958,6 +997,10 @@
          assert _WORLD.world_size == torch.distributed.get_world_size(), (
              "world group already initialized with a different world size")
- 
+
 +    global _STORE
 +    if store is not None and _STORE is None:
 +        _STORE = store
 +
- 
+
  def initialize_model_parallel(
      tensor_model_parallel_size: int = 1,
 @@ -986,32 +1029,60 @@
@@ -179,7 +179,7 @@ diff -Naur v0.6.3.post1_vllm/distributed/parallel_state.py patched_vllm/distribu
      world_size: int = torch.distributed.get_world_size()
      backend = backend or torch.distributed.get_backend(
          get_world_group().device_group)
- 
+
 -    if (world_size !=
 -            tensor_model_parallel_size * pipeline_model_parallel_size):
 -        raise RuntimeError(
@@ -194,7 +194,7 @@ diff -Naur v0.6.3.post1_vllm/distributed/parallel_state.py patched_vllm/distribu
 +    #         f"world_size ({world_size}) is not equal to "
 +    #         f"tensor_model_parallel_size ({tensor_model_parallel_size}) x "
 +    #         f"pipeline_model_parallel_size ({pipeline_model_parallel_size})")
- 
+
      # Build the tensor model-parallel groups.
      num_tensor_model_parallel_groups: int = (world_size //
 -                                             tensor_model_parallel_size)
@@ -233,7 +233,7 @@ diff -Naur v0.6.3.post1_vllm/distributed/parallel_state.py patched_vllm/distribu
 +                range(i * tensor_model_parallel_size,
 +                    (i + 1) * tensor_model_parallel_size))
 +            group_ranks.append(ranks)
- 
+
      # message queue broadcaster is only used in tensor model parallel group
 +    logger.debug("initializing tensor model parallel group")
 +    logger.debug(f"group_ranks {group_ranks}")
@@ -241,7 +241,7 @@ diff -Naur v0.6.3.post1_vllm/distributed/parallel_state.py patched_vllm/distribu
                                      get_world_group().local_rank,
                                      backend,
 @@ -1020,15 +1091,32 @@
- 
+
      # Build the pipeline model-parallel groups.
      num_pipeline_model_parallel_groups: int = (world_size //
 -                                               pipeline_model_parallel_size)
@@ -284,7 +284,7 @@ diff -Naur v0.6.3.post1_vllm/engine/async_llm_engine.py patched_vllm/engine/asyn
              is_first_step_output: bool = False if not seq_group_metadata_list \
                  else seq_group_metadata_list[0].state.num_steps == 1
 -
-+            
++
              ctx.append_output(outputs=outputs,
                                seq_group_metadata_list=seq_group_metadata_list,
                                scheduler_outputs=scheduler_outputs,
@@ -298,7 +298,7 @@ diff -Naur v0.6.3.post1_vllm/engine/llm_engine.py patched_vllm/engine/llm_engine
 -        num_gpu_blocks, num_cpu_blocks = (
 -            self.model_executor.determine_num_available_blocks())
 +
-+        
++
 +        max_num_seqs = None
 +        if self.scheduler_config.max_num_seqs is not None:
 +            num_gpu_blocks, num_cpu_blocks = (
@@ -318,19 +318,19 @@ diff -Naur v0.6.3.post1_vllm/engine/llm_engine.py patched_vllm/engine/llm_engine
 +                if max_iter_count_left < 1 or (max_concurrency - max_num_seqs) ** 2 < 2:
 +                    break
 +                max_num_seqs = int(max_concurrency)
-+        
- 
++
+
          if self.cache_config.num_gpu_blocks_override is not None:
              num_gpu_blocks_override = self.cache_config.num_gpu_blocks_override
 @@ -494,6 +514,10 @@
          self.cache_config.num_cpu_blocks = num_cpu_blocks
- 
+
          self.model_executor.initialize_cache(num_gpu_blocks, num_cpu_blocks)
-+        
++
 +        if max_num_seqs is not None and self.scheduler_config.max_num_seqs is None:
 +            self.scheduler_config.max_num_seqs = max_num_seqs
 +            logger.info("Setting max_num_seqs to %d", max_num_seqs)
- 
+
      @classmethod
      def _get_executor_cls(cls,
 diff -Naur v0.6.3.post1_vllm/envs.py patched_vllm/envs.py
@@ -349,8 +349,8 @@ diff -Naur v0.6.3.post1_vllm/envs.py patched_vllm/envs.py
 +    VLLM_TORCH_PORT: int = 36183
 +    VLLM_WORKER_ID: int = 0
 +    VLLM_DATA_PLANE_BACKEND: str = "nccl"
- 
- 
+
+
  def get_default_cache_root():
 @@ -433,6 +442,35 @@
      "VLLM_DISABLED_KERNELS":
@@ -386,19 +386,19 @@ diff -Naur v0.6.3.post1_vllm/envs.py patched_vllm/envs.py
 +    "VLLM_DATA_PLANE_BACKEND":
 +    lambda: os.getenv("VLLM_DATA_PLANE_BACKEND", "nccl"),
  }
- 
+
  # end-env-vars-definition
 diff -Naur v0.6.3.post1_vllm/executor/distributed_gpu_executor.py patched_vllm/executor/distributed_gpu_executor.py
 --- v0.6.3.post1_vllm/executor/distributed_gpu_executor.py	2025-01-09 03:03:32.443277939 -0800
 +++ patched_vllm/executor/distributed_gpu_executor.py	2025-01-09 01:49:43.789300297 -0800
 @@ -25,7 +25,7 @@
- 
+
          super().__init__(*args, **kwargs)
- 
+
 -    def determine_num_available_blocks(self) -> Tuple[int, int]:
 +    def determine_num_available_blocks(self, max_num_seqs: Optional[int] = None) -> Tuple[int, int]:
          """Determine the number of available KV blocks.
- 
+
          This invokes `determine_num_available_blocks` on each worker and takes
 @@ -36,7 +36,7 @@
              - tuple[num_gpu_blocks, num_cpu_blocks]
@@ -406,7 +406,7 @@ diff -Naur v0.6.3.post1_vllm/executor/distributed_gpu_executor.py patched_vllm/e
          # Get the maximum number of blocks that can be allocated on GPU and CPU.
 -        num_blocks = self._run_workers("determine_num_available_blocks", )
 +        num_blocks = self._run_workers("determine_num_available_blocks", max_num_seqs=max_num_seqs)
- 
+
          # Since we use a shared centralized controller, we take the minimum
          # number of blocks across all workers to make sure all the memory
 diff -Naur v0.6.3.post1_vllm/executor/gpu_executor.py patched_vllm/executor/gpu_executor.py
@@ -415,7 +415,7 @@ diff -Naur v0.6.3.post1_vllm/executor/gpu_executor.py patched_vllm/executor/gpu_
 @@ -107,11 +107,11 @@
              rank=rank,
              distributed_init_method=distributed_init_method))
- 
+
 -    def determine_num_available_blocks(self) -> Tuple[int, int]:
 +    def determine_num_available_blocks(self, max_num_seqs: Optional[int] = None) -> Tuple[int, int]:
          """Determine the number of available KV blocks by invoking the
@@ -423,7 +423,7 @@ diff -Naur v0.6.3.post1_vllm/executor/gpu_executor.py patched_vllm/executor/gpu_
          """
 -        return self.driver_worker.determine_num_available_blocks()
 +        return self.driver_worker.determine_num_available_blocks(max_num_seqs=max_num_seqs)
- 
+
      def initialize_cache(self, num_gpu_blocks: int, num_cpu_blocks) -> None:
          """Initialize the KV cache by invoking the underlying worker.
 diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_runner.py
@@ -459,11 +459,11 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
 @@ -58,6 +61,7 @@
      _init_attn_metadata_from_tensor_dict,
      _init_sampling_metadata_from_tensor_dict, dump_input_when_exception)
- 
+
 +
  if TYPE_CHECKING:
      from vllm.attention.backends.abstract import AttentionBackend
- 
+
 @@ -120,6 +124,7 @@
              "virtual_engine": self.virtual_engine,
              "request_ids_to_seq_ids": self.request_ids_to_seq_ids,
@@ -494,8 +494,8 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
          self.max_seq_len_to_capture = self.model_config.max_seq_len_to_capture
 -        self.max_batchsize_to_capture = _get_max_graph_batch_size(
 -            self.scheduler_config.max_num_seqs)
-+        self.max_batchsize_to_capture = None 
- 
++        self.max_batchsize_to_capture = None
+
          self.graph_runners: List[Dict[int, CUDAGraphRunner]] = [
              {} for _ in range(self.parallel_config.pipeline_parallel_size)
 @@ -995,9 +1001,7 @@
@@ -506,12 +506,12 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
 -            (self.max_batchsize_to_capture, self.get_max_block_per_batch()),
 -            dtype=np.int32)
 +        self.graph_block_tables = None
- 
+
          # Attention-free but stateful models like Mamba need a placeholder attn
          # backend, as the attention metadata is needed to manage internal state.
 @@ -1196,11 +1200,18 @@
          return builder.build()  # type: ignore
- 
+
      @torch.inference_mode()
 -    def profile_run(self) -> None:
 +    def profile_run(self, max_num_seqs: Optional[int] = None) -> None:
@@ -521,7 +521,7 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
 -        max_num_seqs = self.scheduler_config.max_num_seqs
 +        if max_num_seqs is None:
 +            max_num_seqs = self.scheduler_config.max_num_seqs
-+        
++
 +        self.max_batchsize_to_capture = _get_max_graph_batch_size(
 +            max_num_seqs)
 +        self.graph_block_tables = np.zeros(
@@ -533,7 +533,7 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
 @@ -1522,6 +1533,11 @@
          # This usually takes < 10 seconds.
          logger.info("Graph capturing finished in %.0f secs.", elapsed_time)
- 
+
 +    def init_kv_cache_handler(self) -> None:
 +        if envs.VLLM_DISAGG_STAGE is not None:
 +            self._kv_cache_handler = get_kv_cache_handler()
@@ -553,7 +553,7 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
 +
 +    def pop_first_token(self, request_id: str) -> int:
 +        return self._first_tokens.pop(request_id)
- 
+
      def make_model_input_from_broadcasted_tensor_dict(
          self,
 @@ -1610,6 +1633,8 @@
@@ -564,11 +564,11 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
 +        # logger.info(f"model input {model_input}")
          if num_steps > 1:
              raise ValueError("num_steps > 1 is not supported in ModelRunner")
- 
+
 @@ -1654,21 +1679,98 @@
              model_forward_end = torch.cuda.Event(enable_timing=True)
              model_forward_start.record()
- 
+
 +        # Check if we need to run inference or not
 +        # We do not run inference if we are in generating stage of disaggregated serving
 +        disagg_stage = envs.VLLM_DISAGG_STAGE
@@ -590,7 +590,7 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
 +            f"Running inference: {run_inference}, disagg_stage: {disagg_stage}, "
 +            f"is_profile_run: {is_profile_run}, is_generate: {is_generate}"
 +        )
-+        logger.debug(f"Batch sieze: {model_input.input_tokens.shape} Prefill: {prefill_meta is not None}, Generate: {prefill_meta is None}")
++        logger.debug(f"Batch size: {model_input.input_tokens.shape} Prefill: {prefill_meta is not None}, Generate: {prefill_meta is None}")
 +
 +        if not run_inference:
 +            if self.is_driver_worker:
@@ -654,11 +654,11 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
 +                    **MultiModalInputs.as_kwargs(multi_modal_kwargs,
 +                                                device=self.device),
 +                    **seqlen_agnostic_kwargs)
- 
+
          if (self.observability_config is not None
                  and self.observability_config.collect_model_forward_time):
              model_forward_end.record()
- 
+
 +        if disagg_stage == "PREFILL" and not is_profile_run:
 +            # TODO ptarasiewicz check why without torch.cuda.synchronize() thorughput is lower
 +            logger.debug("Pushing KV cache")
@@ -677,7 +677,7 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
                  hidden_or_intermediate_states.tensors["model_forward_time"] = (
                      torch.tensor(model_forward_time + orig_model_forward_time))
              return hidden_or_intermediate_states
-+            
++
 +        if not run_inference:
 +
 +            if not self.is_driver_worker:
@@ -702,7 +702,7 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
 +            # print("OUTPUT", output)
 +            print("MOCKED OUTPUT", mocked_output)
 +            return [mocked_output]
- 
+
          logits = self.model.compute_logits(hidden_or_intermediate_states,
                                             model_input.sampling_metadata)
 @@ -1702,6 +1829,7 @@
@@ -718,13 +718,13 @@ diff -Naur v0.6.3.post1_vllm/worker/worker.py patched_vllm/worker/worker.py
 +++ patched_vllm/worker/worker.py	2025-01-09 01:49:43.993283816 -0800
 @@ -202,7 +202,7 @@
              tensorizer_config=tensorizer_config, )
- 
+
      @torch.inference_mode()
 -    def determine_num_available_blocks(self) -> Tuple[int, int]:
 +    def determine_num_available_blocks(self, max_num_seqs: Optional[int] = None) -> Tuple[int, int]:
          """Profiles the peak memory usage of the model to determine how many
          KV blocks may be allocated without OOMs.
- 
+
 @@ -214,13 +214,14 @@
              You may limit the usage of GPU memory
              by adjusting the `gpu_memory_utilization` parameter.
@@ -733,12 +733,12 @@ diff -Naur v0.6.3.post1_vllm/worker/worker.py patched_vllm/worker/worker.py
          # Profile the memory usage of the model and get the maximum number of
          # cache blocks that can be allocated with the remaining free memory.
          torch.cuda.empty_cache()
- 
+
          # Execute a forward pass with dummy inputs to profile the memory usage
          # of the model.
 -        self.model_runner.profile_run()
 +        self.model_runner.profile_run(max_num_seqs)
- 
+
          # Calculate the number of blocks that can be allocated with the
          # profiled peak memory.
 @@ -242,16 +243,18 @@
@@ -757,10 +757,10 @@ diff -Naur v0.6.3.post1_vllm/worker/worker.py patched_vllm/worker/worker.py
          gc.collect()
          torch.cuda.empty_cache()
 -        return num_gpu_blocks, num_cpu_blocks
-+        return num_gpu_blocks, num_cpu_blocks 
++        return num_gpu_blocks, num_cpu_blocks
 +
-+        
- 
++
+
      def initialize_cache(self, num_gpu_blocks: int,
                           num_cpu_blocks: int) -> None:
 @@ -285,6 +288,7 @@
