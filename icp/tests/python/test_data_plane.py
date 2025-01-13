@@ -44,6 +44,10 @@ from tdist.icp.ucp_data_plane import (
 from tritonserver import DataType, MemoryType, Tensor
 from tritonserver._api._datautils import TRITON_TO_NUMPY_DTYPE
 
+# TODO decide if some tests should be removed
+# from pre_merge
+pytestmark = pytest.mark.pre_merge
+
 
 def _cuda_available():
     # Note: cuda.is_avalailable initializes cuda

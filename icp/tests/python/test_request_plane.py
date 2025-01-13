@@ -40,6 +40,10 @@ from tdist.icp.request_plane import get_icp_component_id
 
 NATS_PORT = 4222
 
+# TODO decide if some tests should be removed
+# from pre_merge
+pytestmark = pytest.mark.pre_merge
+
 
 def is_port_in_use(port: int) -> bool:
     import socket
