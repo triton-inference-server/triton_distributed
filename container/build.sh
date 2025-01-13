@@ -44,9 +44,10 @@ TENSORRTLLM_BASE_IMAGE_TAG=${TENSORRTLLM_BASE_VERSION}-trtllm-python-py3
 # IMPORTANT NOTE: Ensure the commit matches the TRTLLM backend version used in the base image above
 TENSORRTLLM_BACKEND_COMMIT=v0.16.0
 
+# vLLM installation is done latet in the Docker file so we use the same base image as standard
 VLLM_BASE_VERSION=24.12
-VLLM_BASE_IMAGE=nvcr.io/nvidia/tritonserver
-VLLM_BASE_IMAGE_TAG=${VLLM_BASE_VERSION}-vllm-python-py3
+VLLM_BASE_IMAGE=$STANDARD_BASE_IMAGE
+VLLM_BASE_IMAGE_TAG=$STANDARD_BASE_IMAGE_TAG
 
 get_options() {
     while :; do

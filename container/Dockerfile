@@ -58,6 +58,7 @@ RUN --mount=type=bind,source=./container/deps/requirements.vllm.txt,target=/tmp/
 
 RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
     if [[ "$FRAMEWORK" == "VLLM" ]]; then \
+      apt-get install zip -y && \
       cp -r /tmp/deps/vllm /tmp/local_vllm && \
       cd /tmp/local_vllm && \
       bash ./prepare_wheel.sh --install --debug ; \
