@@ -16,20 +16,17 @@
 # A script to download a Python wheel, patch it, copy additional files,
 # repackage it, and optionally install the new wheel.
 
-import time
-import argparse
 import logging
 import math
-import queue
+import socket
 import threading
 import typing
 import uuid
-import zmq
-import socket
 
 import torch
 import torch.distributed
 import tritonserver
+import zmq
 from icp.data_plane import (
     set_icp_data_type,
     set_icp_memory_type,
@@ -138,7 +135,7 @@ class NcclDataPlane:
     ) -> None:
         if not torch.distributed.is_initialized():
             raise RuntimeError("NCCL backend not initialized")
-        
+
         if not hostname:
             hostname = socket.gethostname()
         if port == 0:
@@ -152,7 +149,9 @@ class NcclDataPlane:
         self.rep_socket = self.context.socket(zmq.REP)
         logger.info(f"Rank {self._rank} binding to {self._hostname}:{self._port}")
         self.rep_socket.bind(f"tcp://{self._hostname}:{self._port}")
-        self._listener_thread = threading.Thread(target=self.listen_for_requests, daemon=True)
+        self._listener_thread = threading.Thread(
+            target=self.listen_for_requests, daemon=True
+        )
         self._listener_thread.start()
         self.req_sockets = {}
         logger.info(f"Rank {self._rank} connected to the server")
@@ -164,7 +163,7 @@ class NcclDataPlane:
     @property
     def rank(self):
         return self._rank
-    
+
     def put_input_tensor(
         self,
         tensor: torch.Tensor,
@@ -198,7 +197,9 @@ class NcclDataPlane:
         tensor_id: str,
         remote_address: typing.Optional[str] = None,
     ):
-        logger.debug(f"Rank {self._rank} storing tensor with id {tensor_id} of shape {tensor.shape} and dtype {tensor.dtype}")
+        logger.debug(
+            f"Rank {self._rank} storing tensor with id {tensor_id} of shape {tensor.shape} and dtype {tensor.dtype}"
+        )
         if remote_address is None:
             self.store[tensor_id] = (tensor, rank)
         else:
@@ -223,7 +224,7 @@ class NcclDataPlane:
         logger.debug(f"Rank {self._rank} receiving tensor from rank {rank}")
         if tensor_id in self.store:
             tensor, _, req = self.store.pop(tensor_id)
-            req.wait() # TODO ptarasiewicz we should run other request instead of wait
+            req.wait()  # TODO ptarasiewicz we should run other request instead of wait
             logger.debug(f"Rank {self._rank} received tensor from rank {rank}")
             return tensor
         raise NotImplementedError("Getting tensor from remote rank not implemented")
@@ -234,7 +235,9 @@ class NcclDataPlane:
         rank: int,
         shape: typing.Sequence[int],
     ):
-        tensor = torch.empty(shape, dtype=torch.uint8, device=f"cuda:{self._current_device}")
+        tensor = torch.empty(
+            shape, dtype=torch.uint8, device=f"cuda:{self._current_device}"
+        )
         req = torch.distributed.irecv(tensor, src=rank)
         self.store[tensor_id] = (tensor, rank, req)
 
@@ -244,7 +247,9 @@ class NcclDataPlane:
             logger.debug(f"Rank {self._rank} received request for tensor {tensor_id}")
             self.rep_socket.send_string("OK")
             if cmd == "GET":
-                raise NotImplementedError("Getting tensor from remote rank not implemented")
+                raise NotImplementedError(
+                    "Getting tensor from remote rank not implemented"
+                )
             elif cmd == "PUT":
                 rank = int(rank)
                 shape = [int(dim) for dim in shape.split("_")]
