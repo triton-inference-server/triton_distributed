@@ -16,7 +16,7 @@
 
 PROTO_SRC=$(dirname "$(realpath $0)")
 SOURCE_ROOT="$(realpath "${PROTO_SRC}/..")"
-PROTO_OUT=$SOURCE_ROOT/src/python/tdist/icp/protos
+PROTO_OUT=$SOURCE_ROOT/src/python/triton_distributed/icp/protos
 
 mkdir -p $PROTO_OUT
 
