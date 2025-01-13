@@ -39,7 +39,8 @@ center scale without sacrificing performance or ease of use.
 
 Triton Distributed development and examples are container based.
 
-You can build the Triton Distributed container using the build scripts in `container/`.
+You can build the Triton Distributed container using the build scripts
+in `container/` (or directly with `docker build`).
 
 We provide 3 types of builds:
 
@@ -52,6 +53,38 @@ For example, if you want to build a container for the `VLLM` backend you can run
 `./container/build.sh --framework VLLM`
 
 Please see the instructions in the corresponding example for specific build instructions.
+
+## Running Triton Distributed for Local Testing and Development
+
+You can run the Triton Distributed container using the run scripts in
+`container/` (or directly with `docker run`).
+
+The run script offers a few common workflows:
+
+1. Running a command in a container and exiting.
+
+```
+./container/run.sh -- python3 -c "import tdist.icp.protos.icp_pb2 as icp_proto; print(icp_proto); print(dir(icp_proto));"
+```
+
+2. Starting an interactive shell.
+```
+./container/run.sh -it
+```
+
+3. Mounting the local workspace and Starting an interactive shell.
+
+```
+./container/run.sh -it --mount-workspace
+```
+
+The last command also passes common environment variables ( ```-e
+HF_TOKEN```) and mounts common directories such as ```/tmp:/tmp```,
+```/mnt:/mnt```.
+
+Please see the instructions in the corresponding example for specific
+deployment instructions.
+
 
 <!--
 

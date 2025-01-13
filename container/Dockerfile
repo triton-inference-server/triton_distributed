@@ -72,6 +72,9 @@ ENV FRAMEWORK_LD_LIBRARY_PATH=${TENSORRTLLM_FRAMEWORK:+/opt/tritonserver/backend
 ENV LD_LIBRARY_PATH=${FRAMEWORK_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
 ENV TENSORRTLLM_BACKEND_COMMIT=$TENSORRTLLM_BACKEND_COMMIT
 
+# TODO set VLLM Version
+# ENV VLLM_VERSION
+
 # Install NATS - pointing toward NATS github instead of binaries.nats.dev due to server instability
 RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
 
