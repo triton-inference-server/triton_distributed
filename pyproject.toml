@@ -46,7 +46,7 @@ skip = ["build"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
+addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config", "--mypy"]
 xfail_strict = true
 log_cli_level = "INFO"
 filterwarnings = [
