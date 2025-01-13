@@ -15,6 +15,7 @@
 
 ARG BASE_IMAGE="nvcr.io/nvidia/tritonserver"
 ARG BASE_IMAGE_TAG="24.12-py3"
+ARG VLLM_WHEEL
 
 FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS triton-distributed
 
@@ -54,6 +55,9 @@ RUN --mount=type=bind,source=./container/deps/requirements.tensorrtllm.txt,targe
 
 RUN --mount=type=bind,source=./container/deps/requirements.vllm.txt,target=/tmp/requirements.txt \
     if [[ "$FRAMEWORK" == "VLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt ; fi
+
+RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
+    if [[ "$FRAMEWORK" == "VLLM" ]]; then cd /tmp/deps/vllm && bash ./prepare_wheel.sh --install --debug ; fi
 
 RUN --mount=type=bind,source=./container/deps/requirements.standard.txt,target=/tmp/requirements.txt \
     if [[ "$FRAMEWORK" == "STANDARD" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt ; fi
