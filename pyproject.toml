@@ -69,10 +69,11 @@ indent-width = 4
 [tool.mypy]
 # --disable-error-code: WAR large set of errors due to mypy not being run
 #   previously. We can slowly enable sets of errors to fix over time.
-#disable_error_code = "arg-type,assignment,attr-defined,call-arg,call-overload,has-type,import-untyped,misc,operator,override,union-attr,var-annotated"
+# disable_error_code = []
 # --explicit-package-bases: WAR errors about duplicate module names used
 #   throughout project such as launch_workers.py
-explicit_package_bases = true
+#explicit_package_bases = true
+exclude = ["model.py"]
 # --ignore-missing-imports: WAR too many errors when developing outside
 #   of container environment with PYTHONPATH set and packages installed.
 #   NOTE: Can possibly move mypy from pre-commit to a github action run only in

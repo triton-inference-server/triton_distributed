@@ -14,7 +14,7 @@
 # limitations under the License.
 import multiprocessing
 
-from triton_distributed.worker import Worker, WorkerConfig
+from triton_distributed.worker.worker import Worker, WorkerConfig
 
 
 class Deployment:
