@@ -26,9 +26,7 @@
 import asyncio
 
 import numpy
-from worker.operator import Operator
-from worker.remote_operator import RemoteOperator
-from worker.remote_request import RemoteInferenceRequest
+from triton_distributed.worker import Operator, RemoteInferenceRequest, RemoteOperator
 
 
 class AddMultiplyDivide(Operator):
