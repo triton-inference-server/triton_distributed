@@ -16,5 +16,11 @@ from triton_distributed.worker.deployment import Deployment as Deployment
 from triton_distributed.worker.operator import Operator as Operator
 from triton_distributed.worker.operator import OperatorConfig as OperatorConfig
 from triton_distributed.worker.remote_operator import RemoteOperator as RemoteOperator
+from triton_distributed.worker.remote_request import (
+    RemoteInferenceRequest as RemoteInferenceRequest,
+)
+from triton_distributed.worker.remote_response import (
+    RemoteInferenceResponse as RemoteInferenceResponse,
+)
 from triton_distributed.worker.worker import Worker as Worker
 from triton_distributed.worker.worker import WorkerConfig as WorkerConfig

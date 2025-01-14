@@ -24,7 +24,7 @@ import sys
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, Type, Unpack
+from typing import TYPE_CHECKING, Optional, Type
 
 import tritonserver
 from triton_distributed.icp.data_plane import DataPlane
@@ -60,7 +60,7 @@ class WorkerConfig:
 
 class Worker:
     def __init__(
-        self, config: Optional[WorkerConfig] = None, **kwargs: Unpack[WorkerConfig]
+        self, config: Optional[WorkerConfig] = None, **kwargs  #: Unpack[WorkerConfig]
     ) -> None:
         if config is None:
             config = WorkerConfig(**kwargs)
@@ -69,8 +69,8 @@ class Worker:
             *config.request_plane_args[0], **config.request_plane_args[1]
         )
 
-        self._data_plane = (
-            config.data_plane(*config.data_plane_args[0], **config.data_plane_args[1]),
+        self._data_plane = config.data_plane(
+            *config.data_plane_args[0], **config.data_plane_args[1]
         )
         self._triton_log_path = config.triton_log_path
         self._name = config.name
