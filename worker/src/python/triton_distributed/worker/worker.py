@@ -24,7 +24,7 @@ import sys
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, Type
+from typing import TYPE_CHECKING, Optional, Type, Unpack
 
 import tritonserver
 from triton_distributed.icp.data_plane import DataPlane
@@ -44,33 +44,48 @@ if TYPE_CHECKING:
 logger = logging.getLogger(LOGGER_NAME)
 
 
+@dataclass
+class WorkerConfig:
+    request_plane: Type[RequestPlane] = NatsRequestPlane
+    data_plane: Type[DataPlane] = UcpDataPlane
+    request_plane_args: tuple[list, dict] = field(default_factory=lambda: ([], {}))
+    data_plane_args: tuple[list, dict] = field(default_factory=lambda: ([], {}))
+    log_level: int = 0
+    operators: list[OperatorConfig] = field(default_factory=list)
+    triton_log_path: Optional[str] = None
+    name: str = str(uuid.uuid1())
+    log_dir: Optional[str] = None
+    metrics_port: int = 0
+
+
 class Worker:
     def __init__(
-        self,
-        request_plane: RequestPlane,
-        data_plane: DataPlane,
-        log_level: int,
-        operators: list[OperatorConfig],
-        triton_log_path: Optional[str] = None,
-        name: str = str(uuid.uuid1()),
-        metrics_port=0,
-        log_dir=None,
-    ):
-        self._name = name
-        self._request_plane = request_plane
-        self._log_level = log_level
-        self._data_plane = data_plane
+        self, config: Optional[WorkerConfig] = None, **kwargs: Unpack[WorkerConfig]
+    ) -> None:
+        if config is None:
+            config = WorkerConfig(**kwargs)
+
+        self._request_plane = config.request_plane(
+            *config.request_plane_args[0], **config.request_plane_args[1]
+        )
+
+        self._data_plane = (
+            config.data_plane(*config.data_plane_args[0], **config.data_plane_args[1]),
+        )
+        self._triton_log_path = config.triton_log_path
+        self._name = config.name
+        self._log_level = config.log_level
+        self._operator_configs = config.operators
+        self._log_dir = config.log_dir
+
         self._stop_requested = False
-        self._triton_log_path = triton_log_path
         self._requests_received: Counter = Counter()
         self._background_tasks: dict[object, set] = {}
         self._completion_conds: dict[object, asyncio.Condition] = {}
         self._inflight_requests: dict[object, int] = {}
         self._max_inflght_requests: dict[object, int] = {}
-        self._operator_configs = operators
         self._operators: dict[tuple[str, int], Operator] = {}
-        self._metrics_port = metrics_port
-        self._log_dir = log_dir
+        self._metrics_port = config.metrics_port
         self._metrics_server: Optional[uvicorn.Server] = None
 
     def _import_operators(self):
@@ -356,55 +371,33 @@ class Worker:
                 sys.stderr.close()
 
 
-@dataclass
-class WorkerProcess:
-    request_plane: Type[RequestPlane] = NatsRequestPlane
-    data_plane: Type[DataPlane] = UcpDataPlane
-    request_plane_args: tuple[list, dict] = field(default_factory=lambda: ([], {}))
-    data_plane_args: tuple[list, dict] = field(default_factory=lambda: ([], {}))
-    log_level: int = 0
-    operators: list[OperatorConfig] = field(default_factory=list)
-    triton_log_path: Optional[str] = None
-    name: str = str(uuid.uuid1())
-    log_dir: Optional[str] = None
-    metrics_port: int = 0
-    _process: Optional[multiprocessing.context.SpawnProcess] = field(
-        default=None, init=False, repr=False
-    )
+class Deployment:
+    def __init__(self, worker_configs: list[WorkerConfig]):
+        self._process_context = multiprocessing.get_context("spawn")
+        self._worker_configs = worker_configs
+        self._workers: list[multiprocessing.context.SpawnProcess] = []
 
-    _process_context = multiprocessing.get_context("spawn")
+    @staticmethod
+    def _start_worker(worker_config):
+        Worker(worker_config).start()
 
     def start(self):
-        self._process = WorkerProcess._process_context.Process(
-            target=self._start, name=self.name
-        )
-        self._process.start()
-        return self._process
+        for worker_config in self._worker_configs:
+            self._workers.append(
+                self._process_context.Process(
+                    target=Deployment._start_worker,
+                    name=worker_config.name,
+                    args=[worker_config],
+                )
+            )
 
-    def _start(self):
-        self._create_worker().start()
-
-    def __del__(self):
-        self.shutdown(join=True)
-
-    def shutdown(self, join=False):
-        if self._process:
-            self._process.terminate()
-            if join:
-                self._process.join()
-
-    def _create_worker(self):
-        return Worker(
-            request_plane=self.request_plane(
-                *self.request_plane_args[0], **self.request_plane_args[1]
-            ),
-            data_plane=self.data_plane(
-                *self.data_plane_args[0], **self.data_plane_args[1]
-            ),
-            log_level=self.log_level,
-            operators=self.operators,
-            triton_log_path=self.triton_log_path,
-            name=self.name,
-            metrics_port=self.metrics_port,
-            log_dir=self.log_dir,
-        )
+    def shutdown(self, join=True, timeout=10):
+        for worker in self._workers:
+            worker.terminate()
+        if join:
+            for worker in self._workers:
+                worker.join(timeout)
+            for worker in self._workers:
+                if worker.is_alive():
+                    worker.kill()
+                    worker.join(timeout)
