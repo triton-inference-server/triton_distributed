@@ -20,15 +20,8 @@ import os
 from triton_distributed.worker.worker import OperatorConfig
 
 # Default values
-DEFAULT_MODEL_REPOSITORY_PATH = "/workspace/model-repository"
-DEFAULT_WORKFLOW_REPOSITORY_PATH = "/workspace/workflow-repository"
 DEFAULT_REQUEST_PLANE_URI = "nats://localhost:4222"
 DEFAULT_LOG_LEVEL = 0
-
-# Default values for model/workflow properties.
-DEFAULT_MODEL_BATCH_SIZE = 5
-DEFAULT_WORKFLOW_BATCH_SIZE = 5
-DEFAULT_MODEL_VERSION = 1
 
 # Property keys
 NAME = "name"
@@ -89,7 +82,7 @@ def _validate_operator_args(operator_args):
                 int(properties[int_property])
             except ValueError:
                 raise InvalidArgumentError(
-                    f"Unexpected value provided for `{int_property}` for workflow `{properties[NAME]}`. Expected an integer, Got  {properties[int_property]}"
+                    f"Unexpected value provided for `{int_property}` for operator `{properties[NAME]}`. Expected an integer, Got  {properties[int_property]}"
                 )
 
     if MODULE not in properties.keys():
@@ -104,16 +97,13 @@ def _validate_operator_args(operator_args):
 
 
 class Parser:
-    operator_configs: list[OperatorConfig] = []
-
-    @classmethod
-    def _add_operator(cls, operator_properties):
-        Parser.operator_configs.append(OperatorConfig(**operator_properties))
-
     @classmethod
     def _validate_args(cls, args):
+        operator_configs: list[OperatorConfig] = []
         for operator_args in args.operators:
-            cls._add_operator(_validate_operator_args(operator_args))
+            operator_properties = _validate_operator_args(operator_args)
+            operator_configs.append(OperatorConfig(**operator_properties))
+        args.operator_configs = operator_configs
 
         # TODO: Add validation for request plane URI
 

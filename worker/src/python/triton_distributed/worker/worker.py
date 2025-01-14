@@ -24,7 +24,7 @@ import sys
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Optional, Type
+from typing import TYPE_CHECKING, Optional, Type
 
 import tritonserver
 from triton_distributed.icp.data_plane import DataPlane
@@ -37,6 +37,9 @@ from triton_distributed.worker.remote_request import (
     RemoteInferenceRequest,
     RemoteResponseSender,
 )
+
+if TYPE_CHECKING:
+    import uvicorn
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -65,10 +68,10 @@ class Worker:
         self._inflight_requests: dict[object, int] = {}
         self._max_inflght_requests: dict[object, int] = {}
         self._operator_configs = operators
-        self._operators: dict[tuple[str, str], object] = {}
+        self._operators: dict[tuple[str, int], Operator] = {}
         self._metrics_port = metrics_port
         self._log_dir = log_dir
-        self._metrics_server = None
+        self._metrics_server: Optional[uvicorn.Server] = None
 
     def _import_operators(self):
         for operator_config in self._operator_configs:
@@ -80,14 +83,14 @@ class Worker:
 
             if isinstance(operator_config.implementation, str):
                 split_workflow = operator_config.implementation.split(":")
-                module = ":".join(split_workflow[:-1])
+                module_name = ":".join(split_workflow[:-1])
                 class_name = split_workflow[-1]
-                module_path = pathlib.Path(module)
+                module_path = pathlib.Path(module_name)
                 parent_paths = list(module_path.parents)
-                root_parent = "."
+                root_parent = pathlib.Path(".")
                 if parent_paths:
                     root_parent = parent_paths[-1]
-                if root_parent == ".":
+                if root_parent == pathlib.Path("."):
                     module_path = repository_path.joinpath(module_path)
                 if str(module_path.parent.absolute()) not in sys.path:
                     sys.path.append(str(module_path.parent.absolute()))
@@ -323,14 +326,19 @@ class Worker:
         setup_logger(log_level=self._log_level)
         loop = asyncio.get_event_loop()
         signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+
+        # Note: mypy has known issues inferring
+        # types of lambdas that include capturing loop variables
+
         for sig in signals:
             loop.add_signal_handler(
-                sig, lambda s=sig: asyncio.create_task(self.shutdown(s))
+                sig, lambda s=sig: asyncio.create_task(self.shutdown(s))  # type: ignore
             )
         try:
             if self._metrics_port:
                 loop.create_task(self.serve())
                 self._metrics_server = self._setup_metrics_server()
+                assert self._metrics_server, "Unable to start metrics server"
                 loop.run_until_complete(self._metrics_server.serve())
             else:
                 loop.run_until_complete(self.serve())
@@ -360,7 +368,9 @@ class WorkerProcess:
     name: str = str(uuid.uuid1())
     log_dir: Optional[str] = None
     metrics_port: int = 0
-    _process: multiprocessing.Process = field(default=None, init=False, repr=False)
+    _process: Optional[multiprocessing.context.SpawnProcess] = field(
+        default=None, init=False, repr=False
+    )
 
     _process_context = multiprocessing.get_context("spawn")
 
