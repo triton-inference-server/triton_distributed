@@ -226,9 +226,9 @@ if [[ ! -d "$DATA_PLANE_DIR" ]]; then
   error_exit "Data plane directory '$DATA_PLANE_DIR' not found."
 fi
 
-info_log "Copying files from '$DATA_PLANE_DIR' to '$PATCH_TARGET_DIR/vllm/distributed'..."
-mkdir -p "$PATCH_TARGET_DIR/vllm/distributed"
-cp -r "$DATA_PLANE_DIR/"* "$PATCH_TARGET_DIR/vllm/distributed/"
+info_log "Copying files from '$DATA_PLANE_DIR' to '$PATCH_TARGET_DIR/distributed'..."
+mkdir -p "$PATCH_TARGET_DIR/distributed"
+cp -r "$DATA_PLANE_DIR/"* "$PATCH_TARGET_DIR/distributed/"
 
 # ---------------------------------------------------------------------------
 # 7. Re-package into a new wheel
