@@ -48,6 +48,11 @@ try:
 except CUDARuntimeError:
     print("CUDA not available")
 
+# TODO
+# Decide if this should be
+# pre merge, nightly, or weekly
+pytestmark = pytest.mark.pre_merge
+
 
 @pytest.fixture
 def workers(worker_manager, request):
