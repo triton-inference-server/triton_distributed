@@ -28,7 +28,7 @@ from triton_distributed.icp.data_plane import (
     get_icp_tensor_size,
 )
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
-from tritonserver import DataType, MemoryType, Tensor
+from tritonserver import DataType, InvalidArgumentError, MemoryType, Tensor
 
 # TODO
 # Export from tritonserver
@@ -72,6 +72,8 @@ class RemoteTensor:
     def local_tensor(self) -> Tensor:
         if not self._local_tensor:
             self._local_tensor = self.data_plane.get_tensor(self.remote_tensor)
+            if self._local_tensor is None:
+                raise InvalidArgumentError("Not able to resolve Tensor locally")
         return self._local_tensor
 
     @property

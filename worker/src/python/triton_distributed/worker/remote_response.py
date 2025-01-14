@@ -84,7 +84,7 @@ class AsyncRemoteResponseIterator:
         if loop is None:
             loop = asyncio.get_running_loop()
         self._loop = loop
-        self._queue = asyncio.Queue()
+        self._queue: asyncio.Queue = asyncio.Queue()
         self._user_queue = user_queue
         self._complete = False
         self._request = request
@@ -297,17 +297,18 @@ class RemoteInferenceResponse:
         result = RemoteInferenceResponse(
             local_response.model.name,
             local_response.model.version,
+            None,
             local_response.request_id,
             final=local_response.final,
         )
 
-        for name, value in local_response.outputs.items():
-            result.outputs[name] = value
+        for tensor_name, tensor_value in local_response.outputs.items():
+            result.outputs[tensor_name] = tensor_value
             if store_outputs_in_response:
-                result.store_outputs_in_response.add(name)
+                result.store_outputs_in_response.add(tensor_name)
 
-        for name, value in local_response.parameters.items():
-            result.parameters[name] = value
+        for parameter_name, parameter_value in local_response.parameters.items():
+            result.parameters[parameter_name] = parameter_value
 
         result.error = local_response.error
         return result
@@ -322,6 +323,7 @@ class RemoteInferenceResponse:
         result = RemoteInferenceResponse(
             request.model_name,
             request.model_version,
+            None,
             request.request_id,
             final=final_response,
         )

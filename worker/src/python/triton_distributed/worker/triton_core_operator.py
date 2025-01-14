@@ -15,9 +15,10 @@
 
 import asyncio
 import json
+import logging
 import os
 import uuid
-from typing import Any, Optional
+from typing import Optional
 
 from google.protobuf import json_format, text_format
 from triton_distributed.icp.data_plane import DataPlane
@@ -39,7 +40,7 @@ class TritonCoreOperator(Operator):
         data_plane: DataPlane,
         parameters: dict,
         repository: Optional[str] = None,
-        logger: Optional[Any] = None,
+        logger: logging.Logger = logging.getLogger(),
     ):
         self._repository = repository
         self._name = name
@@ -89,7 +90,7 @@ class TritonCoreOperator(Operator):
 
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
         request_id_map = {}
-        response_queue = asyncio.Queue()
+        response_queue: asyncio.Queue = asyncio.Queue()
         for request in requests:
             self._logger.info("\n\nReceived request: \n\n%s\n\n", request)
             try:

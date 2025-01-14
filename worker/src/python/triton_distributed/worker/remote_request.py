@@ -203,7 +203,7 @@ class RemoteInferenceRequest:
 
 
 class RemoteResponseSender:
-    response_counts = Counter()
+    response_counts: Counter = Counter()
 
     def __init__(
         self,
