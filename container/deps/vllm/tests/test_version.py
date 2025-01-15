@@ -5,6 +5,8 @@ try:
 except ImportError:
     vllm = None
 
+pytestmark = pytest.mark.pre_merge
+
 
 # TODO: Consider `pytest.mark.vllm` and running tests based on environment
 @pytest.mark.skipif(vllm is None, reason="Skipping vllm tests, vllm not installed")
