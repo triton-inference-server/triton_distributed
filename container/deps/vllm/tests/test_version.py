@@ -3,7 +3,7 @@ import pytest
 try:
     import vllm
 except ImportError:
-    vllm = None
+    vllm = None  # type: ignore
 
 pytestmark = pytest.mark.pre_merge
 

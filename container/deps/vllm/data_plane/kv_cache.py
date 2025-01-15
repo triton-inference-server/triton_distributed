@@ -32,7 +32,7 @@ import vllm.envs as envs
 from vllm import _custom_ops as ops
 from vllm.attention.backends.flash_attn import FlashAttentionMetadata
 from vllm.attention.backends.flashinfer import FlashInferBackend, FlashInferMetadata
-from vllm.distributed.data_plane import NcclDataPlane, UcpDataPlane
+from vllm.distributed.data_plane import VllmNcclDataPlane, VllmUcpDataPlane
 from vllm.distributed.parallel_state import get_store, get_tp_group  # type: ignore
 from vllm.logger import init_logger
 
@@ -56,7 +56,7 @@ class KVCacheHandler:
 
         self._data_plane_backend = envs.VLLM_DATA_PLANE_BACKEND
         if self._data_plane_backend == "nccl":
-            self._data_plane = NcclDataPlane()
+            self._data_plane = VllmNcclDataPlane()
             self._store = get_store()
             logger.info("Store set up")
             self._store.set(
@@ -64,7 +64,7 @@ class KVCacheHandler:
                 f"{self._data_plane._hostname}:{self._data_plane._port}",
             )
         elif self._data_plane_backend == "ucx":
-            self._data_plane = UcpDataPlane(keep_endpoints_open=True)
+            self._data_plane = VllmUcpDataPlane(keep_endpoints_open=True)
             self._data_plane.connect()
             rank = torch.distributed.get_rank()
             is_master = envs.VLLM_WORKER_ID == 0 and rank == 0

@@ -27,28 +27,27 @@ import torch
 import torch.distributed
 import tritonserver
 import zmq
-from icp.data_plane import (
+from triton_distributed.icp.data_plane import (
     set_icp_data_type,
     set_icp_memory_type,
     set_icp_shape,
     set_icp_tensor_size,
     set_icp_tensor_uri,
 )
-from icp.protos.triton_icp_pb2 import ModelInferRequest
-from icp.ucp_data_plane import DataPlaneError
-from icp.ucp_data_plane import get_ucp_data_plane_singleton as TritonUcpDataPlane
+from triton_distributed.icp.protos.triton_icp_pb2 import ModelInferRequest
+from triton_distributed.icp.ucp_data_plane import DataPlaneError, UcpDataPlane
 
 logger = logging.getLogger(__name__)
 
 
-class UcpDataPlane:
+class VllmUcpDataPlane:
     def __init__(
         self,
         hostname: typing.Optional[str] = None,
         port: int = 0,
         keep_endpoints_open: bool = False,
     ) -> None:
-        self._data_plane = TritonUcpDataPlane(hostname, port, keep_endpoints_open)
+        self._data_plane = UcpDataPlane(hostname, port, keep_endpoints_open)
 
     @property
     def hostname(self) -> str:
@@ -125,7 +124,7 @@ class UcpDataPlane:
         return tensor
 
 
-class NcclDataPlane:
+class VllmNcclDataPlane:
     def __init__(
         self,
         hostname: str = "",
