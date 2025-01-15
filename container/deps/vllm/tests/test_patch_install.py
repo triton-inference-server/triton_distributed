@@ -18,4 +18,7 @@ def test_version():
 @pytest.mark.skipif(vllm is None, reason="Skipping vllm tests, vllm not installed")
 def test_patch_imports():
     # Verify patched files have no glaring syntax or import issues
-    pass
+    import vllm.distributed.data_plane as d
+    import vllm.distributed.kv_cache as k
+
+    assert d, k
