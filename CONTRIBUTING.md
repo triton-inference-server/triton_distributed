@@ -47,7 +47,7 @@ proposed change so that the Triton team can provide feedback.
 
 # Contribution Rules
 
-- The code style convention is enforced by clang-format. See below on
+- The code style convention is enforced by common formatting tools for a given language (such as clang-format for c++, black for python). See below on
   how to ensure your contributions conform. In general please follow
   the existing conventions in the relevant file, submodule, module,
   and project when you add new code or when you extend/fix existing
