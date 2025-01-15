@@ -6,6 +6,7 @@ except ImportError:
     vllm = None
 
 
+# TODO: Consider `pytest.mark.vllm` and running tests based on environment
 @pytest.mark.skipif(vllm is None, reason="Skipping vllm tests, vllm not installed")
 def test_version():
     # Verify that the image has the patched version of vllm
