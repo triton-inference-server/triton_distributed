@@ -49,6 +49,7 @@ RUN pip install "git+https://github.com/triton-inference-server/perf_analyzer.gi
 # Backend & Framework Specific Installation
 ARG FRAMEWORK="STANDARD"
 ARG TENSORRTLLM_BACKEND_COMMIT=
+ENV FRAMEWORK=${FRAMEWORK}
 RUN --mount=type=bind,source=./container/deps/requirements.tensorrtllm.txt,target=/tmp/requirements.txt \
     --mount=type=bind,source=./container/deps/clone_tensorrtllm.sh,target=/tmp/clone_tensorrtllm.sh \
     if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-commit ${TENSORRTLLM_BACKEND_COMMIT} ; fi
