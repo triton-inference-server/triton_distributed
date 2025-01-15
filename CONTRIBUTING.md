@@ -32,9 +32,9 @@ proposed change so that the Triton team can provide feedback.
   ensure that your enhancement is done in a manner that is consistent
   with Triton Distributed's overall architecture.
 
-- The Triton Distributed project is spread across multiple repos. The Triton team
-  will provide guidance about how and where your enhancement should be
-  implemented.
+- The Triton Distributed project is spread across multiple GitHub Repositories.
+  The Triton team will provide guidance about how and where your enhancement
+  should be implemented.
 
 - Testing is a critical part of any Triton
   enhancement. You should plan on spending significant time on
