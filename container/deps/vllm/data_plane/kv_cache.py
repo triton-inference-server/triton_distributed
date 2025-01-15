@@ -19,8 +19,8 @@
 import typing
 
 if typing.TYPE_CHECKING:
-    from vllm.worker.model_runner import ModelInputForGPUWithSamplingMetadata
-    from vllm.attention.backends.abstract import AttentionMetadata
+    from vllm.worker.model_runner import ModelInputForGPUWithSamplingMetadata  # type: ignore
+    from vllm.attention.backends.abstract import AttentionMetadata  # type: ignore
 
 import hashlib
 import uuid
@@ -33,7 +33,7 @@ from vllm import _custom_ops as ops
 from vllm.attention.backends.flash_attn import FlashAttentionMetadata
 from vllm.attention.backends.flashinfer import FlashInferBackend, FlashInferMetadata
 from vllm.distributed.data_plane import NcclDataPlane, UcpDataPlane
-from vllm.distributed.parallel_state import get_store, get_tp_group
+from vllm.distributed.parallel_state import get_store, get_tp_group  # type: ignore
 from vllm.logger import init_logger
 
 logger = init_logger(__name__)
@@ -171,8 +171,8 @@ class KVCacheHandler:
                 keys.append(key_cache)
                 values.append(value_cache)
 
-            keys = torch.stack(keys, dim=0)
-            values = torch.stack(values, dim=0)
+            keys = torch.stack(keys, dim=0)  # type: ignore
+            values = torch.stack(values, dim=0)  # type: ignore
 
             tp_multipler = envs.VLLM_GENERATE_TP_SIZE // envs.VLLM_CONTEXT_TP_SIZE
             first_rank = envs.VLLM_CONTEXT_WORKERS * envs.VLLM_CONTEXT_TP_SIZE
@@ -181,10 +181,10 @@ class KVCacheHandler:
                 first_head = i * num_heads_per_generate_rank
                 partial_keys = keys[
                     :, :, first_head : first_head + num_heads_per_generate_rank, :
-                ].clone()
+                ].clone()  # type: ignore
                 partial_values = values[
                     :, :, first_head : first_head + num_heads_per_generate_rank, :
-                ].clone()
+                ].clone()  # type: ignore
                 target_local_rank = get_tp_group().local_rank * tp_multipler + i
                 target_rank = target_local_rank + first_rank
                 # torch.cuda.synchronize()
@@ -278,7 +278,7 @@ class KVCacheHandler:
                     key_cache, value_cache = kv_cache[:, 0], kv_cache[:, 1]
                 else:
                     raise ValueError(f"Unknown attention backend {attention_backend}")
-                ops.reshape_and_cache_flash(
+                ops.reshape_and_cache_flash(  # type: ignore
                     key,
                     value,
                     key_cache,

@@ -130,6 +130,7 @@ class NcclDataPlane:
         self,
         hostname: str = "",
         port: int = 0,
+        # FIXME: world_size and rank both unused
         world_size: int = -1,
         rank: int = -1,
     ) -> None:
@@ -143,8 +144,10 @@ class NcclDataPlane:
         self._hostname = hostname
         self._port = port
         self._rank = torch.distributed.get_rank()
+        self._world_size: int = world_size
         self._current_device = torch.cuda.current_device()
-        self.store = {}
+        # FIXME: Use stricter type for req value in tuple
+        self.store: typing.Dict[str, typing.Tuple[torch.Tensor, int, typing.Any]] = {}
         self.context = zmq.Context()
         self.rep_socket = self.context.socket(zmq.REP)
         logger.info(f"Rank {self._rank} binding to {self._hostname}:{self._port}")
@@ -153,7 +156,8 @@ class NcclDataPlane:
             target=self.listen_for_requests, daemon=True
         )
         self._listener_thread.start()
-        self.req_sockets = {}
+        # FIXME: Use stricter ZMQ socket type hint
+        self.req_sockets: typing.Dict[str, typing.Any] = {}
         logger.info(f"Rank {self._rank} connected to the server")
 
     @property
@@ -201,7 +205,7 @@ class NcclDataPlane:
             f"Rank {self._rank} storing tensor with id {tensor_id} of shape {tensor.shape} and dtype {tensor.dtype}"
         )
         if remote_address is None:
-            self.store[tensor_id] = (tensor, rank)
+            self.store[tensor_id] = (tensor, rank, None)
         else:
             tensor_shape = "_".join(str(dim) for dim in tensor.shape)
             if remote_address not in self.req_sockets:
@@ -243,7 +247,7 @@ class NcclDataPlane:
 
     def listen_for_requests(self):
         while True:
-            cmd, rank, shape, tensor_id = self.rep_socket.recv_string().split()
+            cmd, _rank, _shape, tensor_id = self.rep_socket.recv_string().split()
             logger.debug(f"Rank {self._rank} received request for tensor {tensor_id}")
             self.rep_socket.send_string("OK")
             if cmd == "GET":
@@ -251,6 +255,6 @@ class NcclDataPlane:
                     "Getting tensor from remote rank not implemented"
                 )
             elif cmd == "PUT":
-                rank = int(rank)
-                shape = [int(dim) for dim in shape.split("_")]
+                rank = int(_rank)
+                shape = [int(dim) for dim in _shape.split("_")]
                 self._receive_tensor(tensor_id, rank, shape)
