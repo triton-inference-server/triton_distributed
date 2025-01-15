@@ -34,7 +34,7 @@ from triton_distributed.icp.data_plane import (
     set_icp_tensor_size,
     set_icp_tensor_uri,
 )
-from triton_distributed.icp.protos.triton_icp_pb2 import ModelInferRequest
+from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest
 from triton_distributed.icp.ucp_data_plane import DataPlaneError, UcpDataPlane
 
 logger = logging.getLogger(__name__)
