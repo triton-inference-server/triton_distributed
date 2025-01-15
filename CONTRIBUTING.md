@@ -47,8 +47,9 @@ proposed change so that the Triton team can provide feedback.
 
 # Contribution Rules
 
-- The code style convention is enforced by common formatting tools for a given language (such as clang-format for c++, black for python). See below on
-  how to ensure your contributions conform. In general please follow
+- The code style convention is enforced by common formatting tools
+  for a given language (such as clang-format for c++, black for python).
+  See below on how to ensure your contributions conform. In general please follow
   the existing conventions in the relevant file, submodule, module,
   and project when you add new code or when you extend/fix existing
   functionality.
@@ -56,7 +57,9 @@ proposed change so that the Triton team can provide feedback.
 - Avoid introducing unnecessary complexity into existing code so that
   maintainability and readability are preserved.
 
-- Try to keep pull requests (PRs) as concise as possible:
+- Try to keep code changes for each pull request (PR) as concise as possible:
+
+  - Fillout PR template with clear description and mark applicable checkboxes
 
   - Avoid committing commented-out code.
 
