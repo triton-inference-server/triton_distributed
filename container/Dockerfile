@@ -118,7 +118,7 @@ COPY . /workspace
 RUN /workspace/icp/protos/gen_python.sh
 
 # Sets pythonpath for python modules
-ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/src/python"
+ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/src/python:/workspace/worker/src/python"
 
 # Command and Entrypoint
 CMD []

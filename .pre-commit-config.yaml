@@ -77,6 +77,7 @@ repos:
   rev: v0.5.2
   hooks:
     - id: ruff
+      args: [--fix, --exit-non-zero-on-fix]
 
 # NOTE: pyright may be able to find other classes of errors not covered above,
 # but would require some configuring and venv setup to properly eliminate noise
