@@ -16,7 +16,6 @@
 import asyncio
 import time
 
-from triton_distributed.icp.nats_request_plane import NatsServer
 from triton_distributed.worker import (
     Deployment,
     OperatorConfig,
@@ -26,7 +25,7 @@ from triton_distributed.worker import (
 
 
 async def main():
-    nats_server = NatsServer()
+    #    nats_server = NatsServer()
     time.sleep(1)
 
     encoder_op = OperatorConfig(
@@ -63,35 +62,37 @@ async def main():
     )
 
     encoder = WorkerConfig(
-        request_plane_args=([nats_server.url], {}),
-        log_level=6,
+        #        request_plane_args=([nats_server.url], {}),
+        #        log_level=6,
         operators=[encoder_op],
         name="encoder",
         metrics_port=8060,
-        log_dir="logs",
+        #       log_dir="logs",
     )
 
     decoder = WorkerConfig(
-        request_plane_args=([nats_server.url], {}),
-        log_level=6,
+        #      request_plane_args=([nats_server.url], {}),
+        #     log_level=6,
         operators=[decoder_op],
         name="decoder",
         metrics_port=8061,
-        log_dir="logs",
+        #    log_dir="logs",
     )
 
     encoder_decoder = WorkerConfig(
-        request_plane_args=([nats_server.url], {}),
-        log_level=6,
+        #   request_plane_args=([nats_server.url], {}),
+        #  log_level=6,
         operators=[encoder_decoder_op],
         name="encoder_decoder",
         metrics_port=8062,
-        log_dir="logs",
+        # log_dir="logs",
     )
 
     print("Starting Workers")
 
-    deployment = Deployment([(encoder, 5), decoder, (encoder_decoder, 6)])
+    deployment = Deployment(
+        [(encoder, 5), decoder, (encoder_decoder, 6)], initialize_request_plane=True
+    )
 
     deployment.start()
 

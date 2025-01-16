@@ -49,7 +49,7 @@ class WorkerConfig:
     data_plane: Type[DataPlane] = UcpDataPlane
     request_plane_args: tuple[list, dict] = field(default_factory=lambda: ([], {}))
     data_plane_args: tuple[list, dict] = field(default_factory=lambda: ([], {}))
-    log_level: int = 0
+    log_level: Optional[int] = None
     operators: list[OperatorConfig] = field(default_factory=list)
     triton_log_path: Optional[str] = None
     name: str = str(uuid.uuid1())
@@ -74,6 +74,8 @@ class Worker:
         self._triton_log_path = config.triton_log_path
         self._name = config.name
         self._log_level = config.log_level
+        if self._log_level is None:
+            self._log_level = 0
         self._operator_configs = config.operators
         self._log_dir = config.log_dir
 

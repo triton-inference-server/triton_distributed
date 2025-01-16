@@ -14,12 +14,12 @@
 # limitations under the License.
 
 import asyncio
-import shutil
+from pathlib import Path
 
 import cupy
 import numpy
 from tqdm import tqdm
-from triton_distributed.icp.nats_request_plane import NatsRequestPlane, NatsServer
+from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
 from triton_distributed.worker import (
     Deployment,
@@ -121,9 +121,15 @@ async def send_requests(nats_server_url, request_count=100):
 
 
 async def main():
-    shutil.rmtree("logs")
+    current_dir = Path(__file__).parent.absolute()
 
-    nats_server = NatsServer()
+    log_dir = current_dir.joinpath("logs")
+    if log_dir.is_dir():
+        log_dir.rmdir()
+    log_dir.mkdir(exist_ok=True)
+    #    shutil.rmtree("logs")
+
+    #    nats_server = NatsServer()
 
     encoder_op = OperatorConfig(
         name="encoder",
@@ -158,41 +164,45 @@ async def main():
     )
 
     encoder = WorkerConfig(
-        request_plane_args=([nats_server.url], {}),
-        log_level=6,
+        #       request_plane_args=([nats_server.url], {}),
+        #      log_level=6,
         operators=[encoder_op],
         name="encoder",
         metrics_port=50000,
-        log_dir="logs",
+        #     log_dir="logs",
     )
 
     decoder = WorkerConfig(
-        request_plane_args=([nats_server.url], {}),
-        log_level=6,
+        #    request_plane_args=([nats_server.url], {}),
+        #   log_level=6,
         operators=[decoder_op],
         name="decoder",
         metrics_port=50100,
-        log_dir="logs",
+        #  log_dir="logs",
     )
 
     encoder_decoder = WorkerConfig(
-        request_plane_args=([nats_server.url], {}),
-        log_level=6,
+        # request_plane_args=([nats_server.url], {}),
+        # log_level=6,
         operators=[encoder_decoder_op],
         name="encoder_decoder",
         metrics_port=50200,
-        log_dir="logs",
+        # log_dir="logs",
     )
 
     print("Starting Workers")
 
-    deployment = Deployment([encoder, (decoder, 10), (encoder_decoder, 10)])
+    deployment = Deployment(
+        [encoder, (decoder, 10), (encoder_decoder, 10)],
+        initialize_request_plane=True,
+        log_dir=str(log_dir),
+    )
 
     deployment.start()
 
     print("Sending Requests")
 
-    await send_requests(nats_server.url)
+    await send_requests("nats://localhost:4223")
 
     print("Stopping Workers")
 

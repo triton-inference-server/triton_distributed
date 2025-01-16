@@ -14,35 +14,88 @@
 # limitations under the License.
 import multiprocessing
 from pprint import pformat
+from typing import Optional, Type
 
+from triton_distributed.icp import (
+    DataPlane,
+    NatsRequestPlane,
+    NatsServer,
+    RequestPlane,
+    UcpDataPlane,
+)
 from triton_distributed.worker.log_formatter import setup_logger
 from triton_distributed.worker.worker import Worker, WorkerConfig
+from tritonserver import InvalidArgumentError
 
 LOGGER_NAME = __name__
 
 
 class Deployment:
     def __init__(
-        self, worker_configs: list[WorkerConfig | tuple[WorkerConfig, int]], log_level=3
+        self,
+        worker_configs: list[WorkerConfig | tuple[WorkerConfig, int]],
+        log_level=3,
+        initialize_request_plane=False,
+        initialize_data_plane=False,
+        request_plane_args: Optional[tuple[list, dict]] = None,
+        request_plane: Optional[Type[RequestPlane]] = NatsRequestPlane,
+        data_plane: Optional[Type[DataPlane]] = UcpDataPlane,
+        data_plane_args: Optional[tuple[list, dict]] = None,
+        log_dir="logs",
     ):
         self._process_context = multiprocessing.get_context("spawn")
         self._worker_configs = worker_configs
         self._workers: list[multiprocessing.context.SpawnProcess] = []
         self._logger = setup_logger(log_level, LOGGER_NAME)
+        self._default_request_plane = request_plane
+        self._default_request_plane_args = request_plane_args
+        self._default_data_plane = data_plane
+        self._default_data_plane_args = data_plane_args
+        self._initialize_request_plane = initialize_request_plane
+        self._initialize_data_plane = initialize_data_plane
+        self._request_plane_server: NatsServer = None
+        self._default_log_dir = log_dir
+        self._default_log_level = log_level
 
     @staticmethod
     def _start_worker(worker_config):
         Worker(worker_config).start()
 
     def start(self):
+        if self._initialize_request_plane:
+            if self._default_request_plane == NatsRequestPlane:
+                self._request_plane_server = NatsServer(log_dir=self._default_log_dir)
+            else:
+                raise InvalidArgumentError(
+                    f"Unknown Request Plane Type, can not initialize {self._default_request_plane}"
+                )
+
         for worker_config in self._worker_configs:
             worker_instances = 1
             if isinstance(worker_config, tuple):
                 worker_instances = worker_config[1]
                 worker_config = worker_config[0]
-            worker_config.log_level = 6
+
             base_name = worker_config.name
             base_port = worker_config.metrics_port
+
+            request_plane_args, request_plane_kwargs = worker_config.request_plane_args
+
+            if not request_plane_args and not request_plane_kwargs:
+                if self._default_request_plane_args:
+                    worker_config.request_plane_args = self._default_request_plane_args
+                elif self._request_plane_server:
+                    worker_config.request_plane_args = (
+                        [self._request_plane_server.url],
+                        {},
+                    )
+
+            if not worker_config.log_dir:
+                worker_config.log_dir = self._default_log_dir
+
+            if not worker_config.log_level:
+                worker_config.log_level = self._default_log_level
+
             for index in range(worker_instances):
                 worker_config.name = f"{base_name}.{index}"
                 worker_config.metrics_port = base_port + index
