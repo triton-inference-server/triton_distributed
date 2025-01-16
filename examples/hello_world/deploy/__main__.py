@@ -20,12 +20,16 @@ import cupy
 import numpy
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane, NatsServer
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
-from triton_distributed.tritonserver import MemoryType
-from triton_distributed.worker import WorkerConfig
-from triton_distributed.worker.operator import Operator, OperatorConfig
-from triton_distributed.worker.remote_operator import RemoteOperator
-from triton_distributed.worker.remote_request import RemoteInferenceRequest
-from triton_distributed.worker.triton_core_operator import TritonCoreOperator
+from triton_distributed.worker import (
+    Deployment,
+    Operator,
+    OperatorConfig,
+    RemoteInferenceRequest,
+    RemoteOperator,
+    TritonCoreOperator,
+    WorkerConfig,
+)
+from tritonserver import MemoryType
 
 
 class EncodeDecodeOperator(Operator):
@@ -116,7 +120,7 @@ async def main():
 
     encoder_op = OperatorConfig(
         name="encoder",
-        repository="/workspace/examples/hello_world/operators/models",
+        repository="/workspace/examples/hello_world/operators/triton_core_models",
         implementation=TritonCoreOperator,
         max_inflight_requests=1,
         parameters={
@@ -129,7 +133,7 @@ async def main():
 
     decoder_op = OperatorConfig(
         name="decoder",
-        repository="/workspace/examples/hello_world/operators/models",
+        repository="/workspace/examples/hello_world/operators/triton_core_models",
         implementation=TritonCoreOperator,
         max_inflight_requests=1,
         parameters={
@@ -142,7 +146,7 @@ async def main():
 
     encoder_decoder_op = OperatorConfig(
         name="encoder_decoder",
-        implementation=EncodeDecodeOperator,
+        implementation="/workspace/examples/hello_world/deploy/__main__:EncodeDecodeOperator",
         max_inflight_requests=100,
     )
 
@@ -175,7 +179,9 @@ async def main():
 
     print("Starting Workers")
 
-    processes = [process.start() for process in [encoder, decoder, encoder_decoder]]
+    deployment = Deployment([encoder, decoder, encoder_decoder])
+
+    deployment.start()
 
     print("Sending Requests")
 
@@ -183,12 +189,7 @@ async def main():
 
     print("Stopping Workers")
 
-    for process in reversed(processes):
-        print("shutting down", process)
-        process.terminate()
-        print("waiting", process)
-        process.join()
-        print("done", process)
+    deployment.stop()
 
 
 if __name__ == "__main__":

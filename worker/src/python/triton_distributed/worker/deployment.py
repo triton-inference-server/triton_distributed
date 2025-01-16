@@ -36,6 +36,10 @@ class Deployment:
                     args=[worker_config],
                 )
             )
+            self._workers[-1].start()
+
+    def stop(self):
+        self.shutdown()
 
     def shutdown(self, join=True, timeout=10):
         for worker in self._workers:

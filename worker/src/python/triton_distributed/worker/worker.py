@@ -111,6 +111,7 @@ class Worker:
                     sys.path.append(str(module_path.parent.absolute()))
                 try:
                     module = importlib.import_module(module_path.name)
+                    print(dir(module))
                     class_ = getattr(module, class_name)
                 except Exception as e:
                     logger.exception(
