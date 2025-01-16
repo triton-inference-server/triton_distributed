@@ -21,6 +21,8 @@ jobs:
     environment: GITLAB
     runs-on: self-hosted
     steps:
+      - name: Check out the repository to the runner
+        uses: actions/checkout@v4
       - name: Sync Mirror Repository
         run: |
           chmod +x ./.github/workflows/mirror_repo.sh
