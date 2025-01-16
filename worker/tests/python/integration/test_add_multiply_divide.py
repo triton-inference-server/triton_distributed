@@ -15,8 +15,10 @@
 
 import asyncio
 import logging
+import shutil
 import sys
-from multiprocessing import Manager, Process
+from multiprocessing import Process
+from pathlib import Path
 
 import cupy
 import numpy
@@ -25,6 +27,7 @@ import ucp
 from cupy_backends.cuda.api.runtime import CUDARuntimeError
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
+from triton_distributed.worker.deployment import Deployment
 from triton_distributed.worker.log_formatter import LOGGER_NAME
 from triton_distributed.worker.operator import OperatorConfig
 from triton_distributed.worker.remote_operator import RemoteOperator
@@ -32,8 +35,11 @@ from triton_distributed.worker.triton_core_operator import TritonCoreOperator
 from triton_distributed.worker.worker import WorkerConfig
 
 NATS_PORT = 4223
-MODEL_REPOSITORY = "/workspace/worker/tests/python/integration/operators/models"
-WORKFLOW_REPOSITORY = "/workspace/worker/tests/python/integration/operators"
+MODEL_REPOSITORY = (
+    "/workspace/worker/tests/python/integration/operators/triton_model_repo"
+)
+OPERATORS_REPOSITORY = "/workspace/worker/tests/python/integration/operators"
+TRITON_LOG_FILE = "triton.log"
 TRITON_LOG_LEVEL = 6
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -54,94 +60,105 @@ except CUDARuntimeError:
 pytestmark = pytest.mark.pre_merge
 
 
-@pytest.fixture
-def workers(worker_manager, request):
-    worker_config = WorkerConfig(
+def get_worker_config(
+    name,
+    store_outputs_in_response,
+    implementation,
+    max_inflight_requests,
+    operator_repository,
+    test_log_directory,
+):
+    # Set the operator config
+    operator_config = OperatorConfig(
+        name=name,
+        implementation=implementation,
+        version=1,
+        max_inflight_requests=max_inflight_requests,
+        parameters={"store_outputs_in_response": store_outputs_in_response},
+        repository=operator_repository,
+    )
+    operators = [
+        operator_config,
+    ]
+
+    # Set the logging directory
+    log_dir = test_log_directory / name
+
+    return WorkerConfig(
         request_plane=NatsRequestPlane,
         data_plane=UcpDataPlane,
         request_plane_args=([], {"request_plane_uri": f"nats://localhost:{NATS_PORT}"}),
         log_level=TRITON_LOG_LEVEL,
+        log_dir=str(log_dir),
+        triton_log_path=str(log_dir / TRITON_LOG_FILE),
+        operators=operators,
     )
+
+
+@pytest.fixture
+def workers(request):
+    test_log_directory = Path(__file__).with_suffix("")
+    if test_log_directory.exists():
+        shutil.rmtree(test_log_directory, ignore_errors=True)
+    test_log_directory.mkdir()
+
     store_outputs_in_response = request.getfixturevalue("store_outputs_in_response")
 
-    add_model = OperatorConfig(
-        name="add",
-        implementation=TritonCoreOperator,
-        version=1,
-        max_inflight_requests=10,
-        parameters={"store_outputs_in_response": store_outputs_in_response},
-        repository=MODEL_REPOSITORY,
-    )
-    multiply_model = OperatorConfig(
-        name="multiply",
-        implementation=TritonCoreOperator,
-        version=1,
-        max_inflight_requests=10,
-        parameters={"store_outputs_in_response": store_outputs_in_response},
-        repository=MODEL_REPOSITORY,
-    )
-    divide_model = OperatorConfig(
-        name="divide",
-        implementation=TritonCoreOperator,
-        version=1,
-        max_inflight_requests=10,
-        parameters={"store_outputs_in_response": store_outputs_in_response},
-        repository=MODEL_REPOSITORY,
-    )
-    workflow = OperatorConfig(
-        name="add_multiply_divide",
-        implementation="add_multiply_divide:AddMultiplyDivide",
-        version=1,
-        max_inflight_requests=10,
-        parameters={"store_outputs_in_response": store_outputs_in_response},
-        repository=WORKFLOW_REPOSITORY,
+    worker_configs = []
+
+    # Add Worker
+    worker_configs.append(
+        get_worker_config(
+            name="add",
+            store_outputs_in_response=store_outputs_in_response,
+            implementation=TritonCoreOperator,
+            max_inflight_requests=10,
+            operator_repository=MODEL_REPOSITORY,
+            test_log_directory=test_log_directory,
+        )
     )
 
-    with Manager() as manager:
-        workers = []
-        queues = []
-
-        queues.append(manager.Queue(maxsize=1))
-        workers.append(
-            worker_manager.setup_worker_process(
-                [add_model], "add", queues[-1], worker_config
-            )
+    # Multiply Worker
+    worker_configs.append(
+        get_worker_config(
+            name="multiply",
+            store_outputs_in_response=store_outputs_in_response,
+            implementation=TritonCoreOperator,
+            max_inflight_requests=10,
+            operator_repository=MODEL_REPOSITORY,
+            test_log_directory=test_log_directory,
         )
+    )
 
-        queues.append(manager.Queue(maxsize=1))
-        workers.append(
-            worker_manager.setup_worker_process(
-                [multiply_model], "multiply", queues[-1], worker_config
-            )
+    # Divide Worker
+    worker_configs.append(
+        get_worker_config(
+            name="divide",
+            store_outputs_in_response=store_outputs_in_response,
+            implementation=TritonCoreOperator,
+            max_inflight_requests=10,
+            operator_repository=MODEL_REPOSITORY,
+            test_log_directory=test_log_directory,
         )
+    )
 
-        queues.append(manager.Queue(maxsize=1))
-        workers.append(
-            worker_manager.setup_worker_process(
-                [divide_model], "divide", queues[-1], worker_config
-            )
+    # Add-Multiply-Divide Worker
+    worker_configs.append(
+        get_worker_config(
+            name="add_multiply_divide",
+            store_outputs_in_response=store_outputs_in_response,
+            implementation="add_multiply_divide:AddMultiplyDivide",
+            max_inflight_requests=10,
+            operator_repository=OPERATORS_REPOSITORY,
+            test_log_directory=test_log_directory,
         )
+    )
 
-        queues.append(manager.Queue(maxsize=1))
-        workers.append(
-            worker_manager.setup_worker_process(
-                [workflow], "add_multiply_divide", queues[-1], worker_config
-            )
-        )
+    worker_deployment = Deployment(worker_configs)
 
-        workers_failed = False
-        status_list = []
-        for queue, worker in zip(queues, workers):
-            status = queue.get()
-            status_list.append(status)
-            if status != "READY":
-                workers_failed = True
-
-        if workers_failed:
-            worker_manager.cleanup_workers(workers, check_status=False)
-            raise Exception(f"Failed to start worker processes: {status_list}")
-        yield workers
-        worker_manager.cleanup_workers(workers)
+    worker_deployment.start()
+    yield worker_deployment
+    worker_deployment.shutdown()
 
 
 def _create_inputs(number, size):
@@ -174,6 +191,9 @@ def _create_inputs(number, size):
 
 
 async def post_requests(num_requests, store_inputs_in_request):
+    """
+    Post requests to add_multiply_divide operator.
+    """
     ucp.reset()
     timeout = 5
 
@@ -183,7 +203,7 @@ async def post_requests(num_requests, store_inputs_in_request):
     request_plane = NatsRequestPlane(f"nats://localhost:{NATS_PORT}")
     await request_plane.connect()
 
-    add_multiply_divide_model = RemoteOperator(
+    add_multiply_divide_operator = RemoteOperator(
         "add_multiply_divide", 1, request_plane, data_plane
     )
 
@@ -194,13 +214,13 @@ async def post_requests(num_requests, store_inputs_in_request):
 
     for i, input_ in enumerate(inputs):
         request_id = str(i)
-        request = add_multiply_divide_model.create_request(
+        request = add_multiply_divide_operator.create_request(
             inputs={"int64_input": input_}, request_id=request_id
         )
         if store_inputs_in_request:
             request.store_inputs_in_request.add("int64_input")
         print(request)
-        results.append(add_multiply_divide_model.async_infer(request))
+        results.append(add_multiply_divide_operator.async_infer(request))
         expected_results[request_id] = outputs[i]
 
     for result in asyncio.as_completed(results):

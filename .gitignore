@@ -36,6 +36,9 @@ CMakeCache.txt
 *_pb2.pyi
 *.svg
 
+*pytest_report.md
+*pytest_report.xml
+
 **/__pycache__
 **/venv
 *.cache
