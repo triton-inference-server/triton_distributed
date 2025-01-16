@@ -17,5 +17,5 @@
 --extra-index-url https://flashinfer.ai/whl/cu121/torch2.4
 flashinfer
 ucx-py-cu12
-# TODO update to branch / fork
-vllm==0.6.3post1
+# vLLM is installed by patching script
+# vllm==0.6.3post1
