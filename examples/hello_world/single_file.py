@@ -186,7 +186,7 @@ async def main():
 
     print("Starting Workers")
 
-    deployment = Deployment([encoder, (decoder, 500), (encoder_decoder, 100)])
+    deployment = Deployment([encoder, (decoder, 10), (encoder_decoder, 10)])
 
     deployment.start()
 
