@@ -42,6 +42,7 @@ class Deployment:
         data_plane: Optional[Type[DataPlane]] = UcpDataPlane,
         data_plane_args: Optional[tuple[list, dict]] = None,
         log_dir="logs",
+        starting_metrics_port=50000,
     ):
         self._process_context = multiprocessing.get_context("spawn")
         self._worker_configs = worker_configs
@@ -53,9 +54,10 @@ class Deployment:
         self._default_data_plane_args = data_plane_args
         self._initialize_request_plane = initialize_request_plane
         self._initialize_data_plane = initialize_data_plane
-        self._request_plane_server: NatsServer = None
+        self.request_plane_server: NatsServer = None
         self._default_log_dir = log_dir
         self._default_log_level = log_level
+        self._starting_metrics_port = starting_metrics_port
 
     @staticmethod
     def _start_worker(worker_config):
@@ -64,7 +66,7 @@ class Deployment:
     def start(self):
         if self._initialize_request_plane:
             if self._default_request_plane == NatsRequestPlane:
-                self._request_plane_server = NatsServer(log_dir=self._default_log_dir)
+                self.request_plane_server = NatsServer(log_dir=self._default_log_dir)
             else:
                 raise InvalidArgumentError(
                     f"Unknown Request Plane Type, can not initialize {self._default_request_plane}"
@@ -79,14 +81,18 @@ class Deployment:
             base_name = worker_config.name
             base_port = worker_config.metrics_port
 
+            if not base_port and self._starting_metrics_port:
+                base_port = self._starting_metrics_port
+                self._starting_metrics_port += worker_instances
+
             request_plane_args, request_plane_kwargs = worker_config.request_plane_args
 
             if not request_plane_args and not request_plane_kwargs:
                 if self._default_request_plane_args:
                     worker_config.request_plane_args = self._default_request_plane_args
-                elif self._request_plane_server:
+                elif self.request_plane_server:
                     worker_config.request_plane_args = (
-                        [self._request_plane_server.url],
+                        [self.request_plane_server.url],
                         {},
                     )
 

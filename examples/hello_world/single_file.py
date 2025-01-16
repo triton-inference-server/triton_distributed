@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import asyncio
+import shutil
 from pathlib import Path
 
 import cupy
@@ -110,7 +111,8 @@ async def send_requests(nats_server_url, request_count=100):
                             output, inputs[int(response.request_id)]
                         )
                     del output_value
-                print(
+
+                pbar.set_description(
                     f"Finished Request: {response.request_id} Response From: {response.component_id} Error: {response.error}"
                 )
                 pbar.update(1)
@@ -121,19 +123,20 @@ async def send_requests(nats_server_url, request_count=100):
 
 
 async def main():
-    current_dir = Path(__file__).parent.absolute()
+    module_dir = Path(__file__).parent.absolute()
 
-    log_dir = current_dir.joinpath("logs")
+    log_dir = module_dir.joinpath("logs")
+
     if log_dir.is_dir():
-        log_dir.rmdir()
-    log_dir.mkdir(exist_ok=True)
-    #    shutil.rmtree("logs")
+        shutil.rmtree(log_dir)
 
-    #    nats_server = NatsServer()
+    log_dir.mkdir(exist_ok=True)
+
+    triton_core_models_dir = module_dir.joinpath("operators", "triton_core_models")
 
     encoder_op = OperatorConfig(
         name="encoder",
-        repository="/workspace/examples/hello_world/operators/triton_core_models",
+        repository=str(triton_core_models_dir),
         implementation=TritonCoreOperator,
         max_inflight_requests=1,
         parameters={
@@ -146,7 +149,7 @@ async def main():
 
     decoder_op = OperatorConfig(
         name="decoder",
-        repository="/workspace/examples/hello_world/operators/triton_core_models",
+        repository=str(triton_core_models_dir),
         implementation=TritonCoreOperator,
         max_inflight_requests=1,
         parameters={
@@ -164,30 +167,18 @@ async def main():
     )
 
     encoder = WorkerConfig(
-        #       request_plane_args=([nats_server.url], {}),
-        #      log_level=6,
         operators=[encoder_op],
         name="encoder",
-        metrics_port=50000,
-        #     log_dir="logs",
     )
 
     decoder = WorkerConfig(
-        #    request_plane_args=([nats_server.url], {}),
-        #   log_level=6,
         operators=[decoder_op],
         name="decoder",
-        metrics_port=50100,
-        #  log_dir="logs",
     )
 
     encoder_decoder = WorkerConfig(
-        # request_plane_args=([nats_server.url], {}),
-        # log_level=6,
         operators=[encoder_decoder_op],
         name="encoder_decoder",
-        metrics_port=50200,
-        # log_dir="logs",
     )
 
     print("Starting Workers")
@@ -196,13 +187,15 @@ async def main():
         [encoder, (decoder, 10), (encoder_decoder, 10)],
         initialize_request_plane=True,
         log_dir=str(log_dir),
+        log_level=0,
+        starting_metrics_port=50000,
     )
 
     deployment.start()
 
     print("Sending Requests")
 
-    await send_requests("nats://localhost:4223")
+    await send_requests(deployment.request_plane_server.url)
 
     print("Stopping Workers")
 
