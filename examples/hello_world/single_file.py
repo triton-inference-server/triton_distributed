@@ -184,10 +184,10 @@ async def main():
     print("Starting Workers")
 
     deployment = Deployment(
-        [encoder, (decoder, 10), (encoder_decoder, 10)],
+        [(encoder, 1), (decoder, 1), (encoder_decoder, 1)],
         initialize_request_plane=True,
         log_dir=str(log_dir),
-        log_level=0,
+        log_level=1,
         starting_metrics_port=50000,
     )
 
