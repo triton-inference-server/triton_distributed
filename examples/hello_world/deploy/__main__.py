@@ -14,7 +14,9 @@
 # limitations under the License.
 
 import asyncio
+import shutil
 import time
+from pathlib import Path
 
 from triton_distributed.worker import (
     Deployment,
@@ -23,87 +25,132 @@ from triton_distributed.worker import (
     WorkerConfig,
 )
 
+from .parser import parse_args
 
-async def main():
-    #    nats_server = NatsServer()
-    time.sleep(1)
+# def handler(signum, frame):
+#     for process in processes:
+#         process.terminate()
+#         process.kill()
+#     if processes:
+#         print("exiting")
+#         print(processes)
+#         shutil.rmtree(nats_store, ignore_errors=True)
+#         sys.exit(0)
 
-    encoder_op = OperatorConfig(
-        name="encoder",
-        repository="/workspace/examples/hello_world/operators/triton_core_models",
-        implementation=TritonCoreOperator,
-        max_inflight_requests=1,
-        parameters={
-            "config": {
-                "instance_group": [{"count": 1, "kind": "KIND_CPU"}],
-                "parameters": {"delay": {"string_value": "0"}},
-            }
-        },
-    )
 
-    decoder_op = OperatorConfig(
-        name="decoder",
-        repository="/workspace/examples/hello_world/operators/triton_core_models",
-        implementation=TritonCoreOperator,
-        max_inflight_requests=1,
-        parameters={
-            "config": {
-                "instance_group": [{"count": 1, "kind": "KIND_GPU"}],
-                "parameters": {"delay": {"string_value": "0"}},
-            }
-        },
-    )
+# signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+# for sig in signals:
+#     try:
+#         signal.signal(sig, handler)
+#     except Exception:
+#         pass
 
-    encoder_decoder_op = OperatorConfig(
-        name="encoder_decoder",
+
+def _create_encoder_decoder_op(name, max_inflight_requests, args):
+    return OperatorConfig(
+        name=name,
         implementation="EncodeDecodeOperator",
-        max_inflight_requests=100,
-        repository="/workspace/examples/hello_world/operators",
+        max_inflight_requests=int(max_inflight_requests),
+        repository=args.operator_repository,
+    )
+
+
+def _create_triton_core_operator(
+    name,
+    max_inflight_requests,
+    instances_per_worker,
+    kind,
+    delay_per_token,
+    input_copies,
+    args,
+):
+    return OperatorConfig(
+        name=name,
+        repository=args.triton_core_models,
+        implementation=TritonCoreOperator,
+        max_inflight_requests=int(max_inflight_requests),
+        parameters={
+            "config": {
+                "instance_group": [
+                    {"count": int(instances_per_worker), "kind": f"KIND_{kind}"}
+                ],
+                "parameters": {
+                    "delay": {"string_value": f"{delay_per_token}"},
+                    "input_copies": {"string_value": f"{input_copies}"},
+                },
+            }
+        },
+    )
+
+
+async def main(args):
+    log_dir = Path(args.log_dir)
+
+    if args.clear_logs:
+        shutil.rmtree(log_dir)
+
+    log_dir.mkdir(exist_ok=True)
+
+    encoder_op = _create_triton_core_operator(
+        "encoder",
+        args.encoders[1],
+        args.encoders[2],
+        args.encoders[3],
+        args.encoder_delay_per_token,
+        args.encoder_input_copies,
+        args,
     )
 
     encoder = WorkerConfig(
-        #        request_plane_args=([nats_server.url], {}),
-        #        log_level=6,
         operators=[encoder_op],
         name="encoder",
-        metrics_port=8060,
-        #       log_dir="logs",
+    )
+
+    decoder_op = _create_triton_core_operator(
+        "decoder",
+        args.decoders[1],
+        args.decoders[2],
+        args.decoders[3],
+        args.decoder_delay_per_token,
+        args.encoder_input_copies,
+        args,
     )
 
     decoder = WorkerConfig(
-        #      request_plane_args=([nats_server.url], {}),
-        #     log_level=6,
         operators=[decoder_op],
         name="decoder",
-        metrics_port=8061,
-        #    log_dir="logs",
+    )
+
+    encoder_decoder_op = _create_encoder_decoder_op(
+        "encoder_decoder", args.encoder_decoders[1], args
     )
 
     encoder_decoder = WorkerConfig(
-        #   request_plane_args=([nats_server.url], {}),
-        #  log_level=6,
         operators=[encoder_decoder_op],
         name="encoder_decoder",
-        metrics_port=8062,
-        # log_dir="logs",
     )
 
     print("Starting Workers")
 
     deployment = Deployment(
-        [(encoder, 5), decoder, (encoder_decoder, 6)], initialize_request_plane=True
+        [
+            (encoder, int(args.encoders[0])),
+            (decoder, int(args.decoders[0])),
+            (encoder_decoder, int(args.encoder_decoders[0])),
+        ],
+        initialize_request_plane=args.initialize_request_plane,
+        log_dir=args.log_dir,
+        log_level=args.log_level,
+        starting_metrics_port=args.starting_metrics_port,
     )
 
     deployment.start()
 
-    print("Sending Requests")
-
-    #    await send_requests(nats_server.url)
-
-    print("Stopping Workers")
+    time.sleep(10)
 
     deployment.stop()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    args = parse_args()
+    asyncio.run(main(args))

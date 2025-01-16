@@ -124,6 +124,7 @@ class Deployment:
 
     def shutdown(self, join=True, timeout=10):
         for worker in self._workers:
+            self._logger.info("\n\nStopping Worker:\n\n\n\t%s\n", worker)
             worker.terminate()
         if join:
             for worker in self._workers:
@@ -131,4 +132,5 @@ class Deployment:
             for worker in self._workers:
                 if worker.is_alive():
                     worker.kill()
-                    worker.join(timeout)
+                worker.join(timeout)
+                self._logger.info("\n\nWorker Stopped:\n\n\n\t%s\n", worker)
