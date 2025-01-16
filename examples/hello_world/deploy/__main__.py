@@ -15,6 +15,8 @@
 
 import asyncio
 import shutil
+import signal
+import sys
 import time
 from pathlib import Path
 
@@ -27,23 +29,23 @@ from triton_distributed.worker import (
 
 from .parser import parse_args
 
-# def handler(signum, frame):
-#     for process in processes:
-#         process.terminate()
-#         process.kill()
-#     if processes:
-#         print("exiting")
-#         print(processes)
-#         shutil.rmtree(nats_store, ignore_errors=True)
-#         sys.exit(0)
+deployment = None
 
 
-# signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
-# for sig in signals:
-#     try:
-#         signal.signal(sig, handler)
-#     except Exception:
-#         pass
+def handler(signum, frame):
+    if deployment:
+        print("Stopping Workers")
+        deployment.stop()
+    print("Workers Stopped")
+    sys.exit(0)
+
+
+signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+for sig in signals:
+    try:
+        signal.signal(sig, handler)
+    except Exception:
+        pass
 
 
 def _create_encoder_decoder_op(name, max_inflight_requests, args):
@@ -84,6 +86,7 @@ def _create_triton_core_operator(
 
 
 async def main(args):
+    global deployment
     log_dir = Path(args.log_dir)
 
     if args.clear_logs:
@@ -146,9 +149,10 @@ async def main(args):
 
     deployment.start()
 
-    time.sleep(10)
+    print("Workers started ... press Ctrl-C to Exit")
 
-    deployment.stop()
+    while True:
+        time.sleep(10)
 
 
 if __name__ == "__main__":
