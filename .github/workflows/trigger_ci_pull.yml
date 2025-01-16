@@ -22,8 +22,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Sync Mirror Repository
-        run: |
-          .github/workflows/mirror_repo.sh ${{ secrets.TOKEN }} ${{ secrets.MIRROR_URL }}
+        run: ./.github/workflows/mirror_repo.sh ${{ secrets.TOKEN }} ${{ secrets.MIRROR_URL }}
 
   trigger-ci:
     environment: GITLAB
