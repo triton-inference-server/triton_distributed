@@ -16,6 +16,9 @@
 # A script to download a Python wheel, patch it, copy additional files,
 # repackage it, and optionally install the new wheel.
 
+# FIXME: Address type checking with divergent interfaces for Ucp/Nccl data planes
+# type: ignore
+
 import typing
 
 if typing.TYPE_CHECKING:
