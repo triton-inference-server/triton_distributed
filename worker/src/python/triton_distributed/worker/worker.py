@@ -16,7 +16,6 @@
 import asyncio
 import importlib
 import logging
-import multiprocessing
 import os
 import pathlib
 import signal
@@ -376,35 +375,3 @@ class Worker:
             if self._log_dir:
                 sys.stdout.close()
                 sys.stderr.close()
-
-
-class Deployment:
-    def __init__(self, worker_configs: list[WorkerConfig]):
-        self._process_context = multiprocessing.get_context("spawn")
-        self._worker_configs = worker_configs
-        self._workers: list[multiprocessing.context.SpawnProcess] = []
-
-    @staticmethod
-    def _start_worker(worker_config):
-        Worker(worker_config).start()
-
-    def start(self):
-        for worker_config in self._worker_configs:
-            self._workers.append(
-                self._process_context.Process(
-                    target=Deployment._start_worker,
-                    name=worker_config.name,
-                    args=[worker_config],
-                )
-            )
-
-    def shutdown(self, join=True, timeout=10):
-        for worker in self._workers:
-            worker.terminate()
-        if join:
-            for worker in self._workers:
-                worker.join(timeout)
-            for worker in self._workers:
-                if worker.is_alive():
-                    worker.kill()
-                    worker.join(timeout)

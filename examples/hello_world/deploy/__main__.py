@@ -16,104 +16,13 @@
 import asyncio
 import time
 
-import cupy
-import numpy
-from triton_distributed.icp.nats_request_plane import NatsRequestPlane, NatsServer
-from triton_distributed.icp.ucp_data_plane import UcpDataPlane
+from triton_distributed.icp.nats_request_plane import NatsServer
 from triton_distributed.worker import (
     Deployment,
-    Operator,
     OperatorConfig,
-    RemoteInferenceRequest,
-    RemoteOperator,
     TritonCoreOperator,
     WorkerConfig,
 )
-from tritonserver import MemoryType
-
-
-class EncodeDecodeOperator(Operator):
-    def __init__(
-        self,
-        name,
-        version,
-        triton_core,
-        request_plane,
-        data_plane,
-        parameters,
-        repository,
-        logger,
-    ):
-        self._encoder = RemoteOperator("encoder", 1, request_plane, data_plane)
-        self._decoder = RemoteOperator("decoder", 1, request_plane, data_plane)
-        self._logger = logger
-
-    async def execute(self, requests: list[RemoteInferenceRequest]):
-        for request in requests:
-            self._logger.info("got request!")
-            encoded_responses = await self._encoder.async_infer(
-                inputs={"input": request.inputs["input"]}
-            )
-
-            async for encoded_response in encoded_responses:
-                input_copies = int(
-                    numpy.from_dlpack(encoded_response.outputs["input_copies"])
-                )
-                decoded_responses = await self._decoder.async_infer(
-                    inputs={"input": encoded_response.outputs["output"]},
-                    parameters={"input_copies": input_copies},
-                )
-
-                async for decoded_response in decoded_responses:
-                    await request.response_sender().send(
-                        final=True,
-                        outputs={"output": decoded_response.outputs["output"]},
-                    )
-                    del decoded_response
-
-
-async def send_requests(nats_server_url):
-    request_plane = NatsRequestPlane(nats_server_url)
-    data_plane = UcpDataPlane()
-    await request_plane.connect()
-    data_plane.connect()
-
-    remote_operator: RemoteOperator = RemoteOperator(
-        "encoder_decoder", 1, request_plane, data_plane
-    )
-
-    inputs = [
-        numpy.array(numpy.random.randint(0, 100, 10000)).astype("int64")
-        for _ in range(100)
-    ]
-
-    requests = [
-        await remote_operator.async_infer(
-            inputs={"input": inputs[index]}, request_id=str(index)
-        )
-        for index in range(100)
-    ]
-
-    for request in requests:
-        async for response in request:
-            for output_name, output_value in response.outputs.items():
-                if output_value.memory_type == MemoryType.CPU:
-                    output = numpy.from_dlpack(output_value)
-                    numpy.testing.assert_array_equal(
-                        output, inputs[int(response.request_id)]
-                    )
-                else:
-                    output = cupy.from_dlpack(output_value)
-                    cupy.testing.assert_array_equal(
-                        output, inputs[int(response.request_id)]
-                    )
-                del output_value
-            print(f"Finished Request: {response.request_id}")
-            print(response.error)
-            del response
-
-    await request_plane.close()
-    data_plane.close()
 
 
 async def main():
@@ -188,7 +97,7 @@ async def main():
 
     print("Sending Requests")
 
-    await send_requests(nats_server.url)
+    #    await send_requests(nats_server.url)
 
     print("Stopping Workers")
 
