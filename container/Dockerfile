@@ -15,6 +15,7 @@
 
 ARG BASE_IMAGE="nvcr.io/nvidia/tritonserver"
 ARG BASE_IMAGE_TAG="24.12-py3"
+ARG VLLM_WHEEL
 
 FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS triton-distributed
 
@@ -55,6 +56,19 @@ RUN --mount=type=bind,source=./container/deps/requirements.tensorrtllm.txt,targe
 
 RUN --mount=type=bind,source=./container/deps/requirements.vllm.txt,target=/tmp/requirements.txt \
     if [[ "$FRAMEWORK" == "VLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt ; fi
+
+# NOTE: python3-distro is a system package that causes conflicts with user
+# packages installed by `pip`. Removing the system package allows user packages
+# to correctly manage dependencies with the `distro` pip user package instead.
+RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
+    if [[ "$FRAMEWORK" == "VLLM" ]]; then \
+      apt install -y zip && \
+      apt remove -y python3-distro && \
+      pip install distro && \
+      cp -r /tmp/deps/vllm /tmp/local_vllm && \
+      cd /tmp/local_vllm && \
+      bash ./prepare_wheel.sh --install --debug --force ; \
+    fi
 
 RUN --mount=type=bind,source=./container/deps/requirements.standard.txt,target=/tmp/requirements.txt \
     if [[ "$FRAMEWORK" == "STANDARD" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt ; fi
