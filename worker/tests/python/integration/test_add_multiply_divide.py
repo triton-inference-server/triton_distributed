@@ -60,99 +60,59 @@ except CUDARuntimeError:
 pytestmark = pytest.mark.pre_merge
 
 
-def get_worker_config(
-    name,
-    store_outputs_in_response,
-    implementation,
-    max_inflight_requests,
-    operator_repository,
-    test_log_directory,
-):
-    # Set the operator config
-    operator_config = OperatorConfig(
-        name=name,
-        implementation=implementation,
-        version=1,
-        max_inflight_requests=max_inflight_requests,
-        parameters={"store_outputs_in_response": store_outputs_in_response},
-        repository=operator_repository,
-    )
-    operators = [
-        operator_config,
-    ]
-
-    # Set the logging directory
-    log_dir = test_log_directory / name
-
-    return WorkerConfig(
-        request_plane=NatsRequestPlane,
-        data_plane=UcpDataPlane,
-        request_plane_args=([], {"request_plane_uri": f"nats://localhost:{NATS_PORT}"}),
-        log_level=TRITON_LOG_LEVEL,
-        log_dir=str(log_dir),
-        triton_log_path=str(log_dir / TRITON_LOG_FILE),
-        operators=operators,
-    )
-
-
 @pytest.fixture
 def workers(request):
+    operator_configs = {}
+
+    store_outputs_in_response = request.getfixturevalue("store_outputs_in_response")
+    # Add configs for triton core operators
+    triton_core_operators = ["add", "multiply", "divide"]
+    for operator_name in triton_core_operators:
+        operator_configs[operator_name] = OperatorConfig(
+            name=operator_name,
+            implementation=TritonCoreOperator,
+            version=1,
+            max_inflight_requests=10,
+            parameters={"store_outputs_in_response": store_outputs_in_response},
+            repository=MODEL_REPOSITORY,
+        )
+
+    # Add configs for other custom operators
+    operator_name = "add_multiply_divide"
+    operator_configs[operator_name] = OperatorConfig(
+        name=operator_name,
+        implementation="add_multiply_divide:AddMultiplyDivide",
+        version=1,
+        max_inflight_requests=10,
+        parameters={"store_outputs_in_response": store_outputs_in_response},
+        repository=OPERATORS_REPOSITORY,
+    )
+
+    worker_configs = []
+
     test_log_directory = Path(__file__).with_suffix("")
     if test_log_directory.exists():
         shutil.rmtree(test_log_directory, ignore_errors=True)
     test_log_directory.mkdir()
 
-    store_outputs_in_response = request.getfixturevalue("store_outputs_in_response")
-
-    worker_configs = []
-
-    # Add Worker
-    worker_configs.append(
-        get_worker_config(
-            name="add",
-            store_outputs_in_response=store_outputs_in_response,
-            implementation=TritonCoreOperator,
-            max_inflight_requests=10,
-            operator_repository=MODEL_REPOSITORY,
-            test_log_directory=test_log_directory,
+    # We will instantiate a worker for each operator
+    for name, operator_config in operator_configs.items():
+        # Set the logging directory
+        log_dir = test_log_directory / name
+        worker_configs.append(
+            WorkerConfig(
+                request_plane=NatsRequestPlane,
+                data_plane=UcpDataPlane,
+                request_plane_args=(
+                    [],
+                    {"request_plane_uri": f"nats://localhost:{NATS_PORT}"},
+                ),
+                log_level=TRITON_LOG_LEVEL,
+                log_dir=str(log_dir),
+                triton_log_path=str(log_dir / TRITON_LOG_FILE),
+                operators=[operator_config],
+            )
         )
-    )
-
-    # Multiply Worker
-    worker_configs.append(
-        get_worker_config(
-            name="multiply",
-            store_outputs_in_response=store_outputs_in_response,
-            implementation=TritonCoreOperator,
-            max_inflight_requests=10,
-            operator_repository=MODEL_REPOSITORY,
-            test_log_directory=test_log_directory,
-        )
-    )
-
-    # Divide Worker
-    worker_configs.append(
-        get_worker_config(
-            name="divide",
-            store_outputs_in_response=store_outputs_in_response,
-            implementation=TritonCoreOperator,
-            max_inflight_requests=10,
-            operator_repository=MODEL_REPOSITORY,
-            test_log_directory=test_log_directory,
-        )
-    )
-
-    # Add-Multiply-Divide Worker
-    worker_configs.append(
-        get_worker_config(
-            name="add_multiply_divide",
-            store_outputs_in_response=store_outputs_in_response,
-            implementation="add_multiply_divide:AddMultiplyDivide",
-            max_inflight_requests=10,
-            operator_repository=OPERATORS_REPOSITORY,
-            test_log_directory=test_log_directory,
-        )
-    )
 
     worker_deployment = Deployment(worker_configs)
 
