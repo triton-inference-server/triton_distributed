@@ -21,4 +21,5 @@ def test_patch_imports():
     import vllm.distributed.data_plane as d
     import vllm.distributed.kv_cache as k
 
+    # Placeholder to avoid unused import errors or removal by linters
     assert d, k
