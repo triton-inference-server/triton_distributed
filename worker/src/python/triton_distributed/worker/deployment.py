@@ -13,15 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import multiprocessing
+from pprint import pformat
 
+from triton_distributed.worker.log_formatter import setup_logger
 from triton_distributed.worker.worker import Worker, WorkerConfig
+
+LOGGER_NAME = __name__
 
 
 class Deployment:
-    def __init__(self, worker_configs: list[WorkerConfig]):
+    def __init__(
+        self, worker_configs: list[WorkerConfig | tuple[WorkerConfig, int]], log_level=3
+    ):
         self._process_context = multiprocessing.get_context("spawn")
         self._worker_configs = worker_configs
         self._workers: list[multiprocessing.context.SpawnProcess] = []
+        self._logger = setup_logger(log_level, LOGGER_NAME)
 
     @staticmethod
     def _start_worker(worker_config):
@@ -29,14 +36,29 @@ class Deployment:
 
     def start(self):
         for worker_config in self._worker_configs:
-            self._workers.append(
-                self._process_context.Process(
-                    target=Deployment._start_worker,
-                    name=worker_config.name,
-                    args=[worker_config],
+            worker_instances = 1
+            if isinstance(worker_config, tuple):
+                worker_instances = worker_config[1]
+                worker_config = worker_config[0]
+            worker_config.log_level = 6
+            base_name = worker_config.name
+            base_port = worker_config.metrics_port
+            for index in range(worker_instances):
+                worker_config.name = f"{base_name}.{index}"
+                worker_config.metrics_port = base_port + index
+                self._workers.append(
+                    self._process_context.Process(
+                        target=Deployment._start_worker,
+                        name=worker_config.name,
+                        args=[worker_config],
+                    )
                 )
-            )
-            self._workers[-1].start()
+                self._logger.info(
+                    "\n\nStarting Worker:\n\n\tConfig:\n\t%s\n\t%s\n",
+                    pformat(worker_config),
+                    self._workers[-1],
+                )
+                self._workers[-1].start()
 
     def stop(self):
         self.shutdown()

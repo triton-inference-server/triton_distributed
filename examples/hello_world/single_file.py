@@ -14,10 +14,11 @@
 # limitations under the License.
 
 import asyncio
-import time
+import shutil
 
 import cupy
 import numpy
+from tqdm import tqdm
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane, NatsServer
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
 from triton_distributed.worker import (
@@ -72,7 +73,7 @@ class EncodeDecodeOperator(Operator):
                     del decoded_response
 
 
-async def send_requests(nats_server_url):
+async def send_requests(nats_server_url, request_count=100):
     request_plane = NatsRequestPlane(nats_server_url)
     data_plane = UcpDataPlane()
     await request_plane.connect()
@@ -84,41 +85,45 @@ async def send_requests(nats_server_url):
 
     inputs = [
         numpy.array(numpy.random.randint(0, 100, 10000)).astype("int64")
-        for _ in range(100)
+        for _ in range(request_count)
     ]
 
-    requests = [
-        await remote_operator.async_infer(
-            inputs={"input": inputs[index]}, request_id=str(index)
-        )
-        for index in range(100)
-    ]
+    with tqdm(total=request_count, desc="Sending Requests", unit="request") as pbar:
+        requests = [
+            await remote_operator.async_infer(
+                inputs={"input": inputs[index]}, request_id=str(index)
+            )
+            for index in range(request_count)
+        ]
 
-    for request in requests:
-        async for response in request:
-            for output_name, output_value in response.outputs.items():
-                if output_value.memory_type == MemoryType.CPU:
-                    output = numpy.from_dlpack(output_value)
-                    numpy.testing.assert_array_equal(
-                        output, inputs[int(response.request_id)]
-                    )
-                else:
-                    output = cupy.from_dlpack(output_value)
-                    cupy.testing.assert_array_equal(
-                        output, inputs[int(response.request_id)]
-                    )
-                del output_value
-            print(f"Finished Request: {response.request_id}")
-            print(response.error)
-            del response
+        for request in requests:
+            async for response in request:
+                for output_name, output_value in response.outputs.items():
+                    if output_value.memory_type == MemoryType.CPU:
+                        output = numpy.from_dlpack(output_value)
+                        numpy.testing.assert_array_equal(
+                            output, inputs[int(response.request_id)]
+                        )
+                    else:
+                        output = cupy.from_dlpack(output_value)
+                        cupy.testing.assert_array_equal(
+                            output, inputs[int(response.request_id)]
+                        )
+                    del output_value
+                print(
+                    f"Finished Request: {response.request_id} Response From: {response.component_id} Error: {response.error}"
+                )
+                pbar.update(1)
+                del response
 
     await request_plane.close()
     data_plane.close()
 
 
 async def main():
+    shutil.rmtree("logs")
+
     nats_server = NatsServer()
-    time.sleep(1)
 
     encoder_op = OperatorConfig(
         name="encoder",
@@ -148,9 +153,8 @@ async def main():
 
     encoder_decoder_op = OperatorConfig(
         name="encoder_decoder",
-        implementation="EncodeDecodeOperator",
+        implementation=EncodeDecodeOperator,
         max_inflight_requests=100,
-        repository="/workspace/examples/hello_world/operators",
     )
 
     encoder = WorkerConfig(
@@ -158,7 +162,7 @@ async def main():
         log_level=6,
         operators=[encoder_op],
         name="encoder",
-        metrics_port=8060,
+        metrics_port=50000,
         log_dir="logs",
     )
 
@@ -167,7 +171,7 @@ async def main():
         log_level=6,
         operators=[decoder_op],
         name="decoder",
-        metrics_port=8061,
+        metrics_port=50100,
         log_dir="logs",
     )
 
@@ -176,13 +180,13 @@ async def main():
         log_level=6,
         operators=[encoder_decoder_op],
         name="encoder_decoder",
-        metrics_port=8062,
+        metrics_port=50200,
         log_dir="logs",
     )
 
     print("Starting Workers")
 
-    deployment = Deployment([(encoder, 5), decoder, (encoder_decoder, 6)])
+    deployment = Deployment([encoder, (decoder, 500), (encoder_decoder, 100)])
 
     deployment.start()
 

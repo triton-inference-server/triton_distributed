@@ -87,6 +87,7 @@ class Worker:
         self._operators: dict[tuple[str, int], Operator] = {}
         self._metrics_port = config.metrics_port
         self._metrics_server: Optional[uvicorn.Server] = None
+        self._component_id = self._request_plane.component_id
 
     def _import_operators(self):
         for operator_config in self._operator_configs:
@@ -328,12 +329,17 @@ class Worker:
 
     def start(self):
         if self._log_dir:
+            pid = os.getpid()
             os.makedirs(self._log_dir, exist_ok=True)
-            stdout_path = os.path.join(self._log_dir, f"{self._name}.stdout.log")
-            stderr_path = os.path.join(self._log_dir, f"{self._name}.stderr.log")
+            stdout_path = os.path.join(
+                self._log_dir, f"{self._name}.{self._component_id}.{pid}.stdout.log"
+            )
+            stderr_path = os.path.join(
+                self._log_dir, f"{self._name}.{self._component_id}.{pid}.stderr.log"
+            )
             if not self._triton_log_path:
                 self._triton_log_path = os.path.join(
-                    self._log_dir, f"{self._name}.triton.log"
+                    self._log_dir, f"{self._name}.{self._component_id}.{pid}.triton.log"
                 )
             sys.stdout = open(stdout_path, "w", buffering=1)
             sys.stderr = open(stderr_path, "w", buffering=1)
