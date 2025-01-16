@@ -36,7 +36,7 @@ from triton_distributed.worker.worker import WorkerConfig
 
 NATS_PORT = 4223
 MODEL_REPOSITORY = (
-    "/workspace/worker/tests/python/integration/operators/triton_model_repo"
+    "/workspace/worker/tests/python/integration/operators/triton_core_models"
 )
 OPERATORS_REPOSITORY = "/workspace/worker/tests/python/integration/operators"
 TRITON_LOG_FILE = "triton.log"
