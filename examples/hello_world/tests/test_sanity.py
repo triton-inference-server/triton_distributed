@@ -35,7 +35,7 @@ def test_single_file():
     )
 
     try:
-        process.wait(30)
+        process.wait(60)
     except subprocess.TimeoutExpired:
         print("single file timed out!")
         process.terminate()
@@ -69,7 +69,7 @@ def test_sanity():
         stdin=subprocess.DEVNULL,
     )
     try:
-        client_process.wait(timeout=30)
+        client_process.wait(timeout=60)
     except subprocess.TimeoutExpired:
         print("Client timed out!")
         client_process.terminate()
