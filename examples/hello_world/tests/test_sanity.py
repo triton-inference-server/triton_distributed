@@ -23,6 +23,7 @@ import pytest
 pytestmark = pytest.mark.pre_merge
 
 
+@pytest.mark.skip("interactions with sanity test")
 def test_single_file():
     command = [
         "python3",
