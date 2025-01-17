@@ -15,6 +15,7 @@
 
 import asyncio
 import logging
+import os
 import subprocess
 import time
 
@@ -28,22 +29,46 @@ logger = logging.getLogger(LOGGER_NAME)
 
 NATS_PORT = 4223
 TEST_API_SERVER_MODEL_REPO_PATH = (
-    "/workspace/worker/python/tests/integration/api_server/models"
+    "/workspace/worker/tests/python/integration/api_server/models"
 )
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--basetemp-permissions",
+        action="store",
+        help="Permissions of the base temporary directory used by tmp_path, as octal value. Examples: 700 (default), 750, 770",
+    )
+
+
 @pytest.fixture(scope="session")
-def nats_server():
-    server = NatsServer()
+def log_dir(request, tmp_path_factory):
+    log_dir = tmp_path_factory.mktemp("logs")
+    try:
+        permissions = request.config.getoption("--basetemp-permissions")
+    except ValueError:
+        permissions = False
+    if permissions:
+        basetemp = request.config._tmp_path_factory.getbasetemp()
+        os.chmod(basetemp, int(permissions, 8))
+        os.chmod(log_dir, int(permissions, 8))
+    return log_dir
+
+
+@pytest.fixture(scope="session")
+def nats_server(log_dir):
+    server = NatsServer(log_dir=log_dir / "nats")
     yield server
     del server
 
 
 @pytest.fixture(scope="session")
-def api_server():
+def api_server(log_dir):
     command = ["tritonserver", "--model-store", str(TEST_API_SERVER_MODEL_REPO_PATH)]
-    with open("api_server.stdout.log", "wt") as output_:
-        with open("api_server.stderr.log", "wt") as output_err:
+    api_server_log_dir = log_dir / "api_server"
+    os.makedirs(api_server_log_dir, exist_ok=True)
+    with open(api_server_log_dir / "api_server.stdout.log", "wt") as output_:
+        with open(api_server_log_dir / "api_server.stderr.log", "wt") as output_err:
             process = subprocess.Popen(
                 command, stdin=subprocess.DEVNULL, stdout=output_, stderr=output_err
             )

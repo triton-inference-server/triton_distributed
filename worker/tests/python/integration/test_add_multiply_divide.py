@@ -15,10 +15,8 @@
 
 import asyncio
 import logging
-import shutil
 import sys
 from multiprocessing import Process
-from pathlib import Path
 
 import cupy
 import numpy
@@ -61,7 +59,7 @@ pytestmark = pytest.mark.pre_merge
 
 
 @pytest.fixture
-def workers(request):
+def workers(request, log_dir):
     operator_configs = {}
 
     store_outputs_in_response = request.getfixturevalue("store_outputs_in_response")
@@ -90,15 +88,13 @@ def workers(request):
 
     worker_configs = []
 
-    test_log_directory = Path(__file__).with_suffix("")
-    if test_log_directory.exists():
-        shutil.rmtree(test_log_directory, ignore_errors=True)
-    test_log_directory.mkdir()
+    test_log_dir = log_dir / request.node.name
+    test_log_dir.mkdir(parents=True, exist_ok=True)
 
     # We will instantiate a worker for each operator
     for name, operator_config in operator_configs.items():
         # Set the logging directory
-        log_dir = test_log_directory / name
+        worker_log_dir = test_log_dir / name
         worker_configs.append(
             WorkerConfig(
                 request_plane=NatsRequestPlane,
@@ -108,8 +104,8 @@ def workers(request):
                     {"request_plane_uri": f"nats://localhost:{NATS_PORT}"},
                 ),
                 log_level=TRITON_LOG_LEVEL,
-                log_dir=str(log_dir),
-                triton_log_path=str(log_dir / TRITON_LOG_FILE),
+                log_dir=str(worker_log_dir),
+                triton_log_path=str(worker_log_dir / TRITON_LOG_FILE),
                 operators=[operator_config],
             )
         )
