@@ -92,3 +92,14 @@ A basic example demonstrating the new interfaces and concepts of
 triton distributed. In the hello world example, you can deploy a set
 of simple workers to load balance requests from a local work queue.
 
+# Disclaimers
+
+> [!NOTE]
+> This project is currently in the alpha / experimental /
+> rapid-prototyping stage and we will be adding new features incrementally.
+
+1. The `TENSORRTLLM` and `VLLM` containers are WIP and not expected to
+   work out of the box.
+
+2. Testing has primarily been on single node systems with processes
+   launched within a single container.
