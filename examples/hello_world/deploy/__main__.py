@@ -95,13 +95,13 @@ async def main(args):
     log_dir.mkdir(exist_ok=True)
 
     encoder_op = _create_triton_core_operator(
-        "encoder",
-        args.encoders[1],
-        args.encoders[2],
-        args.encoders[3],
-        args.encoder_delay_per_token,
-        args.encoder_input_copies,
-        args,
+        name="encoder",
+        max_inflight_requests=args.encoders[1],
+        instances_per_worker=args.encoders[2],
+        kind=args.encoders[3],
+        delay_per_token=args.encoder_delay_per_token,
+        input_copies=args.encoder_input_copies,
+        args=args,
     )
 
     encoder = WorkerConfig(
@@ -110,13 +110,13 @@ async def main(args):
     )
 
     decoder_op = _create_triton_core_operator(
-        "decoder",
-        args.decoders[1],
-        args.decoders[2],
-        args.decoders[3],
-        args.decoder_delay_per_token,
-        args.encoder_input_copies,
-        args,
+        name="decoder",
+        max_inflight_requests=args.decoders[1],
+        instances_per_worker=args.decoders[2],
+        kind=args.decoders[3],
+        delay_per_token=args.decoder_delay_per_token,
+        input_copies=args.encoder_input_copies,
+        args=args,
     )
 
     decoder = WorkerConfig(
@@ -125,7 +125,9 @@ async def main(args):
     )
 
     encoder_decoder_op = _create_encoder_decoder_op(
-        "encoder_decoder", args.encoder_decoders[1], args
+        name="encoder_decoder",
+        max_inflight_requests=args.encoder_decoders[1],
+        args=args,
     )
 
     encoder_decoder = WorkerConfig(

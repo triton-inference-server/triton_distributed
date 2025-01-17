@@ -29,14 +29,17 @@ from tritonserver import InvalidArgumentError
 class RemoteOperator:
     def __init__(
         self,
-        name: str,
-        version: int,
+        operator: str | tuple[str, int],
         request_plane: RequestPlane,
         data_plane: DataPlane,
         component_id: Optional[uuid.UUID] = None,
     ):
-        self.name = name
-        self.version = version
+        if isinstance(operator, str):
+            self.name = operator
+            self.version = 1
+        else:
+            self.name = operator[0]
+            self.version = operator[1]
         self._request_plane = request_plane
         self._data_plane = data_plane
         self.component_id = component_id

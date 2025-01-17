@@ -46,8 +46,8 @@ class EncodeDecodeOperator(Operator):
         repository,
         logger,
     ):
-        self._encoder = RemoteOperator("encoder", 1, request_plane, data_plane)
-        self._decoder = RemoteOperator("decoder", 1, request_plane, data_plane)
+        self._encoder = RemoteOperator(("encoder", 1), request_plane, data_plane)
+        self._decoder = RemoteOperator("decoder", request_plane, data_plane)
         self._logger = logger
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
@@ -81,7 +81,7 @@ async def send_requests(nats_server_url, request_count=100):
     data_plane.connect()
 
     remote_operator: RemoteOperator = RemoteOperator(
-        "encoder_decoder", 1, request_plane, data_plane
+        "encoder_decoder", request_plane, data_plane
     )
 
     inputs = [

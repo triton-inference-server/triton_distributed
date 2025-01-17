@@ -16,19 +16,6 @@
 import argparse
 from pathlib import Path
 
-# Default values
-DEFAULT_REQUEST_PLANE_URI = "nats://localhost:4222"
-DEFAULT_LOG_LEVEL = 0
-
-# Property keys
-NAME = "name"
-VERSION = "version"
-MAX_INFLIGHT_REQUESTS = "max_inflight_requests"
-PARAMETERS = "parameters"
-MODULE = "module"
-REPOSITORY = "repository"
-IMPLEMENTATION = "implementation"
-
 
 def parse_args(args=None):
     example_dir = Path(__file__).parent.absolute().parent.absolute()
