@@ -39,15 +39,18 @@ class Identity(Operator):
         self._request_plane = request_plane
         self._data_plane = data_plane
         self._params = params
+        self._logger = logger
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
         for request in requests:
             try:
                 array = numpy.from_dlpack(request.inputs["input"])
             except Exception as e:
-                print(e)
+                self.logger.exception("Failed to retrieve inputs")
                 await request.response_sender().send(final=True, error=e)
                 return
+
+            self._logger.debug("Operator received inputs")
 
             outputs: dict[str, numpy.ndarray] = {"output": array}
 

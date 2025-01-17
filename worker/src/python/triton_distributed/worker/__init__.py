@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from triton_distributed.worker.deployment import Deployment as Deployment
+from triton_distributed.worker.logger import setup_logger as setup_logger
 from triton_distributed.worker.operator import Operator as Operator
 from triton_distributed.worker.operator import OperatorConfig as OperatorConfig
 from triton_distributed.worker.remote_operator import RemoteOperator as RemoteOperator

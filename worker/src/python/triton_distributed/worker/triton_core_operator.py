@@ -26,6 +26,7 @@ from tritonserver import InvalidArgumentError, Server
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
+from triton_distributed.worker.logger import setup_logger
 from triton_distributed.worker.operator import Operator
 from triton_distributed.worker.remote_request import RemoteInferenceRequest
 from triton_distributed.worker.remote_response import RemoteInferenceResponse
@@ -41,7 +42,7 @@ class TritonCoreOperator(Operator):
         data_plane: DataPlane,
         parameters: dict,
         repository: Optional[str] = None,
-        logger: logging.Logger = logging.getLogger(),
+        logger: logging.Logger = setup_logger(__name__),
     ):
         self._repository = repository
         self._name = name
@@ -93,7 +94,7 @@ class TritonCoreOperator(Operator):
         request_id_map = {}
         response_queue: asyncio.Queue = asyncio.Queue()
         for request in requests:
-            self._logger.info("\n\nReceived request: \n\n%s\n\n", request)
+            self._logger.debug("\n\nReceived request: \n\n%s\n\n", request)
             try:
                 local_request = request.to_local_request(self._local_model)
             except Exception as e:
@@ -126,5 +127,5 @@ class TritonCoreOperator(Operator):
 
             if local_response.final:
                 del request_id_map[local_response.request_id]
-            self._logger.info("\n\nSending response\n\n%s\n\n", remote_response)
+            self._logger.debug("\n\nSending response\n\n%s\n\n", remote_response)
             await response_sender.send(remote_response)

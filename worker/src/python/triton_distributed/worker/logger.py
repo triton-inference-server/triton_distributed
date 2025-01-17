@@ -16,8 +16,7 @@
 import logging
 import sys
 
-LOGGER_NAME = "Triton Worker"
-
+LOGGER_NAME = "Triton Distributed Worker"
 
 class LogFormatter(logging.Formatter):
     """Class to handle formatting of the logger outputs"""
@@ -29,12 +28,12 @@ class LogFormatter(logging.Formatter):
         super().__init__(datefmt="%H:%M:%S")
 
     def format(self, record):
-        front = "%(asctime)s %(filename)s:%(lineno)s"
-        self._style._fmt = f"{front}[{self._logger_name}] %(levelname)s: %(message)s"
+        front = "%(asctime)s.%(msecs)03d %(filename)s:%(lineno)s"
+        self._style._fmt = f"{front} [{self._logger_name}] %(levelname)s: %(message)s"
         return super().format(record)
 
 
-def setup_logger(log_level=1, logger_name=LOGGER_NAME):
+def setup_logger(log_level=1, logger_name=LOGGER_NAME, log_file=None):
     if log_level == 0:
         log_level = logging.ERROR
     elif log_level == 1:
@@ -48,6 +47,12 @@ def setup_logger(log_level=1, logger_name=LOGGER_NAME):
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(LogFormatter(logger_name=logger_name))
     logger.addHandler(handler)
+
+    if log_file:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(LogFormatter(logger_name=logger_name))
+        logger.addHandler(file_handler)
+
     logger.propagate = True
 
     return logger

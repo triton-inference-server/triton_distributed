@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import asyncio
-import logging
 import sys
 from multiprocessing import Process
 
@@ -27,7 +26,7 @@ from cupy_backends.cuda.api.runtime import CUDARuntimeError
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
 from triton_distributed.worker.deployment import Deployment
-from triton_distributed.worker.log_formatter import LOGGER_NAME
+from triton_distributed.worker.logger import setup_logger
 from triton_distributed.worker.operator import OperatorConfig
 from triton_distributed.worker.remote_operator import RemoteOperator
 from triton_distributed.worker.triton_core_operator import TritonCoreOperator
@@ -38,10 +37,9 @@ MODEL_REPOSITORY = (
     "/workspace/worker/tests/python/integration/operators/triton_core_models"
 )
 OPERATORS_REPOSITORY = "/workspace/worker/tests/python/integration/operators"
-TRITON_LOG_FILE = "triton.log"
 TRITON_LOG_LEVEL = 6
 
-logger = logging.getLogger(LOGGER_NAME)
+logger = setup_logger(__name__)
 
 # Run cupy's cuda.is_available once to
 # avoid the exception hitting runtime code.
@@ -106,7 +104,6 @@ def workers(request, log_dir):
                 ),
                 log_level=TRITON_LOG_LEVEL,
                 log_dir=str(worker_log_dir),
-                triton_log_path=str(worker_log_dir / TRITON_LOG_FILE),
                 operators=[operator_config],
             )
         )

@@ -16,6 +16,7 @@
 import asyncio
 import importlib
 import logging
+import multiprocessing
 import os
 import pathlib
 import signal
@@ -31,7 +32,7 @@ from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
-from triton_distributed.worker.log_formatter import LOGGER_NAME, setup_logger
+from triton_distributed.worker.logger import setup_logger
 from triton_distributed.worker.operator import Operator, OperatorConfig
 from triton_distributed.worker.remote_request import (
     RemoteInferenceRequest,
@@ -42,7 +43,7 @@ from triton_distributed.worker.triton_core_operator import TritonCoreOperator
 if TYPE_CHECKING:
     import uvicorn
 
-logger = logging.getLogger(LOGGER_NAME)
+logger = setup_logger(__name__)
 
 
 @dataclass
@@ -80,6 +81,11 @@ class Worker:
             self._log_level = 0
         self._operator_configs = config.operators
         self._log_dir = config.log_dir
+        self._log_file: Optional[str] = None
+        if self._log_dir:
+            os.makedirs(self._log_dir, exist_ok=True)
+            pid = os.getpid()
+            self._log_file = os.path.join(self._log_dir, f"{self._name}.{self._component_id}.{pid}.log")
 
         self._stop_requested = False
         self._requests_received: Counter = Counter()
@@ -137,6 +143,7 @@ class Worker:
                 operator_logger = setup_logger(
                     log_level=operator_config.log_level,
                     logger_name=f"OPERATOR{(operator_config.name,operator_config.version)}",
+                    log_file=self._log_file,
                 )
 
                 if (
@@ -176,7 +183,7 @@ class Worker:
             self._completion_conds[operator] = asyncio.Condition()
 
     async def _process_request(self, request):
-        logger.info("\n\nserver received request: \n\n%s\n\n", request)
+        logger.debug("\n\nserver received request: \n\n%s\n\n", request)
 
         operator_key = (request.model_name, int(request.model_version))
 
@@ -188,7 +195,7 @@ class Worker:
             )
             await operator.execute([remote_request])
         else:
-            logger.warn("Received request for unknown operator")
+            logger.warning("Received request for unknown operator")
 
     async def _process_request_task(self, operator, name, version):
         requests = await self._request_plane.pull_requests(name, str(version))
@@ -329,6 +336,14 @@ class Worker:
 
         return server
 
+    @staticmethod
+    def exception_handler(loop, context):
+        # get details of the exception
+        exception = context["exception"]
+        message = context["message"]
+        # log exception
+        logger.error(f"Task failed, msg={message}, exception={exception}")
+
     async def _wait_for_tasks(self, loop):
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         try:
@@ -342,26 +357,16 @@ class Worker:
 
     def start(self):
         exit_condition = None
-
-        if self._log_dir:
-            pid = os.getpid()
-            os.makedirs(self._log_dir, exist_ok=True)
-            stdout_path = os.path.join(
-                self._log_dir, f"{self._name}.{self._component_id}.{pid}.stdout.log"
-            )
-            stderr_path = os.path.join(
-                self._log_dir, f"{self._name}.{self._component_id}.{pid}.stderr.log"
-            )
+        if self._log_file:
+            logger = setup_logger(log_level=self._log_level, log_file=self._log_file)
             if not self._triton_log_path:
-                self._triton_log_path = os.path.join(
-                    self._log_dir, f"{self._name}.{self._component_id}.{pid}.triton.log"
-                )
-            sys.stdout = open(stdout_path, "w", buffering=1)
-            sys.stderr = open(stderr_path, "w", buffering=1)
-            triton_log = open(self._triton_log_path, "w", buffering=1)
-            triton_log.close()
-        setup_logger(log_level=self._log_level)
+                self._triton_log_path = self._log_file
+        else:
+            logger = setup_logger(log_level=self._log_level)
+
+        logger.info(f"Starting Worker ==> {self._name}")
         loop = asyncio.get_event_loop()
+        loop.set_exception_handler(Worker.exception_handler)
         signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
 
         # Note: mypy has known issues inferring
@@ -390,13 +395,6 @@ class Worker:
                 exit_condition = serve_result.result()
             else:
                 exit_condition = serve_result
-
-            sys.stdout.flush()
-            sys.stderr.flush()
-
-            if self._log_dir:
-                sys.stdout.close()
-                sys.stderr.close()
 
         if exit_condition is not None:
             sys.exit(1)

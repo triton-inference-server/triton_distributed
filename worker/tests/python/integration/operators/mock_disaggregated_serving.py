@@ -119,7 +119,7 @@ class MockDisaggregatedServing(Operator):
         return sending
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
-        print("in execute!", flush=True)
+        self._logger.debug("in execute!")
         error = None
         for request in requests:
             """

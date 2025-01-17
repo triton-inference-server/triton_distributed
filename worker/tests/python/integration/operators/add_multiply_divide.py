@@ -43,19 +43,20 @@ class AddMultiplyDivide(Operator):
         self._divide_model = RemoteOperator(
             "divide", self._request_plane, self._data_plane
         )
+        self._logger = logger
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
-        print("in execute!", flush=True)
+        self._logger.debug("in execute!")
         for request in requests:
             outputs = {}
 
-            print(request.inputs, flush=True)
+            self._logger.debug(request.inputs)
             array = None
             try:
                 array = numpy.from_dlpack(request.inputs["int64_input"])
-            except Exception as e:
-                print(e)
-            print(array)
+            except Exception:
+                self._logger.exception("Failed to retrieve inputs")
+            self._logger.debug(array)
             response = [
                 response
                 async for response in await self._add_model.async_infer(
@@ -63,7 +64,7 @@ class AddMultiplyDivide(Operator):
                 )
             ][0]
 
-            print(response, flush=True)
+            self._logger.debug(response)
 
             for output_name, output_value in response.outputs.items():
                 outputs[f"{response.model_name}_{output_name}"] = output_value
@@ -88,8 +89,8 @@ class AddMultiplyDivide(Operator):
             for result in asyncio.as_completed([multiply_respnoses, divide_responses]):
                 responses = await result
                 async for response in responses:
-                    print("response!", response, flush=True)
-                    print("error!", response.error, flush=True)
+                    self._logger.debug(f"response! {response}")
+                    self._logger.debug(f"error! {response.error}")
                     if response.error is not None:
                         error = response.error
                         break

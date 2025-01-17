@@ -44,9 +44,10 @@ class TritonPythonModel:
 
         # Using a mock hard coded auto-tokenizer
         self.tokenizer = XLNetTokenizer.from_pretrained("xlnet-base-cased")
+        self.logger = pb_utils.Logger
 
     def execute(self, requests):
-        print("In preprocessing execute!", flush=True)
+        self.logger.log_verbose("In preprocessing execute!")
         responses = []
 
         for idx, request in enumerate(requests):
@@ -56,9 +57,9 @@ class TritonPythonModel:
                 request, "request_output_len"
             ).as_numpy()
 
-            print(f"query(pre-proc) {query}", flush=True)
+            self.logger.log_verbose(f"query(pre-proc) {query}")
             tokenize = np.array(self.tokenizer.encode(query[0].decode()))
-            print(f"tokenize(pre-proc) {tokenize.size}", flush=True)
+            self.logger.log_verbose(f"tokenize(pre-proc) {tokenize.size}")
             input_length = np.array([tokenize.size])
 
             # Just forwarding query to the pre-processed input_ids

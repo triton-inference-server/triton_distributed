@@ -16,10 +16,9 @@
 import logging
 
 import pytest
+from triton_distributed.worker.logger import setup_logger
 
-from triton_distributed.worker.log_formatter import LOGGER_NAME, setup_logger
-
-logger = logging.getLogger(LOGGER_NAME)
+logger = logging.getLogger(__name__)
 
 MSG = "This is a sample message"
 
