@@ -73,6 +73,8 @@ class TritonPythonModel:
         self._delay = float(
             self._config_parameters.get("delay", {"string_value": "0"})["string_value"]
         )
+        if self._model_instance_kind == "GPU" and cupy is None:
+            raise RuntimeError("GPU Device set but cupy not installed")
 
     def execute(self, requests):
         responses = []
@@ -87,7 +89,7 @@ class TritonPythonModel:
             for input_tensor in request.inputs():
                 input_value = input_tensor.as_numpy()
                 output_value = []
-                if self._model_instance_kind == "GPU":
+                if self._model_instance_kind == "GPU" and cupy is not None:
                     with cupy.cuda.Device(self._model_instance_device_id):
                         input_value = cupy.array(input_value)
                         output_value = cupy.invert(input_value)
