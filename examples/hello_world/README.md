@@ -139,7 +139,7 @@ Workers started ... press Ctrl-C to Exit
 From a separate terminal run the sample client.
 
 ```
-./containers/run.sh -it -- python3 -m hello_world.client
+./container/run.sh -it -- python3 -m hello_world.client
 ```
 
 #### Expected Output
