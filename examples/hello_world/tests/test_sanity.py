@@ -15,6 +15,13 @@
 
 import subprocess
 
+import pytest
+
+# TODO
+# Decide if this should be
+# pre merge, nightly, or weekly
+pytestmark = pytest.mark.pre_merge
+
 
 def test_sanity():
     deployment_command = [
