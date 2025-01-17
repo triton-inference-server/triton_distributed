@@ -24,10 +24,10 @@ of simple workers to load balance requests from a local work queue.
 The example demonstrates:
 
 1. How to incorporate an existing Triton Core Model into a triton distributed worker.
-1. How to incorporate a standalone python class into a triton distributed worker.
-1. How deploy a set of workers
-1. How to send requests to the triton distributed deployment
-1. Requests over the Request Plane and Data movement over the Data
+2. How to incorporate a standalone python class into a triton distributed worker.
+3. How deploy a set of workers
+4. How to send requests to the triton distributed deployment
+5. Requests over the Request Plane and Data movement over the Data
    Plane.
 
 ## Building the Hello World Environment
@@ -41,14 +41,14 @@ environment.
 Note: "STANDARD" is the default framework
 
 ```
-./containers/build.sh
+./container/build.sh
 ```
 
 
 ## Starting the Deployment
 
 ```
-./containers/run.sh -it -- python3 -m hello_world.deploy --initialize-request-plane
+./container/run.sh -it -- python3 -m hello_world.deploy --initialize-request-plane
 ```
 
 #### Expected Output
@@ -139,7 +139,7 @@ Workers started ... press Ctrl-C to Exit
 From a separate terminal run the sample client.
 
 ```
-./containers/run.sh -it -- python3 -m hello_world.client
+./container/run.sh -it -- python3 -m hello_world.client
 ```
 
 #### Expected Output
