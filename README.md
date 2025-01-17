@@ -64,7 +64,7 @@ The run script offers a few common workflows:
 1. Running a command in a container and exiting.
 
 ```
-./container/run.sh -- python3 -c "import tdist.icp.protos.icp_pb2 as icp_proto; print(icp_proto); print(dir(icp_proto));"
+./container/run.sh -- python3 -c "import triton_distributed.icp.protos.icp_pb2 as icp_proto; print(icp_proto); print(dir(icp_proto));"
 ```
 
 2. Starting an interactive shell.
