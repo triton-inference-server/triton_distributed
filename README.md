@@ -84,6 +84,20 @@ HF_TOKEN```) and mounts common directories such as ```/tmp:/tmp```,
 Please see the instructions in the corresponding example for specific
 deployment instructions.
 
+## Hello World
+
+A basic example demonstrating the new interfaces and concepts of
+triton distributed. In the hello world example, you can deploy a set
+of simple workers to load balance requests from a local work queue.
+
+The example demonstrates:
+
+1. How to incorporate an existing Triton Core Model into a triton distributed worker.
+1. How to incorporate a standalone python class into a triton distributed worker.
+1. How deploy a set of workers
+1. How to send requests to the triton distributed deployment
+
+
 <!--
 
 ## 1. Big Picture

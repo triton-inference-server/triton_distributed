@@ -15,6 +15,157 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+# Hello World
+
+A basic example demonstrating the new interfaces and concepts of
+triton distributed. In the hello world example, you can deploy a set
+of simple workers to load balance requests from a local work queue.
+
+The example demonstrates:
+
+1. How to incorporate an existing Triton Core Model into a triton distributed worker.
+1. How to incorporate a standalone python class into a triton distributed worker.
+1. How deploy a set of workers
+1. How to send requests to the triton distributed deployment
+
+
+## Building the Hello World Environment
+
+The hello world example is designed to be deployed in a containerized
+environment and to work with and without GPU support.
+
+To get started build the "STANDARD" triton distributed development
+environment.
+
+Note: "STANDARD" is the default framework
+
+```
+./containers/build.sh
+```
+
+
+## Starting the Deployment
+
+```
+./containers/run.sh -it -- python3 -m hello_world.deploy --initialize-request-plane
+```
+
+#### Expected Output
+
+
+```
+Starting Workers
+17:17:09 deployment.py:115[triton_distributed.worker.deployment] INFO:
+
+Starting Worker:
+
+	Config:
+	WorkerConfig(request_plane=<class 'triton_distributed.icp.nats_request_plane.NatsRequestPlane'>,
+             data_plane=<function UcpDataPlane at 0x7f477eb5d580>,
+             request_plane_args=([], {}),
+             data_plane_args=([], {}),
+             log_level=1,
+             operators=[OperatorConfig(name='encoder',
+                                       implementation=<class 'triton_distributed.worker.triton_core_operator.TritonCoreOperator'>,
+                                       repository='/workspace/examples/hello_world/operators/triton_core_models',
+                                       version=1,
+                                       max_inflight_requests=1,
+                                       parameters={'config': {'instance_group': [{'count': 1,
+                                                                                  'kind': 'KIND_CPU'}],
+                                                              'parameters': {'delay': {'string_value': '0'},
+                                                                             'input_copies': {'string_value': '1'}}}},
+                                       log_level=None)],
+             triton_log_path=None,
+             name='encoder.0',
+             log_dir='/workspace/examples/hello_world/logs',
+             metrics_port=50000)
+	<SpawnProcess name='encoder.0' parent=1 initial>
+
+17:17:09 deployment.py:115[triton_distributed.worker.deployment] INFO:
+
+Starting Worker:
+
+	Config:
+	WorkerConfig(request_plane=<class 'triton_distributed.icp.nats_request_plane.NatsRequestPlane'>,
+             data_plane=<function UcpDataPlane at 0x7f477eb5d580>,
+             request_plane_args=([], {}),
+             data_plane_args=([], {}),
+             log_level=1,
+             operators=[OperatorConfig(name='decoder',
+                                       implementation=<class 'triton_distributed.worker.triton_core_operator.TritonCoreOperator'>,
+                                       repository='/workspace/examples/hello_world/operators/triton_core_models',
+                                       version=1,
+                                       max_inflight_requests=1,
+                                       parameters={'config': {'instance_group': [{'count': 1,
+                                                                                  'kind': 'KIND_CPU'}],
+                                                              'parameters': {'delay': {'string_value': '0'},
+                                                                             'input_copies': {'string_value': '1'}}}},
+                                       log_level=None)],
+             triton_log_path=None,
+             name='decoder.0',
+             log_dir='/workspace/examples/hello_world/logs',
+             metrics_port=50001)
+	<SpawnProcess name='decoder.0' parent=1 initial>
+
+17:17:09 deployment.py:115[triton_distributed.worker.deployment] INFO:
+
+Starting Worker:
+
+	Config:
+	WorkerConfig(request_plane=<class 'triton_distributed.icp.nats_request_plane.NatsRequestPlane'>,
+             data_plane=<function UcpDataPlane at 0x7f477eb5d580>,
+             request_plane_args=([], {}),
+             data_plane_args=([], {}),
+             log_level=1,
+             operators=[OperatorConfig(name='encoder_decoder',
+                                       implementation='EncodeDecodeOperator',
+                                       repository='/workspace/examples/hello_world/operators',
+                                       version=1,
+                                       max_inflight_requests=1,
+                                       parameters={},
+                                       log_level=None)],
+             triton_log_path=None,
+             name='encoder_decoder.0',
+             log_dir='/workspace/examples/hello_world/logs',
+             metrics_port=50002)
+	<SpawnProcess name='encoder_decoder.0' parent=1 initial>
+
+Workers started ... press Ctrl-C to Exit
+```
+
+## Sending Requests
+
+From a separate terminal run the sample client.
+
+```
+./containers/run.sh -it -- python3 -m hello_world.client
+```
+
+#### Expected Output
+
+```
+
+Client: 0 Received Response: 42 From: 39491f06-d4f7-11ef-be96-047bcba9020e Error: None:  43%|███████▋          | 43/100 [00:04<00:05,  9.83request/s]
+
+Throughput: 9.10294484748811 Total Time: 10.985455989837646
+Clients Stopped Exit Code 0
+
+
+```
+
+## Behind the Scenes
+
+The hello world example is designed to demonstrate and allow
+experimenting with different mixtures of compute and memory loads and
+different numbers of workers for different parts of the hello world
+pipeline.
+
+### Hello World Pipeline
+
+The hello world pipeline is a simple two stage pipeline with an
+encoding stage and a decoding stage plus a
+
+
 <!--
 
 ```
