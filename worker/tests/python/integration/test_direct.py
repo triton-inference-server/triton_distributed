@@ -115,7 +115,7 @@ async def post_requests(num_requests, num_targets):
     request_plane = NatsRequestPlane(f"nats://localhost:{NATS_PORT}")
     await request_plane.connect()
 
-    identity_operator = RemoteOperator("identity", 1, request_plane, data_plane)
+    identity_operator = RemoteOperator("identity", request_plane, data_plane)
 
     target_components = set()
     target_component_list: list[uuid.UUID] = []

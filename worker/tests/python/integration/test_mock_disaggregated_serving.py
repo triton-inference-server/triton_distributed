@@ -156,7 +156,7 @@ async def post_requests(num_requests):
     await request_plane.connect()
 
     mock_disaggregated_serving_operator = RemoteOperator(
-        "mock_disaggregated_serving", 1, request_plane, data_plane
+        "mock_disaggregated_serving", request_plane, data_plane
     )
 
     expected_results = {}

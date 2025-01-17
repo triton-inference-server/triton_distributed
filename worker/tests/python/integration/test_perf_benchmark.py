@@ -133,7 +133,7 @@ def run(
     asyncio.get_event_loop().run_until_complete(request_plane.connect())
 
     identity_operator = RemoteOperator(
-        "identity", 1, request_plane, data_plane_tracker._data_plane
+        "identity", request_plane, data_plane_tracker._data_plane
     )
 
     inputs, outputs = _create_inputs(1, tensor_size_in_kb)

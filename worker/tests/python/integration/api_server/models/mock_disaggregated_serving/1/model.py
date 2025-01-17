@@ -162,7 +162,7 @@ class TritonPythonModel:
             "string_value"
         ]
         self._remote_operator = RemoteOperator(
-            self._remote_worker_name, 1, self._request_plane, self._data_plane
+            self._remote_worker_name, self._request_plane, self._data_plane
         )
 
         # Starting the response thread. It allows API Server to keep making progress while
