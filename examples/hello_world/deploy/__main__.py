@@ -33,11 +33,12 @@ deployment = None
 
 
 def handler(signum, frame):
+    exit_code = 0
     if deployment:
         print("Stopping Workers")
-        deployment.stop()
-    print("Workers Stopped")
-    sys.exit(0)
+        exit_code = deployment.stop()
+    print(f"Workers Stopped Exit Code {exit_code}")
+    sys.exit(exit_code)
 
 
 signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)

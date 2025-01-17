@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import multiprocessing
+import sys
 import time
 
 from .client import _start_client
@@ -37,8 +38,13 @@ def main(args):
     print(
         f"Throughput: {(args.requests_per_client*args.clients)/(end_time-start_time)} Total Time: {end_time-start_time}"
     )
+    exit_code = 0
+    for process in processes:
+        exit_code += process.exitcode
+    print(f"Clients Stopped Exit Code {exit_code}")
+    return exit_code
 
 
 if __name__ == "__main__":
     args = parse_args()
-    main(args)
+    sys.exit(main(args))

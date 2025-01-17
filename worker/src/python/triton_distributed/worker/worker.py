@@ -113,7 +113,6 @@ class Worker:
                     sys.path.append(str(module_path.parent.absolute()))
                 try:
                     module = importlib.import_module(module_path.name)
-                    print(dir(module))
                     class_ = getattr(module, class_name)
                 except Exception as e:
                     logger.exception(
@@ -228,6 +227,7 @@ class Worker:
         await asyncio.gather(*handlers)
 
     async def serve(self):
+        error = None
         self._triton_core = tritonserver.Server(
             model_repository=".",
             log_error=True,
@@ -261,6 +261,7 @@ class Worker:
         except Exception as e:
             logger.exception("Encountered an error in worker: %s", e)
             self._stop_requested = True
+            error = e
         logger.info("worker store: %s", list(self._data_plane._tensor_store.keys()))
         logger.info("Worker stopped...")
         logger.info(
@@ -275,6 +276,7 @@ class Worker:
         if self._metrics_server:
             self._metrics_server.should_exit = True
             await self._metrics_server.shutdown()
+        return error
 
     async def shutdown(self, signal):
         logger.info("Received exit signal %s...", signal.name)
@@ -329,6 +331,8 @@ class Worker:
         loop.stop()
 
     def start(self):
+        exit_condition = None
+
         if self._log_dir:
             pid = os.getpid()
             os.makedirs(self._log_dir, exist_ok=True)
@@ -357,23 +361,34 @@ class Worker:
             loop.add_signal_handler(
                 sig, lambda s=sig: asyncio.create_task(self.shutdown(s))  # type: ignore
             )
+        serve_result = None
         try:
             if self._metrics_port:
-                loop.create_task(self.serve())
+                serve_result = loop.create_task(self.serve())
                 self._metrics_server = self._setup_metrics_server()
                 assert self._metrics_server, "Unable to start metrics server"
                 loop.run_until_complete(self._metrics_server.serve())
             else:
-                loop.run_until_complete(self.serve())
+                serve_result = loop.run_until_complete(self.serve())
         except asyncio.CancelledError:
-            pass
             logger.info("Worker cancelled!")
         finally:
             loop.run_until_complete(self._wait_for_tasks(loop))
             loop.close()
             logger.info("Successfully shutdown worker.")
+            if isinstance(serve_result, asyncio.Task):
+                exit_condition = serve_result.result()
+            else:
+                exit_condition = serve_result
+
             sys.stdout.flush()
             sys.stderr.flush()
+
             if self._log_dir:
                 sys.stdout.close()
                 sys.stderr.close()
+
+        if exit_condition is not None:
+            sys.exit(1)
+        else:
+            sys.exit(0)

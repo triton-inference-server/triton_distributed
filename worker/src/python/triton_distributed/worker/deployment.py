@@ -120,9 +120,10 @@ class Deployment:
                 self._workers[-1].start()
 
     def stop(self):
-        self.shutdown()
+        return self.shutdown()
 
     def shutdown(self, join=True, timeout=10):
+        exit_code = 0
         for worker in self._workers:
             self._logger.info("\n\nStopping Worker:\n\n\n\t%s\n", worker)
             worker.terminate()
@@ -134,3 +135,5 @@ class Deployment:
                     worker.kill()
                 worker.join(timeout)
                 self._logger.info("\n\nWorker Stopped:\n\n\n\t%s\n", worker)
+                exit_code += worker.exitcode
+        return exit_code

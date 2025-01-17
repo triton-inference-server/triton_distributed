@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import asyncio
+import sys
 
 import cupy
 import numpy
@@ -37,62 +38,67 @@ def _get_input_sizes(args):
 
 
 def _start_client(client_index, args):
-    asyncio.run(client(client_index, args))
+    sys.exit(asyncio.run(client(client_index, args)))
 
 
 async def client(client_index, args):
     request_count = args.requests_per_client
-    request_plane = NatsRequestPlane(args.request_plane_uri)
-    data_plane = UcpDataPlane()
-    await request_plane.connect()
-    data_plane.connect()
+    try:
+        request_plane = NatsRequestPlane(args.request_plane_uri)
+        data_plane = UcpDataPlane()
+        await request_plane.connect()
+        data_plane.connect()
 
-    remote_operator: RemoteOperator = RemoteOperator(
-        args.operator, request_plane, data_plane
-    )
-    input_sizes = _get_input_sizes(args)
+        remote_operator: RemoteOperator = RemoteOperator(
+            args.operator, request_plane, data_plane
+        )
+        input_sizes = _get_input_sizes(args)
 
-    inputs = [
-        numpy.array(numpy.random.randint(0, 100, input_sizes[index]))
-        for index in range(request_count)
-    ]
-    tqdm.set_lock(args.lock)
-
-    with tqdm(
-        total=args.requests_per_client,
-        desc=f"Client: {client_index}",
-        unit="request",
-        position=client_index,
-        leave=False,
-    ) as pbar:
-        requests = [
-            await remote_operator.async_infer(
-                inputs={"input": inputs[index]}, request_id=str(index)
-            )
+        inputs = [
+            numpy.array(numpy.random.randint(0, 100, input_sizes[index]))
             for index in range(request_count)
         ]
+        tqdm.set_lock(args.lock)
 
-        for request in requests:
-            async for response in request:
-                for output_name, output_value in response.outputs.items():
-                    if output_value.memory_type == MemoryType.CPU:
-                        output = numpy.from_dlpack(output_value)
-                        numpy.testing.assert_array_equal(
-                            output, inputs[int(response.request_id)]
-                        )
-                    else:
-                        output = cupy.from_dlpack(output_value)
-                        cupy.testing.assert_array_equal(
-                            output, inputs[int(response.request_id)]
-                        )
-                    print(output.size)
-                    del output_value
-
-                pbar.set_description(
-                    f"Client: {client_index} Received Response: {response.request_id} From: {response.component_id} Error: {response.error}"
+        with tqdm(
+            total=args.requests_per_client,
+            desc=f"Client: {client_index}",
+            unit="request",
+            position=client_index,
+            leave=False,
+        ) as pbar:
+            requests = [
+                await remote_operator.async_infer(
+                    inputs={"input": inputs[index]}, request_id=str(index)
                 )
-                pbar.update(1)
-                del response
+                for index in range(request_count)
+            ]
 
-    await request_plane.close()
-    data_plane.close()
+            for request in requests:
+                async for response in request:
+                    for output_name, output_value in response.outputs.items():
+                        if output_value.memory_type == MemoryType.CPU:
+                            output = numpy.from_dlpack(output_value)
+                            numpy.testing.assert_array_equal(
+                                output, inputs[int(response.request_id)]
+                            )
+                        else:
+                            output = cupy.from_dlpack(output_value)
+                            cupy.testing.assert_array_equal(
+                                output, inputs[int(response.request_id)]
+                            )
+                        del output_value
+
+                    pbar.set_description(
+                        f"Client: {client_index} Received Response: {response.request_id} From: {response.component_id} Error: {response.error}"
+                    )
+                    pbar.update(1)
+                    del response
+
+        await request_plane.close()
+        data_plane.close()
+    except Exception as e:
+        print(f"Exception: {e}")
+        return 1
+    else:
+        return 0
