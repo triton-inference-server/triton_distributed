@@ -136,5 +136,11 @@ class Deployment:
                 worker.join(timeout)
                 self._logger.info("\n\nWorker Stopped:\n\n\n\t%s\n", worker)
                 if worker.exitcode is not None:
+                    # Note we accumulate exit codes
+                    # assumption being no error is exit_code==0
+                    # anything else represents an error
+                    #
+                    # this is to catch some obvious errors but not all
+
                     exit_code += worker.exitcode
         return exit_code
