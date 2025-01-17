@@ -135,5 +135,6 @@ class Deployment:
                     worker.kill()
                 worker.join(timeout)
                 self._logger.info("\n\nWorker Stopped:\n\n\n\t%s\n", worker)
-                exit_code += worker.exitcode
+                if worker.exitcode is not None:
+                    exit_code += worker.exitcode
         return exit_code

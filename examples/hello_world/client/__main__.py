@@ -17,11 +17,12 @@ import multiprocessing
 import signal
 import sys
 import time
+from typing import Optional
 
 from .client import _start_client
 from .parser import parse_args
 
-processes = None
+processes: Optional[list[multiprocessing.context.SpawnProcess]] = None
 
 
 def handler(signum, frame):
@@ -32,8 +33,8 @@ def handler(signum, frame):
             process.terminate()
             process.kill()
             process.join()
-
-            exit_code += process.exitcode
+            if process.exitcode is not None:
+                exit_code += process.exitcode
     print(f"Clients Stopped Exit Code {exit_code}")
     sys.exit(exit_code)
 
@@ -66,7 +67,8 @@ def main(args):
     )
     exit_code = 0
     for process in processes:
-        exit_code += process.exitcode
+        if process.exitcode is not None:
+            exit_code += process.exitcode
     print(f"Clients Stopped Exit Code {exit_code}")
     return exit_code
 
