@@ -18,6 +18,7 @@ import sys
 
 LOGGER_NAME = "Triton Distributed Worker"
 
+
 class LogFormatter(logging.Formatter):
     """Class to handle formatting of the logger outputs"""
 
