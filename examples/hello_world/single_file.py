@@ -197,7 +197,6 @@ async def main():
         initialize_request_plane=True,
         log_dir=str(log_dir),
         log_level=1,
-        starting_metrics_port=50000,
     )
 
     deployment.start()
