@@ -41,7 +41,7 @@ environment.
 Note: "STANDARD" is the default framework
 
 ```
-./containers/build.sh
+./container/build.sh
 ```
 
 
