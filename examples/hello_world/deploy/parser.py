@@ -45,23 +45,39 @@ def parse_args(args=None):
     )
 
     parser.add_argument(
-        "--clear-logs", default=False, action="store_true", help="clear log dir"
-    )
-
-    parser.add_argument("--log-level", type=int, default=1)
-
-    parser.add_argument(
-        "--request-plane-uri", type=str, default="nats://localhost:4223"
-    )
-
-    parser.add_argument("--starting-metrics-port", type=int, default=50000)
-
-    parser.add_argument(
-        "--operator-repository", type=str, default=str(default_operator_repository)
+        "--clear-logs", default=False, action="store_true", help="clear log directory"
     )
 
     parser.add_argument(
-        "--triton-core-models", type=str, default=str(default_triton_core_models)
+        "--log-level", type=int, default=1, help="log level applied to all workers"
+    )
+
+    parser.add_argument(
+        "--request-plane-uri",
+        type=str,
+        default="nats://localhost:4223",
+        help="URI of request plane",
+    )
+
+    parser.add_argument(
+        "--starting-metrics-port",
+        type=int,
+        default=50000,
+        help="Metrics port for first worker. Each worker will expose metrics on subsequent ports, ex. worker 1: 50000, worker 2: 50001, worker 3: 50002",
+    )
+
+    parser.add_argument(
+        "--operator-repository",
+        type=str,
+        default=str(default_operator_repository),
+        help="operator repository",
+    )
+
+    parser.add_argument(
+        "--triton-core-models",
+        type=str,
+        default=str(default_triton_core_models),
+        help="model repository for triton core models.",
     )
 
     parser.add_argument(
