@@ -24,10 +24,10 @@ of simple workers to load balance requests from a local work queue.
 The example demonstrates:
 
 1. How to incorporate an existing Triton Core Model into a triton distributed worker.
-1. How to incorporate a standalone python class into a triton distributed worker.
-1. How deploy a set of workers
-1. How to send requests to the triton distributed deployment
-1. Requests over the Request Plane and Data movement over the Data
+2. How to incorporate a standalone python class into a triton distributed worker.
+3. How deploy a set of workers
+4. How to send requests to the triton distributed deployment
+5. Requests over the Request Plane and Data movement over the Data
    Plane.
 
 ## Building the Hello World Environment
