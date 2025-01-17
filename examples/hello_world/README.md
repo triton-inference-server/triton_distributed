@@ -170,7 +170,7 @@ orchestrate the overall workflow.
 ```
 client <-> encoder_decoder <-> encoder
                       |
-					  -----<-> decoder
+                      -----<-> decoder
 ```
 
 
@@ -207,17 +207,19 @@ by a common Worker class.
 
 #### Triton Core Operator
 
-The triton core operator makes a triton model (following the standard
-model repo and backend structure of the tritonserver) available on the
-request plane. Both the encoder and decoder are implemented as triton
-python backend models.
+The triton core operator makes a triton model (following the [standard
+model
+repo](https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_repository.md)
+and backend structure of the tritonserver) available on the request
+plane. Both the encoder and decoder are implemented as triton python
+backend models.
 
-#### Standalone Operator
+#### Generic Operator
 
-The encoder-decoder operator is a standalone python class that
-implements the Operator interface. Internally it makes remote requests
-to other workers. Generally a standalone operator can make use of
-other operators for its work but isn't required to.
+The encoder-decoder operator is a python class that implements the
+Operator interface. Internally it makes remote requests to other
+workers. Generally a operator can make use of other operators for its
+work but isn't required to.
 
 ### Workers
 
