@@ -48,7 +48,7 @@ Note: "STANDARD" is the default framework
 ## Starting the Deployment
 
 ```
-./containers/run.sh -it -- python3 -m hello_world.deploy --initialize-request-plane
+./container/run.sh -it -- python3 -m hello_world.deploy --initialize-request-plane
 ```
 
 #### Expected Output
