@@ -24,7 +24,7 @@ RUN_PREFIX=
 # installed within framework specific sections of the Dockerfile.
 
 declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3)
-DEFAULT_FRAMEWORK=STANDARD
+DEFAULT_FRAMEWORK=VLLM
 
 SOURCE_DIR=$(dirname "$(readlink -f "$0")")
 
