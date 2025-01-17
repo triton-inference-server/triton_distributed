@@ -86,6 +86,8 @@ deployment instructions.
 
 ## Hello World
 
+[Hello World](./examples/hello_world)
+
 A basic example demonstrating the new interfaces and concepts of
 triton distributed. In the hello world example, you can deploy a set
 of simple workers to load balance requests from a local work queue.
@@ -96,4 +98,6 @@ The example demonstrates:
 1. How to incorporate a standalone python class into a triton distributed worker.
 1. How deploy a set of workers
 1. How to send requests to the triton distributed deployment
+1. Requests over the Request Plane and Data movement over the Data
+   Plane.
 

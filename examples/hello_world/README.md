@@ -27,7 +27,8 @@ The example demonstrates:
 1. How to incorporate a standalone python class into a triton distributed worker.
 1. How deploy a set of workers
 1. How to send requests to the triton distributed deployment
-
+1. Requests over the Request Plane and Data movement over the Data
+   Plane.
 
 ## Building the Hello World Environment
 
