@@ -47,7 +47,7 @@ We provide 3 types of builds:
 2. `TENSORRTLLM` which includes our TRT-LLM backend
 3. `VLLM` which includes our VLLM backend
 
-For example, if you want to build a container for the `VLLM` backend you can run
+For example, if you want to build a container for the `STANDARD` backends you can run
 
 `./container/build.sh`
 
