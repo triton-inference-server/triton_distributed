@@ -140,6 +140,7 @@ async def main(args):
 
     deployment = Deployment(
         [
+            #(worker_config, repeat_count )
             (encoder, int(args.encoders[0])),
             (decoder, int(args.decoders[0])),
             (encoder_decoder, int(args.encoder_decoders[0])),
