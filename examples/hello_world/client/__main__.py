@@ -14,14 +14,40 @@
 # limitations under the License.
 
 import multiprocessing
+import signal
 import sys
 import time
 
 from .client import _start_client
 from .parser import parse_args
 
+processes = None
+
+
+def handler(signum, frame):
+    exit_code = 0
+    if processes:
+        print("Stopping Clients")
+        for process in processes:
+            process.terminate()
+            process.kill()
+            process.join()
+
+            exit_code += process.exitcode
+    print(f"Clients Stopped Exit Code {exit_code}")
+    sys.exit(exit_code)
+
+
+signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+for sig in signals:
+    try:
+        signal.signal(sig, handler)
+    except Exception:
+        pass
+
 
 def main(args):
+    global processes
     process_context = multiprocessing.get_context("spawn")
     args.lock = process_context.Lock()
     processes = []
