@@ -1,5 +1,3 @@
-# examples/hello_world/operators/api_server/server.py
-
 from fastapi import FastAPI
 from triton_api_server.open_ai.server import create_app
 

@@ -13,9 +13,6 @@ def main(args):
     # then your Deployment
     deployment = Deployment(
         [
-            (encoder, 1),
-            (decoder, 1),
-            (encoder_decoder, 1),
             (api_server, 1),
         ],
         initialize_request_plane=True,

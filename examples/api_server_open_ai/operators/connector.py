@@ -1,5 +1,3 @@
-# examples/hello_world/operators/api_server/connector.py
-
 import typing
 
 from triton_api_server.connector import (
