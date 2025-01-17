@@ -37,16 +37,16 @@ class MockDisaggregatedServing(Operator):
         self._data_plane = data_plane
         self._params = params
         self._preprocessing_model = RemoteOperator(
-            "preprocessing", 1, self._request_plane, self._data_plane
+            "preprocessing", self._request_plane, self._data_plane
         )
         self._context_model = RemoteOperator(
-            "context", 1, self._request_plane, self._data_plane
+            "context", self._request_plane, self._data_plane
         )
         self._generate_model = RemoteOperator(
-            "generation", 1, self._request_plane, self._data_plane
+            "generation", self._request_plane, self._data_plane
         )
         self._postprocessing_model = RemoteOperator(
-            "postprocessing", 1, self._request_plane, self._data_plane
+            "postprocessing", self._request_plane, self._data_plane
         )
         self._logger = logger
 

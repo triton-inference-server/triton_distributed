@@ -164,7 +164,7 @@ async def post_requests(num_requests, store_inputs_in_request):
     await request_plane.connect()
 
     add_multiply_divide_operator = RemoteOperator(
-        "add_multiply_divide", 1, request_plane, data_plane
+        "add_multiply_divide", request_plane, data_plane
     )
 
     results = []

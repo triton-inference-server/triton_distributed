@@ -35,14 +35,12 @@ class AddMultiplyDivide(Operator):
         self._request_plane = request_plane
         self._data_plane = data_plane
         self._parameters = parameters
-        self._add_model = RemoteOperator(
-            "add", 1, self._request_plane, self._data_plane
-        )
+        self._add_model = RemoteOperator("add", self._request_plane, self._data_plane)
         self._multiply_model = RemoteOperator(
-            "multiply", 1, self._request_plane, self._data_plane
+            "multiply", self._request_plane, self._data_plane
         )
         self._divide_model = RemoteOperator(
-            "divide", 1, self._request_plane, self._data_plane
+            "divide", self._request_plane, self._data_plane
         )
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
