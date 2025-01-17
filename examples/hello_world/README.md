@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+<!--
 
 ```
 examples/
@@ -130,3 +131,4 @@ Hence, the aggregator itself is just a normal Python class implementing the `Ope
 6. The aggregator Worker then calls `_decoder.async_infer()`, which calls the “decoder” Worker’s model, which re-inverts and slices the data, returning it back.
 7. Finally, the aggregator Worker returns the final “decoded” data to the original caller in `send_requests`.
 
+-->

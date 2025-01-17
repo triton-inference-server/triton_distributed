@@ -84,7 +84,7 @@ HF_TOKEN```) and mounts common directories such as ```/tmp:/tmp```,
 Please see the instructions in the corresponding example for specific
 deployment instructions.
 
-
+<!--
 
 ## 1. Big Picture
 Triton Distributed extends the standard [NVIDIA Triton Inference Server](https://github.com/triton-inference-server/server) model-serving paradigm with additional “planes” that distribute data and requests across multiple processes or machines. Conceptually, you still write a Triton **Model**, but your inference requests and data transfers can be routed through:
@@ -155,8 +155,6 @@ A `Worker` runs in a separate process. It:
 In the “hello world,” you see three Worker processes—each hosting either the encoder, decoder, or aggregator operator.
 
 
-
-<!--
 
 ## Goals
 
