@@ -40,6 +40,8 @@ def test_sanity():
         "python3",
         "-m",
         "hello_world.client",
+        "--requests-per-client",
+        "10",
     ]
 
     client_process = subprocess.Popen(
