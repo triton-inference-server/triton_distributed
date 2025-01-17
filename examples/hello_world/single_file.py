@@ -183,8 +183,17 @@ async def main():
 
     print("Starting Workers")
 
+    # You can configure the number of instances of each
+    # type of worker in a deployment
+
+    num_instances = 1
+
     deployment = Deployment(
-        [(encoder, 1), (decoder, 1), (encoder_decoder, 1)],
+        [
+            (encoder, num_instances),
+            (decoder, num_instances),
+            (encoder_decoder, num_instances),
+        ],
         initialize_request_plane=True,
         log_dir=str(log_dir),
         log_level=1,
