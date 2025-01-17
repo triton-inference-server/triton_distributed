@@ -20,23 +20,44 @@ def parse_args(args=None):
     parser = argparse.ArgumentParser(description="Hello World Client")
 
     parser.add_argument(
-        "--request-plane-uri", type=str, default="nats://localhost:4223"
+        "--request-plane-uri",
+        type=str,
+        default="nats://localhost:4223",
+        help="URI of request plane",
     )
 
-    parser.add_argument("--requests-per-client", type=int, default=100)
+    parser.add_argument(
+        "--requests-per-client",
+        type=int,
+        default=100,
+        help="number of requests to send per client",
+    )
 
     parser.add_argument(
         "--operator",
         type=str,
         choices=["encoder_decoder", "encoder", "decoder"],
         default="encoder_decoder",
+        help="operator to send requests to. In this example all operators have the same input and output names.",
     )
 
-    parser.add_argument("--input-size-mean", type=int, default=1000)
+    parser.add_argument(
+        "--input-size-mean",
+        type=int,
+        default=1000,
+        help="average input size for requests",
+    )
 
-    parser.add_argument("--input-size-stdev", type=float, default=0)
+    parser.add_argument(
+        "--input-size-stdev",
+        type=float,
+        default=0,
+        help="standard deviation for input size",
+    )
 
-    parser.add_argument("--clients", type=int, default=1)
+    parser.add_argument(
+        "--clients", type=int, default=1, help="number of concurrent clients to launch."
+    )
 
     args = parser.parse_args(args)
 
