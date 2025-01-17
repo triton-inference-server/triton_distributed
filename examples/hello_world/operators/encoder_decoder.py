@@ -14,8 +14,8 @@ class EncodeDecodeOperator(Operator):
         repository,
         logger,
     ):
-        self._encoder = RemoteOperator("encoder", 1, request_plane, data_plane)
-        self._decoder = RemoteOperator("decoder", 1, request_plane, data_plane)
+        self._encoder = RemoteOperator("encoder", request_plane, data_plane)
+        self._decoder = RemoteOperator("decoder", request_plane, data_plane)
         self._logger = logger
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
