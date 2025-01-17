@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import asyncio
 import shutil
 import sys
@@ -124,6 +125,16 @@ async def send_requests(nats_server_url, request_count=10):
 
 
 async def main():
+    parser = argparse.ArgumentParser(description="Hello World Client")
+
+    parser.add_argument(
+        "--request-plane-uri",
+        type=str,
+        default="nats://localhost:4223",
+        help="URI of request plane",
+    )
+    args = parser.parse_args()
+
     module_dir = Path(__file__).parent.absolute()
 
     log_dir = module_dir.joinpath("logs")
@@ -168,16 +179,19 @@ async def main():
     )
 
     encoder = WorkerConfig(
+        request_plane_args={"uri": args.request_plane_uri},
         operators=[encoder_op],
         name="encoder",
     )
 
     decoder = WorkerConfig(
+        request_plane_args={"uri": args.request_plane_uri},
         operators=[decoder_op],
         name="decoder",
     )
 
     encoder_decoder = WorkerConfig(
+        request_plane_args={"uri": args.request_plane_uri},
         operators=[encoder_decoder_op],
         name="encoder_decoder",
     )
