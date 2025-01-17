@@ -158,128 +158,114 @@ Clients Stopped Exit Code 0
 The hello world example is designed to demonstrate and allow
 experimenting with different mixtures of compute and memory loads and
 different numbers of workers for different parts of the hello world
-pipeline.
+workflow.
 
-### Hello World Pipeline
+### Hello World Workflow
 
-The hello world pipeline is a simple two stage pipeline with an
-encoding stage and a decoding stage plus a
-
-
-<!--
+The hello world workflow is a simple two stage pipeline with an
+encoding stage and a decoding stage plus an encoder-decoder stage to
+orchestrate the overall workflow.
 
 ```
-examples/
-└── hello_world
-    ├── README.md
-    ├── api_server
-    ├── client (optional)
-    ├── deploy
-    │   └── __main__.py (should it contain all workers, the example have here also API server-like logic to publish requests from users)
-    ├── docs
-    ├── operators
-    │   └── triton_core_models (optional)
-    │       ├── decoder
-    │       │   ├── 1
-    │       │   │   └── model.py
-    │       │   └── config.pbtxt
-    │       └── encoder
-    │           ├── 1
-    │           │   └── model.py
-    │           └── config.pbtxt
-    ├── router (optional)
-    ├── scripts (What should be here?)
-    ├── single_file.py
-    └── tests
-```
-
-Review plans for deploy cli / client cli
-```
-deploy --encoder workers:instances:device --decoder workers:instances:device --encoder-decoder workers
-  in future
-  deploy --api-server <kserve>
-  deploy --request-plane nginx  (would need to convert encode decode into bls?)
+client <-> encoder_decoder <-> encoder
+                      |
+					  -----<-> decoder
 ```
 
 
-Below is a high-level overview of how Triton Distributed is organized, with special attention to the “hello world” example that demonstrates how the system’s pieces fit together.
+#### Encoder
 
----
+The encoder follows the simple procedure:
+
+1. copy the input x times (x is configurable via parameter)
+2. invert the input
+3. delay * size of output
+
+#### Decoder
+
+The decoder follows the simple procedure:
+
+1. remove the extra copies
+2. invert the input
+3. delay * size of output
+
+#### Encoder - Decoder
+
+The encoder-decoder operator controls the overall workflow.
+
+It first sends a request for an encoder. Once it receives the response
+it sends the output from the encoder as an input to the decoder. Note
+in this step memory is transferred directly between the encoder and
+decoder workers - and does not pass through the encoder-decoder.
+
+### Operators
+
+Operators are responsible for actually doing work and responding to
+requests. Operators are supported in two main flavors and are hosted
+by a common Worker class.
+
+#### Triton Core Operator
+
+The triton core operator makes a triton model (following the standard
+model repo and backend structure of the tritonserver) available on the
+request plane. Both the encoder and decoder are implemented as triton
+python backend models.
+
+#### Standalone Operator
+
+The encoder-decoder operator is a standalone python class that
+implements the Operator interface. Internally it makes remote requests
+to other workers. Generally a standalone operator can make use of
+other operators for its work but isn't required to.
+
+### Workers
+
+Workers host one or more operators and pull requests from the request
+plane and forward them to a local operator.
+
+### Request Plane
+
+The current triton distributed framework leverages a distributed work
+queue for its request plane implementation. The request plane ensures
+that requests for operators are forwarded and serviced by a single
+worker.
+
+### Data Plane
+
+The triton distributed framework leverages point to point data
+transfers using the UCX library to provide optimized primitives for
+device to device transfers.
+
+Data sent over the data plane is only pulled by the worker that needs
+to perform work on it. Requests themselves contain data descriptors
+and can be referenced and shared with other workers.
+
+Note: there is also a provision for sending data in the request
+contents when the message size is small enough that UCX transfer is
+not needed.
+
+### Components
+
+Any process which communicates with one or more of the request or data
+planes is considered a "component". While this example only uses
+"Workers" future examples will also include api servers, routers, and
+other types of components.
+
+### Deployment
+
+The final piece is a deployment. A deployment is a set of components
+deployed across a cluster. Components may be added and removed from
+deployments.
 
 
-## 3. “Hello World” Layout
-In `examples/hello_world/`, you see a minimal demonstration of how to:
+## Limitations and Caveats
 
-1. Create a few Triton models (the “encoder” and “decoder”).
-2. Start a small distributed deployment with these models.
-3. Send requests in parallel and demonstrate data-plane usage.
+The example is a rapidly evolving prototype and shouldn't be used in
+production. Limited testing has been done and it is meant to help
+flesh out the triton distributed concepts, architecture, and
+interfaces.
 
-### 3.1 Directory Structure
+1. No multi-node testing / support has been done
 
-```
-examples/hello_world/
-  deploy/
-    __main__.py     # Entry point that starts the “hello world” deployment
-  operators/
-    triton_core_models/
-      encoder/1/model.py    # Python model code for an “encoder” step
-      decoder/1/model.py    # Python model code for a “decoder” step
-```
+2. No performance tuning / measurement has been done
 
-#### (a) The `__main__.py` (Deploy Script)
-This file spins up everything end-to-end:
-
-- Creates a local NATS server object (`nats_server`) so that requests can be published and consumed.
-- Defines **OperatorConfig** objects for the two Triton models, `encoder` and `decoder`. Each references a local path to the Python model code and custom parameters (e.g., instance group, concurrency, etc.).
-- Defines a custom “orchestrator” operator named `encoder_decoder` (`EncodeDecodeOperator` in the code) that chains calls to the `encoder` and `decoder`.
-- Creates three WorkerConfig entries:
-  1. Worker that hosts the `encoder` model  **(REMOVE in Python)**
-  2. Worker that hosts the `decoder` model  **(REMOVE in Python)**
-  3. Worker that hosts the aggregator operator (`encoder_decoder`) (Python HERE)
-- Launches all three processes with a `Deployment` object. (We need separate entry points for API server)
-- Sends test requests to `encoder_decoder` operator (which calls `encoder` then `decoder`) and verifies the results. (this will run vLLM)
-
-
-#### (c) The `EncodeDecodeOperator`
-This is a custom operator (in `deploy/__main__.py` as a short class, or sometimes in a separate file) that demonstrates how to chain calls:
-
-```python
-for request in requests:
-  # 1. Send "input" to the "encoder" model
-  encoded_responses = await self._encoder.async_infer(inputs={"input": request.inputs["input"]})
-
-  # 2. When the encoder finishes, read "input_copies" from the response
-  #    then call “decoder” with the “encoded” output
-  decoded_responses = await self._decoder.async_infer(
-      inputs={"input": encoded_response.outputs["output"]},
-      parameters={"input_copies": input_copies},
-  )
-
-  # 3. Return the result back to the user
-  await request.response_sender().send(final=True, outputs={"output": decoded_response.outputs["output"]})
-```
-
-Hence, the aggregator itself is just a normal Python class implementing the `Operator` interface, but inside it calls **RemoteOperator** objects for actual inference.
-
-## 5. How the Hello World Example Flows
-1. **`main()`** in `examples/hello_world/deploy/__main__.py` starts:
-   - A local NATS server for request-plane traffic.
-   - Worker processes for “encoder,” “decoder,” and “encoder_decoder.”
-2. Each Worker loads a Python model or an Operator class:
-   - The `encoder` Worker loads the model code from `encoder/1/model.py`.
-   - The `decoder` Worker does the same for `decoder/1/model.py`.
-   - The `encoder_decoder` Worker instantiates the `EncodeDecodeOperator` Python class, which calls `encoder` and `decoder` remotely.
-3. The script then calls `send_requests(nats_server_url)`:
-   - It uses a **RemoteOperator** for `encoder_decoder` and does something like:
-     ```python
-     remote_operator: RemoteOperator = RemoteOperator("encoder_decoder", 1, request_plane, data_plane)
-     await remote_operator.async_infer(inputs={"input": some_numpy_array})
-     ```
-4. The `async_infer()` method publishes a request to the “encoder_decoder” Worker (via `NatsRequestPlane`) and references data (via `UcpDataPlane`).
-5. The aggregator Worker receives the request, calls `_encoder.async_infer()`, which sends a second request to the “encoder” Worker:
-   - The “encoder” Worker runs the simple tile/invert logic.
-   - Once done, it returns the result to the aggregator Worker.
-6. The aggregator Worker then calls `_decoder.async_infer()`, which calls the “decoder” Worker’s model, which re-inverts and slices the data, returning it back.
-7. Finally, the aggregator Worker returns the final “decoded” data to the original caller in `send_requests`.
-
--->
