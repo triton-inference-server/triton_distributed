@@ -15,6 +15,7 @@
 
 import asyncio
 import shutil
+import sys
 from pathlib import Path
 
 import cupy
@@ -74,7 +75,7 @@ class EncodeDecodeOperator(Operator):
                     del decoded_response
 
 
-async def send_requests(nats_server_url, request_count=100):
+async def send_requests(nats_server_url, request_count=10):
     request_plane = NatsRequestPlane(nats_server_url)
     data_plane = UcpDataPlane()
     await request_plane.connect()
@@ -207,7 +208,7 @@ async def main():
 
     print("Stopping Workers")
 
-    deployment.stop()
+    sys.exit(deployment.stop())
 
 
 if __name__ == "__main__":

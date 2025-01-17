@@ -23,6 +23,26 @@ import pytest
 pytestmark = pytest.mark.pre_merge
 
 
+def test_single_file():
+    command = [
+        "python3",
+        "examples/hello_world/single_file.py",
+    ]
+
+    process = subprocess.Popen(
+        command,
+        stdin=subprocess.DEVNULL,
+    )
+
+    try:
+        process.wait(30)
+    except subprocess.TimeoutExpired:
+        print("single file timed out!")
+        process.terminate()
+        process.kill()
+    assert process.returncode == 0, "Error in single file!"
+
+
 def test_sanity():
     deployment_command = [
         "python3",
