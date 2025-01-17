@@ -58,7 +58,7 @@ def _create_encoder_decoder_op(name, max_inflight_requests, args):
     )
 
 
-def _create_triton_core_operator(
+def _create_triton_core_op(
     name,
     max_inflight_requests,
     instances_per_worker,
@@ -95,11 +95,30 @@ async def main(args):
 
     log_dir.mkdir(exist_ok=True)
 
-    encoder_op = _create_triton_core_operator(
+    (
+        encoder_worker_instances,
+        encoder_max_inflight_requests,
+        encoder_instances_per_worker,
+        encoder_device_kind,
+    ) = args.encoders
+
+    (
+        decoder_worker_instances,
+        decoder_max_inflight_requests,
+        decoder_instances_per_worker,
+        decoder_device_kind,
+    ) = args.decoders
+
+    (
+        encoder_decoder_worker_instances,
+        encoder_decoder_max_inflight_requests,
+    ) = args.encoder_decoders
+
+    encoder_op = _create_triton_core_op(
         name="encoder",
-        max_inflight_requests=args.encoders[1],
-        instances_per_worker=args.encoders[2],
-        kind=args.encoders[3],
+        max_inflight_requests=encoder_max_inflight_requests,
+        instances_per_worker=encoder_instances_per_worker,
+        kind=encoder_device_kind,
         delay_per_token=args.encoder_delay_per_token,
         input_copies=args.encoder_input_copies,
         args=args,
@@ -110,11 +129,11 @@ async def main(args):
         name="encoder",
     )
 
-    decoder_op = _create_triton_core_operator(
+    decoder_op = _create_triton_core_op(
         name="decoder",
-        max_inflight_requests=args.decoders[1],
-        instances_per_worker=args.decoders[2],
-        kind=args.decoders[3],
+        max_inflight_requests=decoder_max_inflight_requests,
+        instances_per_worker=decoder_instances_per_worker,
+        kind=decoder_device_kind,
         delay_per_token=args.decoder_delay_per_token,
         input_copies=args.encoder_input_copies,
         args=args,
@@ -127,7 +146,7 @@ async def main(args):
 
     encoder_decoder_op = _create_encoder_decoder_op(
         name="encoder_decoder",
-        max_inflight_requests=args.encoder_decoders[1],
+        max_inflight_requests=encoder_decoder_max_inflight_requests,
         args=args,
     )
 
@@ -140,10 +159,10 @@ async def main(args):
 
     deployment = Deployment(
         [
-            #(worker_config, repeat_count )
-            (encoder, int(args.encoders[0])),
-            (decoder, int(args.decoders[0])),
-            (encoder_decoder, int(args.encoder_decoders[0])),
+            # (worker_config, repeat_count )
+            (encoder, int(encoder_decoder_worker_instances)),
+            (decoder, int(decoder_worker_instances)),
+            (encoder_decoder, int(encoder_decoder_worker_instances)),
         ],
         initialize_request_plane=args.initialize_request_plane,
         log_dir=args.log_dir,
