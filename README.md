@@ -49,7 +49,7 @@ We provide 3 types of builds:
 
 For example, if you want to build a container for the `VLLM` backend you can run
 
-`./container/build.sh --framework VLLM`
+`./container/build.sh`
 
 Please see the instructions in the corresponding example for specific build instructions.
 
