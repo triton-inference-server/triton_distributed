@@ -79,17 +79,14 @@ async def client(client_index, args):
                     for output_name, output_value in response.outputs.items():
                         if output_value.memory_type == MemoryType.CPU:
                             output = numpy.from_dlpack(output_value)
-                            # numpy.testing.assert_array_equal(
-                            #   output, inputs[int(response.request_id)]
-                            # )
-                            output = None
+                            numpy.testing.assert_array_equal(
+                                output, inputs[int(response.request_id)]
+                            )
                         else:
                             output = cupy.from_dlpack(output_value)
-                            print(output.size)
-                            # cupy.testing.assert_array_equal(
-                            #   output, inputs[int(response.request_id)]
-                            # )
-                            output = None
+                            cupy.testing.assert_array_equal(
+                                output, inputs[int(response.request_id)]
+                            )
                         del output_value
 
                     pbar.set_description(
