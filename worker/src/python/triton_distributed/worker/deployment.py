@@ -42,7 +42,7 @@ class Deployment:
         data_plane: Optional[Type[DataPlane]] = UcpDataPlane,
         data_plane_args: Optional[tuple[list, dict]] = None,
         log_dir="logs",
-        starting_metrics_port=50000,
+        starting_metrics_port=0,
     ):
         self._process_context = multiprocessing.get_context("spawn")
         self._worker_configs = worker_configs
