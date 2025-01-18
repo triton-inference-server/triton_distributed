@@ -47,9 +47,9 @@ We provide 3 types of builds:
 2. `TENSORRTLLM` which includes our TRT-LLM backend
 3. `VLLM` which includes our VLLM backend
 
-For example, if you want to build a container for the `VLLM` backend you can run
+For example, if you want to build a container for the `STANDARD` backends you can run
 
-`./container/build.sh --framework VLLM`
+`./container/build.sh`
 
 Please see the instructions in the corresponding example for specific build instructions.
 
@@ -83,3 +83,23 @@ HF_TOKEN```) and mounts common directories such as ```/tmp:/tmp```,
 
 Please see the instructions in the corresponding example for specific
 deployment instructions.
+
+## Hello World
+
+[Hello World](./examples/hello_world)
+
+A basic example demonstrating the new interfaces and concepts of
+triton distributed. In the hello world example, you can deploy a set
+of simple workers to load balance requests from a local work queue.
+
+# Disclaimers
+
+> [!NOTE]
+> This project is currently in the alpha / experimental /
+> rapid-prototyping stage and we will be adding new features incrementally.
+
+1. The `TENSORRTLLM` and `VLLM` containers are WIP and not expected to
+   work out of the box.
+
+2. Testing has primarily been on single node systems with processes
+   launched within a single container.
