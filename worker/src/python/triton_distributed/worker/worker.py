@@ -81,12 +81,6 @@ class Worker:
             self._log_level = 0
         self._operator_configs = config.operators
         self._log_dir = config.log_dir
-        self._log_file: Optional[str] = None
-        if self._log_dir:
-            os.makedirs(self._log_dir, exist_ok=True)
-            pid = os.getpid()
-            self._log_file = os.path.join(self._log_dir, f"{self._name}.{self._component_id}.{pid}.log")
-
         self._stop_requested = False
         self._requests_received: Counter = Counter()
         self._background_tasks: dict[object, set] = {}
@@ -98,6 +92,11 @@ class Worker:
         self._metrics_server: Optional[uvicorn.Server] = None
         self._component_id = self._request_plane.component_id
         self._triton_core: Optional[tritonserver.Server] = None
+        self._log_file: Optional[str] = None
+        if self._log_dir:
+            os.makedirs(self._log_dir, exist_ok=True)
+            pid = os.getpid()
+            self._log_file = os.path.join(self._log_dir, f"{self._name}.{self._component_id}.{pid}.log")
 
     def _import_operators(self):
         for operator_config in self._operator_configs:

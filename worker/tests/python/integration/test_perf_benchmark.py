@@ -219,7 +219,7 @@ def data_plane_tracker():
     "tensor_size_in_kb",
     [10, 100, 500],
 )
-@pytest.mark.benchmark(min_rounds=50, max_time=0.5)
+@pytest.mark.benchmark(min_rounds=100, max_time=1)
 def test_identity(
     request,
     nats_server,
