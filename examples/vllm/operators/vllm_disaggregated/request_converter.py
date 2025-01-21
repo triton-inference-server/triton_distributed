@@ -32,7 +32,7 @@ from pydantic import BaseModel
 from tritonserver import Tensor as TritonTensor
 from tritonserver._api._response import InferenceResponse as TritonInferenceResponse
 
-from remote_connector import RemoteConnector
+from .remote_connector import RemoteConnector
 from triton_distributed.worker.remote_request import RemoteInferenceRequest
 from triton_distributed.worker.remote_response import RemoteInferenceResponse
 

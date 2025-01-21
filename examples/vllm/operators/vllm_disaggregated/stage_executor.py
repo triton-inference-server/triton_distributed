@@ -1,13 +1,14 @@
 import asyncio
 import enum
+import logging
 import os
 import torch
 from contextlib import nullcontext
 from examples.vllm.operators.vllm_disaggregated.connector import InferenceRequest
 from examples.vllm.operators.vllm_disaggregated.remote_model_connector import RemoteModelConnector
 from examples.vllm.operators.vllm_disaggregated.request_converter import RequestConverter
-from examples.vllm.scripts.worker_prefill import LOGGER, stage
 
+LOGGER = logging.getLogger(__name__)
 
 class _ProfileState(enum.Enum):
     NOT_STARTED = 0
@@ -39,7 +40,7 @@ class PiplineStageExecutor:
     async def baseline_process(self, request, return_result):
         try:
             LOGGER.debug("Processing request")
-            async for response in stage(request):
+            async for response in self.stage(request):
                 LOGGER.debug("Sending response")
                 await return_result(**response)
                 LOGGER.debug("Response send")
@@ -52,7 +53,7 @@ class PiplineStageExecutor:
         LOGGER.debug("Processing request")
         try:
             LOGGER.debug(f"Stage {self.stage_name} execution")
-            responses = list([response async for response in stage(request)])
+            responses = list([response async for response in self.stage(request)])
             LOGGER.debug(f"Stage {self.stage_name} finished")
             assert len(responses) == 1
             response = responses[0]
