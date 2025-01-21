@@ -99,12 +99,15 @@ RUN rm -rf /etc/nginx/sites-enabled/default
 RUN apt-get install nvtop -y
 RUN apt-get install tmux -y
 
-# Install OpenAI-compatible frontend and its dependencies
-# NOTE: Has a couple compat fixes needed for kserve frontends in 24.11 release.
-#       Can be replaced with specific release like r24.12 in future for stability.
-ARG SERVER_OPENAI_COMMIT="f336fa6bd5416ba2f17e5eb7de5228213562bbc8"
-WORKDIR /opt/tritonserver
-RUN git clone https://github.com/triton-inference-server/server.git && \
+# Install OpenAI-compatible frontend and its dependencies from triton server
+# repository. These are used to have a consistent interface, schema, and FastAPI
+# app between Triton Core and Triton Distributed implementations.
+# NOTE: Current commit is == r24.12 + enum serialization fix
+ARG SERVER_OPENAI_COMMIT="2ebd762fa6c7b829e7d04bfaf80c8400a09d3767"
+RUN mkdir -p /opt/tritonserver/python && \
+    cd /opt/tritonserver/python && \
+    rm -rf openai && \
+    git clone https://github.com/triton-inference-server/server.git && \
     cd server && \
     git checkout ${SERVER_OPENAI_COMMIT} && \
     cd .. && \
