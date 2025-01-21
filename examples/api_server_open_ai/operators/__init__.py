@@ -13,6 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from hello_world.operators.encoder_decoder import (
-    EncodeDecodeOperator as EncodeDecodeOperator,
+from api_server_open_ai.operators.api_server_operator import (
+    ApiServerOperator as ApiServerOperator,
 )

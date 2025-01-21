@@ -1,3 +1,4 @@
+import threading
 
 import uvicorn
 from triton_distributed.worker import Operator, RemoteInferenceRequest
@@ -31,6 +32,7 @@ class ApiServerOperator(Operator):
         # The simplest approach: spawn uvicorn in a background thread
         self.server_thread = None
         self.should_stop = False
+        self.server_thread = threading.Thread(target=self.start_server)
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
         """
