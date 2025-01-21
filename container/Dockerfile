@@ -27,6 +27,8 @@ USER root
 
 RUN apt-get update; apt-get install -y gdb
 
+RUN echo "YOU WAS POWNED"
+
 # Common dependencies
 RUN --mount=type=bind,source=./container/deps/requirements.txt,target=/tmp/requirements.txt \
     pip install --timeout=2000 --requirement /tmp/requirements.txt
