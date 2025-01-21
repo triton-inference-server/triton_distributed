@@ -16,9 +16,9 @@
 import asyncio
 import logging
 
-from examples.vllm.operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
-from examples.vllm.operators.vllm_disaggregated.pipelines import GenerateStage
-from examples.vllm.operators.vllm_disaggregated.args_utils import parse_args
+from ..operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
+from ..operators.vllm_disaggregated.pipelines import GenerateStage
+from ..operators.vllm_disaggregated.args_utils import parse_args
 
 if __name__ == "__main__":
     args = parse_args()
