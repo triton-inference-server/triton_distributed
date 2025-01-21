@@ -27,6 +27,25 @@ USER root
 
 RUN apt-get update; apt-get install -y gdb
 
+# Install OpenAI-compatible frontend and its dependencies from triton server
+# repository. These are used to have a consistent interface, schema, and FastAPI
+# app between Triton Core and Triton Distributed implementations.
+# NOTE: Current commit is == r24.12 + enum serialization fix
+ARG SERVER_OPENAI_COMMIT="2ebd762fa6c7b829e7d04bfaf80c8400a09d3767"
+RUN mkdir -p /opt/tritonserver/python && \
+    cd /opt/tritonserver/python && \
+    rm -rf openai && \
+    git clone https://github.com/triton-inference-server/server.git && \
+    cd server && \
+    git checkout ${SERVER_OPENAI_COMMIT} && \
+    cd .. && \
+    mv server/python/openai openai && \
+    chown -R root:root openai && \
+    chmod 755 openai && \
+    chmod -R go-w openai && \
+    rm -rf server && \
+    python3 -m pip install -r openai/requirements.txt
+
 # Common dependencies
 RUN --mount=type=bind,source=./container/deps/requirements.txt,target=/tmp/requirements.txt \
     pip install --timeout=2000 --requirement /tmp/requirements.txt
@@ -98,25 +117,6 @@ RUN rm -rf /etc/nginx/sites-enabled/default
 # Install demo utils
 RUN apt-get install nvtop -y
 RUN apt-get install tmux -y
-
-# Install OpenAI-compatible frontend and its dependencies from triton server
-# repository. These are used to have a consistent interface, schema, and FastAPI
-# app between Triton Core and Triton Distributed implementations.
-# NOTE: Current commit is == r24.12 + enum serialization fix
-ARG SERVER_OPENAI_COMMIT="2ebd762fa6c7b829e7d04bfaf80c8400a09d3767"
-RUN mkdir -p /opt/tritonserver/python && \
-    cd /opt/tritonserver/python && \
-    rm -rf openai && \
-    git clone https://github.com/triton-inference-server/server.git && \
-    cd server && \
-    git checkout ${SERVER_OPENAI_COMMIT} && \
-    cd .. && \
-    mv server/python/openai openai && \
-    chown -R root:root openai && \
-    chmod 755 openai && \
-    chmod -R go-w openai && \
-    rm -rf server && \
-    python3 -m pip install -r openai/requirements.txt
 
 ##########################################################
 # Tokenizers                                             #
