@@ -1,0 +1,448 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "copyright": [
+    "SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
+    "SPDX-License-Identifier: Apache-2.0",
+    "Licensed under the Apache License, Version 2.0 (the \"License\");",
+    "you may not use this file except in compliance with the License.",
+    "You may obtain a copy of the License at",
+    "http://www.apache.org/licenses/LICENSE-2.0",
+    "Unless required by applicable law or agreed to in writing, software",
+    "distributed under the License is distributed on an \"AS IS\" BASIS,",
+    "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+    "See the License for the specific language governing permissions and",
+    "limitations under the License."
+  ],
+  "properties": {
+    "image": {
+      "description": "Configuration options related to the Triton Distributed API Server container image.",
+      "properties": {
+        "pullSecrets": {
+          "description": "Optional list of pull secrets to be used when downloading the Triton Distributed API Server container image.",
+          "oneOf": [
+            {
+              "items": [
+                {
+                  "properties": {
+                    "name": {
+                      "$ref": "#/$defs/kubernetes_label",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              ],
+              "minItems": 0,
+              "type": "array"
+            },
+            { "type": "null" }
+          ]
+        },
+        "name": {
+          "description": "Name of the container image containing the version of Triton Distributed API Server container image to be used.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "kubernetes": {
+      "description": "Configurations option related to the Kubernetes objects created by the chart.",
+      "properties": {
+        "annotations": {
+          "description": "Optional set of annotations to be applied to create Kubernetes objects.",
+          "oneOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/kubernetes_label"
+              },
+              "minItems": 0,
+              "type": "array"
+            },
+            { "type": "null" }
+          ]
+        },
+        "checks": {
+          "description": "Optional configuration options controlling how the cluster monitors the health of Triton Distributed API Server deployment(s).",
+          "properties": {
+            "liveness": {
+              "description": "Configuration options related to how the cluster determines that a Triton Distributed API Server instance is \"alive\" and responsive.",
+              "properties": {
+                "enabled": {
+                  "description": "When `true`, the cluster will actively determine if the pod is alive; otherwise the cluster will always assume the pod is alive.",
+                  "oneOf": [
+                    { "type": "boolean" },
+                    { "type": "null" }
+                  ]
+                },
+                "failureThreshold": {
+                  "description": "Number of failed responses required to determine a pod is not responsive (aka \"alive\").",
+                  "oneOf": [
+                    {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    { "type": "null" }
+                  ]
+                },
+                "initialDelaySeconds": {
+                  "description": "Minimum wait before the cluster begins to attempt to determine the health of the pod.",
+                  "oneOf": [
+                    {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    { "type": "null" }
+                  ]
+                },
+                "periodSeconds": {
+                  "description": "Minimum period between attempts to determine the health of the pod.",
+                  "oneOf": [
+                    {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    { "type": "null" }
+                  ]
+                },
+                "successThreshold": {
+                  "description": "Number of successful responses required to determine that a pod is healthy.",
+                  "oneOf": [
+                    {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              "oneOf": [
+                { "type": "object" },
+                { "type": "null" }
+              ]
+            },
+            "readiness": {
+              "description": "Configuration options related to how the cluster determines that a Triton Distributed API Server instance is ready.",
+              "properties": {
+                "enabled": {
+                  "description": "When `true`, the cluster will actively determine if the pod is ready; otherwise the cluster will always assume the pod is ready.",
+                  "oneOf": [
+                    { "type": "boolean" },
+                    { "type": "null" }
+                  ]
+                },
+                "failureThreshold": {
+                  "description": "Number of failed responses required to determine a pod is not responsive (aka \"ready\").",
+                  "oneOf": [
+                    {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    { "type": "null" }
+                  ]
+                },
+                "initialDelaySeconds": {
+                  "description": "Minimum wait before the cluster begins to attempt to determine the readiness of the pod.",
+                  "oneOf": [
+                    {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    { "type": "null" }
+                  ]
+                },
+                "periodSeconds": {
+                  "description": "Minimum period between attempts to determine the readiness of the pod.",
+                  "oneOf": [
+                    {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    { "type": "null" }
+                  ]
+                },
+                "successThreshold": {
+                  "description": "Number of successful responses required to determine that a pod is ready.",
+                  "oneOf": [
+                    {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              "oneOf": [
+                { "type": "object" },
+                { "type": "null" }
+              ]
+            }
+          },
+          "oneOf": [
+            { "type": "object" },
+            { "type": "null" }
+          ]
+        },
+        "labels": {
+          "description": "Optional set of labels to be applied to created Kubernetes objects. These labels can be used for association with a preexisting service object.",
+          "oneOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/kubernetes_label"
+              },
+              "minItems": 0,
+              "type": "array"
+            },
+            { "type": "null" }
+          ]
+        },
+        "partOf": {
+          "description": "Optional value to be used with the `app.kubernetes.io/part-of` label on created Kubernetes objects.",
+          "oneOf": [
+            { "$ref": "#/$defs/kubernetes_label" },
+            { "type": "null" }
+          ]
+        },
+        "tolerations": {
+          "description": "Tolerations applied to every pod deployed as part of this deployment.",
+          "oneOf": [
+            {
+              "items": { "type": "object" },
+              "minItems": 0,
+              "type": "array"
+            },
+            { "type": "null" }
+          ]
+        }
+      },
+      "oneOf": [
+        { "type": "object" },
+        { "type": "null" }
+      ]
+    },
+    "triton": {
+      "description": "Configuration options related to the operation of Triton Distributed API Server.",
+      "properties": {
+        "componentName": {
+          "description": "Name of the Triton Distributed API Server in the distributed deployment.",
+          "pattern": "^[a-z]([a-z0-9_\\-]{0,29}[a-z0-9])?$",
+          "type": "string"
+        },
+        "distributed": {
+          "description": "Configuration options related to organization of Triton Distributed workflows.",
+          "properties": {
+            "requestPlane": {
+              "description": "Configuration options related to connecting the Triton Distributed API Server to its Triton Distributed Request Plane.",
+              "properties": {
+                "serverKind": {
+                  "description": "Kind of server providing Triton Distributed Request Plane functionality. Supported options: 'nats-io'.",
+                  "oneOf": [
+                    {
+                      "pattern": "^nats-io$",
+                      "type": "string"
+                    },
+                    { "type": "null" }
+                  ]
+                },
+                "serviceName": {
+                  "description": "Name of the Kubernetes Service handling DNS routing for the Triton Distributed Request Plane instances.",
+                  "oneOf": [
+                    { "type": "string" },
+                    { "type": "null" }
+                  ]
+                },
+                "servicePort": {
+                  "description": "Networking port to be used to interact with the Triton Distributed Request Plane.",
+                  "oneOf": [
+                    { "$ref": "#/$defs/container_port" },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              "oneOf": [
+                { "type": "object" },
+                { "type": "null" }
+              ]
+            },
+            "instance": {
+              "description": "Optional configuration options related to the number of Triton Distributed API Server pods are deployed.",
+              "properties": {
+                "count": {
+                  "description": "Number of API Server instances to be deployed as part of this helm chart.",
+                  "oneOf": [
+                    {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              "oneOf": [
+                { "type": "object" },
+                { "type": "null" }
+              ]
+            },
+            "logging": {
+              "description": "Logging configuration options specific to Triton Distributed API Server.",
+              "properties": {
+                "useIso8601": {
+                  "description": "When `true` Triton Distributed API Server logs are formatted using the ISO8601 standard; otherwise Triton's default format will be used.",
+                  "oneOf": [
+                    { "type": "boolean" },
+                    { "type": "null" }
+                  ]
+                },
+                "verbose": {
+                  "description": "When `true` Triton Distributed API Server uses verbose logging; otherwise standard logging is used.",
+                  "oneOf": [
+                    { "type": "boolean" },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              "oneOf": [
+                { "type": "object" },
+                { "type": "null" }
+              ]
+            },
+            "ports": {
+              "description": "Configuration options for the management of the Triton Distributed API Server exposed.",
+              "properties": {
+                "api": {
+                  "description": "Container port exposed to handle incoming network requests. his port will be exposed by the deployed Kubernetes service object.",
+                  "oneOf": [
+                    { "$ref": "#/$defs/container_port" },
+                    { "type": "null" }
+                  ]
+                },
+                "health": {
+                  "description": "Container port exposed to enable Triton Distributed API Server Kubernetes health reporting.",
+                  "oneOf": [
+                    { "$ref": "#/$defs/container_port" },
+                    { "type": "null" }
+                  ]
+                },
+                "metrics": {
+                  "description": "Container port exposed to enable Triton Distributed API Server metrics reporting.",
+                  "oneOf": [
+                    { "$ref": "#/$defs/container_port" },
+                    { "type": "null" }
+                  ]
+                },
+                "request": {
+                  "description": "Container port exposed to enable Triton Distributed API Server request-plane operations.",
+                  "oneOf": [
+                    { "$ref": "#/$defs/container_port" },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              "oneOf": [
+                { "type": "object" },
+                { "type": "null" }
+              ]
+            },
+            "resources": {
+              "description": "Configuration options related to the resources assigned to Triton Distributed API Server.",
+              "properties": {
+                "cpu": {
+                  "description": "Number of logical CPU cores required by the Triton Distributed API Server.",
+                  "oneOf": [
+                    {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    { "type": "null" }
+                  ]
+                },
+                "ephemeral": {
+                  "description": "Ephemeral storage (aka local disk usage) allowance. Value must be provided in Kubernetes' unit notation.",
+                  "oneOf": [
+                    { "$ref": "#/$defs/kubernetes_units" },
+                    { "type": "null" }
+                  ]
+                },
+                "memory": {
+                  "description": "Amount of CPU visible (aka host) memory available to the Triton Distributed API Server. Value must be provided in Kubernetes' unit notation.",
+                  "oneOf": [
+                    { "$ref": "#/$defs/kubernetes_units" },
+                    { "type" : "null" }
+                  ]
+                }
+              },
+              "oneOf": [
+                { "type": "object" },
+                { "type": "null" }
+              ]
+            },
+            "service":
+            {
+              "description": "Configuration options related to the Kubernetes service object created for this API Server deployment. The Kubernetes service object provides indirection to deployed pod's `api` port.",
+              "properties": {
+                "name": {
+                  "description": "Name of the service used to interact with the service once deployed. Value must conform to Kubernetes label requirements. Commonly resolves as DNS entry `<name>.svc.cluster.local`.",
+                  "$ref": "#/$defs/kubernetes_label"
+                },
+                "port": {
+                  "description": "Network port the service exposes and redirects to the deployed API Server pod's `api` port.",
+                  "oneOf": [
+                    { "$ref": "#/$defs/service_port" },
+                    { "type": "null" }
+                  ]
+                },
+                "type": {
+                  "description": "Type of Kubernetes service to deploy. Supported values are `ClusterIP` or `LoadBalancer`. `NodePort` and `ExternalName` configurations are not supported.",
+                  "oneOf": [
+                    {
+                      "pattern": "^(ClusterIP|LoadBalancer)$",
+                      "type": "string"
+                    },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              "type": "object"
+            }
+          },
+          "oneOf": [
+            { "type": "object" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": [
+        "componentName",
+        "service"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "image",
+    "triton"
+  ],
+  "type": "object",
+  "$defs": {
+    "container_port": {
+      "maximum": 65535,
+      "minimum": 1025,
+      "type": "integer"
+    },
+    "kubernetes_label": {
+      "pattern": "^[a-z0-9]([a-z0-9_\\-\\/\\.]{0,61}[a-z0-9])?$",
+      "type": "string"
+    },
+    "kubernetes_units": {
+      "pattern": "^\\d+[GKMgkm]i$",
+      "type": "string"
+    },
+    "service_port": {
+      "maximum": 32767,
+      "minimum": 30000,
+      "type": "integer"
+    }
+  }
+}

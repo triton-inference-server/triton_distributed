@@ -1,0 +1,259 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- $triton_image_name := "" }}
+{{- with $.Values.image }}
+{{-   $triton_image_name = required "Property '.image.name' is required." .name }}
+{{- else }}
+{{-   fail "Property '.image' is required." }}
+{{- end }}
+{{- $component_name := "" }}
+{{- $instance_count := 1 }}
+{{- $k8s_liveness_delay := 10 }}
+{{- $k8s_liveness_enabled := true }}
+{{- $k8s_liveness_fail := 15 }}
+{{- $k8s_liveness_period := 2 }}
+{{- $k8s_liveness_success := 1 }}
+{{- $k8s_readiness_delay := 10 }}
+{{- $k8s_readiness_enabled := true }}
+{{- $k8s_readiness_fail := 15 }}
+{{- $k8s_readiness_period := 2 }}
+{{- $k8s_readiness_success := 1 }}
+{{- $request_plane_kind := "nats-io" }}
+{{- $request_plane_name := "triton-distributed_request-plane" }}
+{{- $request_plane_port := 30222 }}
+{{- $port_api := 443 }}
+{{- $port_health := 8000 }}
+{{- $port_metrics := 9347 }}
+{{- $port_request := 9345 }}
+{{- $triton_cpu := 4 }}
+{{- $triton_ephemeral := "1Gi" }}
+{{- $triton_logging_iso8601 := 0 }}
+{{- $triton_logging_verbose := 0 }}
+{{- $triton_memory := "16Gi" }}
+{{- with $.Values.kubernetes }}
+{{-   with .checks }}
+{{-     with .liveness }}
+{{-       $k8s_liveness_enabled = ne false .enabled }}
+{{-       with .failureThreshold }}
+{{-         $k8s_liveness_fail = (int .) }}
+{{-       end }}
+{{-       with .initialDelaySeconds }}
+{{-         $k8s_liveness_delay = (int .) }}
+{{-       end }}
+{{-       with .periodSeconds }}
+{{-         $k8s_liveness_period = (int .) }}
+{{-       end }}
+{{-       with .successThreshold }}
+{{-         $k8s_liveness_success = (int .) }}
+{{-       end }}
+{{-     end }}
+{{-     with .readiness }}
+{{-       $k8s_readiness_enabled = ne false .enabled }}
+{{-       with .failureThreshold }}
+{{-         $k8s_readiness_fail = (int .) }}
+{{-       end }}
+{{-       with .initialDelaySeconds }}
+{{-         $k8s_readiness_delay = (int .) }}
+{{-       end }}
+{{-       with .periodSeconds }}
+{{-         $k8s_readiness_period = (int .) }}
+{{-       end }}
+{{-       with .successThreshold }}
+{{-         $k8s_readiness_success = (int .) }}
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+{{- with $.Values.triton }}
+{{-   $component_name = required "Property '.triton.componentName' is required." .componentName }}
+{{-   with .distributed }}
+{{-     with .manifold }}
+{{-       with .serverKind }}
+{{-         $request_plane_kind = . }}
+{{-       end }}
+{{-       with .serviceName }}
+{{-         $request_plane_name = . }}
+{{-       end }}
+{{-       with .servicePort }}
+{{-         $request_plane_port = (int .) }}
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{-   with .instance }}
+{{-     with .count }}
+{{-       $instance_count = (int .) }}
+{{-     end }}
+{{-   end }}
+{{-   with .logging }}
+{{-     if .useIso8601 }}
+{{-       $triton_logging_iso8601 = 1 }}
+{{-     end }}
+{{-     if .verbose }}
+{{-       $triton_logging_verbose = 1 }}
+{{-     end }}
+{{-   end }}
+{{-   with .ports }}
+{{-     with .api }}
+{{-       $port_api = (int .) }}
+{{-     end }}
+{{-     with .health }}
+{{-       $port_health = (int .) }}
+{{-     end }}
+{{-     with .metrics }}
+{{-       $port_metrics = (int .) }}
+{{-     end }}
+{{-     with .request }}
+{{-       $port_request = (int .) }}
+{{-     end }}
+{{-   end }}
+{{-   with .resources }}
+{{-     with .cpu }}
+{{-       $triton_cpu = (int .) }}
+{{-     end }}
+{{-     with .ephemeral }}
+{{-       $triton_ephemeral = . }}
+{{-     end }}
+{{-     with .memory }}
+{{-       $triton_memory = . }}
+{{-     end }}
+{{-   end }}
+{{- else }}
+{{-   fail "Property '.triton' is required." }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}
+  namespace: {{ $.Release.Namespace | quote }}
+  annotations:
+{{- with $ }}
+{{-   include "triton.annotations.chart" . | indent 4 }}
+{{- end }}
+  labels:
+    app: {{ $.Release.Name }}
+    app.kubernetes.io/component: api-server
+{{- with $ }}
+{{-   include "triton.labels.chart" . | indent 4 }}
+{{- end }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $.Release.Name }}
+      app.kubernetes.io/component: api-server
+  replicas: {{ $instance_count }}
+  template:
+    metadata:
+      annotations:
+{{- with $ }}
+{{-   include "triton.annotations.chart" . | indent 8 }}
+{{- end }}
+      labels:
+        app: {{ $.Release.Name }}
+        app.kubernetes.io/component: api-server
+{{- with $ }}
+{{-   include "triton.labels.chart" . | indent 8 }}
+{{- end }}
+    spec:
+      containers:
+      - name: server
+        command:
+{{- if $triton_logging_iso8601 }}
+        - --iso8601
+{{- end}}
+{{- if $triton_logging_verbose }}
+        - --verbose
+{{- end }}
+        env:
+        - name: TRITON_COMPONENT_NAME:
+          value: {{ $component_name }}
+        - name: TRITON_REQUEST_PLANE_KIND
+          value: {{ $request_plane_kind }}
+        - name: TRITON_REQUEST_PLANE_NAME
+          value: {{ $request_plane_name }}
+        - name: TRITON_REQUEST_PLANE_PORT
+          value: {{ $request_plane_port }}
+{{- if ne $port_api 443 }}
+        - name: TRITON_PORT_API
+          value: {{ $port_api }}
+{{- end }}
+{{- if ne $port_health 8000 }}
+        - name: TRITON_PORT_HEALTH
+          value: {{ $port_health }}
+{{- end }}
+{{- if ne $port_metrics 9347 }}
+        - name: TRITON_PORT_METRICS
+          value: {{ $port_metrics }}
+{{- end }}
+{{- if ne $port_request 9345 }}
+        - name: TRITON_PORT_REQUEST
+          value: {{ $port_request }}
+{{- end }}
+        image: {{ $triton_image_name }}
+        imagePullPolicy: IfNotPresent
+{{- if $k8s_liveness_enabled }}
+        livenessProbe:
+          failureThreshold: {{ $k8s_liveness_fail }}
+          httpGet:
+            path: /v2/health/live
+            port: {{ $port_health }}
+          initialDelaySeconds: {{ $k8s_liveness_delay }}
+          periodSeconds: {{ $k8s_liveness_period }}
+          successThreshold: {{ $k8s_liveness_success }}
+{{- end }}
+        ports:
+        - containerPort: {{ $port_health }}
+          name: health
+        - containerPort: {{ $port_request }}
+          name: request
+        - containerPort: {{ $port_api }}
+          name: api
+        - containerPort: {{ $port_metrics }}
+          name: metrics
+{{- if $k8s_readiness_enabled }}
+        readinessProbe:
+          failureThreshold: {{ $k8s_readiness_fail }}
+          httpGet:
+            path: /v2/health/ready
+            port: {{ $port_health }}
+          initialDelaySeconds: {{ $k8s_readiness_delay }}
+          periodSeconds: {{ $k8s_readiness_period }}
+          successThreshold: {{ $k8s_readiness_success }}
+{{- end }}
+        resources:
+          limits:
+            cpu: {{ $triton_cpu }}
+            ephemeral-storage: {{ $triton_ephemeral }}
+            memory: {{ $triton_memory }}
+          requests:
+            cpu: {{ $triton_cpu }}
+            ephemeral-storage: {{ $triton_ephemeral }}
+            memory: {{ $triton_memory }}
+{{- with $.Values.image }}
+{{-   with .pullSecrets }}
+{{-     if len . }}
+      imagePullSecrets:
+{{        toYaml . | indent 6 }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+{{- with $.Values.kubernetes }}
+{{-   with .tolerations }}
+      tolerations:
+{{      toYaml . | indent 6 }}
+{{-   end }}
+{{- end }}

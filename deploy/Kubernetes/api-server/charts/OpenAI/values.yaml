@@ -1,0 +1,121 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# `image` contains configuration options related to the Triton Distributed API Server container image.
+image: # (required)
+  # `image.pullSecrets` is an optional list of pull secrets to be used when downloading the Triton Distributed API Server container image.
+  pullSecrets: # (optional)
+  # - name: pull-secret-name
+  # `image.name` is the name of the container image containing the version of Triton Distributed API Server container image to be used.
+  name: # (required)
+
+# `kubernetes` contains configurations option related to the Kubernetes objects created by the chart.
+kubernetes: # (optional)
+  # `kubernetes.annotations` is an optional set of annotations to be applied to create Kubernetes objects.
+  annotations: # (optional)
+  # `kubernetes.checks` are optional configuration options controlling how the cluster monitors the health of Triton Distributed API Server deployment(s).
+  checks:
+    # `kubernetes.checks.liveness` are configuration options related to how the cluster determines that a Triton Distributed API Server instance is "alive" and responsive.
+    liveness:
+      # `kubernetes.checks.liveness.enabled` when `true`, instructs the cluster will actively determine if the pod is alive; otherwise the cluster will always assume the pod is alive.
+      enabled: # (default true)
+      # `kubernetes.checks.liveness.failureThreshold` is the number of failed responses required to determine a pod is not responsive (aka "alive").
+      failureThreshold: # (default 15)
+      # `kubernetes.checks.liveness.initialDelaySeconds` is the minimum wait time before the cluster begins to attempt to determine the health of the pod.
+      initialDelaySeconds: # (default 10)
+      # `kubernetes.checks.liveness.periodSeconds` is the minimum period between attempts to determine the health of the pod.
+      periodSeconds: # (default 2)
+      # `kubernetes.checks.liveness.successThreshold` is the number of successful responses required to determine that a pod is healthy.
+      successThreshold: # (default 1)
+    # `kubernetes.checks.readiness` contains configuration options related to how the cluster determines that a Triton Distributed API Server instance is ready.
+    readiness:
+      # `kubernetes.checks.readiness.enabled` when `true`, instructs the cluster will actively determine if the pod is ready; otherwise the cluster will always assume the pod is ready.
+      enabled: # (default true)
+      # `kubernetes.checks.readiness.failureThreshold` is the number of failed responses required to determine a pod is not responsive (aka "ready").
+      failureThreshold: # (default 15)
+      # `kubernetes.checks.readiness.initialDelaySeconds` is the minimum wait time before the cluster begins to attempt to determine the readiness of the pod.
+      initialDelaySeconds: # (default 10)
+      # `kubernetes.checks.readiness.periodSeconds` is the minimum period between attempts to determine the readiness of the pod.
+      periodSeconds: # (default 2)
+      # `kubernetes.checks.readiness.successThreshold` is the number of successful responses required to determine that a pod is ready.
+      successThreshold: # (default 1)
+  # `kubernetes.labels` is an optional set of labels to be applied to created Kubernetes objects.
+  # These labels can be used for association with a preexisting service object.
+  labels: # (optional)
+  # Optional value to be used with the `app.kubernetes.io/part-of` label on created Kubernetes objects.
+  partOf: # (default: triton-distributed)
+  # `kubernetes.tolerations` are tolerations applied to every pod deployed as part of this deployment.
+  # Template already includes `nvidia.com/gpu=present:NoSchedule` when `resources.gpu` is specified.
+  tolerations: # (optional)
+
+# `triton` contains configuration options related to the operation of Triton Distributed API Server.
+triton: # (required)
+  # `triton.componentName` is the name of the Triton Distributed API Server in the distributed deployment.
+  componentName: # (required)
+  # `triton.distributed` contains configuration options related to organization of Triton Distributed workflows.
+  distributed:
+    # `triton.distributed.requestPlane` contains configuration options related to connecting the Triton Distributed API Server to its Triton Distributed Request Plane.
+    requestPlane:
+      # `triton.distributed.requestPlane.serverKind` is the "kind" of server providing Triton Distributed Request Plane functionality.
+      # Supported options: `nats-io`.
+      serverKind: # (default nats-io)
+      # `triton.distributed.requestPlane.serviceName` is the name of the Kubernetes Service handling DNS routing for the Triton Distributed Request Plane instances.
+      serviceName: # (default triton-distributed_request-plane)
+      # `triton.distributed.requestPlane.servicePort` is the networking port to be used to interact with the Triton Distributed Request Plane.
+      servicePort: # (default 30222)
+  # `triton.instance` are optional configuration options related to the number of Triton Distributed API Server pods are deployed.
+  instance:
+    # `triton.instance.count` is the number of API Server instances to be deployed as part of this helm chart.
+    count: # (default 1)
+  # `triton.logging` contains logging configuration options specific to Triton Distributed API Server.
+  logging: # (optional)
+    #`triton.logging.useIso8601` when `true`, instructs Triton Distributed API Server logs are formatted using the ISO8601 standard; otherwise Triton's default format will be used.
+    useIso8601: # (default: false)
+    # `triton.logging.verbose` when `true`, instructs Triton Distributed API Server uses verbose logging; otherwise standard logging is used.
+    verbose: # (default: false)
+  # `triton.ports` contains configuration options for the management of the Triton Distributed API Server exposed.
+  ports: # (optional)
+    # Container port exposed to handle API network traffic.
+    # This port will be exposed by the deployed Kubernetes service object.
+    api: # (default 443)
+    # `triton.ports.health` is the container port exposed to enable Triton Distributed API Server Kubernetes health reporting.
+    health: # (default 8000)
+    # `triton.ports.metrics` is the container port exposed to enable Triton Distributed API Server metrics reporting.
+    metrics: # (default 9347)
+    # `triton.ports.request` is the container port exposed to enable Triton Distributed API Server request-plane operations.
+    request: # (default 9345)
+  # `triton.resources` contains configuration options related to the resources assigned to Triton Distributed API Server.
+  resources: # (optional)
+    # `triton.resources.cpu` is the number of logical CPU cores  required by the Triton Distributed API Server.
+    cpu: # (default: 1)
+    # `triton.resources.ephemeral` is the ephemeral storage (aka local disk usage) allowance.
+    # Ephemeral storage (aka local disk usage) allowance.
+    # Value must be provided in Kubernetes' unit notation.
+    ephemeral: # (default: 1Gi)
+    # `triton.resources.memory` specifies the amount of CPU visible (aka host) memory available to the Triton Distributed API Server.
+    # Value must be provided in Kubernetes' unit notation.
+    memory: # (default: 4Gi)
+  # `triton.service` contains configuration options related to the Kubernetes service object created for this API Server deployment.
+  # The Kubernetes service object provides indirection to deployed pod's `api` port.
+  service: # (required)
+    # `triton.service.name` specifies the name of the service used to interact with the service once deployed.
+    # Value must conform to Kubernetes label requirements.
+    # Commonly resolves as DNS entry `<name>.svc.cluster.local`.
+    name: # (required)
+    # `triton.service.port` specifies the network port the service exposes and redirects to the deployed API Server pod's `api` port.
+    port: # (default 30345)
+    # `triton.service.type` specifies the type of Kubernetes service to deploy.
+    # Supported values are `ClusterIP` or `LoadBalancer`. `NodePort` and `ExternalName` configurations are not supported.
+    type: # (default ClusterIP)
