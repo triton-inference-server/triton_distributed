@@ -78,6 +78,7 @@ async def main(args):
         name="api_server",
         implementation="ApiServerOperator",  # matches the .py file's operator class
         max_inflight_requests=1,
+        repository="/workspace/examples/api_server_open_ai/operators",
     )
 
     api_server = WorkerConfig(operators=[api_server_op], name="api_server")
