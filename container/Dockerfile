@@ -133,7 +133,7 @@ COPY . /workspace
 RUN /workspace/icp/protos/gen_python.sh
 
 # Sets pythonpath for python modules
-ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/src/python:/workspace/worker/src/python:/workspace/examples"
+ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/src/python:/workspace/worker/src/python:/workspace/examples:/opt/tritonserver/python/openai/openai_frontend"
 
 # Command and Entrypoint
 CMD []
