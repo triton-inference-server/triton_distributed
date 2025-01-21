@@ -21,7 +21,7 @@ pytestmark = pytest.mark.pre_merge
 
 def test_imports():
     from engine.engine import LLMEngine as e
-    from frontend.fastapi_frontend import FastAPIFrontend as f
+    from frontend.fastapi_frontend import FastApiFrontend as f
 
     # Placeholder to avoid unused import errors or removal by linters
     assert e, f
