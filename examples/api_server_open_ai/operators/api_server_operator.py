@@ -1,6 +1,7 @@
 import threading
 
 import uvicorn
+import time
 from triton_distributed.worker import Operator, RemoteInferenceRequest
 
 # Suppose you have your older openai code in a local `server.py` or something
@@ -56,6 +57,8 @@ class ApiServerOperator(Operator):
         self.server = uvicorn.Server(config)
         self._logger.info("Starting uvicorn server for openai endpoints.")
         self.server.run()
+        while True:
+            time.sleep(1)
 
     def __del__(self):
         # Attempt to gracefully stop uvicorn if still running

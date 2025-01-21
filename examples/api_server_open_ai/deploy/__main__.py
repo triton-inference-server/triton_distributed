@@ -76,7 +76,7 @@ async def main(args):
     # define all your worker configs as before: encoder, decoder, etc.
     api_server_op = OperatorConfig(
         name="api_server",
-        implementation="api_server_operator:ApiServerOperator",  # matches the .py file's operator class
+        implementation="ApiServerOperator",  # matches the .py file's operator class
         max_inflight_requests=1,
     )
 
@@ -92,7 +92,7 @@ async def main(args):
     )
     deployment.start()
     while True:
-        asyncio.sleep(10)
+        await asyncio.sleep(10)
 
 
 if __name__ == "__main__":
