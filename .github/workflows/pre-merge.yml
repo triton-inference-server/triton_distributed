@@ -48,7 +48,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
-    - uses: pre-commit/action@v3.0.0
+      with:
+        python-version: '3.12'
+    - uses: pre-commit/action@v3.0.1
       timeout-minutes: 3
 
   # providers_validation:
