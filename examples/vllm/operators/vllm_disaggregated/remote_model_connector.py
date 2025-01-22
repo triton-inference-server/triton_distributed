@@ -76,6 +76,7 @@ class RemoteModelConnector(BaseTriton3Connector):
                 async for response in remote_model_connector.inference(model_name="model_name", request=request):
                     print(response.outputs)
         """
+        self._model = None
         self._connector = RemoteConnector(
             nats_url,
             data_plane_host,
@@ -92,7 +93,6 @@ class RemoteModelConnector(BaseTriton3Connector):
         await self._connector.connect()
         self._model = RemoteOperator(
             operator=self._model_name,
-            version=self._model_version,
             request_plane=self._connector._request_plane,
             data_plane=self._connector._data_plane,
         )
@@ -132,10 +132,9 @@ class RemoteModelConnector(BaseTriton3Connector):
                 self._model_name = model_name
                 self._model_version = "1"
                 self._model = RemoteOperator(
-                    self._model_name,
-                    self._model_version,
-                    self._connector._request_plane,
-                    self._connector._data_plane,
+                    operator=_model_name,
+                    request_plane=self._connector._request_plane,
+                    data_plane=self._connector._data_plane,
                 )
         results = []
 
