@@ -15,10 +15,11 @@
 
 exclude: ^src/grpc_generated
 repos:
-- repo: https://github.com/timothycrosley/isort
+- repo: https://github.com/pycqa/isort
   rev: 5.13.2
   hooks:
   - id: isort
+    args: ["--profile", "black"]
     additional_dependencies: [toml]
 - repo: https://github.com/psf/black
   rev: 23.1.0
