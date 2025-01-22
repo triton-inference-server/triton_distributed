@@ -39,6 +39,56 @@ def parse_args(args=None):
         "--request-plane-uri", type=str, default="nats://localhost:4223"
     )
 
+    # API Server
+    parser.add_argument(
+        "--api-server-host",
+        type=str,
+        required=False,
+        default="127.0.0.1",
+        help="API Server host",
+    )
+
+    parser.add_argument(
+        "--api-server-port",
+        type=int,
+        required=False,
+        default=8000,
+        help="API Server port",
+    )
+
+    # Misc
+    parser.add_argument(
+        "--tokenizer",
+        type=str,
+        required=True,
+        default="meta-llama/Meta-Llama-3.1-8B-Instruct",
+        help="Tokenizer to use for chat template in chat completions API",
+    )
+
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        required=False,
+        default="prefill",
+        help="Model name",
+    )
+
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        required=False,
+        default="info",
+        help="Logging level (e.g., debug, info, warning, error, critical)",
+    )
+
+    parser.add_argument(
+        "--log-format",
+        type=str,
+        required=False,
+        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        help="Logging format",
+    )
+
     args = parser.parse_args(args)
 
     return args
@@ -77,6 +127,12 @@ async def main(args):
     api_server_op = OperatorConfig(
         name="api_server",
         implementation="api_server_open_ai.operators.api_server_operator:ApiServerOperator",
+        parameters={
+            "api_server_host": args.api_server_host,
+            "api_server_port": args.api_server_port,
+            "tokenizer": args.tokenizer,
+            "model_name": args.model_name,
+        },
         max_inflight_requests=1,
     )
 
