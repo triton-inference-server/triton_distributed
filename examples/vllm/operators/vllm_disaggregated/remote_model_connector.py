@@ -91,7 +91,7 @@ class RemoteModelConnector(BaseTriton3Connector):
         """Connect to Triton 3 server."""
         await self._connector.connect()
         self._model = RemoteOperator(
-            name=self._model_name,
+            operator=self._model_name,
             version=self._model_version,
             request_plane=self._connector._request_plane,
             data_plane=self._connector._data_plane,
