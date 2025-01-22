@@ -21,13 +21,14 @@ import uuid
 from typing import Optional
 
 from google.protobuf import json_format, text_format
+from tritonclient.grpc import model_config_pb2
+from tritonserver import InvalidArgumentError, Server
+
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.worker.operator import Operator
 from triton_distributed.worker.remote_request import RemoteInferenceRequest
 from triton_distributed.worker.remote_response import RemoteInferenceResponse
-from tritonclient.grpc import model_config_pb2
-from tritonserver import InvalidArgumentError, Server
 
 
 class TritonCoreOperator(Operator):

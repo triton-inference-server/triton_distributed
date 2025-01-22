@@ -20,6 +20,13 @@ from typing import Optional, Sequence
 
 import cupy
 from cupy_backends.cuda.api.runtime import CUDARuntimeError
+from tritonserver import DataType, InvalidArgumentError, MemoryType, Tensor
+
+# TODO
+# Export from tritonserver
+from tritonserver._api._dlpack import DLDeviceType
+from tritonserver._api._tensor import DeviceOrMemoryType
+
 from triton_distributed.icp.data_plane import (
     DataPlane,
     get_icp_data_type,
@@ -28,12 +35,6 @@ from triton_distributed.icp.data_plane import (
     get_icp_tensor_size,
 )
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
-from tritonserver import DataType, InvalidArgumentError, MemoryType, Tensor
-
-# TODO
-# Export from tritonserver
-from tritonserver._api._dlpack import DLDeviceType
-from tritonserver._api._tensor import DeviceOrMemoryType
 
 # Run cupy's cuda.is_available once to
 # avoid the exception hitting runtime code.

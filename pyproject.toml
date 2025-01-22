@@ -43,6 +43,7 @@ line_length = 88
 balanced_wrapping = true
 indent = "    "
 skip = ["build"]
+known_first_party = ["triton_distributed"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

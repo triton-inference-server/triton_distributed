@@ -21,7 +21,6 @@ from typing import Optional, Sequence
 
 import cupy
 import numpy
-from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 from tritonserver import (
     DataType,
     InvalidArgumentError,
@@ -42,6 +41,8 @@ from tritonserver._c.triton_bindings import (
 from tritonserver._c.triton_bindings import (
     TRITONSERVER_StringToDataType as StringToDataType,
 )
+
+from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 
 
 class DataPlaneError(Exception):

@@ -24,14 +24,15 @@ import numpy
 import pytest
 import ucp
 from cupy_backends.cuda.api.runtime import CUDARuntimeError
+from tritonserver import DataType, MemoryType, Tensor
+from tritonserver._api._datautils import TRITON_TO_NUMPY_DTYPE
+
 from triton_distributed.icp.data_plane import DataPlaneError
 from triton_distributed.icp.ucp_data_plane import (
     UcpDataPlane,
     get_icp_tensor_uri,
     set_icp_tensor_uri,
 )
-from tritonserver import DataType, MemoryType, Tensor
-from tritonserver._api._datautils import TRITON_TO_NUMPY_DTYPE
 
 # TODO decide if some tests should be removed
 # from pre_merge

@@ -16,6 +16,8 @@ import multiprocessing
 from pprint import pformat
 from typing import Optional, Type
 
+from tritonserver import InvalidArgumentError
+
 from triton_distributed.icp import (
     DataPlane,
     NatsRequestPlane,
@@ -25,7 +27,6 @@ from triton_distributed.icp import (
 )
 from triton_distributed.worker.log_formatter import setup_logger
 from triton_distributed.worker.worker import Worker, WorkerConfig
-from tritonserver import InvalidArgumentError
 
 LOGGER_NAME = __name__
 

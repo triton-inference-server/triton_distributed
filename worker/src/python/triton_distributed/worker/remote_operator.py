@@ -19,11 +19,12 @@ import asyncio
 import uuid
 from typing import Optional
 
+from tritonserver import InvalidArgumentError
+
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.worker.remote_request import RemoteInferenceRequest
 from triton_distributed.worker.remote_response import AsyncRemoteResponseIterator
-from tritonserver import InvalidArgumentError
 
 
 class RemoteOperator:
