@@ -25,6 +25,8 @@ from typing import Dict, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import nats
+from tritonserver import InvalidArgumentError
+
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 from triton_distributed.icp.request_plane import (
     RequestPlane,
@@ -37,7 +39,6 @@ from triton_distributed.icp.request_plane import (
     set_icp_request_to_uri,
     set_icp_response_to_uri,
 )
-from tritonserver import InvalidArgumentError
 
 
 class AsyncModelInferRequestIterator:

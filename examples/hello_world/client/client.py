@@ -19,9 +19,10 @@ import sys
 import cupy
 import numpy
 from tqdm import tqdm
+from tritonserver import MemoryType
+
 from triton_distributed.icp import NatsRequestPlane, UcpDataPlane
 from triton_distributed.worker import RemoteOperator
-from tritonserver import MemoryType
 
 
 def _get_input_sizes(args):

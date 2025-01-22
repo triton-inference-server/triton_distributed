@@ -16,6 +16,7 @@
 import logging
 
 import pytest
+
 from triton_distributed.worker.log_formatter import LOGGER_NAME, setup_logger
 
 logger = logging.getLogger(LOGGER_NAME)

@@ -29,6 +29,9 @@ if TYPE_CHECKING:
 
 import uuid
 
+from tritonserver import InternalError, Tensor, TritonError
+from tritonserver._api._response import InferenceResponse
+
 from triton_distributed.icp.request_plane import (
     get_icp_component_id,
     get_icp_final_response,
@@ -37,8 +40,6 @@ from triton_distributed.icp.request_plane import (
     set_icp_response_error,
 )
 from triton_distributed.worker.remote_tensor import RemoteTensor
-from tritonserver import InternalError, Tensor, TritonError
-from tritonserver._api._response import InferenceResponse
 
 
 class AsyncRemoteResponseIterator:

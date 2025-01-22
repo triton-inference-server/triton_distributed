@@ -28,6 +28,9 @@ import tritonclient.grpc as grpcclient
 import ucp
 from cupy_backends.cuda.api.runtime import CUDARuntimeError
 from transformers import XLNetTokenizer
+from tritonclient.utils import InferenceServerException
+from tritonserver import Tensor
+
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
 from triton_distributed.worker.deployment import Deployment
@@ -36,8 +39,6 @@ from triton_distributed.worker.operator import OperatorConfig
 from triton_distributed.worker.remote_operator import RemoteOperator
 from triton_distributed.worker.triton_core_operator import TritonCoreOperator
 from triton_distributed.worker.worker import WorkerConfig
-from tritonclient.utils import InferenceServerException
-from tritonserver import Tensor
 
 NATS_PORT = 4223
 MODEL_REPOSITORY = (
