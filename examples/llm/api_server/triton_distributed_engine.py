@@ -13,9 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
-from asyncio import AsyncIterator
+from typing import AsyncIterator
 
 from engine.engine import LLMEngine
+from llm.api_server.chat_vllm import ChatHandlerVllm
+from llm.api_server.remote_model_connector import RemoteModelConnector
 from schemas.openai import (
     CreateChatCompletionRequest,
     CreateChatCompletionResponse,
@@ -24,6 +26,32 @@ from schemas.openai import (
     Model,
     ObjectType,
 )
+
+
+class TritonDistributedChatHandler(ChatHandlerVllm):
+    def __init__(
+        self, triton_connector: RemoteModelConnector, model_name: str, tokenizer: str
+    ):
+        super().__init__(triton_connector, model_name, tokenizer)
+
+    # Request / response format can vary between frontends, so allow override
+    # of adaptor functions accordingly.
+    def stream_response_adaptor(self, response_stream):
+        async def adaptor_stream():
+            async for response in response_stream():
+                if isinstance(response, Exception):
+                    raise response
+                else:
+                    # Already in SSE String format
+                    yield response
+
+        return adaptor_stream
+
+    def response_adaptor(self, response):
+        return response
+
+    def exception_adaptor(self, exception):
+        raise exception
 
 
 class TritonDistributedEngine(LLMEngine):
@@ -35,19 +63,18 @@ class TritonDistributedEngine(LLMEngine):
         model_name: str,
         tokenizer: str,
     ):
-        pass
-        # self.triton_connector = RemoteModelConnector(
-        #     nats_url=nats_url,
-        #     data_plane_host=data_plane_host,
-        #     data_plane_port=data_plane_port,
-        #     model_name=model_name,
-        #     keep_dataplane_endpoints_open=True,
-        # )
+        self.triton_connector = RemoteModelConnector(
+            nats_url=nats_url,
+            data_plane_host=data_plane_host,
+            data_plane_port=data_plane_port,
+            model_name=model_name,
+            keep_dataplane_endpoints_open=True,
+        )
 
-        # # FIXME: Consider supporting multiple or per-model tokenizers
-        # self.request_handler = TritonDistributedChatHandler(
-        #     self.triton_connector, model_name, tokenizer
-        # )
+        # FIXME: Consider supporting multiple or per-model tokenizers
+        self.request_handler = TritonDistributedChatHandler(
+            self.triton_connector, model_name, tokenizer
+        )
 
     async def chat(
         self, request: CreateChatCompletionRequest

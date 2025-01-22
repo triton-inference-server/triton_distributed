@@ -17,7 +17,9 @@ import argparse
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="OpenAI-Compatible API server.")
+    parser = argparse.ArgumentParser(
+        description="OpenAI-Compatible API server.", prog="OpenAI API Sever"
+    )
 
     # API Server
     parser.add_argument(
@@ -81,18 +83,10 @@ def parse_args():
 
     parser.add_argument(
         "--log-level",
-        type=str,
+        type=int,
         required=False,
-        default="info",
-        help="Logging level (e.g., debug, info, warning, error, critical)",
+        default=1,
+        help="Logging level",
     )
 
-    parser.add_argument(
-        "--log-format",
-        type=str,
-        required=False,
-        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        help="Logging format",
-    )
-
-    return parser.parse_args()
+    return parser, parser.parse_args()
