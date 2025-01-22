@@ -213,6 +213,10 @@ class ApiServerOperator(Operator):
             log_level=parameters["log_level"].lower(),
         )
 
+        self.openai_frontend.start()
+        while True:
+            time.sleep(1)
+
         # The simplest approach: spawn uvicorn in a background thread
         self.server_thread = None
         self.should_stop = False
@@ -240,6 +244,7 @@ class ApiServerOperator(Operator):
         self._logger.info(
             "API Server thread starts"
         )
+        raise Exception("EVIL")
         self.openai_frontend.start()
         self._logger.info(
             "API Server thread start finished and sleeping will start"
