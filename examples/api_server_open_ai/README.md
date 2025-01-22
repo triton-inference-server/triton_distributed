@@ -222,14 +222,13 @@ When the operator is running, it listens on `http://0.0.0.0:8080` (by default).
 
 - **Chat Completions** (similar to OpenAI)
   ```bash
-  curl -X POST http://localhost:8080/v1/chat/completions \
+curl -X POST http://localhost:50000/v1/chat/completions \
     -H 'Content-Type: application/json' \
     -d '{
       "model": "gpt-3.5-turbo",
       "messages": [{"role":"user","content":"Hello Triton!"}],
       "stream": false
-    }'
-  ```
+    }'  ```
   **Sample Response**
   ```json
   {

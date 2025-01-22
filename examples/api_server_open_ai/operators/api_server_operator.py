@@ -18,7 +18,7 @@ from schemas.openai import (
     ObjectType,
 )
 from triton_api_server.open_ai.chat_vllm import ChatHandlerVllm
-from triton_api_server.operators.connector import MyTritonDistributedConnector
+from .connector import MyTritonDistributedConnector
 from triton_distributed.worker import Operator, RemoteInferenceRequest
 
 
@@ -64,7 +64,7 @@ class TritonDistributedEngine(LLMEngine):
     ):
         self.model_name = model_name
         self.tokenizer = tokenizer
-        self.connector = MyTritonDistributedConnector(request_plane, data_plane)
+        self.triton_connector = MyTritonDistributedConnector(request_plane, data_plane)
         # self.triton_connector = RemoteModelConnector(
         #     nats_url=nats_url,
         #     data_plane_host=data_plane_host,
@@ -201,22 +201,23 @@ class ApiServerOperator(Operator):
             # nats_url=parameters.nats_url,
             # data_plane_host=parameters.data_plane_host,
             # data_plane_port=parameters.data_plane_port,
-            model_name=parameters.model_name,
-            tokenizer=parameters.tokenizer,
+            model_name=parameters["model_name"],
+            tokenizer=parameters["tokenizer"],
         )
 
         # Attach TritonLLMEngine as the backbone for inference and model management
         self.openai_frontend: FastApiFrontend = FastApiFrontend(
             engine=self.engine,
-            host=parameters.api_server_host,
-            port=parameters.api_server_port,
-            log_level=parameters.log_level.lower(),
+            host=parameters["api_server_host"],
+            port=parameters["api_server_port"],
+            log_level=parameters["log_level"].lower(),
         )
 
         # The simplest approach: spawn uvicorn in a background thread
         self.server_thread = None
         self.should_stop = False
         self.server_thread = threading.Thread(target=self.start_server)
+        self.server_thread.join()
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
         """
@@ -236,6 +237,15 @@ class ApiServerOperator(Operator):
         """
         Launch uvicorn in a background thread or so
         """
+        self._logger.info(
+            "API Server thread starts"
+        )
         self.openai_frontend.start()
+        self._logger.info(
+            "API Server thread start finished and sleeping will start"
+        )
         while True:
             time.sleep(1)
+        self._logger.info(
+            "API Server thread sleep finished"
+        )

@@ -33,11 +33,17 @@ def parse_args(args=None):
         "--clear-logs", default=False, action="store_true", help="clear log dir"
     )
 
-    parser.add_argument("--log-level", type=int, default=1)
-
     parser.add_argument(
-        "--request-plane-uri", type=str, default="nats://localhost:4223"
+        "--log-level",
+        type=str,
+        required=False,
+        default="DEBUG",
+        help="Logging level",
     )
+
+    # parser.add_argument(
+    #     "--request-plane-uri", type=str, default="nats://localhost:4223"
+    # )
 
     # API Server
     parser.add_argument(
@@ -71,14 +77,6 @@ def parse_args(args=None):
         required=False,
         default="prefill",
         help="Model name",
-    )
-
-    parser.add_argument(
-        "--log-level",
-        type=str,
-        required=False,
-        default="info",
-        help="Logging level (e.g., debug, info, warning, error, critical)",
     )
 
     parser.add_argument(
@@ -132,6 +130,8 @@ async def main(args):
             "api_server_port": args.api_server_port,
             "tokenizer": args.tokenizer,
             "model_name": args.model_name,
+            "log_level": args.log_level,
+            "log_format": args.log_format,
         },
         max_inflight_requests=1,
     )

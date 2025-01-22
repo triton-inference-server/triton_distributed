@@ -138,6 +138,14 @@ async def main(args):
 
     print("Starting Workers")
 
+    # Spawn new process here?
+    api_server = ApiServer(
+        # config stuff
+    )
+
+    # Non blocking
+    #api_server.start()
+
     deployment = Deployment(
         [
             (encoder, int(args.encoders[0])),
