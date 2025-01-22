@@ -1,233 +1,280 @@
-Below is a step-by-step description of the code you are proposing, along with some observations on its structure and potential usage scenarios. The overarching goal seems to be integrating a FastAPI-based OpenAI-style API server with Triton Distributed operators for inference, while preserving or adapting code previously found in a “Triton 3.0” repository. This results in two major code groupings:
+# Triton Distributed OpenAI-Compatible API Server Operator
 
-1. **`api_endpoint`** directory: Contains the logic for hosting OpenAI-compatible endpoints using FastAPI, including request/response schemas, streaming responses, and interfacing with a Triton-based connector (the “vLLM” chat code appears to come from a separate or older repository).  
-2. **`operators`** directory: Defines custom Triton Distributed operators (e.g., `ApiServerOperator`) that run in parallel or cluster-managed contexts, bridging your distributed request plane/data plane logic with the “Triton 3.0” styled API code.  
+This folder contains an example Operator (`ApiServerOperator`) that starts an OpenAI-compatible HTTP server within the Triton Distributed infrastructure. It allows sending requests in OpenAI’s format (e.g. `POST /v1/chat/completions`) while under the hood communicating with remote Triton Operators or Models via a request plane (NATS) and a data plane.
 
-Below is a high-level breakdown of each relevant file and its role.
+It serves as a reference for how you can bring your own specialized HTTP endpoints that conform to the OpenAI protocol and yet rely on the Triton distributed environment for inference calls.
 
----
+## Contents
 
-## `operators` Directory
-
-### `__init__.py`
-
-- Exports the `EncodeDecodeOperator` from `hello_world.operators.encoder_decoder`.
-- This is presumably a sample operator that performs some demonstration of an “encode + decode” pipeline.
-
-### `operators/server.py`
-
-- Shows a simple FastAPI creation function, `create_openai_app()`, that wraps `create_app(...)` from `triton_api_server.open_ai.server`.
-- Illustrates how to inject a custom connector (`MyTritonDistributedConnector`) into the `create_app(...)` function.  
-- The final result is a FastAPI application object that can be run either directly or via Uvicorn.
-
-### `operators/api_server_operator.py`
-
-- Defines `ApiServerOperator`, a subclass of `Operator` from `triton_distributed.worker`.
-- Main purpose:
-  - Create the FastAPI app via `create_openai_app`.
-  - Start a Uvicorn server in a background thread on `start_server()`.
-  - Ignore direct `RemoteInferenceRequest` messages (i.e., `execute` does not handle typical inference). Requests are only handled via the HTTP endpoints.
-- This pattern is typical in Triton Distributed if you want to host a REST or WebSocket server as part of the Triton cluster, rather than having purely model inference operators.
-
-### `operators/connector.py`
-
-- Implements `MyTritonDistributedConnector`, deriving from `BaseTriton3Connector`.
-- Acts as a bridge to Triton Distributed’s “request plane” and “data plane.”
-- Key flow:
-  - `inference(...)` constructs a `RemoteOperator` with the same name as the requested `model_name`.
-  - Creates a request for that operator, possibly sending asynchronous streaming responses.
-  - Yields `InferenceResponse` objects back to the FastAPI routes to be returned to the end user.
-- This is effectively the “glue” between your custom “Triton 3.0 style” code and the new distributed engine.  
-
-### `deploy/__main__.py`
-
-- Illustrates how to define the Triton worker configurations (e.g., `encoder`, `decoder`, `encoder_decoder`, `api_server`).
-- Adds them to a `Deployment` object with desired concurrency/replica counts.
-- Calls `deployment.start()` to spin up the distributed system, including the new `api_server` operator.
-
----
-
-## `tests` Directory
-
-Your testing strategy uses `pytest` fixtures that spin up an `AsyncClient` with `ASGITransport` (from `httpx`), allowing direct calls to the FastAPI routes without network overhead. Some highlights:
-
-- **`test_open_ai_endpoints.py`**:  
-  - Mocks out a `BaseTriton3Connector` to simulate different model responses (`get_license`, `get_metadata`, etc.).  
-  - Tests “OpenAI-like” endpoints such as `/v1/license`, `/v1/metadata`, `/v1/version`, health checks, etc.  
-  - Verifies streaming and non-streaming completions.  
-  - Contains additional mocking of tokenization/detokenization, ensuring your code can be tested without actual large-model dependencies.  
-- **`test_abstract_connector.py`**:  
-  - Demonstrates that a simple `MockConnector` can be used in place of the real `BaseTriton3Connector`.  
-  - Good example of how a shared interface allows flexible swapping of connectors for testing or real runs.
-
----
-
-## `api_endpoint` Directory
-
-This folder seems largely copied or adapted from a “Triton 3.0” repository or similar codebase. It contains:
-
-### `triton_api_server/connector.py`
-
-- Declares abstract classes for a “Triton 3.0” system, defining:
-  - `InferenceRequest`, `InferenceResponse` data classes.
-  - The `BaseTriton3Connector` ABC that must implement an async `inference(...)` method.
-- Also includes an optional `list_models(...)` method for enumerating available models in the system.
-
-### `triton_api_server/open_ai` Subdirectory
-
-Contains modules that replicate or adapt OpenAI’s ChatCompletion/Completions API patterns:
-
-1. **`error.py`**  
-   - Defines an `ErrorResponse` pydantic model for structured error messages.  
-
-2. **`chat.py`**  
-   - Implements the main Chat logic for single and streaming completions:
-     - `create_chat_response(...)` for non-streaming responses.
-     - `create_chunk_responses(...)` for chunked streaming responses with SSE-like output.  
-   - Defines a `ChatHandler` that orchestrates request processing (`process_request(...)`), bridging from a `CreateChatCompletionRequest` to the underlying inference calls.  
-   - Manages prompt manipulation, role, and chunk-based streaming.  
-
-3. **`chat_vllm.py`**  
-   - Extends `ChatHandler` as `ChatHandlerVllm` to handle vLLM specifics (tokenization, sampling parameters).  
-   - `translate_chat_inputs(...)` merges request fields into a “sampling_params” dictionary.  
-   - `translate_chat_outputs(...)` handles the final translation from inference output to your ChatCompletion schemas.  
-
-4. **`utils.py`**  
-   - Helper for converting numpy tensors to/from JSON (`tensor_to_json` and `json_to_tensor`).  
-   - A `verify_headers(...)` function for validating request headers in FastAPI.  
-
-This portion of the code is fairly standard for building an OpenAI-compatible endpoint on top of a custom inference backend, focusing on advanced chat semantics (e.g., streaming chunks, role-based conversation).
-
----
-
-## Notable Observations and Opinions
-
-1. **Clear Separation of Concerns**  
-   - Having the “operators” code purely define how to spin up a server inside Triton Distributed (with custom connectors) is a sensible approach.  
-   - Reusing or wrapping the “Triton 3.0” style OpenAI-like code under `api_endpoint` keeps the chat API logic decoupled from the cluster orchestration logic.
-
-2. **Connector Pattern**  
-   - The `BaseTriton3Connector` / `RemoteOperator` approach provides a flexible middle layer. In practice, this means any new operator or specialized pipeline can be swapped in as long as it respects the same method signatures.
-
-3. **Testing and Mocking**  
-   - The test suite shows a pattern of thoroughly mocking each layer—this is beneficial in distributed or HPC-like settings since standing up the entire environment repeatedly can be costly.
-
-4. **Potential Improvements**  
-   - Some repeated logic for streaming vs non-streaming completions in `chat.py` and `chat_vllm.py` can be refactored or consolidated.  
-   - The “delta” detection logic (previous output vs new output) might become more complex with real multi-turn chat or partial streaming of tokens. A robust approach would handle chunk boundaries gracefully.  
-   - Logging and tracing could be expanded to record request-plane vs data-plane events in more detail, especially if debugging distributed concurrency or performance.
-
-5. **Deployment Flow**  
-   - The code in `deploy/__main__.py` is concise but might need further modularization if you have multiple services or large sets of operator definitions. For bigger deployments, you might also consider dynamic operator loading.
-
-Overall, this codebase provides a straightforward bridging solution between your “Triton 3.0” style Chat/Completion server (using FastAPI + OpenAI-like endpoints) and the new Triton Distributed environment. The design is modular and testable, with clear extension points for different models or advanced pipelines. By retaining the “Triton 3.0” logic in the `api_endpoint` folder, you avoid rewriting established code while introducing new distributed operator patterns in `operators`.
-
-It should work well for an environment where multiple specialized operators (e.g., separate encoder/decoder, new chat pipeline, or custom embeddings) are orchestrated by the Triton worker system, while an external or internal user can simply send requests via OpenAI-like endpoints.
+1. [Overview](#overview)
+2. [Key Components](#key-components)
+3. [Architecture Diagrams](#architecture-diagrams)
+   1. [Class Diagram](#class-diagram)
+   2. [Sequence Diagram](#sequence-diagram)
+   3. [Flow Diagram](#flow-diagram)
+4. [Running the Operator](#running-the-operator)
+   1. [Deployment via `python -m deploy`](#deployment-via-python---m-deploy)
+5. [Usage](#usage)
+   1. [Example Endpoints](#example-endpoints)
+   2. [Chat/Completions Examples](#chatcompletions-examples)
 
 
+## Overview
+
+- The `ApiServerOperator` (found in [`operators/api_server_operator.py`](operators/api_server_operator.py)) launches a `uvicorn` server in a background thread.
+- That server uses the FastAPI application created by [`create_openai_app`](operators/server.py#L8), which wires up routes for:
+  - Chat completions (`/v1/chat/completions`)
+  - Completions (`/v1/completions`)
+  - Health checks, model listing, version info, etc.
+- Communication with the rest of the Triton distributed environment happens through a connector (`MyTritonDistributedConnector`), which transforms HTTP requests to asynchronous inference requests on a remote operator or model.
+
+This design allows you to keep an OpenAI-compatible HTTP front end while distributing model inference, possibly across multiple GPU hosts, using the Triton distributed approach.
 
 
-## 1. Directory Structure Diagram
+## Key Components
 
-This diagram can illustrate the high-level layout of folders and key files within the repo. It helps newcomers see at a glance which folders do what.
+1. **`operators/api_server_operator.py`**
+   Defines the `ApiServerOperator` class. When activated as part of a Worker, it starts up `uvicorn` on port 8080 to serve the HTTP endpoints.
+
+2. **`operators/server.py`**
+   Contains the `create_openai_app` function, which instantiates the FastAPI application. It imports utilities from a shared folder, `triton_api_server`, that implements the OpenAI endpoints.
+
+3. **`operators/connector.py`**
+   Implements `MyTritonDistributedConnector`, bridging the HTTP-level `InferenceRequest` objects to Triton Distributed’s `RemoteInferenceRequest`.
+
+4. **`deploy/__main__.py`**
+   Defines the deployment script. Spawns a Worker named `api_server` that runs `ApiServerOperator`. Usage example:
+   ```bash
+   python -m deploy
+   ```
+   See [Deployment via `python -m deploy`](#deployment-via-python---m-deploy) for more details.
+
+5. **`tests/`**
+   Contains test units for verifying the correctness of the endpoints and connectors.
+
+6. **`api_endpoint/`**
+   Contains the `triton_api_server` code that provides the OpenAI-compatible routes (e.g. `/v1/chat/completions`). This was originally copied from the main Triton Inference Server repository, adjusted for the distributed environment.
+
+
+## Architecture Diagrams
+
+### Class Diagram
+
+Below is a simplified diagram highlighting the relationships between the main classes:
 
 ```mermaid
-flowchart TB
-    A[Root] --> B[api_endpoint/]
-    A --> C[operators/]
-    A --> D[tests/]
-    A --> E[deploy/]
+classDiagram
+    class ApiServerOperator {
+        - triton_core not used
+        - request_plane
+        - data_plane
+        - server_thread - FastAPI server specific
+        - start_server()
+        + execute(requests) not implemented*
+    }
 
-    B --> B1[triton_api_server/]
-    B1 --> B1a[connector.py]
-    B1 --> B1b[open_ai/]
-    B1 --> B1c[__init__.py]
-    
-    B1b --> B1b1[chat.py]
-    B1b --> B1b2[chat_vllm.py]
-    B1b --> B1b3[utils.py]
-    B1b --> B1b4[error.py]
-    B1b --> B1b5[__init__.py]
+    class MyTritonDistributedConnector {
+        - request_plane
+        - data_plane
+        + inference(model_name, request)
+    }
 
-    C --> C1[api_server_operator.py]
-    C --> C2[server.py]
-    C --> C3[connector.py]
-    C --> C4[__init__.py]
+    class RemoteOperator {
+        + create_request(...)
+        + async_infer(...)
+    }
 
-    D --> D1[units/]
-    D1 --> D1a[test_open_ai_endpoints.py]
-    D1 --> D1b[test_abstract_connector.py]
-    D --> D2[__init__.py]
+    class FastAPI {
+        + instance
+    }
 
-    E --> E1[__main__.py]
+    ApiServerOperator --> "1 uses" FastAPI : create_openai_app()
+    ApiServerOperator --> "1 uses" MyTritonDistributedConnector : in start_server
+    MyTritonDistributedConnector --> "multiple" RemoteOperator : for inference calls
 ```
 
-**Highlights**:
+- **ApiServerOperator**
+  Runs in a Triton distributed worker. On startup, it spawns a background thread that starts `uvicorn`.
 
-- **`api_endpoint/triton_api_server`**: Contains the base classes (`BaseTriton3Connector`), OpenAI-style endpoint logic (`open_ai/`), plus supporting modules (tokenization, error handling, chat streaming).
-- **`operators`**: Houses custom operators, including an API Server operator that spawns Uvicorn and connectors bridging to Triton Distributed.
-- **`tests`**: Contains various unit tests, including mock-based tests of the OpenAI endpoints and connector logic.
-- **`deploy`**: Provides a `__main__.py` to define `Deployment` configurations for your Triton Distributed cluster.
+- **FastAPI**
+  The Python web framework that exposes the `/v1/chat/completions` and other endpoints.
 
----
+- **MyTritonDistributedConnector**
+  Implements logic to forward requests from HTTP to the Triton distributed environment using the request plane and data plane (NATS / other channels).
 
-## 2. High-Level Request Flow
+- **RemoteOperator**
+  The “client” proxy for an operator running elsewhere in the cluster. It can create asynchronous inference requests (`RemoteInferenceRequest`) and send them into the request plane.
 
-This sequence diagram illustrates a **non-streaming** request from a client to the running system. It shows how a user request is handled by FastAPI, the operator’s connector, and the remote operator for inference.
+### Sequence Diagram
+
+This diagram shows a typical request flow:
 
 ```mermaid
 sequenceDiagram
-    participant Client as External Client
-    participant API as FastAPI (api_server_operator)
-    participant Connector as MyTritonDistributedConnector
-    participant ReqPlane as Triton Request Plane
-    participant Operator as RemoteOperator (Encoder/Decoder)
+    autonumber
+    participant Client
+    participant ApiServerOperator
+    participant UvicornServer
+    participant FastAPI
+    participant MyTritonDistributedConnector
+    participant RemoteOperator
 
-    Client->>API: 1. POST /v1/completions (JSON body)
-    API->>API: 2. parse request, create InferenceRequest
-    API->>Connector: 3. connector.inference(model_name, inference_request)
+    ApiServerOperator-->UvicornServer: Start server
 
-    alt known model
-        Connector->>Operator: 4. create RemoteInferenceRequest<br/>and async_infer()
-        Operator->>ReqPlane: 5. handle inference
-        Operator-->>Connector: 6. yield InferenceResponse(outputs=...)
-    else unknown model
-        Connector-->>API: raises ValueError("Unknown model name")
-    end
-
-    Connector-->>API: 7. yields final InferenceResponse
-    API->>API: 8. transform outputs into JSON response
-    API-->>Client: 9. Return JSON with completion content
+    Client->>UvicornServer: POST /v1/chat/completions
+    UvicornServer->>FastAPI: Route the request
+    FastAPI->>MyTritonDistributedConnector: Create InferenceRequest & forward
+    MyTritonDistributedConnector->>RemoteOperator: Create remote request
+    RemoteOperator->>RemoteOperator: Perform inference
+    RemoteOperator-->>MyTritonDistributedConnector: Return results in streaming or single shot
+    MyTritonDistributedConnector-->>FastAPI: Translate result to JSON
+    FastAPI-->>Client: JSON / SSE stream response
 ```
 
-**Key Points**:
+### Flow Diagram
 
-- **`api_server_operator`** receives HTTP requests and constructs the `InferenceRequest`.  
-- **`MyTritonDistributedConnector`** sends the request to a `RemoteOperator` (like `encoder_decoder`) via Triton’s request plane.  
-- The operator processes or delegates the inference, returns results, which are turned into an OpenAI-style response.
+Below is a diagram describing how the operator is started during deployment:
+
+```mermaid
+flowchart LR
+    A[Deployment script starts] --> B[Initialize Worker & Operator configs]
+    B --> C{ApiServerOperator instantiation?}
+    C -->|Yes| D[Create connector & FastAPI app]
+    D --> E[Spawn uvicorn in thread, port=8080]
+    E --> F[Listen for inbound HTTP requests]
+    C -->|No| X[Stop or skip operator]
+```
+
+- **A**: The deployment script (`deploy/__main__.py`) is run.
+- **B**: Triton Distributed initializes the Worker with the config for our operator (`ApiServerOperator`).
+- **C**: The operator is instantiated.
+- **D**: The operator sets up a connector and the underlying FastAPI application.
+- **E**: A separate thread runs `uvicorn` to serve requests.
+- **F**: The server is ready to accept requests (like `/v1/chat/completions`).
 
 ---
 
-## 3. Streaming Chat Flow
+## Running the Operator
 
-This diagram focuses on the **streaming** endpoints, where partial responses are sent chunk by chunk (Server-Sent Events or chunked responses).
+### Deployment via `python -m deploy`
 
-```mermaid
-sequenceDiagram
-    participant Client as External Client
-    participant API as FastAPI (ChatHandler)
-    participant Connector as MyTritonDistributedConnector
-    participant Worker as RemoteOperator (chat_model)
+This example code includes a minimal deployment configuration in [`deploy/__main__.py`](deploy/__main__.py).
 
-    Client->>API: POST /v1/chat/completions<br/>{"messages": [...], "stream": true}
-    API->>API: parse request JSON
-    API->>Connector: connector.inference("chat_model", request)
-    loop While model is producing tokens
-        Connector->>Worker: Send partial request / get next token(s)
-        Worker-->>Connector: Return partial token(s)
-        API->>API: "delta" calculation for chunk
-        API-->>Client: SSE chunk data: {...}
-    end
-    API-->>Client: SSE complete event [DONE]
-```
+1. Install dependencies (including `triton-distributed` packages or your custom fork).
+2. Run:
+   ```bash
+   python -m deploy --clear-logs --log-level 1
+   ```
+   - `--clear-logs` will remove the log folder before starting
+   - `--log-level` sets the verbosity.
+3. Upon successful startup, the logs will show messages similar to:
+   ```
+   Starting uvicorn server for openai endpoints.
+   INFO:     Uvicorn running on http://0.0.0.0:8080
+   ```
+   The server is now listening on port `8080`.
 
+
+## Usage
+
+When the operator is running, it listens on `http://0.0.0.0:8080` (by default).
+
+### Example Endpoints
+
+1. **Health Check**
+   ```bash
+   curl -X GET http://localhost:8080/v1/health/live
+   curl -X GET http://localhost:8080/v1/health/ready
+   ```
+   **Response**
+   ```json
+   {
+     "message": "Service is live."
+   }
+   ```
+   or
+   ```json
+   {
+     "message": "Service is ready."
+   }
+   ```
+
+2. **List Models**
+   ```bash
+   curl -X GET http://localhost:8080/v1/models
+   ```
+   **Sample Response**
+   ```json
+   {
+     "object": "list",
+     "data": [
+       {
+         "id": "gpt-3.5-turbo",
+         "object": "model",
+         "created": 0,
+         "owned_by": "triton"
+       }
+     ]
+   }
+   ```
+
+### Chat/Completions Examples
+
+- **Chat Completions** (similar to OpenAI)
+  ```bash
+  curl -X POST http://localhost:8080/v1/chat/completions \
+    -H 'Content-Type: application/json' \
+    -d '{
+      "model": "gpt-3.5-turbo",
+      "messages": [{"role":"user","content":"Hello Triton!"}],
+      "stream": false
+    }'
+  ```
+  **Sample Response**
+  ```json
+  {
+    "id": "chatcmpl-123",
+    "object": "chat.completion",
+    "created": 1692751723,
+    "model": "gpt-3.5-turbo",
+    "system_fingerprint": null,
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Hello from your Triton-based AI!"
+        },
+        "finish_reason": "stop",
+        "logprobs": null
+      }
+    ]
+  }
+  ```
+
+- **Completions** (non-chat style)
+  ```bash
+  curl -X POST http://localhost:8080/v1/completions \
+    -H 'Content-Type: application/json' \
+    -d '{
+      "model": "completion_model",
+      "prompt": "Write a short poem about the sea."
+    }'
+  ```
+  **Sample Response**
+  ```json
+  {
+    "id": "cmpl-123",
+    "object": "text_completion",
+    "created": 1692751723,
+    "model": "completion_model",
+    "choices": [
+      {
+        "text": "Write a short poem about the sea.\n\nOcean whispers...",
+        "index": 0,
+        "finish_reason": "stop",
+        "logprobs": null
+      }
+    ]
+  }
+  ```
