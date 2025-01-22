@@ -76,7 +76,7 @@ async def main(args):
     # define all your worker configs as before: encoder, decoder, etc.
     api_server_op = OperatorConfig(
         name="api_server",
-        implementation="ApiServerOperator",  # matches the .py file's operator class
+        implementation="api_server_open_ai.operators.api_server_operator:ApiServerOperator",
         max_inflight_requests=1,
     )
 
