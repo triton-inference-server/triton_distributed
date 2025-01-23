@@ -160,7 +160,7 @@ async def main(args):
     deployment = Deployment(
         [
             # (worker_config, repeat_count )
-            (encoder, int(encoder_decoder_worker_instances)),
+            (encoder, int(encoder_worker_instances)),
             (decoder, int(decoder_worker_instances)),
             (encoder_decoder, int(encoder_decoder_worker_instances)),
         ],
