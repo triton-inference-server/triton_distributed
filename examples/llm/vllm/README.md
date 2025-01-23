@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# vLLM Disaggregated Serving
+# Disaggregated Serving
 
 An example of disaggregated serving[^1] deployment using Triton Distributed and vLLM engines. In this example, you can deploy the OpenAI compatible API server and multiple prefill and decode workers.
 
