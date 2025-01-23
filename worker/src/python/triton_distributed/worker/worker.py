@@ -15,8 +15,6 @@
 
 import asyncio
 import importlib
-import logging
-import multiprocessing
 import os
 import pathlib
 import signal
@@ -54,9 +52,9 @@ class WorkerConfig:
     data_plane_args: tuple[list, dict] = field(default_factory=lambda: ([], {}))
     log_level: Optional[int] = None
     operators: list[OperatorConfig] = field(default_factory=list)
-    triton_log_path: Optional[str] = None
     name: str = str(uuid.uuid1())
     log_dir: Optional[str] = None
+    consolidated_logs = False
     metrics_port: int = 0
 
 
@@ -74,13 +72,13 @@ class Worker:
         self._data_plane = config.data_plane(
             *config.data_plane_args[0], **config.data_plane_args[1]
         )
-        self._triton_log_path = config.triton_log_path
         self._name = config.name
         self._log_level = config.log_level
         if self._log_level is None:
             self._log_level = 0
         self._operator_configs = config.operators
         self._log_dir = config.log_dir
+        self._consolidated_logs = config.consolidated_logs
         self._stop_requested = False
         self._requests_received: Counter = Counter()
         self._background_tasks: dict[object, set] = {}
@@ -94,9 +92,10 @@ class Worker:
         self._triton_core: Optional[tritonserver.Server] = None
         self._log_file: Optional[str] = None
         if self._log_dir:
-            os.makedirs(self._log_dir, exist_ok=True)
+            path = pathlib.Path(self._log_dir)
+            path.mkdir(parents=True, exist_ok=True)
             pid = os.getpid()
-            self._log_file = os.path.join(self._log_dir, f"{self._name}.{self._component_id}.{pid}.log")
+            self._log_file = path / f"{self._name}.{self._component_id}.{pid}.log"
 
     def _import_operators(self):
         for operator_config in self._operator_configs:
@@ -149,13 +148,20 @@ class Worker:
                     class_ == TritonCoreOperator
                     or issubclass(class_, TritonCoreOperator)
                 ) and not self._triton_core:
+                    if not self._consolidated_logs:
+                        log_file = pathlib.Path(self._log_file)
+                        stem = log_file.stem
+                        suffix = log_file.suffix
+                        triton_log_path = log_file.parent / f"{stem}.triton{suffix}"
+                    else:
+                        triton_log_path = self._log_file
                     self._triton_core = tritonserver.Server(
                         model_repository=".",
                         log_error=True,
                         log_verbose=self._log_level,
                         strict_model_config=False,
                         model_control_mode=tritonserver.ModelControlMode.EXPLICIT,
-                        log_file=self._triton_log_path,
+                        log_file=triton_log_path,
                     ).start(wait_until_ready=True)
 
                 operator = class_(
@@ -358,8 +364,6 @@ class Worker:
         exit_condition = None
         if self._log_file:
             logger = setup_logger(log_level=self._log_level, log_file=self._log_file)
-            if not self._triton_log_path:
-                self._triton_log_path = self._log_file
         else:
             logger = setup_logger(log_level=self._log_level)
 

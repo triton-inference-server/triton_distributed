@@ -79,6 +79,7 @@ def workers(request, log_dir, number_workers=10):
         worker_log_dir = test_log_dir / (operator_name + "_" + str(i))
         worker_configs.append(
             WorkerConfig(
+                name=operator_name,
                 request_plane=NatsRequestPlane,
                 data_plane=UcpDataPlane,
                 request_plane_args=(

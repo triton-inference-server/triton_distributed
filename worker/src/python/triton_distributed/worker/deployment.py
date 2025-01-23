@@ -43,6 +43,7 @@ class Deployment:
         data_plane: Optional[Type[DataPlane]] = UcpDataPlane,
         data_plane_args: Optional[tuple[list, dict]] = None,
         log_dir="logs",
+        consolidated_logs=False,
         starting_metrics_port=0,
     ):
         self._process_context = multiprocessing.get_context("spawn")
@@ -58,6 +59,7 @@ class Deployment:
         self.request_plane_server: NatsServer = None
         self._default_log_dir = log_dir
         self._default_log_level = log_level
+        self._force_consolidated_logs = consolidated_logs
         self._starting_metrics_port = starting_metrics_port
 
     @staticmethod
@@ -102,6 +104,9 @@ class Deployment:
 
             if not worker_config.log_level:
                 worker_config.log_level = self._default_log_level
+
+            if self._force_consolidated_logs:
+                worker_config.consolidated_logs = True
 
             for index in range(worker_instances):
                 worker_config.name = f"{base_name}.{index}"
