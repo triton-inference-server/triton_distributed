@@ -78,8 +78,8 @@ All components must be able to connect to the same NATS server to coordinate.
 The API server in a vLLM-disaggregated setup listens for OpenAI-compatible requests on a chosen port (default 8005). Below is an example command:
 
 ```bash
-python3 -m examples.api_server \
-  --nats-url nats://localhost:4223 \
+python3 -m llm.api_server \
+  --request-plane-uri <YOUR_HOST>:4223 \
   --log-level INFO \
   --port 8005
 ```
@@ -91,9 +91,9 @@ The prefill stage encodes incoming prompts. By default, vLLM uses GPU resources 
 ```bash
 CUDA_VISIBLE_DEVICES=0 \
 VLLM_WORKER_ID=0 \
-python3 -m examples.vllm.deploy \
+python3 -m llm.deploy \
   --context-worker-count 1 \
-  --nats-url nats://localhost:4223 \
+  --request-plane-uri <YOUR_HOST>:4223 \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \
@@ -120,9 +120,9 @@ The decode stage consumes the KV cache produced in the prefill step and generate
 ```bash
 CUDA_VISIBLE_DEVICES=1 \
 VLLM_WORKER_ID=1 \
-python3 -m examples.vllm.deploy \
+python3 -m llm.deploy \
   --generate-worker-count 1 \
-  --nats-url nats://localhost:4223 \
+  --request-plane-uri <YOUR_HOST>:4223 \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \
@@ -151,7 +151,7 @@ python3 -m examples.vllm.deploy \
 Once the API server is running (by default on `localhost:8005`), you can send OpenAI-compatible requests. For example:
 
 ```bash
-curl localhost:8005/v1/chat/completions \
+curl <YOUR_HOST>:8005/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "llama",
@@ -178,7 +178,7 @@ You can benchmark this setup using [**GenAI-Perf**](https://github.com/triton-in
 ```bash
 genai-perf profile \
   -m llama \
-  --url <API_SERVER_HOST>:8005 \
+  --url <YOUR_HOST>:8005 \
   --endpoint-type chat \
   --streaming \
   --num-dataset-entries 1000 \
