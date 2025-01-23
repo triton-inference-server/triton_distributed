@@ -114,8 +114,8 @@ def main(args):
     deployment.start()
     print("Workers started ... press Ctrl-C to Exit")
 
-    # while True:
-    #     time.sleep(10)
+    while True:
+        time.sleep(10)
 
 
 if __name__ == "__main__":
