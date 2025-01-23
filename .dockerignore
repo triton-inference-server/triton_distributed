@@ -19,7 +19,8 @@
 **/*.plan
 **/.cache/*
 **/*onnx*
-**/*engine*
+# Engine must be allowed because code contains triton_distributed_engine.py
+#**/*engine*
 **/*pytorch_model*
 **/*.pth*
 **/*.pt
