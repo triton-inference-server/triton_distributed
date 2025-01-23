@@ -11,7 +11,7 @@ from triton_distributed.worker import Operator, RemoteInferenceRequest
 
 class VllmContextOperator(Operator):
 
-    def __init__(self, name: str, version: int, triton_core: Server, request_plane: RequestPlane, data_plane: DataPlane,
+    def __init__(self, name: str, version: int, triton_core, request_plane: RequestPlane, data_plane: DataPlane,
                  parameters: Optional[dict[str, str | int | bool | bytes]] = field(
                      default_factory=dict
                  ), repository: Optional[str] = None, logger: Optional[Any] = None):
@@ -40,7 +40,7 @@ class VllmContextOperator(Operator):
 
 class VllmGenerateOperator(Operator):
 
-    def __init__(self, name: str, version: int, triton_core: Server, request_plane: RequestPlane, data_plane: DataPlane,
+    def __init__(self, name: str, version: int, triton_core, request_plane: RequestPlane, data_plane: DataPlane,
                  parameters: Optional[dict[str, str | int | bool | bytes]] = field(
                      default_factory=dict
                  ), repository: Optional[str] = None, logger: Optional[Any] = None):
@@ -68,7 +68,7 @@ class VllmGenerateOperator(Operator):
 
 class VllmBaselineOperator(Operator):
 
-    def __init__(self, name: str, version: int, triton_core: Server, request_plane: RequestPlane, data_plane: DataPlane,
+    def __init__(self, name: str, version: int, triton_core, request_plane: RequestPlane, data_plane: DataPlane,
                  parameters: Optional[dict[str, str | int | bool | bytes]] = field(
                      default_factory=dict
                  ), repository: Optional[str] = None, logger: Optional[Any] = None):
