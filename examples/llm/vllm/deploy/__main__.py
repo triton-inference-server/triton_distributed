@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
-import shutil
 import signal
 import sys
 import time
@@ -84,10 +82,10 @@ def main(args):
         worker_configs.append((generate, 1))
 
     if args.context_worker_count == 1:
-        context_op = _create_context_op("context", args, 1000)
+        context_op = _create_context_op(args.worker_name, args, 1000)
         context = WorkerConfig(
             operators=[context_op],
-            name="context",
+            name=args.worker_name,
         )
         worker_configs.append((context, 1))
     if args.dummy_worker_count == 1:
