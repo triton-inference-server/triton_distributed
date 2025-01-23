@@ -103,6 +103,7 @@ def main(args):
         log_dir=args.log_dir,
         log_level=1,
         starting_metrics_port=args.starting_metrics_port,
+        request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
     )
     deployment.start()
     print("Workers started ... press Ctrl-C to Exit")
