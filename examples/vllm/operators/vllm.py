@@ -2,8 +2,8 @@ import argparse
 from dataclasses import field
 from typing import Optional, Any
 
-from examples.vllm.operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
-from examples.vllm.operators.vllm_disaggregated.pipelines import PrefillStage, GenerateStage, SingleComputePipeline
+from .vllm_disaggregated.stage_executor import PiplineStageExecutor
+from .vllm_disaggregated.pipelines import PrefillStage, GenerateStage, SingleComputePipeline
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.worker import Operator, RemoteInferenceRequest

@@ -20,7 +20,7 @@ import sys
 import time
 from pathlib import Path
 
-from deploy.args_utils import parse_args
+from .args_utils import parse_args
 from ..operators.vllm import VllmContextOperator, VllmGenerateOperator
 
 from triton_distributed.worker import (

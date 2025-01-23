@@ -4,11 +4,12 @@ import logging
 import os
 import torch
 from contextlib import nullcontext
-from examples.vllm.operators.vllm_disaggregated.connector import InferenceRequest
-from examples.vllm.operators.vllm_disaggregated.remote_model_connector import RemoteModelConnector
-from examples.vllm.operators.vllm_disaggregated.request_converter import RequestConverter
+from .connector import InferenceRequest
+from .remote_model_connector import RemoteModelConnector
+from .request_converter import RequestConverter
 
 LOGGER = logging.getLogger(__name__)
+
 
 class _ProfileState(enum.Enum):
     NOT_STARTED = 0
