@@ -19,8 +19,8 @@ import logging
 from operators.vllm_disaggregated.args_utils import parse_args
 
 # from triton_distributed.icp.ucp_data_plane import get_ucp_data_plane_singleton
-from operators.vllm_disaggregated.pipelines import SingleComputePipeline
-from operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
+from ..operators.vllm_disaggregated.pipelines import SingleComputePipeline
+from ..operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
 
 LOGGER = logging.getLogger(__name__)
 
