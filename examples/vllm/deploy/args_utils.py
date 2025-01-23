@@ -21,6 +21,20 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--request-plane-uri",
+        type=str,
+        default="nats://localhost:4223",
+        help="URI of request plane",
+    )
+
+    parser.add_argument(
+        "--starting-metrics-port",
+        type=int,
+        default=50000,
+        help="Metrics port for first worker. Each worker will expose metrics on subsequent ports, ex. worker 1: 50000, worker 2: 50001, worker 3: 50002",
+    )
+
+    parser.add_argument(
         "--context-worker-count",
         type=int,
         required=False,
