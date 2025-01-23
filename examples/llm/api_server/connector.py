@@ -44,7 +44,7 @@ class BaseTriton3Connector(abc.ABC):
     """Base class for Triton 3 connector."""
 
     @abc.abstractmethod
-    async def inference(
+    def inference(
         self, model_name: str, request: InferenceRequest
     ) -> typing.AsyncGenerator[InferenceResponse, None]:
         """Inference request to Triton 3 system.

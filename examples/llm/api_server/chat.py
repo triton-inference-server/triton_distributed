@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from llm.api_server.connector import (
     BaseTriton3Connector,
     InferenceRequest,
+    InferenceResponse,
     TritonInferenceError,
 )
 
@@ -77,9 +78,12 @@ curl -X 'POST' \\
 
 
 def generate_sampling_params(
-    request: CreateChatCompletionRequest, non_supported_params_none: List[str] = None
+    request: CreateChatCompletionRequest,
+    non_supported_params_none: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     errors_message = ""
+    if not non_supported_params_none:
+        non_supported_params_none = []
     for param in non_supported_params_none:
         if getattr(request, param, None) is not None:
             errors_message += f"The parameter '{param}' is not supported. "
@@ -268,11 +272,11 @@ class ChatHandler:
 
     def translate_chat_inputs(
         self, request: CreateChatCompletionRequest, request_id: str, prompt: str
-    ) -> Tuple[dict, dict, str]:
+    ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         raise NotImplementedError("This method is not implemented yet")
 
     def translate_chat_outputs(
-        self, outputs: Dict[str, np.ndarray], model_name: str
+        self, response: InferenceResponse, model_name: str
     ) -> Dict[str, Any]:
         raise NotImplementedError("This method is not implemented yet")
 
@@ -294,7 +298,7 @@ class ChatHandler:
             content={"error": str(exception), "code": 500}, status_code=500
         )
 
-    async def process_request(self, request: Any, raw_request: Request):
+    async def process_request(self, request: Any, raw_request: Optional[Request]):
         request_id = str(uuid.uuid4())
         LOGGER.debug(f"{request=}")
         prompt, role = self._create_prompt(request)

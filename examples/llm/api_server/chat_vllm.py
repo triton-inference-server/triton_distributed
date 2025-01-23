@@ -74,14 +74,14 @@ class ChatHandlerVllm(ChatHandler):
 
     def translate_chat_inputs(
         self, request: CreateChatCompletionRequest, request_id: str, prompt: str
-    ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any], str, str]:
+    ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         """Translate the chat completion request to inference request"""
 
         if self._model_name is not None and self._model_name != request.model:
             raise ValueError(
                 f"Model name mismatch: {self._model_name} != {request.model}"
             )
-        inputs = {}
+        inputs: Dict[str, np.ndarray] = {}
         sampling_params = generate_sampling_params_vllm(request)
         parameters = {
             "sampling_params": sampling_params,
