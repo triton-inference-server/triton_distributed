@@ -70,10 +70,6 @@ def _create_generate_op(name, args, max_inflight_requests):
 def main(args):
     global deployment
     log_dir = Path(args.log_dir)
-
-    if args.clear_logs:
-        shutil.rmtree(log_dir)
-
     log_dir.mkdir(exist_ok=True)
 
     worker_configs = []
