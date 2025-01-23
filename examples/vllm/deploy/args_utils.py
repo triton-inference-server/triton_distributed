@@ -38,7 +38,7 @@ def parse_args():
         "--context-worker-count",
         type=int,
         required=False,
-        default=1,
+        default=0,
         help="Number of context workers",
     )
 
@@ -46,7 +46,7 @@ def parse_args():
         "--dummy-worker-count",
         type=int,
         required=False,
-        default=1,
+        default=0,
         help="Number of dummy workers",
     )
 
@@ -54,7 +54,7 @@ def parse_args():
         "--generate-worker-count",
         type=int,
         required=False,
-        default=1,
+        default=0,
         help="Number of generate workers",
     )
 

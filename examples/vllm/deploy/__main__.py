@@ -99,7 +99,7 @@ def main(args):
         )
         dummy = WorkerConfig(
             operators=[dummy_op],
-            name="generate",
+            name="dummy",
 
         )
         worker_configs.append((dummy, 1))
@@ -108,7 +108,7 @@ def main(args):
         worker_configs,
         initialize_request_plane=True,
         log_dir=args.log_dir,
-        log_level=args.log_level,
+        log_level=1,
         starting_metrics_port=args.starting_metrics_port
     )
     deployment.start()
