@@ -48,7 +48,7 @@ class VllmContextOperator(Operator):
         self.executor = PiplineStageExecutor(args, stage, "prefill", "generate")
 
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
-        await self.executor.process_requests(requests, self.executor.process_request)
+        await self.executor.process_requests(requests)
 
 
 class VllmGenerateOperator(Operator):

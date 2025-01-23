@@ -14,10 +14,12 @@ export VLLM_LOGGING_LEVEL=INFO
 export VLLM_DATA_PLANE_BACKEND=nccl
 export PYTHONUNBUFFERED=1
 
-python3 -m examples.api_server \
-  --nats-url nats://localhost:4223 \
-  --log-level INFO \
-  --port 8005
+python3 -m llm.api_server \
+--tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
+--request-plane-uri localhost:4223 \
+--api-server-host localhost \
+--model-name llama \
+--api-server-port 8005&
 
 CUDA_VISIBLE_DEVICES=0 VLLM_WORKER_ID=0 \
 python3 -m llm.vllm.deploy --generate-worker-count 1 --nats-url nats://localhost:4223 \

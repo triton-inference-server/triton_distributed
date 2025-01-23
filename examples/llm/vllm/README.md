@@ -91,6 +91,7 @@ python3 -m llm.api_server \
   --tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --request-plane-uri <YOUR_HOST>:4223 \
   --api-server-host <YOUR_HOST> \
+  --model-name llama \
   --api-server-por 8005
 ```
 
@@ -101,7 +102,7 @@ The prefill stage encodes incoming prompts. By default, vLLM uses GPU resources 
 ```bash
 CUDA_VISIBLE_DEVICES=0 \
 VLLM_WORKER_ID=0 \
-python3 -m llm.deploy \
+python3 -m llm.vllm.deploy \
   --context-worker-count 1 \
   --request-plane-uri <YOUR_HOST>:4223 \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
@@ -110,7 +111,7 @@ python3 -m llm.deploy \
   --worker-name llama \
   --disable-async-output-proc \
   --disable-log-stats \
-  --max-model-len 32768 \
+  --max-model-len 1000 \
   --max-batch-size 10000 \
   --gpu-memory-utilization 0.9 \
   --context-tp-size 1 \
@@ -129,7 +130,7 @@ The decode stage consumes the KV cache produced in the prefill step and generate
 ```bash
 CUDA_VISIBLE_DEVICES=1 \
 VLLM_WORKER_ID=1 \
-python3 -m llm.deploy \
+python3 -m llm.vllm.deploy \
   --generate-worker-count 1 \
   --request-plane-uri <YOUR_HOST>:4223 \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
@@ -138,7 +139,7 @@ python3 -m llm.deploy \
   --worker-name llama \
   --disable-async-output-proc \
   --disable-log-stats \
-  --max-model-len 32768 \
+  --max-model-len 1000 \
   --max-batch-size 10000 \
   --gpu-memory-utilization 0.9 \
   --context-tp-size 1 \

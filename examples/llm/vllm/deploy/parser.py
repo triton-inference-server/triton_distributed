@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument(
         "--starting-metrics-port",
         type=int,
-        default=50000,
+        default=0,
         help="Metrics port for first worker. Each worker will expose metrics on subsequent ports, ex. worker 1: 50000, worker 2: 50001, worker 3: 50002",
     )
 
