@@ -1,9 +1,23 @@
 import argparse
+from pathlib import Path
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Run an example of the VLLM pipeline."
+    )
+
+    example_dir = Path(__file__).parent.absolute().parent.absolute()
+    default_log_dir = example_dir.joinpath("logs")
+    default_operator_repository = example_dir.joinpath("operators")
+
+    parser = argparse.ArgumentParser(description="Hello World Deployment")
+
+    parser.add_argument(
+        "--log-dir",
+        type=str,
+        default=str(default_log_dir),
+        help="log dir folder",
     )
 
     parser.add_argument(
