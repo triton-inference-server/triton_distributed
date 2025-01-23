@@ -337,13 +337,21 @@ class Worker:
         if self._log_dir:
             pid = os.getpid()
             os.makedirs(self._log_dir, exist_ok=True)
+            stdout_path = os.path.join(
+                self._log_dir, f"{self._name}.{self._component_id}.{pid}.stdout.log"
+            )
+            stderr_path = os.path.join(
+                self._log_dir, f"{self._name}.{self._component_id}.{pid}.stderr.log"
+            )
             if not self._triton_log_path:
                 self._triton_log_path = os.path.join(
                     self._log_dir, f"{self._name}.{self._component_id}.{pid}.triton.log"
                 )
+            sys.stdout = open(stdout_path, "w", buffering=1)
+            sys.stderr = open(stderr_path, "w", buffering=1)
             # Create the log file or clear the existing log file
-            with open(self._triton_log_path, "w"):
-                pass
+            triton_log = open(self._triton_log_path, "w", buffering=1)
+            triton_log.close()
 
         setup_logger(log_level=self._log_level)
         loop = asyncio.get_event_loop()
@@ -376,12 +384,12 @@ class Worker:
             else:
                 exit_condition = serve_result
 
-            # sys.stdout.flush()
-            # sys.stderr.flush()
+            sys.stdout.flush()
+            sys.stderr.flush()
 
-            # if self._log_dir:
-            ##sys.stdout.close()
-            # sys.stderr.close()
+            if self._log_dir:
+                sys.stdout.close()
+                sys.stderr.close()
 
         if exit_condition is not None:
             sys.exit(1)
