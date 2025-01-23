@@ -7,7 +7,6 @@ def parse_args():
 
     example_dir = Path(__file__).parent.absolute().parent.absolute()
     default_log_dir = example_dir.joinpath("logs")
-    default_operator_repository = example_dir.joinpath("operators")
 
     parser = argparse.ArgumentParser(description="Hello World Deployment")
 
