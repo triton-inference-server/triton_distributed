@@ -92,3 +92,4 @@ class VllmBaselineOperator(Operator):
 
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
         await self.executor.process_requests(requests)
+

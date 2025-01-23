@@ -20,6 +20,7 @@ import sys
 import time
 from pathlib import Path
 
+from ..operators.dummy import DummyOperator
 from .args_utils import parse_args
 from ..operators.vllm import VllmContextOperator, VllmGenerateOperator
 
@@ -89,6 +90,19 @@ def main(args):
             name="context",
         )
         worker_configs.append((context, 1))
+    if args.dummy_worker_count == 1:
+        dummy_op = OperatorConfig(
+            name="dummy",
+            implementation=DummyOperator,
+            max_inflight_requests=1000,
+            parameters=vars(args)
+        )
+        dummy = WorkerConfig(
+            operators=[dummy_op],
+            name="generate",
+
+        )
+        worker_configs.append((dummy, 1))
 
     deployment = Deployment(
         worker_configs,

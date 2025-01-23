@@ -43,6 +43,14 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--dummy-worker-count",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of dummy workers",
+    )
+
+    parser.add_argument(
         "--generate-worker-count",
         type=int,
         required=False,
