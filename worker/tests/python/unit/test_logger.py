@@ -17,7 +17,7 @@ import logging
 
 import pytest
 
-from triton_distributed.worker.logger import setup_logger
+from triton_distributed.worker.logger import get_logger
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,6 @@ def reset_logger(caplog):
 )
 def test_logging(reset_logger, caplog, log_level, expected_record_counts):
     caplog.set_level(log_level)
-    logger = setup_logger(log_level=log_level)
+    logger = get_logger(log_level=log_level)
     logging_function(logger)
     assert len(caplog.records) == expected_record_counts

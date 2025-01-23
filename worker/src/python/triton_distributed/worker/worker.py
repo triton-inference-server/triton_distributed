@@ -30,7 +30,7 @@ from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
-from triton_distributed.worker.logger import setup_logger
+from triton_distributed.worker.logger import get_logger
 from triton_distributed.worker.operator import Operator, OperatorConfig
 from triton_distributed.worker.remote_request import (
     RemoteInferenceRequest,
@@ -41,7 +41,7 @@ from triton_distributed.worker.triton_core_operator import TritonCoreOperator
 if TYPE_CHECKING:
     import uvicorn
 
-logger = setup_logger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -90,7 +90,7 @@ class Worker:
         self._metrics_server: Optional[uvicorn.Server] = None
         self._component_id = self._request_plane.component_id
         self._triton_core: Optional[tritonserver.Server] = None
-        self._log_file: Optional[str] = None
+        self._log_file: Optional[pathlib.Path] = None
         if self._log_dir:
             path = pathlib.Path(self._log_dir)
             path.mkdir(parents=True, exist_ok=True)
@@ -138,7 +138,7 @@ class Worker:
             try:
                 if operator_config.log_level is None:
                     operator_config.log_level = self._log_level
-                operator_logger = setup_logger(
+                operator_logger = get_logger(
                     log_level=operator_config.log_level,
                     logger_name=f"OPERATOR{(operator_config.name,operator_config.version)}",
                     log_file=self._log_file,
@@ -363,9 +363,9 @@ class Worker:
     def start(self):
         exit_condition = None
         if self._log_file:
-            logger = setup_logger(log_level=self._log_level, log_file=self._log_file)
+            logger = get_logger(log_level=self._log_level, log_file=self._log_file)
         else:
-            logger = setup_logger(log_level=self._log_level)
+            logger = get_logger(log_level=self._log_level)
 
         logger.info(f"Starting Worker ==> {self._name}")
         loop = asyncio.get_event_loop()

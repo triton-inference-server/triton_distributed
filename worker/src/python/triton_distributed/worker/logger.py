@@ -34,7 +34,7 @@ class LogFormatter(logging.Formatter):
         return super().format(record)
 
 
-def setup_logger(log_level=1, logger_name=LOGGER_NAME, log_file=None):
+def get_logger(log_level=1, logger_name=LOGGER_NAME, log_file=None):
     if log_level == 0:
         log_level = logging.ERROR
     elif log_level == 1:

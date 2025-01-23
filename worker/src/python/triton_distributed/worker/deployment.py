@@ -25,7 +25,7 @@ from triton_distributed.icp import (
     RequestPlane,
     UcpDataPlane,
 )
-from triton_distributed.worker.logger import setup_logger
+from triton_distributed.worker.logger import get_logger
 from triton_distributed.worker.worker import Worker, WorkerConfig
 
 LOGGER_NAME = __name__
@@ -49,7 +49,7 @@ class Deployment:
         self._process_context = multiprocessing.get_context("spawn")
         self._worker_configs = worker_configs
         self._workers: list[multiprocessing.context.SpawnProcess] = []
-        self._logger = setup_logger(log_level, LOGGER_NAME)
+        self._logger = get_logger(log_level, LOGGER_NAME)
         self._default_request_plane = request_plane
         self._default_request_plane_args = request_plane_args
         self._default_data_plane = data_plane

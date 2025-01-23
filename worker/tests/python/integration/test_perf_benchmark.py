@@ -34,7 +34,7 @@ import ucp
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
 from triton_distributed.worker.deployment import Deployment
-from triton_distributed.worker.logger import setup_logger
+from triton_distributed.worker.logger import get_logger
 from triton_distributed.worker.operator import OperatorConfig
 from triton_distributed.worker.remote_operator import RemoteOperator
 from triton_distributed.worker.worker import WorkerConfig
@@ -46,7 +46,7 @@ MODEL_REPOSITORY = (
 OPERATORS_REPOSITORY = "/workspace/worker/tests/python/integration/operators"
 TRITON_LOG_LEVEL = 0
 
-logger = setup_logger(__name__)
+logger = get_logger(__name__)
 
 # TODO
 # Decide if this should be

@@ -26,7 +26,7 @@ from tritonserver import InvalidArgumentError, Server
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
-from triton_distributed.worker.logger import setup_logger
+from triton_distributed.worker.logger import get_logger
 from triton_distributed.worker.operator import Operator
 from triton_distributed.worker.remote_request import RemoteInferenceRequest
 from triton_distributed.worker.remote_response import RemoteInferenceResponse
@@ -42,7 +42,7 @@ class TritonCoreOperator(Operator):
         data_plane: DataPlane,
         parameters: dict,
         repository: Optional[str] = None,
-        logger: logging.Logger = setup_logger(__name__),
+        logger: logging.Logger = get_logger(__name__),
     ):
         self._repository = repository
         self._name = name
