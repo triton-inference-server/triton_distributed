@@ -49,6 +49,9 @@ For more details on the basics of Triton Distributed, please see the [Hello Worl
    - For FP8 usage, GPUs with **Compute Capability >= 8.9** are required.
    - If you have older GPUs, consider BF16/FP16 precision variants instead of `FP8`. (See [below](#model-precision-variants).)
 
+5. **HuggingFace**
+   - You need a HuggingFace account to download the model and set HF_TOKEN environment variable.
+
 ---
 
 ## 2. Building the Environment
@@ -73,18 +76,25 @@ Below is a minimal example of how to start each component of a disaggregated ser
 
 All components must be able to connect to the same NATS server to coordinate.
 
-### 3.1 API Server
+### 3.1 HuggingFace Token
+
+```bash
+export HF_TOKEN=<YOUR TOKEN>
+```
+
+### 3.2 API Server
 
 The API server in a vLLM-disaggregated setup listens for OpenAI-compatible requests on a chosen port (default 8005). Below is an example command:
 
 ```bash
 python3 -m llm.api_server \
+  --tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --request-plane-uri <YOUR_HOST>:4223 \
-  --log-level INFO \
-  --port 8005
+  --api-server-host <YOUR_HOST> \
+  --api-server-por 8005
 ```
 
-### 3.2 Prefill Worker
+### 3.3 Prefill Worker
 
 The prefill stage encodes incoming prompts. By default, vLLM uses GPU resources to tokenize and prepare the model’s key-value (KV) caches. Run the prefill worker:
 
@@ -97,7 +107,6 @@ python3 -m llm.deploy \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \
-  --log-level INFO \
   --worker-name llama \
   --disable-async-output-proc \
   --disable-log-stats \
@@ -113,7 +122,7 @@ python3 -m llm.deploy \
 - `--kv-cache-dtype fp8`: Using FP8 for caching (requires CC >= 8.9).
 - `CUDA_VISIBLE_DEVICES=0`: Binds worker to GPU `0`.
 
-### 3.3 Decode Worker
+### 3.4 Decode Worker
 
 The decode stage consumes the KV cache produced in the prefill step and generates output tokens. Run the decode worker:
 
@@ -126,7 +135,6 @@ python3 -m llm.deploy \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \
-  --log-level INFO \
   --worker-name llama \
   --disable-async-output-proc \
   --disable-log-stats \
