@@ -200,11 +200,16 @@ class RequestConverter:
     async def adapt_request(self, request, local_model: Optional[LocalModel] = None):
         if local_model is None:
             local_model = self._local_model
-        remote_request = RemoteInferenceRequest.from_model_infer_request(
-            request,
-            self._connector._data_plane,
-            self._connector._request_plane,
-        )
+
+        if isinstance(request, RemoteInferenceRequest):
+            remote_request = request
+            request = remote_request.to_model_infer_request()
+        else:
+            remote_request = RemoteInferenceRequest.from_model_infer_request(
+                request,
+                self._connector._data_plane,
+                self._connector._request_plane,
+            )
 
         def produce_callable(request):
             async def return_callable(
