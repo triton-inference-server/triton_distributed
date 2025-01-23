@@ -17,15 +17,15 @@ export PYTHONUNBUFFERED=1
 
 
 # Start NATS Server
-#nats-server -p 4223 --jetstream &
+nats-server -p 4223 --jetstream &
 
 # Start API Server
-#python3 -m llm.api_server \
-#  --tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
-#  --request-plane-uri localhost:4223 \
-#  --api-server-host localhost \
-#  --model-name llama \
-#  --api-server-port 8005 &
+python3 -m llm.api_server \
+  --tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
+  --request-plane-uri localhost:4223 \
+  --api-server-host localhost \
+  --model-name llama \
+  --api-server-port 8005 &
 
 
 
