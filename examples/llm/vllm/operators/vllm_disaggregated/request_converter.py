@@ -32,9 +32,10 @@ from pydantic import BaseModel
 from tritonserver import Tensor as TritonTensor
 from tritonserver._api._response import InferenceResponse as TritonInferenceResponse
 
-from .remote_connector import RemoteConnector
 from triton_distributed.worker.remote_request import RemoteInferenceRequest
 from triton_distributed.worker.remote_response import RemoteInferenceResponse
+
+from .remote_connector import RemoteConnector
 
 
 class LocalModel(BaseModel):
@@ -185,7 +186,9 @@ class RequestConverter:
             )
 
             async for request in requests_iterator:
-                inputs, remote_request, return_callable = await self.adapt_request(request, local_model)
+                inputs, remote_request, return_callable = await self.adapt_request(
+                    request, local_model
+                )
 
                 yield {
                     "inputs": inputs,
@@ -201,10 +204,10 @@ class RequestConverter:
 
         def produce_callable(request):
             async def return_callable(
-                    outputs: Dict[str, Any],
-                    parameters: Optional[Dict[str, Any]] = None,
-                    error: Optional[str] = None,
-                    final: Optional[bool] = False,
+                outputs: Dict[str, Any],
+                parameters: Optional[Dict[str, Any]] = None,
+                error: Optional[str] = None,
+                final: Optional[bool] = False,
             ) -> None:
                 request_id = request.parameters["icp_request_id"].string_param
                 infer_kwargs = {

@@ -57,7 +57,7 @@ class SingleComputePipeline:
             results_generator = self._engine.generate(
                 vllm_input, sampling_params, request_id
             )
-            LOGGER.debug(f"results_generator started")
+            LOGGER.debug("results_generator started")
             counter = 0
             async for result in results_generator:
                 if counter % RETURN_EVERY_N == 0 or result.finished:
@@ -74,7 +74,7 @@ class SingleComputePipeline:
                         },
                     }
                 counter += 1
-            LOGGER.debug(f"results_generator finished")
+            LOGGER.debug("results_generator finished")
         except Exception as e:
             LOGGER.error(f"Exception in SingleComputePipeline: {e}")
             yield {"outputs": {}, "error": str(e), "final": True}
@@ -134,7 +134,7 @@ class PrefillStage:
             results_generator = self._engine.generate(
                 vllm_input, sampling_params, request_id
             )
-            LOGGER.debug(f"results_generator started")
+            LOGGER.debug("results_generator started")
             async for result in results_generator:
                 taken_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
                 LOGGER.info(
@@ -216,7 +216,7 @@ class GenerateStage:
             sampling_params,
             new_request_id,
         )
-        LOGGER.debug(f"results_generator started")
+        LOGGER.debug("results_generator started")
         counter = 0
         async for result in results_generator:
             if counter % RETURN_EVERY_N == 0 or result.finished:
@@ -229,7 +229,7 @@ class GenerateStage:
                     },
                 }
             counter += 1
-        LOGGER.debug(f"results_generator finished for generate")
+        LOGGER.debug("results_generator finished for generate")
 
 
 class DisaggregatedPipeline:

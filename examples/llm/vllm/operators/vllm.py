@@ -1,20 +1,33 @@
 import argparse
 from dataclasses import field
-from typing import Optional, Any
+from typing import Any, Optional
 
-from .vllm_disaggregated.stage_executor import PiplineStageExecutor
-from .vllm_disaggregated.pipelines import PrefillStage, GenerateStage, SingleComputePipeline
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.worker import Operator, RemoteInferenceRequest
 
+from .vllm_disaggregated.pipelines import (
+    GenerateStage,
+    PrefillStage,
+    SingleComputePipeline,
+)
+from .vllm_disaggregated.stage_executor import PiplineStageExecutor
+
 
 class VllmContextOperator(Operator):
-
-    def __init__(self, name: str, version: int, triton_core, request_plane: RequestPlane, data_plane: DataPlane,
-                 parameters: Optional[dict[str, str | int | bool | bytes]] = field(
-                     default_factory=dict
-                 ), repository: Optional[str] = None, logger: Optional[Any] = None):
+    def __init__(
+        self,
+        name: str,
+        version: int,
+        triton_core,
+        request_plane: RequestPlane,
+        data_plane: DataPlane,
+        parameters: Optional[dict[str, str | int | bool | bytes]] = field(
+            default_factory=dict
+        ),
+        repository: Optional[str] = None,
+        logger: Optional[Any] = None,
+    ):
         args = argparse.Namespace(**parameters)
         stage = PrefillStage(
             model=args.model_name,
@@ -39,11 +52,19 @@ class VllmContextOperator(Operator):
 
 
 class VllmGenerateOperator(Operator):
-
-    def __init__(self, name: str, version: int, triton_core, request_plane: RequestPlane, data_plane: DataPlane,
-                 parameters: Optional[dict[str, str | int | bool | bytes]] = field(
-                     default_factory=dict
-                 ), repository: Optional[str] = None, logger: Optional[Any] = None):
+    def __init__(
+        self,
+        name: str,
+        version: int,
+        triton_core,
+        request_plane: RequestPlane,
+        data_plane: DataPlane,
+        parameters: Optional[dict[str, str | int | bool | bytes]] = field(
+            default_factory=dict
+        ),
+        repository: Optional[str] = None,
+        logger: Optional[Any] = None,
+    ):
         args = argparse.Namespace(**parameters)
         args.worker_name = "generate"
         stage = GenerateStage(
@@ -66,12 +87,21 @@ class VllmGenerateOperator(Operator):
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
         await self.executor.process_requests(requests)
 
-class VllmBaselineOperator(Operator):
 
-    def __init__(self, name: str, version: int, triton_core, request_plane: RequestPlane, data_plane: DataPlane,
-                 parameters: Optional[dict[str, str | int | bool | bytes]] = field(
-                     default_factory=dict
-                 ), repository: Optional[str] = None, logger: Optional[Any] = None):
+class VllmBaselineOperator(Operator):
+    def __init__(
+        self,
+        name: str,
+        version: int,
+        triton_core,
+        request_plane: RequestPlane,
+        data_plane: DataPlane,
+        parameters: Optional[dict[str, str | int | bool | bytes]] = field(
+            default_factory=dict
+        ),
+        repository: Optional[str] = None,
+        logger: Optional[Any] = None,
+    ):
         args = argparse.Namespace(**parameters)
         stage = SingleComputePipeline(
             model=args.model_name,
@@ -92,4 +122,3 @@ class VllmBaselineOperator(Operator):
 
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
         await self.executor.process_requests(requests)
-

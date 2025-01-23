@@ -16,9 +16,9 @@
 import asyncio
 import logging
 
-from operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
-from operators.vllm_disaggregated.pipelines import GenerateStage
 from operators.vllm_disaggregated.args_utils import parse_args
+from operators.vllm_disaggregated.pipelines import GenerateStage
+from operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
 
 if __name__ == "__main__":
     args = parse_args()
@@ -39,7 +39,7 @@ if __name__ == "__main__":
         disable_log_stats=args.disable_log_stats,
     )
     args.worker_name = "generate"
-    #asyncio.run(handle_requests(args, stage, "generate"))
+    # asyncio.run(handle_requests(args, stage, "generate"))
 
     executor = PiplineStageExecutor(args, stage, "generate")
     asyncio.run(executor.handle_pipelined_requests())

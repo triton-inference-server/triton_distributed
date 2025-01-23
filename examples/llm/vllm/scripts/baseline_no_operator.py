@@ -16,18 +16,17 @@
 import asyncio
 import logging
 
-from operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
 from operators.vllm_disaggregated.args_utils import parse_args
-#from triton_distributed.icp.ucp_data_plane import get_ucp_data_plane_singleton
+
+# from triton_distributed.icp.ucp_data_plane import get_ucp_data_plane_singleton
 from operators.vllm_disaggregated.pipelines import SingleComputePipeline
+from operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
 
 LOGGER = logging.getLogger(__name__)
 
 
 # TODO this is a temporary workaround to avoid deadlocks in the UCP data plane
-#get_ucp_data_plane_singleton(keep_endpoints_open=True).connect()
-
-
+# get_ucp_data_plane_singleton(keep_endpoints_open=True).connect()
 
 
 if __name__ == "__main__":
@@ -52,7 +51,7 @@ if __name__ == "__main__":
         disable_async_output_proc=args.disable_async_output_proc,
         disable_log_stats=args.disable_log_stats,
     )
-    #asyncio.run(handle_requests(args, stage, "baseline"))
+    # asyncio.run(handle_requests(args, stage, "baseline"))
 
     executor = PiplineStageExecutor(args, stage, "baseline")
     asyncio.run(executor.handle_pipelined_requests())

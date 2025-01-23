@@ -18,15 +18,11 @@ import sys
 import time
 from pathlib import Path
 
-from ..operators.dummy import DummyOperator
-from .parser import parse_args
-from ..operators.vllm import VllmContextOperator, VllmGenerateOperator
+from triton_distributed.worker import Deployment, OperatorConfig, WorkerConfig
 
-from triton_distributed.worker import (
-    Deployment,
-    OperatorConfig,
-    WorkerConfig,
-)
+from ..operators.dummy import DummyOperator
+from ..operators.vllm import VllmContextOperator, VllmGenerateOperator
+from .parser import parse_args
 
 deployment = None
 
@@ -53,7 +49,7 @@ def _create_context_op(name, args, max_inflight_requests):
         name=name,
         implementation=VllmContextOperator,
         max_inflight_requests=int(max_inflight_requests),
-        parameters=vars(args)
+        parameters=vars(args),
     )
 
 
@@ -62,7 +58,7 @@ def _create_generate_op(name, args, max_inflight_requests):
         name=name,
         implementation=VllmGenerateOperator,
         max_inflight_requests=int(max_inflight_requests),
-        parameters=vars(args)
+        parameters=vars(args),
     )
 
 
@@ -77,7 +73,6 @@ def main(args):
         generate = WorkerConfig(
             operators=[generate_op],
             name="generate",
-
         )
         worker_configs.append((generate, 1))
 
@@ -93,12 +88,11 @@ def main(args):
             name="dummy",
             implementation=DummyOperator,
             max_inflight_requests=1000,
-            parameters=vars(args)
+            parameters=vars(args),
         )
         dummy = WorkerConfig(
             operators=[dummy_op],
             name="dummy",
-
         )
         worker_configs.append((dummy, 1))
 
@@ -107,7 +101,7 @@ def main(args):
         initialize_request_plane=args.initialize_request_plane,
         log_dir=args.log_dir,
         log_level=1,
-        starting_metrics_port=args.starting_metrics_port
+        starting_metrics_port=args.starting_metrics_port,
     )
     deployment.start()
     print("Workers started ... press Ctrl-C to Exit")

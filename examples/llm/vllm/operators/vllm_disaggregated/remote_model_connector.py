@@ -30,15 +30,12 @@ import typing
 from typing import Optional
 
 import numpy as np
-from .connector import (
-    BaseTriton3Connector,
-    InferenceRequest,
-    InferenceResponse,
-)
 
-from .remote_connector import RemoteConnector
 from triton_distributed.worker.remote_operator import RemoteOperator
 from triton_distributed.worker.remote_tensor import RemoteTensor
+
+from .connector import BaseTriton3Connector, InferenceRequest, InferenceResponse
+from .remote_connector import RemoteConnector
 
 
 class RemoteModelConnector(BaseTriton3Connector):
@@ -132,7 +129,7 @@ class RemoteModelConnector(BaseTriton3Connector):
                 self._model_name = model_name
                 self._model_version = "1"
                 self._model = RemoteOperator(
-                    operator=_model_name,
+                    operator=self._model_name,
                     request_plane=self._connector._request_plane,
                     data_plane=self._connector._data_plane,
                 )
