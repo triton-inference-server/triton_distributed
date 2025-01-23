@@ -347,8 +347,8 @@ class Worker:
                 self._triton_log_path = os.path.join(
                     self._log_dir, f"{self._name}.{self._component_id}.{pid}.triton.log"
                 )
-            sys.stdout = open(stdout_path, "w", buffering=1)
-            sys.stderr = open(stderr_path, "w", buffering=1)
+            #sys.stdout = open(stdout_path, "w", buffering=1)
+            #sys.stderr = open(stderr_path, "w", buffering=1)
             triton_log = open(self._triton_log_path, "w", buffering=1)
             triton_log.close()
         setup_logger(log_level=self._log_level)
@@ -382,12 +382,13 @@ class Worker:
             else:
                 exit_condition = serve_result
 
-            sys.stdout.flush()
-            sys.stderr.flush()
+            #sys.stdout.flush()
+            #sys.stderr.flush()
 
-            if self._log_dir:
-                sys.stdout.close()
-                sys.stderr.close()
+            #if self._log_dir:
+                ##sys.stdout.close()
+                #sys.stderr.close()
+
 
         if exit_condition is not None:
             sys.exit(1)
