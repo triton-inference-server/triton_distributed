@@ -52,6 +52,7 @@ class RequestConverter:
         data_plane_host: Optional[str] = None,
         data_plane_port: int = 0,
         keep_dataplane_endpoints_open: bool = False,
+        model_name: Optional[str] = None,
     ):
         """Initialize RequestAdapter.
 
@@ -96,6 +97,7 @@ class RequestConverter:
             data_plane_port,
             keep_dataplane_endpoints_open=keep_dataplane_endpoints_open,
         )
+        self._local_model = LocalModel(name=model_name, version="1")
 
     async def connect(self):
         """Connect to Triton 3 server."""
@@ -195,7 +197,9 @@ class RequestConverter:
                     "parameters": remote_request.parameters,
                 }, return_callable
 
-    async def adapt_request(self, request, local_model: LocalModel):
+    async def adapt_request(self, request, local_model: Optional[LocalModel] = None):
+        if local_model is None:
+            local_model = self._local_model
         remote_request = RemoteInferenceRequest.from_model_infer_request(
             request,
             self._connector._data_plane,

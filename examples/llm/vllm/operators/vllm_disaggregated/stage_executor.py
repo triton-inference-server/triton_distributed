@@ -38,6 +38,7 @@ class PiplineStageExecutor:
         self.request_converter = RequestConverter(
             nats_url=self.args.nats_url,
             keep_dataplane_endpoints_open=True,
+            model_name=self.args.worker_name,
         )
         self.request_counter = 0
         self.profile_state = _ProfileState.NOT_STARTED
