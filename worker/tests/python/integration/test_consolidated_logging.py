@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import asyncio
+import pathlib
 import sys
 from multiprocessing import Process
 
@@ -21,8 +22,8 @@ import cupy
 import numpy
 import pytest
 import ucp
-import pathlib
 from cupy_backends.cuda.api.runtime import CUDARuntimeError
+
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
 from triton_distributed.worker.deployment import Deployment
@@ -106,7 +107,12 @@ def workers(request, log_dir):
         )
 
     consolidate_logs = request.getfixturevalue("consolidate_logs")
-    worker_deployment = Deployment(worker_configs, initialize_request_plane=True, consolidated_logs=consolidate_logs, log_dir=log_dir)
+    worker_deployment = Deployment(
+        worker_configs,
+        initialize_request_plane=True,
+        consolidated_logs=consolidate_logs,
+        log_dir=log_dir,
+    )
 
     worker_deployment.start()
     yield worker_deployment
@@ -196,13 +202,8 @@ async def post_requests(num_requests):
 
 
 def run(num_requests):
-    sys.exit(
-        asyncio.run(
-            post_requests(
-                num_requests=num_requests
-            )
-        )
-    )
+    sys.exit(asyncio.run(post_requests(num_requests=num_requests)))
+
 
 @pytest.mark.skipif(
     "(not os.path.exists('/usr/local/bin/nats-server'))",
@@ -214,7 +215,6 @@ def run(num_requests):
     [True, False],
 )
 def test_consolidated_logs(request, workers, consolidate_logs, log_dir):
-
     # Using a separate process to use data plane across multiple tests.
     p = Process(target=run, args=(2,))
     p.start()
@@ -227,12 +227,12 @@ def test_consolidated_logs(request, workers, consolidate_logs, log_dir):
     for name in log_dir_path.iterdir():
         worker_log_dir_count += 1
         expected_worker_log_count = 1
-        if (not consolidate_logs):
+        if not consolidate_logs:
             expected_worker_log_count = 2
         worker_log_path = log_dir_path / name.stem
         worker_log_count = 0
         for log_name in worker_log_path.iterdir():
             worker_log_count += 1
         assert worker_log_count == expected_worker_log_count
-    
+
     assert worker_log_dir_count == 4
