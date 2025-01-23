@@ -3,9 +3,7 @@ from pathlib import Path
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Run an example of the VLLM pipeline."
-    )
+    parser = argparse.ArgumentParser(description="Run an example of the VLLM pipeline.")
 
     example_dir = Path(__file__).parent.absolute().parent.absolute()
     default_log_dir = example_dir.joinpath("logs")

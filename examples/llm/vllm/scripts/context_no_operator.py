@@ -15,9 +15,9 @@
 import asyncio
 import logging
 
-from operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
-from operators.vllm_disaggregated.pipelines import PrefillStage
 from operators.vllm_disaggregated.args_utils import parse_args
+from operators.vllm_disaggregated.pipelines import PrefillStage
+from operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
 
 LOGGER = logging.getLogger(__name__)
 
@@ -42,4 +42,3 @@ if __name__ == "__main__":
     )
     executor = PiplineStageExecutor(args, stage, "prefill", "generate")
     asyncio.run(executor.handle_pipelined_requests())
-

@@ -2,8 +2,10 @@ import asyncio
 import enum
 import logging
 import os
-import torch
 from contextlib import nullcontext
+
+import torch
+
 from .connector import InferenceRequest
 from .remote_model_connector import RemoteModelConnector
 from .request_converter import RequestConverter
@@ -18,18 +20,21 @@ class _ProfileState(enum.Enum):
 
 
 class PiplineStageExecutor:
-
     def __init__(self, args, stage, stage_name, next_stage_name=None):
         self.args = args
         self.stage = stage
         self.stage_name = stage_name
         self.is_context_stage = next_stage_name is not None
         self.next_stage_name = next_stage_name
-        self.remote_model_connector = RemoteModelConnector(
-            nats_url=self.args.nats_url,
-            model_name=self.next_stage_name,
-            keep_dataplane_endpoints_open=True,
-        ) if self.is_context_stage else None
+        self.remote_model_connector = (
+            RemoteModelConnector(
+                nats_url=self.args.nats_url,
+                model_name=self.next_stage_name,
+                keep_dataplane_endpoints_open=True,
+            )
+            if self.is_context_stage
+            else None
+        )
         self.request_converter = RequestConverter(
             nats_url=self.args.nats_url,
             keep_dataplane_endpoints_open=True,
@@ -63,7 +68,7 @@ class PiplineStageExecutor:
             )
             LOGGER.info(f"Next  stage {self.next_stage_name} execution")
             async for response in self.remote_model_connector.inference(
-                    model_name=self.next_stage_name, request=request
+                model_name=self.next_stage_name, request=request
             ):
                 LOGGER.debug(f"Stage {self.stage_name} sending response")
                 await return_result(
@@ -77,17 +82,25 @@ class PiplineStageExecutor:
             await return_result(outputs={}, error=e, final=True)
 
     async def handle_pipelined_requests(self):
-        LOGGER.info(f"Start handling requests stage_name {self.stage_name} args {self.args}")
+        LOGGER.info(
+            f"Start handling requests stage_name {self.stage_name} args {self.args}"
+        )
         async with self.request_converter, self.remote_model_connector if self.is_context_stage else nullcontext():
             LOGGER.info(f"Stage {self.stage_name} starts pulling")
-            async for request, return_result in self.request_converter.pull(model_name=self.args.worker_name):
+            async for request, return_result in self.request_converter.pull(
+                model_name=self.args.worker_name
+            ):
                 # TODO ptarasiewicz - only one context or generate should be profiled at a time
                 await self.process_request(request, return_result)
             LOGGER.info(f"Stage {self.stage_name} finished pulling")
 
     async def process_requests(self, requests):
         for raw_request in requests:
-            inputs, remote_request, return_callable = await self.request_converter.adapt_request(raw_request)
+            (
+                inputs,
+                remote_request,
+                return_callable,
+            ) = await self.request_converter.adapt_request(raw_request)
 
             request, return_result = {
                 "inputs": inputs,
@@ -118,11 +131,17 @@ class PiplineStageExecutor:
 
     def _profile(self):
         if os.environ.get("RUN_PROFILING") == "1":
-            if self.profile_state == _ProfileState.NOT_STARTED and self.request_counter > 100:
+            if (
+                self.profile_state == _ProfileState.NOT_STARTED
+                and self.request_counter > 100
+            ):
                 LOGGER.info("Start profiling")
                 torch.cuda.profiler.start()
                 self.profile_state = _ProfileState.STARTED
-            elif self.profile_state == _ProfileState.STARTED and self.request_counter > 120:
+            elif (
+                self.profile_state == _ProfileState.STARTED
+                and self.request_counter > 120
+            ):
                 LOGGER.info("Stop profiling")
                 torch.cuda.profiler.stop()
                 self.profile_state = _ProfileState.STOPPED
