@@ -9,7 +9,7 @@ def parse_args():
         "--nats-url",
         type=str,
         required=False,
-        default="nats://localhost:4222",
+        default="nats://localhost:4223",
         help="URL of NATS server",
     )
 

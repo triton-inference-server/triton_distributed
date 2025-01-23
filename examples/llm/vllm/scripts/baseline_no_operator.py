@@ -16,11 +16,10 @@
 import asyncio
 import logging
 
-from llm.vllm.operators.vllm_disaggregated.args_utils import parse_args
-
 # from triton_distributed.icp.ucp_data_plane import get_ucp_data_plane_singleton
 from llm.vllm.operators.vllm_disaggregated.pipelines import SingleComputePipeline
 from llm.vllm.operators.vllm_disaggregated.stage_executor import PiplineStageExecutor
+from llm.vllm.scripts.args_utils import parse_args
 
 LOGGER = logging.getLogger(__name__)
 
