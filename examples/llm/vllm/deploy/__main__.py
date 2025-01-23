@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 from ..operators.dummy import DummyOperator
-from .args_utils import parse_args
+from .parser import parse_args
 from ..operators.vllm import VllmContextOperator, VllmGenerateOperator
 
 from triton_distributed.worker import (
@@ -104,7 +104,7 @@ def main(args):
 
     deployment = Deployment(
         worker_configs,
-        initialize_request_plane=True,
+        initialize_request_plane=args.initialize_request_plane,
         log_dir=args.log_dir,
         log_level=1,
         starting_metrics_port=args.starting_metrics_port

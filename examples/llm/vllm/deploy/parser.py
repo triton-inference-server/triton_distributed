@@ -28,6 +28,13 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--initialize-request-plane",
+        default=False,
+        action="store_true",
+        help="Initialize the request plane, should only be done once per deployment",
+    )
+
+    parser.add_argument(
         "--starting-metrics-port",
         type=int,
         default=50000,
