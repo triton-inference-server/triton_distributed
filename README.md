@@ -89,8 +89,18 @@ deployment instructions.
 [Hello World](./examples/hello_world)
 
 A basic example demonstrating the new interfaces and concepts of
-triton distributed. In the hello world example, you can deploy a set
+Triton Distributed. In the Hello World example, you can deploy a set
 of simple workers to load balance requests from a local work queue.
+
+## LLM
+
+[LLM](./examples/llm/vllm)
+
+An intermediate example expanding further on the concepts indroduced
+in the Hello World example. In this example, we demonstrate
+[Disaggregated Serving](https://arxiv.org/abs/2401.09670)
+as an application of the components defined in Triton Distributed.
+
 
 # Disclaimers
 
