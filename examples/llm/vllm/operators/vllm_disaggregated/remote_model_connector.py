@@ -27,12 +27,13 @@
 import asyncio
 import json
 import typing
-from typing import Optional
+from typing import Optional, Any, Coroutine, List
 
 import numpy as np
 
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.worker.remote_operator import RemoteOperator
+from triton_distributed.worker.remote_response import AsyncRemoteResponseIterator
 from triton_distributed.worker.remote_tensor import RemoteTensor
 
 from .connector import BaseTriton3Connector, InferenceRequest, InferenceResponse
@@ -135,7 +136,7 @@ class RemoteModelConnector(BaseTriton3Connector):
                     request_plane=self._connector._request_plane,
                     data_plane=self._connector._data_plane,
                 )
-        results = []
+        results: List[Coroutine[Any, Any, AsyncRemoteResponseIterator]] = []
 
         for key, value in request.parameters.items():
             if isinstance(value, dict):
