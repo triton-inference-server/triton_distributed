@@ -51,20 +51,20 @@ class SingleComputePipeline:
                 **input_payload["parameters"].get("sampling_params", {}),
                 ignore_eos=self._ignore_eos,
             )
-            LOGGER.debug(f"sampling_params: {sampling_params}")
+            print(f"sampling_params: {sampling_params}")
             request_id = input_payload["parameters"].get("request_id", None)
 
             results_generator = self._engine.generate(
                 vllm_input, sampling_params, request_id
             )
-            LOGGER.debug("results_generator started")
+            print("results_generator started")
             counter = 0
             async for result in results_generator:
                 if counter % RETURN_EVERY_N == 0 or result.finished:
                     tokens_ids = np.stack(
                         [output_row.token_ids for output_row in result.outputs]
                     ).astype(np.int64)
-                    LOGGER.debug(f"tokens_ids: {tokens_ids.shape}")
+                    print(f"tokens_ids: {tokens_ids.shape}")
                     yield {
                         "outputs": {},
                         "error": None,
@@ -74,7 +74,7 @@ class SingleComputePipeline:
                         },
                     }
                 counter += 1
-            LOGGER.debug("results_generator finished")
+            print("results_generator finished")
         except Exception as e:
             LOGGER.error(f"Exception in SingleComputePipeline: {e}")
             yield {"outputs": {}, "error": str(e), "final": True}
@@ -114,7 +114,7 @@ class PrefillStage:
         self, input_payload: Dict[str, Any]
     ) -> AsyncGenerator[Dict[str, Any], None]:
         # FIXME:
-        LOGGER.debug("Inside PREFILL stage!")
+        print("Inside PREFILL stage!")
         try:
             vllm_input = input_payload["parameters"]["prompt"]
             request_id = input_payload["parameters"].get("request_id", None)
@@ -130,13 +130,13 @@ class PrefillStage:
             sampling_params.max_tokens = 1
             sampling_params.min_tokens = 1
 
-            LOGGER.debug(f"sampling_params: {sampling_params}")
+            print(f"sampling_params: {sampling_params}")
 
             start_time_ns = time.monotonic_ns()
             results_generator = self._engine.generate(
                 vllm_input, sampling_params, request_id
             )
-            LOGGER.debug("results_generator started")
+            print("results_generator started")
             async for result in results_generator:
                 taken_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
                 LOGGER.info(
@@ -154,7 +154,7 @@ class PrefillStage:
                     for k, v in sampling_params.__dict__.items()
                     if k in sampling_params_init_names
                 }
-                LOGGER.debug(
+                print(
                     f"Yield response {input_payload['inputs'].keys()} parameters {input_payload['parameters']}"
                 )
                 yield {
@@ -168,7 +168,7 @@ class PrefillStage:
                     },
                     "final": True,
                 }
-            LOGGER.debug("Results generator for prefill finishes")
+            print("Results generator for prefill finishes")
         except Exception as e:
             LOGGER.error(f"Exception in SingleComputePipeline: {e}")
             yield {"outputs": {}, "error": str(e), "final": True}
@@ -196,7 +196,7 @@ class GenerateStage:
         print("DEBUG: Inside GENERATE stage!")
 
         seq_len = input_payload["parameters"]["seq_len"]
-        LOGGER.debug(f"input sequence length: {seq_len}")
+        print(f"input sequence length: {seq_len}")
         # we can use any tokens because first token is already sampled by the context worker
         # and we just need the correct shape to allocate space in the kv cache
         vllm_input = vllm.inputs.data.TokensPrompt(prompt_token_ids=[0] * seq_len)
@@ -204,7 +204,7 @@ class GenerateStage:
             **input_payload["parameters"].get("sampling_params", {}),
             ignore_eos=self._ignore_eos,
         )
-        LOGGER.debug(f"sampling_params: {sampling_params}")
+        print(f"sampling_params: {sampling_params}")
         request_id = input_payload["parameters"].get("request_id", None)
         assert request_id is not None, "request_id is required for generate"
         context_worker_id = input_payload["parameters"]["context_worker_id"]
@@ -221,7 +221,7 @@ class GenerateStage:
             sampling_params,
             new_request_id,
         )
-        LOGGER.debug("results_generator started")
+        print("results_generator started")
         counter = 0
         async for result in results_generator:
             if counter % RETURN_EVERY_N == 0 or result.finished:
@@ -234,7 +234,7 @@ class GenerateStage:
                     },
                 }
             counter += 1
-        LOGGER.debug("results_generator finished for generate")
+        print("results_generator finished for generate")
 
 
 class DisaggregatedPipeline:
@@ -255,8 +255,8 @@ class DisaggregatedPipeline:
     async def __call__(
         self, input_payload: Dict[str, Any]
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        LOGGER.debug("Start pipeline")
+        print("Start pipeline")
         async for result in self.stage(input_payload):
-            LOGGER.debug("yield result")
+            print("yield result")
             yield result
-        LOGGER.debug("Pipeline generator finished")
+        print("Pipeline generator finished")

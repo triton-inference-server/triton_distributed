@@ -195,7 +195,7 @@ class RequestConverter:
                 )
 
                 # FIXME
-                LOGGER.debug(f"pull(): {remote_request.parameters=}")
+                print(f"DEBUG: pull(): {remote_request.parameters=}")
 
                 yield {
                     "inputs": inputs,
@@ -208,11 +208,11 @@ class RequestConverter:
 
         # FIXME: Connection to NATS Server?
         if isinstance(request, RemoteInferenceRequest):
-            LOGGER.debug("adapt_request(): Received RemoteInferenceRequest")
+            print("DEBUG: adapt_request(): Received RemoteInferenceRequest")
             remote_request = request
             request = remote_request.to_model_infer_request()
-            LOGGER.debug(f"adapt_request(): {remote_request.parameters=}")
-            LOGGER.debug(f"adapt_request(): {request.parameters=}")
+            print(f"DEBUG: adapt_request(): {remote_request.parameters=}")
+            print(f"DEBUG: adapt_request(): {request.parameters=}")
         else:
             remote_request = RemoteInferenceRequest.from_model_infer_request(
                 request,
@@ -220,8 +220,8 @@ class RequestConverter:
                 self._connector._request_plane,
             )
             # FIXME
-            LOGGER.debug(f"adapt_request(): Received {type(request)=}")
-            LOGGER.debug(f"adapt_request(): {remote_request.parameters=}")
+            print(f"DEBUG: adapt_request(): Received {type(request)=}")
+            print(f"DEBUG: adapt_request(): {remote_request.parameters=}")
             if not remote_request.parameters:
                 raise RuntimeError("Remote Request parameters were empty!")
 
@@ -284,7 +284,7 @@ class RequestConverter:
             input_tensor.__del__()
             inputs[name] = numpy_tensor
         # FIXME
-        print(f"In adapt_request: {remote_request.parameters=}")
+        print(f"DEBUG: adapt_request: {remote_request.parameters=}")
         for key, value in remote_request.parameters.items():
             if isinstance(value, str) and value.startswith("JSON:"):
                 remote_request.parameters[key] = json.loads(value[5:])

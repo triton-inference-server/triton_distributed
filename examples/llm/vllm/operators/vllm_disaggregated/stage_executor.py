@@ -46,22 +46,22 @@ class PiplineStageExecutor:
 
     async def baseline_process(self, request, return_result):
         try:
-            LOGGER.debug("Processing request")
+            print("Processing request")
             async for response in self.stage(request):
-                LOGGER.debug("Sending response")
+                print("Sending response")
                 await return_result(**response)
-                LOGGER.debug("Response send")
+                print("Response send")
         except Exception as e:
             LOGGER.error(f"Error processing request: {e}")
             await return_result({"error": e, "final": True})
-        LOGGER.debug("Processing finished")
+        print("Processing finished")
 
     async def process(self, request, return_result):
-        LOGGER.debug("Processing request")
+        print("Processing request")
         try:
-            LOGGER.debug(f"Stage {self.stage_name} execution")
+            print(f"Stage {self.stage_name} execution")
             responses = list([response async for response in self.stage(request)])
-            LOGGER.debug(f"Stage {self.stage_name} finished")
+            print(f"Stage {self.stage_name} finished")
             assert len(responses) == 1
             response = responses[0]
 
@@ -81,13 +81,13 @@ class PiplineStageExecutor:
             async for response in self.remote_model_connector.inference(
                 model_name=self.next_stage_name, request=request
             ):
-                LOGGER.debug(f"Stage {self.stage_name} sending response")
+                print(f"Stage {self.stage_name} sending response")
                 await return_result(
                     outputs=response.outputs,
                     final=response.final,
                     parameters={"text": response.parameters["text"]},
                 )
-                LOGGER.debug(f"Stage {self.stage_name} sended response")
+                print(f"Stage {self.stage_name} sended response")
         except Exception as e:
             LOGGER.error(f"Error processing request: {e}", exc_info=True)
             await return_result(outputs={}, error=e, final=True)
@@ -115,7 +115,7 @@ class PiplineStageExecutor:
             ) = await self.request_converter.adapt_request(raw_request)
 
             # FIXME
-            LOGGER.debug(f"process_requests: {remote_request.parameters=}")
+            print(f"process_requests: {remote_request.parameters=}")
             request, return_result = {
                 "inputs": inputs,
                 "parameters": remote_request.parameters,
@@ -129,17 +129,17 @@ class PiplineStageExecutor:
         else:
             process_function = self.baseline_process
         # self.request_counter += 1
-        LOGGER.debug(f"Stage {self.stage_name} pulled request")
+        print(f"Stage {self.stage_name} pulled request")
         self.tasks.append(asyncio.create_task(process_function(request, return_result)))
         if len(self.tasks) >= self.args.max_batch_size:
-            LOGGER.debug(
+            print(
                 f"Stage {self.stage_name} waiting some of {len(self.tasks)} requests to finish"
             )
             _, pending = await asyncio.wait(
                 self.tasks, return_when=asyncio.FIRST_COMPLETED
             )
             self.tasks = list(pending)
-            LOGGER.debug(
+            print(
                 f"Stage {self.stage_name} finished some requests with {len(self.tasks)} to do"
             )
 
