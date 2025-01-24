@@ -112,20 +112,28 @@ class NatsServer:
             print(command)
             return
 
-        os.makedirs(log_dir, exist_ok=True)
-
         if clear_store:
             shutil.rmtree(store_dir, ignore_errors=True)
 
-        with open(f"{log_dir}/nats_server.stdout.log", "wt") as output_:
-            with open(f"{log_dir}/nats_server.stderr.log", "wt") as output_err:
-                process = subprocess.Popen(
-                    command,
-                    stdin=subprocess.DEVNULL,
-                    stdout=output_,
-                    stderr=output_err,
-                )
-                self._process = process
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+
+            with open(f"{log_dir}/nats_server.stdout.log", "wt") as output_:
+                with open(f"{log_dir}/nats_server.stderr.log", "wt") as output_err:
+                    process = subprocess.Popen(
+                        command,
+                        stdin=subprocess.DEVNULL,
+                        stdout=output_,
+                        stderr=output_err,
+                    )
+                    self._process = process
+        else:
+            process = subprocess.Popen(
+                command,
+                stdin=subprocess.DEVNULL,
+            )
+            self._process = process
+            
 
     def __del__(self):
         if self._process:

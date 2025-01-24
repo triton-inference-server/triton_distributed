@@ -38,6 +38,8 @@ from triton_distributed.worker.remote_request import (
     RemoteResponseSender,
 )
 
+from triton_distributed.worker.triton_core_operator import TritonCoreOperator
+
 if TYPE_CHECKING:
     import uvicorn
 
@@ -90,6 +92,7 @@ class Worker:
         self._metrics_port = config.metrics_port
         self._metrics_server: Optional[uvicorn.Server] = None
         self._component_id = self._request_plane.component_id
+        self._triton_core = None
 
     def _import_operators(self):
         for operator_config in self._operator_configs:
@@ -136,6 +139,17 @@ class Worker:
                     log_level=operator_config.log_level,
                     logger_name=f"OPERATOR{(operator_config.name,operator_config.version)}",
                 )
+
+                if (class_ == TritonCoreOperator or issubclass(class_, TritonCoreOperator)) and not self._triton_core:
+                    self._triton_core = tritonserver.Server(
+                        model_repository=".",
+                        log_error=True,
+                        log_verbose=self._log_level,
+                        strict_model_config=False,
+                        model_control_mode=tritonserver.ModelControlMode.EXPLICIT,
+                        log_file=self._triton_log_path,
+                    ).start(wait_until_ready=True)
+                
                 operator = class_(
                     operator_config.name,
                     operator_config.version,
@@ -229,14 +243,14 @@ class Worker:
 
     async def serve(self):
         error = None
-        self._triton_core = tritonserver.Server(
-            model_repository=".",
-            log_error=True,
-            log_verbose=self._log_level,
-            strict_model_config=False,
-            model_control_mode=tritonserver.ModelControlMode.EXPLICIT,
-            log_file=self._triton_log_path,
-        ).start(wait_until_ready=True)
+        # self._triton_core = tritonserver.Server(
+        #     model_repository=".",
+        #     log_error=True,
+        #     log_verbose=self._log_level,
+        #     strict_model_config=False,
+        #     model_control_mode=tritonserver.ModelControlMode.EXPLICIT,
+        #     log_file=self._triton_log_path,
+        # ).start(wait_until_ready=True)
         try:
             await self._request_plane.connect()
         except Exception as e:
@@ -297,7 +311,8 @@ class Worker:
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         logger.info("Cancelling %s outstanding tasks", len(tasks))
         [task.cancel() for task in tasks]
-        self._triton_core.stop()
+        if self._triton_core:
+            self._triton_core.stop()
         if self._metrics_server:
             self._metrics_server.should_exit = True
             await self._metrics_server.shutdown()
