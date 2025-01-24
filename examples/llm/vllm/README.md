@@ -59,7 +59,7 @@ For more details on the basics of Triton Distributed, please see the [Hello Worl
 The example is designed to run in a containerized environment using Triton Distributed, vLLM, and associated dependencies. To build the container:
 
 ```bash
-./container/build.sh --framework VLLM
+./container/build.sh --framework vllm
 ```
 
 This command pulls necessary dependencies and patches vLLM in the container image.
@@ -70,11 +70,11 @@ This command pulls necessary dependencies and patches vLLM in the container imag
 
 Below is a minimal example of how to start each component of a disaggregated serving setup. The typical sequence is:
 
+2. **Start the Context Worker(s) and Request Plane**
+3. **Start the Generate Worker(s)**
 1. **Start the API Server** (handles incoming requests and coordinates workers)
-2. **Start the Prefill Worker(s)**
-3. **Start the Decode Worker(s)**
 
-All components must be able to connect to the same NATS server to coordinate.
+All components must be able to connect to the same request plane to coordinate.
 
 ### 3.1 HuggingFace Token
 
@@ -82,29 +82,34 @@ All components must be able to connect to the same NATS server to coordinate.
 export HF_TOKEN=<YOUR TOKEN>
 ```
 
-### 3.2 API Server
-
-The API server in a vLLM-disaggregated setup listens for OpenAI-compatible requests on a chosen port (default 8005). Below is an example command:
+### 3.2 Launch Interactive Environment
 
 ```bash
-python3 -m llm.api_server \
-  --tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
-  --request-plane-uri <YOUR_HOST>:4223 \
-  --api-server-host <YOUR_HOST> \
-  --model-name llama \
-  --api-server-por 8005
+./container/run.sh --framework vllm -it
 ```
 
-### 3.3 Prefill Worker
+Note: all subsequent commands will be run in the same container for simplicity
 
-The prefill stage encodes incoming prompts. By default, vLLM uses GPU resources to tokenize and prepare the model’s key-value (KV) caches. Run the prefill worker:
+Note: by default this command makes all gpu devices visible. Use flag
 
-```bash
+```
+--gpus
+```
+
+to selectively make gpu devices visible.
+
+### 3.2 Launch Context Worker and Request Plane
+
+The context stage encodes incoming prompts. By default, vLLM uses GPU resources to tokenize and prepare the model’s key-value (KV) caches.
+
+Within the container start the context worker and the request plane:
+
+```
 CUDA_VISIBLE_DEVICES=0 \
 VLLM_WORKER_ID=0 \
 python3 -m llm.vllm.deploy \
   --context-worker-count 1 \
-  --request-plane-uri <YOUR_HOST>:4223 \
+  --request-plane-uri ${HOSTNAME}:4223 \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \
@@ -115,7 +120,8 @@ python3 -m llm.vllm.deploy \
   --max-batch-size 10000 \
   --gpu-memory-utilization 0.9 \
   --context-tp-size 1 \
-  --generate-tp-size 1
+  --generate-tp-size 1 \
+  --initialize-request-plane &
 ```
 
 **Key flags**:
@@ -123,16 +129,34 @@ python3 -m llm.vllm.deploy \
 - `--kv-cache-dtype fp8`: Using FP8 for caching (requires CC >= 8.9).
 - `CUDA_VISIBLE_DEVICES=0`: Binds worker to GPU `0`.
 
-### 3.4 Decode Worker
+#### Expected Output
+```
+<SNIP>
+Workers started ... press Ctrl-C to Exit
+[168] 2025/01/24 09:17:38.879908 [INF] Starting nats-server
+[168] 2025/01/24 09:17:38.879982 [INF]   Version:  2.10.24
+[168] 2025/01/24 09:17:38.879987 [INF]   Git:      [1d6f7ea]
+[168] 2025/01/24 09:17:38.879989 [INF]   Name:     NDBCCXARM6D2BMMRJOKZCJD4TGVXXPCJKQRXALJOPHLA5W7ISCW4VHU5
+[168] 2025/01/24 09:17:38.879992 [INF]   Node:     S4g51H7K
+[168] 2025/01/24 09:17:38.879995 [INF]   ID:       NDBCCXARM6D2BMMRJOKZCJD4TGVXXPCJKQRXALJOPHLA5W7ISCW4VHU5
+[168] 2025/01/24 09:17:38.880339 [INF] Starting JetStream
+<SNIP>
+INFO 01-24 09:17:49 parallel_state.py:942] Stage: PREFILL
+```
 
-The decode stage consumes the KV cache produced in the prefill step and generates output tokens. Run the decode worker:
+### 3.3 Launch Generate (Decode) Worker
+
+The generate stage consumes the KV cache produced in the context step and generates output tokens.
+
+Within the container start the generate worker:
+
 
 ```bash
 CUDA_VISIBLE_DEVICES=1 \
 VLLM_WORKER_ID=1 \
 python3 -m llm.vllm.deploy \
   --generate-worker-count 1 \
-  --request-plane-uri <YOUR_HOST>:4223 \
+  --request-plane-uri ${HOSTNAME}:4223 \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \
@@ -143,29 +167,77 @@ python3 -m llm.vllm.deploy \
   --max-batch-size 10000 \
   --gpu-memory-utilization 0.9 \
   --context-tp-size 1 \
-  --generate-tp-size 1
+  --generate-tp-size 1 &
 ```
+
+> [!NOTE]
+> - First time running in a newly launched container will
+>   include model download. Please wait until you see the
+>   llama handler started before sending requests
+
 
 **Key flags**:
 - `--generate-worker-count`: Launches decode worker(s).
 - `CUDA_VISIBLE_DEVICES=1`: Binds worker to GPU `1`.
 
+#### Expected Output
+
+```
+<SNIP>x
+model-00002-of-00002.safetensors: 100% 4.08G/4.08G [01:36<00:00, 42.2MB/s]
+model-00001-of-00002.safetensors: 100%% 4.71G/5.00G [01:51<00:06, 41.9MB/s]
+<SNIP>
+INFO 01-24 09:21:22 model_runner.py:1406] Capturing the model for CUDA graphs. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI.
+INFO 01-24 09:21:22 model_runner.py:1410] CUDA graphs can take additional 1~3 GiB memory per GPU. If you are running out of memory, consider decreasing `gpu_memory_utilization` or enforcing eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+<SNIP>
+09:22:10 worker.py:266[Triton Worker] INFO: Worker started...
+09:22:10 worker.py:241[Triton Worker] INFO: Starting generate handler...
+09:22:10 worker.py:266[Triton Worker] INFO: Worker started...
+09:22:10 worker.py:241[Triton Worker] INFO: Starting llama handler...
+
+```
+
 > [!NOTE]
 > - You can run multiple prefill and decode workers for higher throughput.
 > - For large models, ensure you have enough GPU memory (or GPUs).
 
+### 3.4 API Server
+
+The API server in a vLLM-disaggregated setup listens for OpenAI-compatible requests on a chosen port (default 8005). Below is an example command:
+
+```bash
+python3 -m llm.api_server \
+  --tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
+  --request-plane-uri ${HOSTNAME}:4223 \
+  --api-server-host ${HOSTNAME} \
+  --model-name llama \
+  --api-server-port 8005 &
+```
+
+#### Expected Output
+```
+[WARNING] Adding CORS for the following origins: ['http://localhost']
+INFO:     Started server process [498]
+INFO:     Waiting for application startup.
+TRACE:    ASGI [1] Started scope={'type': 'lifespan', 'asgi': {'version': '3.0', 'spec_version': '2.0'}, 'state': {}}
+TRACE:    ASGI [1] Receive {'type': 'lifespan.startup'}
+TRACE:    ASGI [1] Send {'type': 'lifespan.startup.complete'}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://2u2g-gen-0349:8005 (Press CTRL+C to quit)
+
+```
 
 ## 4. Sending Requests
 
 Once the API server is running (by default on `localhost:8005`), you can send OpenAI-compatible requests. For example:
 
 ```bash
-curl <YOUR_HOST>:8005/v1/chat/completions \
+curl ${HOSTNAME}:8005/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "llama",
     "messages": [
-      {"role": "system", "content": "What is the capital of France?"}
+      {"role": "user", "content": "What is the capital of France?"}
     ],
     "temperature": 0,
     "top_p": 0.95,
@@ -180,6 +252,25 @@ curl <YOUR_HOST>:8005/v1/chat/completions \
 The above request will return a streamed response with the model’s answer.
 
 
+#### Expected Output
+
+```
+INFO 01-24 09:33:05 async_llm_engine.py:207] Added request 052eabe0-fc54-4f7c-9be8-4926523b26fc___0.
+INFO 01-24 09:33:05 kv_cache.py:378] Fetching source address for worker 0 by key worker_0_rank_0
+TRACE:    127.0.0.1:49878 - ASGI [2] Send {'type': 'http.response.body', 'body': '<290 bytes>', 'more_body': True}
+data: {"id":"052eabe0-fc54-4f7c-9be8-4926523b26fc","choices":[{"delta":{"content":"\n\n","role":"assistant"},"logprobs":null,"finish_reason":null,"index":0}],"created":1737711185,"model":"llama","system_fingerprint":"052eabe0-fc54-4f7c-9be8-4926523b26fc","object":"chat.completion.chunk"}
+
+INFO 01-24 09:33:05 async_llm_engine.py:175] Finished request 052eabe0-fc54-4f7c-9be8-4926523b26fc___0.
+TRACE:    127.0.0.1:49878 - ASGI [2] Send {'type': 'http.response.body', 'body': '<317 bytes>', 'more_body': True}
+TRACE:    127.0.0.1:49878 - ASGI [2] Send {'type': 'http.response.body', 'body': '<14 bytes>', 'more_body': True}
+TRACE:    127.0.0.1:49878 - ASGI [2] Send {'type': 'http.response.body', 'body': '<0 bytes>', 'more_body': False}
+data: {"id":"052eabe0-fc54-4f7c-9be8-4926523b26fc","choices":[{"delta":{"content":"The capital of France is Paris.","role":"assistant"},"logprobs":null,"finish_reason":null,"index":0}],"created":1737711185,"model":"llama","system_fingerprint":"052eabe0-fc54-4f7c-9be8-4926523b26fc","object":"chat.completion.chunk"}
+
+TRACE:    127.0.0.1:49878 - ASGI [2] Receive {'type': 'http.disconnect'}
+data: [DONE]
+
+```
+
 ## 5. Benchmarking
 
 You can benchmark this setup using [**GenAI-Perf**](https://github.com/triton-inference-server/perf_analyzer/blob/main/genai-perf/README.md), which supports OpenAI endpoints for chat or completion requests.
@@ -187,7 +278,7 @@ You can benchmark this setup using [**GenAI-Perf**](https://github.com/triton-in
 ```bash
 genai-perf profile \
   -m llama \
-  --url <YOUR_HOST>:8005 \
+  --url ${HOSTNAME}:8005 \
   --endpoint-type chat \
   --streaming \
   --num-dataset-entries 1000 \

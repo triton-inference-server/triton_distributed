@@ -112,20 +112,27 @@ class NatsServer:
             print(command)
             return
 
-        os.makedirs(log_dir, exist_ok=True)
-
         if clear_store:
             shutil.rmtree(store_dir, ignore_errors=True)
 
-        with open(f"{log_dir}/nats_server.stdout.log", "wt") as output_:
-            with open(f"{log_dir}/nats_server.stderr.log", "wt") as output_err:
-                process = subprocess.Popen(
-                    command,
-                    stdin=subprocess.DEVNULL,
-                    stdout=output_,
-                    stderr=output_err,
-                )
-                self._process = process
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+
+            with open(f"{log_dir}/nats_server.stdout.log", "wt") as output_:
+                with open(f"{log_dir}/nats_server.stderr.log", "wt") as output_err:
+                    process = subprocess.Popen(
+                        command,
+                        stdin=subprocess.DEVNULL,
+                        stdout=output_,
+                        stderr=output_err,
+                    )
+                    self._process = process
+        else:
+            process = subprocess.Popen(
+                command,
+                stdin=subprocess.DEVNULL,
+            )
+            self._process = process
 
     def __del__(self):
         if self._process:
@@ -196,7 +203,9 @@ class NatsRequestPlane(RequestPlane):
         Optional[nats.js.JetStreamContext.PullSubscription],
     ]:
         if self._jet_stream is None:
-            raise InvalidArgumentError("Not Connected!")
+            raise InvalidArgumentError(
+                "Failed to get model stream: NATS Jetstream not connected!"
+            )
 
         if (model_name, model_version) in self._model_streams:
             return self._model_streams[(model_name, model_version)]
@@ -326,7 +335,9 @@ class NatsRequestPlane(RequestPlane):
         responses: AsyncIterator[ModelInferResponse] | ModelInferResponse,
     ):
         if self._jet_stream is None:
-            raise InvalidArgumentError("Not Connected!")
+            raise InvalidArgumentError(
+                "Failed to post response: NATS Jetstream not connected!"
+            )
 
         request_id = get_icp_request_id(request)
         if request_id is None:
@@ -367,7 +378,9 @@ class NatsRequestPlane(RequestPlane):
         ] = None,
     ) -> AsyncIterator[ModelInferResponse]:
         if self._jet_stream is None:
-            raise InvalidArgumentError("Not Connected!")
+            raise InvalidArgumentError(
+                "Failed to post request: NATS Jetstream not connected!"
+            )
 
         if response_iterator and response_handler:
             raise InvalidArgumentError(

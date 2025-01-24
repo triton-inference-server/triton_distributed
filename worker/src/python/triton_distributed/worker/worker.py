@@ -37,6 +37,7 @@ from triton_distributed.worker.remote_request import (
     RemoteInferenceRequest,
     RemoteResponseSender,
 )
+from triton_distributed.worker.triton_core_operator import TritonCoreOperator
 
 if TYPE_CHECKING:
     import uvicorn
@@ -90,6 +91,7 @@ class Worker:
         self._metrics_port = config.metrics_port
         self._metrics_server: Optional[uvicorn.Server] = None
         self._component_id = self._request_plane.component_id
+        self._triton_core = None
 
     def _import_operators(self):
         for operator_config in self._operator_configs:
@@ -136,6 +138,20 @@ class Worker:
                     log_level=operator_config.log_level,
                     logger_name=f"OPERATOR{(operator_config.name,operator_config.version)}",
                 )
+
+                if (
+                    class_ == TritonCoreOperator
+                    or issubclass(class_, TritonCoreOperator)
+                ) and not self._triton_core:
+                    self._triton_core = tritonserver.Server(
+                        model_repository=".",
+                        log_error=True,
+                        log_verbose=self._log_level,
+                        strict_model_config=False,
+                        model_control_mode=tritonserver.ModelControlMode.EXPLICIT,
+                        log_file=self._triton_log_path,
+                    ).start(wait_until_ready=True)
+
                 operator = class_(
                     operator_config.name,
                     operator_config.version,
@@ -229,14 +245,6 @@ class Worker:
 
     async def serve(self):
         error = None
-        self._triton_core = tritonserver.Server(
-            model_repository=".",
-            log_error=True,
-            log_verbose=self._log_level,
-            strict_model_config=False,
-            model_control_mode=tritonserver.ModelControlMode.EXPLICIT,
-            log_file=self._triton_log_path,
-        ).start(wait_until_ready=True)
         try:
             await self._request_plane.connect()
         except Exception as e:
@@ -297,7 +305,8 @@ class Worker:
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         logger.info("Cancelling %s outstanding tasks", len(tasks))
         [task.cancel() for task in tasks]
-        self._triton_core.stop()
+        if self._triton_core:
+            self._triton_core.stop()
         if self._metrics_server:
             self._metrics_server.should_exit = True
             await self._metrics_server.shutdown()
@@ -347,8 +356,8 @@ class Worker:
                 self._triton_log_path = os.path.join(
                     self._log_dir, f"{self._name}.{self._component_id}.{pid}.triton.log"
                 )
-            # sys.stdout = open(stdout_path, "w", buffering=1)
-            # sys.stderr = open(stderr_path, "w", buffering=1)
+            sys.stdout = open(stdout_path, "w", buffering=1)
+            sys.stderr = open(stderr_path, "w", buffering=1)
             triton_log = open(self._triton_log_path, "w", buffering=1)
             triton_log.close()
         setup_logger(log_level=self._log_level)
@@ -382,12 +391,12 @@ class Worker:
             else:
                 exit_condition = serve_result
 
-            # sys.stdout.flush()
-            # sys.stderr.flush()
+            sys.stdout.flush()
+            sys.stderr.flush()
 
-            # if self._log_dir:
-            ##sys.stdout.close()
-            # sys.stderr.close()
+            if self._log_dir:
+                sys.stdout.close()
+                sys.stderr.close()
 
         if exit_condition is not None:
             sys.exit(1)

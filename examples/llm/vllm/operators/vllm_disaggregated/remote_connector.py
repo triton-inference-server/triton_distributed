@@ -89,6 +89,7 @@ class RemoteConnector:
         """Connect to both request and data planes."""
         global _g_singletonic_data_plane
         global _g_singletonic_data_plane_connection_count
+        assert _g_singletonic_data_plane
         await self._request_plane.connect()
         if _g_singletonic_data_plane_connection_count == 0:
             _g_singletonic_data_plane.connect()
@@ -99,6 +100,7 @@ class RemoteConnector:
         """Disconnect from both request and data planes."""
         global _g_singletonic_data_plane
         global _g_singletonic_data_plane_connection_count
+        assert _g_singletonic_data_plane
         await self._request_plane.close()
         _g_singletonic_data_plane_connection_count -= 1
         if _g_singletonic_data_plane_connection_count == 0:

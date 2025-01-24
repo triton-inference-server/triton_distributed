@@ -219,6 +219,7 @@ class RequestConverter:
                 final: Optional[bool] = False,
             ) -> None:
                 request_id = request.parameters["icp_request_id"].string_param
+
                 infer_kwargs = {
                     "model": local_model,
                     "request_id": request_id,
@@ -238,6 +239,11 @@ class RequestConverter:
                 remote_response = RemoteInferenceResponse.from_local_response(
                     local_response,
                 ).to_model_infer_response(self._connector._data_plane)
+                # FIXME: This is a WAR for scenario where connector isn't
+                # connected when posting a response to request plane.
+                if not self._connector._connected:
+                    await self.connect()
+
                 await self._connector._request_plane.post_response(
                     request,
                     remote_response,

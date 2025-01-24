@@ -1,12 +1,13 @@
 import argparse
-from pathlib import Path
 
 
+# FIXME: Remove unused args if any
 def parse_args():
     parser = argparse.ArgumentParser(description="Run an example of the VLLM pipeline.")
 
-    example_dir = Path(__file__).parent.absolute().parent.absolute()
-    default_log_dir = example_dir.joinpath("logs")
+    #    example_dir = Path(__file__).parent.absolute().parent.absolute()
+    #    default_log_dir = "" example_dir.joinpath("logs")
+    default_log_dir = ""
 
     parser = argparse.ArgumentParser(description="Hello World Deployment")
 
@@ -52,6 +53,14 @@ def parse_args():
         required=False,
         default=0,
         help="Number of dummy workers",
+    )
+
+    parser.add_argument(
+        "--baseline-worker-count",
+        type=int,
+        required=False,
+        default=0,
+        help="Number of baseline workers",
     )
 
     parser.add_argument(
@@ -126,20 +135,14 @@ def parse_args():
         help="Key-value cache data type",
     )
 
+    # FIXME: Support string values like 'debug', 'info, etc.
     parser.add_argument(
         "--log-level",
-        type=str,
+        type=int,
         required=False,
-        default="info",
-        help="Logging level (e.g., debug, info, warning, error, critical)",
-    )
-
-    parser.add_argument(
-        "--log-format",
-        type=str,
-        required=False,
-        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        help="Logging format",
+        choices=[0, 1, 2],
+        default=1,
+        help="Logging level: 2=debug, 1=info, 0=error (default=1)",
     )
 
     ## Logical arguments for vLLM engine
@@ -180,7 +183,7 @@ def parse_args():
         "--baseline-tp-size",
         type=int,
         default=1,
-        help="Tensor parallel siz of a baseline worker.",
+        help="Tensor parallel size of a baseline worker.",
     )
 
     parser.add_argument(
