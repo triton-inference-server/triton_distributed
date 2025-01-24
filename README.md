@@ -20,6 +20,8 @@ limitations under the License.
 <h4> A Datacenter Scale Distributed Inference Serving Framework </h4>
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub Release](https://img.shields.io/github/v/release/triton-inference-server/triton_distributed)](https://github.com/triton-inference-server/triton_distributed/releases/latest)
+
 
 Triton Distributed is a flexible, component based, data center scale
 inference serving framework designed to leverage the strengths of the
