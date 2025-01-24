@@ -25,7 +25,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from typing import Optional
 
-
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
 

@@ -45,7 +45,9 @@ class VllmContextOperator(Operator):
             disable_async_output_proc=args.disable_async_output_proc,
             disable_log_stats=args.disable_log_stats,
         )
-        self.executor = PiplineStageExecutor(args, request_plane, stage, "prefill", "generate")
+        self.executor = PiplineStageExecutor(
+            args, request_plane, stage, "prefill", "generate"
+        )
 
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
         await self.executor.process_requests(requests)
