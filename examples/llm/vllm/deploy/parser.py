@@ -141,8 +141,7 @@ def parse_args():
         type=int,
         required=False,
         choices=[0, 1, 2],
-        # FIXME: Set default back to 1
-        default=2,
+        default=1,
         help="Logging level: 2=debug, 1=info, 0=error (default=1)",
     )
 

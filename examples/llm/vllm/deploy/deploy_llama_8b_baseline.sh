@@ -35,9 +35,10 @@ python3 -m llm.api_server \
   --api-server-port ${API_SERVER_PORT} &
 
 
+# Empty --log-dir will dump logs to stdout
+echo "Starting vLLM baseline workers..."
 CUDA_VISIBLE_DEVICES=0 \
 VLLM_WORKER_ID=0 \
-echo "Starting vLLM baseline workers..."
 python3 -m llm.vllm.deploy \
   --baseline-worker-count ${VLLM_BASELINE_WORKERS} \
   --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
@@ -52,7 +53,8 @@ python3 -m llm.vllm.deploy \
   --baseline-tp-size ${VLLM_BASELINE_TP_SIZE} \
   --log-dir ""
 
-# Give deployment a minute to spin up
+# NOTE: It may take more than a minute for the vllm worker to start up
+# if the model weights aren't cached and need to be downloaded.
 echo "Waiting for deployment to finish startup..."
 sleep 60
 

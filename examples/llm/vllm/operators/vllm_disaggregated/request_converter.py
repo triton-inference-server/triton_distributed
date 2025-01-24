@@ -25,7 +25,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import json
-import logging
 from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, Optional, Tuple
 
 import numpy as np
@@ -37,8 +36,6 @@ from triton_distributed.worker.remote_request import RemoteInferenceRequest
 from triton_distributed.worker.remote_response import RemoteInferenceResponse
 
 from .remote_connector import RemoteConnector
-
-LOGGER = logging.getLogger(__name__)
 
 class LocalModel(BaseModel):
     name: str
@@ -194,9 +191,6 @@ class RequestConverter:
                     request, local_model
                 )
 
-                # FIXME
-                print(f"DEBUG: pull(): {remote_request.parameters=}")
-
                 yield {
                     "inputs": inputs,
                     "parameters": remote_request.parameters,
@@ -206,24 +200,15 @@ class RequestConverter:
         if local_model is None:
             local_model = self._local_model
 
-        # FIXME: Connection to NATS Server?
         if isinstance(request, RemoteInferenceRequest):
-            print("DEBUG: adapt_request(): Received RemoteInferenceRequest")
             remote_request = request
             request = remote_request.to_model_infer_request()
-            print(f"DEBUG: adapt_request(): {remote_request.parameters=}")
-            print(f"DEBUG: adapt_request(): {request.parameters=}")
         else:
             remote_request = RemoteInferenceRequest.from_model_infer_request(
                 request,
                 self._connector._data_plane,
                 self._connector._request_plane,
             )
-            # FIXME
-            print(f"DEBUG: adapt_request(): Received {type(request)=}")
-            print(f"DEBUG: adapt_request(): {remote_request.parameters=}")
-            if not remote_request.parameters:
-                raise RuntimeError("Remote Request parameters were empty!")
 
         def produce_callable(request):
             async def return_callable(
@@ -233,14 +218,8 @@ class RequestConverter:
                 final: Optional[bool] = False,
             ) -> None:
                 # FIXME
-                print("DEBUG: Getting ICP Request ID")
-                if not hasattr(request, "parameters"):
-                    print("ERROR: Request has no attribute parameters! Setting default ID")
-                    request_id = "FIXME"
-                else:
-                    request_id = request.parameters["icp_request_id"].string_param
+                request_id = request.parameters["icp_request_id"].string_param
 
-                print("DEBUG: DONE getting ICP Request ID")
                 infer_kwargs = {
                     "model": local_model,
                     "request_id": request_id,
@@ -257,18 +236,14 @@ class RequestConverter:
                 if parameters is not None:
                     infer_kwargs["parameters"] = parameters
                 local_response = TritonInferenceResponse(**infer_kwargs)
-                # FIXME
                 remote_response = RemoteInferenceResponse.from_local_response(
                     local_response,
                 ).to_model_infer_response(self._connector._data_plane)
-                # FIXME
                 # FIXME: This is a WAR for scenario where connector isn't
                 # connected when posting a response to request plane.
                 if not self._connector._connected:
-                    print("DEBUG: Connecting to connector")
                     await self.connect()
 
-                print("DEBUG: Request Converter posting response to NATS")
                 await self._connector._request_plane.post_response(
                     request,
                     remote_response,
@@ -283,8 +258,6 @@ class RequestConverter:
             numpy_tensor = np.from_dlpack(local_tensor)
             input_tensor.__del__()
             inputs[name] = numpy_tensor
-        # FIXME
-        print(f"DEBUG: adapt_request: {remote_request.parameters=}")
         for key, value in remote_request.parameters.items():
             if isinstance(value, str) and value.startswith("JSON:"):
                 remote_request.parameters[key] = json.loads(value[5:])
