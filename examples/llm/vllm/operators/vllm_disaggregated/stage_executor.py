@@ -74,6 +74,7 @@ class PiplineStageExecutor:
             outputs = response.get("outputs", {})
             request = InferenceRequest(inputs=outputs, parameters=parameters)
             LOGGER.info(f"Next stage {self.next_stage_name} execution")
+            assert self.remote_model_connector is not None
             async for response in self.remote_model_connector.inference(
                 model_name=self.next_stage_name, request=request
             ):

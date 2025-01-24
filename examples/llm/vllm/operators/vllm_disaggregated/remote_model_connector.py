@@ -140,6 +140,7 @@ class RemoteModelConnector(BaseTriton3Connector):
             if isinstance(value, dict):
                 request.parameters[key] = "JSON:" + json.dumps(value)
 
+        assert self._model is not None
         results.append(
             self._model.async_infer(
                 inputs=request.inputs,

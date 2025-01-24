@@ -91,7 +91,7 @@ class Worker:
         self._metrics_port = config.metrics_port
         self._metrics_server: Optional[uvicorn.Server] = None
         self._component_id = self._request_plane.component_id
-        self._triton_core = None
+        self._triton_core: Optional[tritonserver.Server] = None
 
     def _import_operators(self):
         for operator_config in self._operator_configs:
