@@ -116,7 +116,7 @@ python3 -m llm.vllm.deploy \
   --worker-name llama \
   --disable-async-output-proc \
   --disable-log-stats \
-  --max-model-len 1000 \
+  --max-model-len 3500 \
   --max-batch-size 10000 \
   --gpu-memory-utilization 0.9 \
   --context-tp-size 1 \
@@ -163,7 +163,7 @@ python3 -m llm.vllm.deploy \
   --worker-name llama \
   --disable-async-output-proc \
   --disable-log-stats \
-  --max-model-len 1000 \
+  --max-model-len 3500 \
   --max-batch-size 10000 \
   --gpu-memory-utilization 0.9 \
   --context-tp-size 1 \
