@@ -350,6 +350,12 @@ On the second node run the generate worker
 4. **Experimental Patch**
    The required vLLM patch is experimental and not yet merged into upstream vLLM. Future releases may remove the need for a custom patch.
 
+5. **Single generate worker**
+   Only one generate worker can be used in a single deployment.
+
+6. **Streaming**
+   When streaming is enabled, only two responses will be returned in the stream: the first token and the complete response.
+
 
 ## 9. References
 
