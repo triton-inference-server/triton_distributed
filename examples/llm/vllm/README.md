@@ -92,7 +92,7 @@ python3 -m llm.api_server \
   --request-plane-uri <YOUR_HOST>:4223 \
   --api-server-host <YOUR_HOST> \
   --model-name llama \
-  --api-server-por 8005
+  --api-server-port 8005
 ```
 
 ### 3.3 Prefill Worker
