@@ -31,6 +31,7 @@ from typing import Optional
 
 import numpy as np
 
+from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.worker.remote_operator import RemoteOperator
 from triton_distributed.worker.remote_tensor import RemoteTensor
 
@@ -43,7 +44,7 @@ class RemoteModelConnector(BaseTriton3Connector):
 
     def __init__(
         self,
-        nats_url: str,
+        request_plane: RequestPlane,
         model_name: str,
         model_version: Optional[str] = None,
         data_plane_host: Optional[str] = None,
@@ -75,7 +76,7 @@ class RemoteModelConnector(BaseTriton3Connector):
         """
         self._model = None
         self._connector = RemoteConnector(
-            nats_url,
+            request_plane,
             data_plane_host,
             data_plane_port,
             keep_dataplane_endpoints_open=keep_dataplane_endpoints_open,

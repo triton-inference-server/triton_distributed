@@ -32,6 +32,7 @@ from pydantic import BaseModel
 from tritonserver import Tensor as TritonTensor
 from tritonserver._api._response import InferenceResponse as TritonInferenceResponse
 
+from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.worker.remote_request import RemoteInferenceRequest
 from triton_distributed.worker.remote_response import RemoteInferenceResponse
 
@@ -48,7 +49,7 @@ class RequestConverter:
 
     def __init__(
         self,
-        nats_url: str,
+        request_plane: RequestPlane,
         model_name: str,
         data_plane_host: Optional[str] = None,
         data_plane_port: int = 0,
@@ -92,7 +93,7 @@ class RequestConverter:
 
         """
         self._connector = RemoteConnector(
-            nats_url,
+            request_plane,
             data_plane_host,
             data_plane_port,
             keep_dataplane_endpoints_open=keep_dataplane_endpoints_open,
