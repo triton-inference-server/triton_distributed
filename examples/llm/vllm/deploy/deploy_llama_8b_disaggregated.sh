@@ -39,10 +39,11 @@ python3 -m llm.api_server \
   --api-server-port ${API_SERVER_PORT} &
 
 
+# Start VLLM Worker 0
+# FIXME: Reconsider --log-dir default
+echo "Starting vLLM context workers..."
 CUDA_VISIBLE_DEVICES=0 \
 VLLM_WORKER_ID=0 \
-echo "Starting vLLM context workers..."
-# FIXME: Reconsider --log-dir default
 python3 -m llm.vllm.deploy \
   --context-worker-count ${VLLM_CONTEXT_WORKERS} \
   --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
@@ -60,10 +61,10 @@ python3 -m llm.vllm.deploy \
   --log-dir "" &
 
 # Start VLLM Worker 1
+# FIXME: Reconsider --log-dir default
 echo "Starting vLLM generate workers..."
 CUDA_VISIBLE_DEVICES=1 \
 VLLM_WORKER_ID=1 \
-# FIXME: Reconsider --log-dir default
 python3 -m llm.vllm.deploy \
   --generate-worker-count ${VLLM_GENERATE_WORKERS} \
   --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
