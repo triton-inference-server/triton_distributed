@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# FIXME: Convert this script to README steps 
+
 export VLLM_ATTENTION_BACKEND=FLASHINFER
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export VLLM_TORCH_HOST=localhost
@@ -81,7 +83,8 @@ python3 -m llm.vllm.deploy \
   --generate-tp-size ${VLLM_GENERATE_TP_SIZE} \
   --log-dir "" &
 
-# Give deployment a minute to spin up
+# NOTE: It may take more than a minute for the vllm worker to start up
+# if the model weights aren't cached and need to be downloaded.
 echo "Waiting for deployment to finish startup..."
 echo "Once you see all ranks connected to the server, it should be ready..."
 echo "Example output:"
