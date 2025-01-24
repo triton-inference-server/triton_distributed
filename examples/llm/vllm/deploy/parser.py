@@ -55,6 +55,14 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--baseline-worker-count",
+        type=int,
+        required=False,
+        default=0,
+        help="Number of baseline workers",
+    )
+
+    parser.add_argument(
         "--generate-worker-count",
         type=int,
         required=False,
@@ -180,7 +188,7 @@ def parse_args():
         "--baseline-tp-size",
         type=int,
         default=1,
-        help="Tensor parallel siz of a baseline worker.",
+        help="Tensor parallel size of a baseline worker.",
     )
 
     parser.add_argument(

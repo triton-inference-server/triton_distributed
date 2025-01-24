@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 from llm.vllm.operators.dummy import DummyOperator
-from llm.vllm.operators.vllm import VllmContextOperator, VllmGenerateOperator
+from llm.vllm.operators.vllm import VllmContextOperator, VllmGenerateOperator, VllmBaselineOperator
 
 from triton_distributed.worker import Deployment, OperatorConfig, WorkerConfig
 
@@ -62,6 +62,13 @@ def _create_generate_op(name, args, max_inflight_requests):
         parameters=vars(args),
     )
 
+def _create_baseline_op(name, args, max_inflight_requests):
+    return OperatorConfig(
+        name=name,
+        implementation=VllmBaselineOperator,
+        max_inflight_requests=int(max_inflight_requests),
+        parameters=vars(args),
+    )
 
 def main(args):
     global deployment
@@ -69,21 +76,40 @@ def main(args):
     log_dir.mkdir(exist_ok=True)
 
     worker_configs = []
-    if args.generate_worker_count == 1:
-        generate_op = _create_generate_op("generate", args, 1000)
-        generate = WorkerConfig(
-            operators=[generate_op],
-            name="generate",
-        )
-        worker_configs.append((generate, 1))
-
+    # Context/Generate workers used for Disaggregated Serving
     if args.context_worker_count == 1:
         context_op = _create_context_op(args.worker_name, args, 1000)
         context = WorkerConfig(
             operators=[context_op],
+            # Context worker gets --worker-name as it is the model that will
+            # be hit first in a disaggregated setting.
             name=args.worker_name,
         )
         worker_configs.append((context, 1))
+
+    if args.generate_worker_count == 1:
+        generate_op = _create_generate_op("generate", args, 1000)
+        generate = WorkerConfig(
+            operators=[generate_op],
+            # Generate worker gets a hard-coded name "generate" as the context
+            # worker will talk directly to it.
+            name="generate",
+        )
+        worker_configs.append((generate, 1))
+
+
+    # Baseline worker just for testing purposes
+    if args.baseline_worker_count == 1:
+        # Hard-coded name "baseline" for testing purposes
+        baseline_op = _create_baseline_op("baseline", args, 1000)
+        baseline = WorkerConfig(
+            operators=[baseline_op],
+            name="baseline",
+        )
+        worker_configs.append((baseline, 1))
+
+
+    # Dummy worker just for testing purposes
     if args.dummy_worker_count == 1:
         dummy_op = OperatorConfig(
             name="dummy",
