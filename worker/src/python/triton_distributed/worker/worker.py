@@ -382,12 +382,12 @@ class Worker:
             else:
                 exit_condition = serve_result
 
-            # sys.stdout.flush()
-            # sys.stderr.flush()
+            sys.stdout.flush()
+            sys.stderr.flush()
 
-            # if self._log_dir:
-            ##sys.stdout.close()
-            # sys.stderr.close()
+            if self._log_dir:
+                sys.stdout.close()
+                sys.stderr.close()
 
         if exit_condition is not None:
             sys.exit(1)
