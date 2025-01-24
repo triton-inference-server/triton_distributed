@@ -135,6 +135,8 @@ class AsyncRemoteResponseIterator:
         response = await self._queue.get()
         self._complete = response.final
         if response.error is not None and self._raise_on_error:
+            # FIXME
+            print(f"DEBUG: Raising response error from {response=}")
             raise response.error
         return response
 
@@ -172,6 +174,8 @@ class AsyncRemoteResponseIterator:
             remote_response = RemoteInferenceResponse.from_model_infer_response(
                 self._request, response, self._data_plane, final
             )
+            # FIXME
+            print(f"DEBUG: Putting {remote_response=} onto AsyncIO queue")
             asyncio.run_coroutine_threadsafe(
                 self._queue.put(remote_response), self._loop
             )

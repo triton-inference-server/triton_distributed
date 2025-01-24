@@ -113,6 +113,8 @@ class PrefillStage:
     async def __call__(
         self, input_payload: Dict[str, Any]
     ) -> AsyncGenerator[Dict[str, Any], None]:
+        # FIXME:
+        LOGGER.debug("Inside PREFILL stage!")
         try:
             vllm_input = input_payload["parameters"]["prompt"]
             request_id = input_payload["parameters"].get("request_id", None)
@@ -190,6 +192,9 @@ class GenerateStage:
     async def __call__(
         self, input_payload: Dict[str, Any]
     ) -> AsyncGenerator[Dict[str, Any], None]:
+        # FIXME:
+        print("DEBUG: Inside GENERATE stage!")
+
         seq_len = input_payload["parameters"]["seq_len"]
         LOGGER.debug(f"input sequence length: {seq_len}")
         # we can use any tokens because first token is already sampled by the context worker

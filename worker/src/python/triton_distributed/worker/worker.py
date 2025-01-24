@@ -229,6 +229,8 @@ class Worker:
 
     async def serve(self):
         error = None
+        # FIXME: Don't initialize a tritonserver object if the worker has no
+        # Triton Core Operators
         self._triton_core = tritonserver.Server(
             model_repository=".",
             log_error=True,

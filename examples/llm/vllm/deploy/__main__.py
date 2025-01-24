@@ -129,7 +129,7 @@ def main(args):
         worker_configs,
         initialize_request_plane=args.initialize_request_plane,
         log_dir=args.log_dir,
-        log_level=1,
+        log_level=args.log_level,
         starting_metrics_port=args.starting_metrics_port,
         request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
     )

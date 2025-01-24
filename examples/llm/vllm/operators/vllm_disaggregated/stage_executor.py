@@ -64,10 +64,20 @@ class PiplineStageExecutor:
             LOGGER.debug(f"Stage {self.stage_name} finished")
             assert len(responses) == 1
             response = responses[0]
+
+            # FIXME: Why is parameters empty?
+            parameters = response.get("parameters", {})
+            if not parameters:
+                raise RuntimeError(f"ERROR: Response parameters from stage {self.stage_name} should not be empty!")
+
+            outputs = response.get("outputs")
+            if not outputs:
+                raise RuntimeError(f"ERROR: Response outputs from stage {self.stage_name} should not be empty!")
+
             request = InferenceRequest(
-                inputs=response["outputs"], parameters=response["parameters"]
+                inputs=outputs, parameters=parameters
             )
-            LOGGER.info(f"Next  stage {self.next_stage_name} execution")
+            LOGGER.info(f"Next stage {self.next_stage_name} execution")
             async for response in self.remote_model_connector.inference(
                 model_name=self.next_stage_name, request=request
             ):
@@ -104,6 +114,8 @@ class PiplineStageExecutor:
                 return_callable,
             ) = await self.request_converter.adapt_request(raw_request)
 
+            # FIXME
+            LOGGER.debug(f"process_requests: {remote_request.parameters=}")
             request, return_result = {
                 "inputs": inputs,
                 "parameters": remote_request.parameters,

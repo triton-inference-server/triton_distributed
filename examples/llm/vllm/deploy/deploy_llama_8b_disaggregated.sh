@@ -16,13 +16,18 @@ export PYTHONUNBUFFERED=1
 
 export NATS_HOST=localhost
 export NATS_PORT=4223
+export NATS_STORE="$(mktemp -d)"
 export API_SERVER_HOST=localhost
 export API_SERVER_PORT=8005
 
 
 # Start NATS Server
+echo "Flushing NATS store: ${NATS_STORE}..."
+rm -r "${NATS_STORE}"
+
 echo "Starting NATS Server..."
-nats-server -p ${NATS_PORT} --jetstream &
+nats-server -p ${NATS_PORT} --jetstream --store_dir "${NATS_STORE}" &
+
 
 # Start API Server
 echo "Starting LLM API Server..."
@@ -37,6 +42,7 @@ python3 -m llm.api_server \
 CUDA_VISIBLE_DEVICES=0 \
 VLLM_WORKER_ID=0 \
 echo "Starting vLLM context workers..."
+# FIXME: Reconsider --log-dir default
 python3 -m llm.vllm.deploy \
   --context-worker-count ${VLLM_CONTEXT_WORKERS} \
   --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
@@ -50,12 +56,14 @@ python3 -m llm.vllm.deploy \
   --max-batch-size 10000 \
   --gpu-memory-utilization 0.9 \
   --context-tp-size ${VLLM_CONTEXT_TP_SIZE} \
-  --generate-tp-size ${VLLM_GENERATE_TP_SIZE} &
+  --generate-tp-size ${VLLM_GENERATE_TP_SIZE} \
+  --log-dir "" &
 
 # Start VLLM Worker 1
 echo "Starting vLLM generate workers..."
 CUDA_VISIBLE_DEVICES=1 \
 VLLM_WORKER_ID=1 \
+# FIXME: Reconsider --log-dir default
 python3 -m llm.vllm.deploy \
   --generate-worker-count ${VLLM_GENERATE_WORKERS} \
   --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
@@ -69,7 +77,8 @@ python3 -m llm.vllm.deploy \
   --max-batch-size 10000 \
   --gpu-memory-utilization 0.9 \
   --context-tp-size ${VLLM_CONTEXT_TP_SIZE} \
-  --generate-tp-size ${VLLM_GENERATE_TP_SIZE} &
+  --generate-tp-size ${VLLM_GENERATE_TP_SIZE} \
+  --log-dir "" &
 
 # Give deployment a minute to spin up
 echo "Waiting for deployment to finish startup..."
