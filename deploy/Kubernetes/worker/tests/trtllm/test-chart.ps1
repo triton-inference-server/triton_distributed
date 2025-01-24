@@ -123,8 +123,11 @@ $tests = @(
     }
   )
 
+$is_pass = $false
+
 try {
-  test_helm_chart 'deploy/Kubernetes/worker/charts/trtllm' 'deploy/Kubernetes/worker/tests/trtllm' $tests
+  $is_pass = test_helm_chart 'deploy/Kubernetes/worker/charts/trtllm' 'deploy/Kubernetes/worker/tests/trtllm' $tests
+  write-debug "is_pass: ${is_pass}."
 }
 catch {
   if ($is_debug) {
@@ -136,3 +139,9 @@ catch {
 
 # Clean up any NVBUILD environment variables left behind by the build.
 cleanup_after
+
+if (-not $is_pass) {
+  exit(1)
+}
+
+exit(0)
