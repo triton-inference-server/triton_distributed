@@ -14,46 +14,68 @@
 # limitations under the License.
 
 import logging
-import sys
+import logging.config
+from typing import Any
 
-LOGGER_NAME = "Triton Distributed Worker"
+_LOGGER_NAME = "Triton Distributed Worker"
+
+_FHANDLER_CONFIG_TEMPLATE = {
+    "class": "logging.FileHandler",
+    "formatter": "standard",
+}
+
+_LOGGER_CONFIG_TEMPLATE = {"handlers": ["console"], "propagate": True}
+
+_LOGGING_CONFIG_TEMPLATE = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+            "datefmt": "%H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+            "stream": "ext://sys.stdout",
+        }
+    },
+}
 
 
-class LogFormatter(logging.Formatter):
-    """Class to handle formatting of the logger outputs"""
-
-    def __init__(self, logger_name=LOGGER_NAME):
-        logger = logging.getLogger(logger_name)
-        self._log_level = logger.getEffectiveLevel()
-        self._logger_name = logger_name
-        super().__init__(datefmt="%H:%M:%S")
-
-    def format(self, record):
-        front = "%(asctime)s.%(msecs)03d %(filename)s:%(lineno)s"
-        self._style._fmt = f"{front} [{self._logger_name}] %(levelname)s: %(message)s"
-        return super().format(record)
-
-
-def get_logger(log_level=1, logger_name=LOGGER_NAME, log_file=None):
-    if log_level == 0:
-        log_level = logging.ERROR
-    elif log_level == 1:
-        log_level = logging.INFO
-    else:
-        log_level = logging.DEBUG
-
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(level=log_level)
-
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(LogFormatter(logger_name=logger_name))
-    logger.addHandler(handler)
+def get_logger_config(log_level=1, logger_name=_LOGGER_NAME, log_file=None):
+    config_dict: dict[str, Any] = _LOGGING_CONFIG_TEMPLATE
+    front = "%(asctime)s.%(msecs)03d %(filename)s:%(lineno)s"
+    config_dict["formatters"]["standard"][
+        "format"
+    ] = f"{front} [{logger_name}] %(levelname)s: %(message)s"
 
     if log_file:
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(LogFormatter(logger_name=logger_name))
-        logger.addHandler(file_handler)
+        fh_config_dict = _FHANDLER_CONFIG_TEMPLATE
+        fh_config_dict["filename"] = str(log_file)
+        config_dict["handlers"]["file"] = fh_config_dict
 
-    logger.propagate = True
+    logger_config: dict[str, Any] = _LOGGER_CONFIG_TEMPLATE
+    if log_file:
+        logger_config["handlers"].append("file")
 
+    config_dict["loggers"] = {}
+    config_dict["loggers"][logger_name] = logger_config
+
+    return config_dict
+
+
+def get_logger(log_level=1, logger_name=_LOGGER_NAME, log_file=None):
+    if log_level == 0:
+        level = logging.ERROR
+    elif log_level == 1:
+        level = logging.INFO
+    else:
+        level = logging.DEBUG
+    config_dict = get_logger_config(log_level, logger_name, log_file)
+    logging.config.dictConfig(config_dict)
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(level=level)
     return logger

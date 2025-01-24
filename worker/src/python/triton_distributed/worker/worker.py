@@ -30,7 +30,7 @@ from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
-from triton_distributed.worker.logger import get_logger
+from triton_distributed.worker.logger import get_logger, get_logger_config
 from triton_distributed.worker.operator import Operator, OperatorConfig
 from triton_distributed.worker.remote_request import (
     RemoteInferenceRequest,
@@ -329,7 +329,17 @@ class Worker:
         from fastapi.responses import PlainTextResponse
 
         app = FastAPI()
-        config = uvicorn.Config(app, port=self._metrics_port)
+        log_config = get_logger_config(
+            logger_name="uvicorn.error",
+            log_level=self._log_level,
+            log_file=self._log_file,
+        )
+        config = uvicorn.Config(
+            app,
+            port=self._metrics_port,
+            log_level=self._log_level,
+            log_config=log_config,
+        )
         server = uvicorn.Server(config)
 
         @app.get("/metrics", response_class=PlainTextResponse)
@@ -362,11 +372,7 @@ class Worker:
 
     def start(self):
         exit_condition = None
-        if self._log_file:
-            logger = get_logger(log_level=self._log_level, log_file=self._log_file)
-        else:
-            logger = get_logger(log_level=self._log_level)
-
+        logger = get_logger(log_level=self._log_level, log_file=self._log_file)
         logger.info(f"Starting Worker ==> {self._name}")
         loop = asyncio.get_event_loop()
         loop.set_exception_handler(Worker.exception_handler)
