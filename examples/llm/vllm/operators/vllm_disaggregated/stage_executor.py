@@ -70,9 +70,10 @@ class PiplineStageExecutor:
             if not parameters:
                 raise RuntimeError(f"ERROR: Response parameters from stage {self.stage_name} should not be empty!")
 
-            outputs = response.get("outputs")
+            # FIXME
+            outputs = response.get("outputs", {})
             if not outputs:
-                raise RuntimeError(f"ERROR: Response outputs from stage {self.stage_name} should not be empty!")
+                print("DEBUG: Response outputs were empty, but parameters may be used instead")
 
             request = InferenceRequest(
                 inputs=outputs, parameters=parameters
