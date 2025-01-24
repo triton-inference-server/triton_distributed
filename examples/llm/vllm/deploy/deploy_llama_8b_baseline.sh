@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FIXME: Convert this script to README steps 
+# FIXME: Convert this script to README steps
 
 export VLLM_ATTENTION_BACKEND=FLASHINFER
 export VLLM_WORKER_MULTIPROC_METHOD=spawn

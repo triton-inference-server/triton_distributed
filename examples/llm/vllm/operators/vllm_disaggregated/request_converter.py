@@ -37,6 +37,7 @@ from triton_distributed.worker.remote_response import RemoteInferenceResponse
 
 from .remote_connector import RemoteConnector
 
+
 class LocalModel(BaseModel):
     name: str
     version: str

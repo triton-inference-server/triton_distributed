@@ -37,7 +37,6 @@ from triton_distributed.worker.remote_request import (
     RemoteInferenceRequest,
     RemoteResponseSender,
 )
-
 from triton_distributed.worker.triton_core_operator import TritonCoreOperator
 
 if TYPE_CHECKING:
@@ -140,7 +139,10 @@ class Worker:
                     logger_name=f"OPERATOR{(operator_config.name,operator_config.version)}",
                 )
 
-                if (class_ == TritonCoreOperator or issubclass(class_, TritonCoreOperator)) and not self._triton_core:
+                if (
+                    class_ == TritonCoreOperator
+                    or issubclass(class_, TritonCoreOperator)
+                ) and not self._triton_core:
                     self._triton_core = tritonserver.Server(
                         model_repository=".",
                         log_error=True,
@@ -149,7 +151,7 @@ class Worker:
                         model_control_mode=tritonserver.ModelControlMode.EXPLICIT,
                         log_file=self._triton_log_path,
                     ).start(wait_until_ready=True)
-                
+
                 operator = class_(
                     operator_config.name,
                     operator_config.version,

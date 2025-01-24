@@ -18,8 +18,11 @@ import sys
 import time
 from pathlib import Path
 
-from llm.vllm.operators.dummy import DummyOperator
-from llm.vllm.operators.vllm import VllmContextOperator, VllmGenerateOperator, VllmBaselineOperator
+from llm.vllm.operators.vllm import (
+    VllmBaselineOperator,
+    VllmContextOperator,
+    VllmGenerateOperator,
+)
 
 from triton_distributed.worker import Deployment, OperatorConfig, WorkerConfig
 
@@ -62,6 +65,7 @@ def _create_generate_op(name, args, max_inflight_requests):
         parameters=vars(args),
     )
 
+
 def _create_baseline_op(name, args, max_inflight_requests):
     return OperatorConfig(
         name=name,
@@ -69,6 +73,7 @@ def _create_baseline_op(name, args, max_inflight_requests):
         max_inflight_requests=int(max_inflight_requests),
         parameters=vars(args),
     )
+
 
 def main(args):
     global deployment
@@ -98,7 +103,6 @@ def main(args):
             name="generate",
         )
         worker_configs.append((generate, 1))
-
 
     # NOTE: Launching baseline worker and context/generate workers at
     # the same time is not currently supported.
