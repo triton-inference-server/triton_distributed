@@ -47,7 +47,7 @@
 {{- $request_plane_name := "triton-distributed_request-plane" }}
 {{- $request_plane_port := 30222 }}
 {{- $triton_cpu := 4 }}
-{{- $triton_ephemeral := "1Gi" }}
+{{- $triton_ephemeral := "98Gi" }}
 {{- $triton_gpu := 1 }}
 {{- $triton_logging_iso8601 := 0 }}
 {{- $triton_logging_verbose := 0 }}
@@ -166,8 +166,15 @@
 {{-     with .ephemeral }}
 {{-       $triton_ephemeral = . }}
 {{-     else }}
-{{-       if not $model_gen_host_enabled }}
-{{-          $triton_ephemeral = "97Gi" }}
+{{-       if $model_gen_host_enabled }}
+{{-         $triton_ephemeral = "2Gi" }}
+{{-       else }}
+{{-         $len := len $model_gen_quota }}
+{{-         $len = sub $len 2 }}
+{{-         $substr := substr 0 (int $len) $model_gen_quota }}
+{{-         $num := (int $substr) }}
+{{-         $num = add 2 $num }}
+{{-         $triton_ephemeral = printf "%dGi" $num }}
 {{-       end }}
 {{-     end }}
 {{-     with .gpu }}
