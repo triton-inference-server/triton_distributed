@@ -332,7 +332,7 @@ On the second node run the generate worker
 ```
 ./examples/llm/vllm/deploy/deploy_llama_8b_disaggregated.sh generate --head-url <head url>
 ```
-
+The example script is set by default to launch one context worker with TP 1 on the head node and one generate worker with TP 1 on the secondary node. This can be changed for other configurations - see the script for details.
 
 
 
