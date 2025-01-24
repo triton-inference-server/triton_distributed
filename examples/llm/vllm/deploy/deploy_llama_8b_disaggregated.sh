@@ -42,7 +42,6 @@ python3 -m llm.api_server \
 
 
 # Start VLLM Worker 0
-# FIXME: Reconsider --log-dir default
 echo "Starting vLLM context workers..."
 CUDA_VISIBLE_DEVICES=0 \
 VLLM_WORKER_ID=0 \
@@ -60,10 +59,9 @@ python3 -m llm.vllm.deploy \
   --gpu-memory-utilization 0.9 \
   --context-tp-size ${VLLM_CONTEXT_TP_SIZE} \
   --generate-tp-size ${VLLM_GENERATE_TP_SIZE} \
-  --log-dir "" &
+  --log-dir "/tmp/vllm_logs" &
 
 # Start VLLM Worker 1
-# FIXME: Reconsider --log-dir default
 echo "Starting vLLM generate workers..."
 CUDA_VISIBLE_DEVICES=1 \
 VLLM_WORKER_ID=1 \
@@ -81,7 +79,7 @@ python3 -m llm.vllm.deploy \
   --gpu-memory-utilization 0.9 \
   --context-tp-size ${VLLM_CONTEXT_TP_SIZE} \
   --generate-tp-size ${VLLM_GENERATE_TP_SIZE} \
-  --log-dir "" &
+  --log-dir "/tmp/vllm_logs" &
 
 # NOTE: It may take more than a minute for the vllm worker to start up
 # if the model weights aren't cached and need to be downloaded.
