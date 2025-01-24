@@ -27,7 +27,7 @@
 import asyncio
 import json
 import typing
-from typing import Optional, Any, Coroutine, List
+from typing import Any, Coroutine, List, Optional
 
 import numpy as np
 
