@@ -25,7 +25,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from typing import Optional
 
-from triton_distributed.icp.nats_request_plane import NatsRequestPlane
+
+from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
 
 # UCP data plane causes deadlocks when used more than once, so we use a singleton
@@ -57,7 +58,7 @@ class RemoteConnector:
 
     def __init__(
         self,
-        nats_url: str,
+        request_plane: RequestPlane,
         data_plane_host: Optional[str] = None,
         data_plane_port: int = 0,
         keep_dataplane_endpoints_open: bool = False,
@@ -70,8 +71,7 @@ class RemoteConnector:
         global _g_singletonic_data_plane
         global _g_actual_port
         global _g_actual_host
-        self._nats_url = nats_url
-        self._request_plane = NatsRequestPlane(nats_url)
+        self._request_plane = request_plane
         if _g_singletonic_data_plane is None:
             if _g_actual_host is not None:
                 data_plane_host = _g_actual_host
@@ -90,7 +90,6 @@ class RemoteConnector:
         global _g_singletonic_data_plane
         global _g_singletonic_data_plane_connection_count
         assert _g_singletonic_data_plane
-        await self._request_plane.connect()
         if _g_singletonic_data_plane_connection_count == 0:
             _g_singletonic_data_plane.connect()
         _g_singletonic_data_plane_connection_count += 1

@@ -20,7 +20,7 @@ class _ProfileState(enum.Enum):
 
 
 class PiplineStageExecutor:
-    def __init__(self, args, stage, stage_name, next_stage_name=None):
+    def __init__(self, args, request_plane, stage, stage_name, next_stage_name=None):
         self.args = args
         self.stage = stage
         self.stage_name = stage_name
@@ -28,7 +28,7 @@ class PiplineStageExecutor:
         self.next_stage_name = next_stage_name
         self.remote_model_connector = (
             RemoteModelConnector(
-                nats_url=self.args.nats_url,
+                request_plane=request_plane,
                 model_name=self.next_stage_name,
                 keep_dataplane_endpoints_open=True,
             )
@@ -36,7 +36,7 @@ class PiplineStageExecutor:
             else None
         )
         self.request_converter = RequestConverter(
-            nats_url=self.args.nats_url,
+            request_plane=request_plane,
             keep_dataplane_endpoints_open=True,
             model_name=self.args.worker_name,
         )
