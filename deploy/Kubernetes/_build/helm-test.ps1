@@ -17,13 +17,114 @@ set-strictmode -version latest
 
 . "$(& git rev-parse --show-toplevel)/deploy/Kubernetes/_build/common.ps1"
 
-function test_helm_chart([string] $chart_path, [string] $tests_path, [object[]] $test_set) {
-  write-debug "<test_helm_chart> chart_path = '${chart_path}'."
-  write-debug "<test_helm_chart> tests_path = '${tests_path}'."
-  write-debug "<test_helm_chart> test_set = [$($test_set.count)]"
+function initialize_test([string] $component_kind, [string] $component_name, [string[]]$params, [object[]] $tests) {
+  write-debug "<initialize_test> component_kind: ${component_kind}."
+  write-debug "<initialize_test> component_name: ${component_name}."
+  write-debug "<initialize_test> params.count: $($params.count)."
+  write-debug "<initialize_test> tests.count: $($tests.count)."
 
-  $chart_path = to_local_path $chart_path
-  $tests_path = to_local_path $tests_path
+  $is_debug = $false
+  $test_filter = @()
+
+  for ($i = 0 ; $i -lt $params.count ; $i += 1) {
+    $arg = $params[$i]
+
+    if ('--debug' -ieq $arg) {
+      $is_debug = $true
+    }
+    elseif ('--list' -ieq $arg)
+    {
+      write-minimal "Available tests:"
+
+      foreach ($test in $tests) {
+        write-minimal "- $($test.name)"
+      }
+
+      exit(0)
+    }
+    elseif (('--test' -ieq $arg) -or ('-t' -ieq $arg))
+    {
+      if ($i + 1 -ge $params.count) {
+        usage_exit "Expected value following ""{$arg}""."
+      }
+
+      $i += 1
+      $test_name = $params[$i]
+      $test_found = $false
+
+      $parts = $test_name.split('/')
+      if ($parts.count -gt 1) {
+        $test_name = $parts[$parts.count - 1]
+      }
+
+      foreach ($test in $tests) {
+        if ($test.name -ieq $test_name) {
+          $test_found = $true
+          break
+        }
+      }
+
+      if (-not $test_found) {
+        usage_exit "Unknown test name ""${test_name}"" provided."
+      }
+
+      $test_filter += $test_name
+    }
+    elseif (('--verbose' -ieq $arg) -or ('-v' -ieq $arg)) {
+      set_verbosity('DETAILED')
+    }
+    else {
+      usage_exit "Unknown option '${arg}'."
+    }
+  }
+
+  $is_debug = $is_debug -or $(is_debug)
+  if ($is_debug) {
+    $DebugPreference = 'Continue'
+  }
+  else {
+    $DebugPreference = 'SilentlyContinue'
+  }
+
+  if (-not ($(get_verbosity) -eq 'MINIMAL' -and $(is_tty))) {
+    set_verbosity('DETAILED')
+  }
+
+  # When a subset of tests has been requested, filter out the not requested tests.
+  if ($test_filter.count -gt 0) {
+    write-debug "<test-chart> selected.count: $($test_filter.count)."
+
+    $replace = @()
+
+    # Find the test that matches each selected item and add it to a replacement list.
+    foreach ($filter in $test_filter) {
+      foreach ($test in $tests) {
+        if ($test.name -ieq $filter) {
+          $replace += $test
+          break
+        }
+      }
+    }
+
+    # Replace the test list with the replacement list.
+    $tests = $replace
+  }
+
+  return @{
+    component = $component_kind
+    name = $component_name
+    is_debug = $is_debug
+    tests = $tests
+  }
+}
+
+function test_helm_chart([object] $config) {
+  write-debug "<test_helm_chart> config.component = '$($config.component)'."
+  write-debug "<test_helm_chart> config.name = '$($config.name)'."
+  write-debug "<test_helm_chart> config.count = [$($config.tests.count)]"
+
+  $chart_path = to_local_path "deploy/Kubernetes/$($config.component)/charts/$($config.name)"
+  $tests_path = to_local_path "deploy/Kubernetes/$($config.component)/tests/$($config.name)"
 
   push-location $chart_path
 
@@ -31,7 +132,7 @@ function test_helm_chart([string] $chart_path, [string] $tests_path, [object[]] 
     $fail_count = 0
     $pass_count = 0
 
-    foreach ($test in $test_set) {
+    foreach ($test in $config.tests) {
       $helm_command = 'helm template test -f ./values.yaml'
       write-debug "<test_helm_chart> helm_command = '${helm_command}'."
 
@@ -82,11 +183,11 @@ function test_helm_chart([string] $chart_path, [string] $tests_path, [object[]] 
 
       if ($is_pass) {
         $pass_count += 1
-        write-passed "$($test.name)"
+        write-passed "$($config.component)/$($config.name)/$($test.name)"
       }
       else {
         $fail_count += 1
-        write-failed "$($test.name)"
+        write-failed "$($config.component)/$($config.name)/$($test.name)"
       }
     }
   }
@@ -99,12 +200,12 @@ function test_helm_chart([string] $chart_path, [string] $tests_path, [object[]] 
   pop-location
 
   if ($fail_count -gt 0) {
-    write-minimal "Failed: ${fail_count}, Passed: ${pass_count}, Total: $($tests.count)" 'Red'
+    write-minimal "Failed: ${fail_count}, Passed: ${pass_count}, Total: $($config.tests.count)" 'Red'
     return $false
   }
   else
   {
-    write-minimal "Passed: ${pass_count}, Total: $($tests.count)" 'Green'
+    write-minimal "Passed: ${pass_count}, Total: $($config.tests.count)" 'Green'
     return $true
   }
 }

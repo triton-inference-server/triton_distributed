@@ -17,32 +17,9 @@ set-strictmode -version latest
 
 . "$(& git rev-parse --show-toplevel)/deploy/Kubernetes/_build/helm-test.ps1"
 
-$is_debug = $false
-
-for ($i = 0 ; $i -lt $args.count ; $i += 1) {
-  $arg = $args[$i]
-  if ('--debug' -ieq $arg) {
-    $is_debug = $true
-  }
-  elseif (('--verbose' -ieq $arg) -or ('-v' -ieq $arg)) {
-    set_verbosity('DETAILED')
-  }
-  else {
-    fatal-exit "Unknown option '${arg}'."
-  }
-}
-
-$is_debug = $is_debug -or $(is_debug)
-if ($is_debug) {
-  $DebugPreference = 'Continue'
-}
-else {
-  $DebugPreference = 'SilentlyContinue'
-}
-
 $tests = @(
     @{
-      name = 'worker/trtllm/basic'
+      name = 'basic'
       expected = 0
       matches = @(
           'helm.sh/chart: "triton-distributed_worker-trtllm"[\n\r]{1,2}'
@@ -57,7 +34,7 @@ $tests = @(
       values = @('basic_values.yaml')
     }
     @{
-      name = 'worker/trtllm/basic_error'
+      name = 'basic_error'
       expected = 1
       matches = @(
           '- triton: componentName is required[\n\r]{1,2}'
@@ -67,7 +44,7 @@ $tests = @(
       values = @()
     }
     @{
-      name = 'worker/trtllm/volume_mounts'
+      name = 'volume_mounts'
       expected = 0
       matches = @(
           '- name: mount_w_path[\n\r ]+persistentVolumeClaim:[\n\r ]+claimName: w_path_pvc[\n\r]{1,2}'
@@ -82,7 +59,7 @@ $tests = @(
         )
     }
     @{
-      name = 'worker/trtllm/bad_volume_mounts'
+      name = 'bad_volume_mounts'
       expected = 1
       matches = @(
           '- modelRepository.volumeMounts.0: persistentVolumeClaim is required'
@@ -94,7 +71,7 @@ $tests = @(
         )
     }
     @{
-      name = 'worker/trtllm/host_cache'
+      name = 'host_cache'
       expected = 0
       matches = @(
           'ephemeral-storage: 2Gi[\n\r]{1,2}'
@@ -108,7 +85,7 @@ $tests = @(
         )
     }
     @{
-      name = 'worker/trtllm/host_cache'
+      name = 'non-host_cache'
       expected = 0
       matches = @(
           'ephemeral-storage: 202Gi[\n\r]{1,2}'
@@ -123,10 +100,20 @@ $tests = @(
     }
   )
 
+  $config = initialize_test 'worker' 'trtllm' $args $tests
+
+if ($config.is_debug) {
+  $DebugPreference = 'Continue'
+}
+else {
+  $DebugPreference = 'SilentlyContinue'
+}
+
+# Being w/ the state of not having passed.
 $is_pass = $false
 
 try {
-  $is_pass = test_helm_chart 'deploy/Kubernetes/worker/charts/trtllm' 'deploy/Kubernetes/worker/tests/trtllm' $tests
+  $is_pass = $(test_helm_chart $config)
   write-debug "is_pass: ${is_pass}."
 }
 catch {
