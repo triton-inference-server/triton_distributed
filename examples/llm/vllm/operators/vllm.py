@@ -121,4 +121,7 @@ class VllmBaselineOperator(Operator):
         self.executor = PiplineStageExecutor(args, stage, "baseline")
 
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
+        import sys
+        print("=== BASELINE OPERATOR EXECUTE ===", sys.stdout)
+        print("=== BASELINE OPERATOR EXECUTE ===", sys.stderr)
         await self.executor.process_requests(requests)

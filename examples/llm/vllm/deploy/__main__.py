@@ -72,8 +72,10 @@ def _create_baseline_op(name, args, max_inflight_requests):
 
 def main(args):
     global deployment
-    log_dir = Path(args.log_dir)
-    log_dir.mkdir(exist_ok=True)
+
+    if args.log_dir:
+        log_dir = Path(args.log_dir)
+        log_dir.mkdir(exist_ok=True)
 
     worker_configs = []
     # Context/Generate workers used for Disaggregated Serving

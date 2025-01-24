@@ -49,7 +49,8 @@ python3 -m llm.vllm.deploy \
   --max-model-len 1000 \
   --max-batch-size 10000 \
   --gpu-memory-utilization 0.9 \
-  --baseline-tp-size ${VLLM_BASELINE_TP_SIZE}
+  --baseline-tp-size ${VLLM_BASELINE_TP_SIZE} \
+  --log-dir ""
 
 # Give deployment a minute to spin up
 echo "Waiting for deployment to finish startup..."

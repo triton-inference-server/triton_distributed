@@ -196,7 +196,7 @@ class NatsRequestPlane(RequestPlane):
         Optional[nats.js.JetStreamContext.PullSubscription],
     ]:
         if self._jet_stream is None:
-            raise InvalidArgumentError("Not Connected!")
+            raise InvalidArgumentError("Failed to get model stream: NATS Jetstream not connected!")
 
         if (model_name, model_version) in self._model_streams:
             return self._model_streams[(model_name, model_version)]
@@ -326,7 +326,7 @@ class NatsRequestPlane(RequestPlane):
         responses: AsyncIterator[ModelInferResponse] | ModelInferResponse,
     ):
         if self._jet_stream is None:
-            raise InvalidArgumentError("Not Connected!")
+            raise InvalidArgumentError("Failed to post response: NATS Jetstream not connected!")
 
         request_id = get_icp_request_id(request)
         if request_id is None:
@@ -367,7 +367,7 @@ class NatsRequestPlane(RequestPlane):
         ] = None,
     ) -> AsyncIterator[ModelInferResponse]:
         if self._jet_stream is None:
-            raise InvalidArgumentError("Not Connected!")
+            raise InvalidArgumentError("Failed to post request: NATS Jetstream not connected!")
 
         if response_iterator and response_handler:
             raise InvalidArgumentError(

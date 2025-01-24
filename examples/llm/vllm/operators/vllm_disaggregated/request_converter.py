@@ -201,10 +201,13 @@ class RequestConverter:
         if local_model is None:
             local_model = self._local_model
 
+        # FIXME: Connection to NATS Server?
         if isinstance(request, RemoteInferenceRequest):
+            print("DEBUG: Received RemoteInferenceRequest")
             remote_request = request
             request = remote_request.to_model_infer_request()
         else:
+            print(f"DEBUG: Received {type(request)=}")
             remote_request = RemoteInferenceRequest.from_model_infer_request(
                 request,
                 self._connector._data_plane,
@@ -235,9 +238,16 @@ class RequestConverter:
                 if parameters is not None:
                     infer_kwargs["parameters"] = parameters
                 local_response = TritonInferenceResponse(**infer_kwargs)
+                # FIXME
                 remote_response = RemoteInferenceResponse.from_local_response(
                     local_response,
                 ).to_model_infer_response(self._connector._data_plane)
+                # FIXME
+                print("DEBUG: Request Converter posting response to NATS")
+                # REMOVEME
+                if not self._connector._connected:
+                    await self.connect()
+
                 await self._connector._request_plane.post_response(
                     request,
                     remote_response,
