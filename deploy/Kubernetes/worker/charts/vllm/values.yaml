@@ -1,0 +1,146 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# `image` contains configuration options related to the Triton Distributed Worker container image.
+image: # (required)
+  # `image.pullSecrets` is an optional list of pull secrets to be used when downloading the Triton Distributed Worker container image.
+  pullSecrets: [] # (optional)
+  # - name: pull-secret-name
+  # `image.name` is the name of the container image containing the version of Triton Distributed Worker container image to be used.
+  name: # (required)
+
+# `kubernetes` contains configurations option related to the Kubernetes objects created by the chart.
+kubernetes: # (optional)
+  # `kubernetes.annotations` is an optional set of annotations to be applied to create Kubernetes objects.
+  annotations: [] # (optional)
+  # `kubernetes.checks` are optional configuration options controlling how the cluster monitors the health of Triton Distributed Worker deployment(s).
+  checks:
+    # `kubernetes.checks.liveness` are configuration options related to how the cluster determines that a Triton Distributed Worker instance is "alive" and responsive.
+    liveness:
+      # `kubernetes.checks.liveness.enabled` when `true`, instructs the cluster will actively determine if the pod is alive; otherwise the cluster will always assume the pod is alive.
+      enabled: # (default true)
+      # `kubernetes.checks.liveness.failureThreshold` is the number of failed responses required to determine a pod is not responsive (aka "alive").
+      failureThreshold: # (default 15)
+      # `kubernetes.checks.liveness.initialDelaySeconds` is the minimum wait before the cluster beings to attempt to determine the health of the pod.
+      initialDelaySeconds: # (default 10)
+      # `kubernetes.checks.liveness.periodSeconds` is the minimum period between attempts to determine the health of the pod.
+      periodSeconds: # (default 2)
+      # `kubernetes.checks.liveness.successThreshold` is the number of successful responses required to determine that a pod is healthy.
+      successThreshold: # (default 1)
+    # `kubernetes.checks.readiness` contains configuration options related to how the cluster determines that a Triton Distributed Worker instance is ready.
+    readiness:
+      # `kubernetes.checks.readiness.enabled` when `true`, instructs the cluster will actively determine if the pod is ready; otherwise the cluster will always assume the pod is ready.
+      enabled: # (default true)
+      # `kubernetes.checks.readiness.failureThreshold` is the number of failed responses required to determine a pod is not responsive (aka "ready").
+      failureThreshold: # (default 15)
+      # `kubernetes.checks.readiness.initialDelaySeconds` is the minimum wait before the cluster beings to attempt to determine the readiness of the pod.
+      initialDelaySeconds: # (default 10)
+      # `kubernetes.checks.readiness.periodSeconds` is the minimum period between attempts to determine the readiness of the pod.
+      periodSeconds: # (default 2)
+      # `kubernetes.checks.readiness.successThreshold` is the number of successful responses required to determine that a pod is ready.
+      successThreshold: # (default 1)
+  # `kubernetes.labels` is an optional set of labels to be applied to created Kubernetes objects.
+  # These labels can be used for association with a preexisting service object.
+  labels: [] # (optional)
+  # `kubernetes.partOf` is an optional value to be used with the `app.kubernetes.io/part-of` label on created Kubernetes objects.
+  partOf: # (default: triton-distributed)
+  # `kubernetes.tolerations` are tolerations applied to every pod deployed as part of this deployment.
+  # Template already includes `nvidia.com/gpu=present:NoSchedule` when `resources.gpu` is specified.
+  tolerations: [] # (optional)
+
+# `modelRepository` contains configuration options related to the model repository used by the Triton Distributed Worker to load model(s).
+modelRepository: # (optional)
+  # `modelRepository.path` is a local file-system path within the container to the model repository.
+  # When `persistentVolumeClaim` is specified, this is the path to which the PVC will be mounted.
+  path: # (default: /var/run/models)
+  # `modelRepository.volumeMounts` are persistent volumes (PV) to be mounted with the Triton Distributed Worker container.
+  volumeMounts: [] # (optional)
+  #   # `modelRepository.volumeMounts.name` is the name to associate the volume mount with. Volume mount names must be unique and cannot contain spaces or special characters.
+  # - name: # (required)
+  #   # `modelRepository.volumeMounts.path` is the file-system path relative to model repository's root path to which the volume will be mounted to.
+  #   # When not provided, the volume is mounted to the root of the repository.
+  #   # Overlapping mount paths can cause errors during container deployment.
+  #   path: # (optional)
+  #   # `modelRepository.volumeMounts.persistentVolumeclaim` is the name of the persistent volume claim (PVC) used to mount a folder containing the model(s) Triton will load.
+  #   persistentVolumeClaim: # (required)
+
+# `triton` contains configuration options related to the operation of Triton Distributed Worker.
+triton: # (required)
+  # `triton.componentName` is the name of the Triton Distributed Worker in the distributed deployment.
+  componentName: # (required)
+  # `triton.distributed` contains configuration options related to organization of Triton Distributed workflows.
+  distributed:
+    # `triton.distributed.requestPlane` contains configuration options related to connecting the Triton Distributed Worker to its Triton Distributed Request Plane.
+    requestPlane:
+      # `triton.distributed.requestPlane.serverKind` is the "kind" of server providing Triton Distributed Request Plane functionality.
+      # Supported options: `nats-io`.
+      serverKind: # (default nats-io)
+      # `triton.distributed.requestPlane.serviceName` is the name of the Kubernetes Service handling DNS routing for the Triton Distributed Request Plane instances.
+      # The service name will be used to resolve the network communication addressing within the cluster (example: <serviceName>.svc.cluster.local).
+      serviceName: # (default triton-distributed_request-plane)
+      # `triton.distributed.requestPlane.servicePort` is the networking port to be used to interact with the Triton Distributed Request Plane.
+      servicePort: # (default 30222)
+  # `triton.instance` are optional configuration options related to the number of Triton Distributed Worker pods are deployed.
+  instance:
+    # `triton.instance.count` is the number of worker instances (whole model) to be deployed as part of this helm chart.
+    count: # (default 1)
+    # `triton.instance.parallelism` contains optional configuration options related to how work for a single model is spread across multiple pods.
+    # When the product of `pipeline`*`tensor` is greater than 1, multiple pods will be deployed as a single logical worker.
+    parallelism:
+      # `triton.instance.parallelism.pipeline` specifies the level of pipeline parallelism used by the model hosted by the Triton Distributed Worker.
+      # Pipeline parallelism involves sharding the model (vertically) into chunks, where each chunk comprises a subset of layers that is executed on a separate device.
+      pipeline: # (default 1)
+      # `triton.instance.parallelism.tensor` specifies the level of tensor parallelism used by the model hosted by the Triton Distributed Worker.
+      # Tensor parallelism involves sharding (horizontally) individual layers of the model into smaller, independent blocks of computation that can be executed on different devices.
+      tensor: # (default 1)
+  # `triton.logging` contains logging configuration options specific to Triton Distributed Worker.
+  logging: # (optional)
+    # `triton.logging.useIso8601` when `true`, instructs Triton Distributed Worker logs are formatted using the ISO8601 standard; otherwise Triton's default format will be used.
+    useIso8601: # (default: false)
+    # `triton.logging.verbose` when `true`, instructs Triton Distributed Worker uses verbose logging; otherwise standard logging is used.
+    verbose: # (default: false)
+  # `triton.ports` contains configuration options for the management of the Triton Distributed Worker exposed.
+  ports: # (optional)
+    # `triton.ports.data` is the container port exposed to enable Triton Distributed Worker data-plane operations.
+    data: # (default 9346)
+    # `triton.ports.health` is the container port exposed to enable Triton Distributed Worker Kubernetes health reporting.
+    health: # (default 8000)
+    # `triton.ports.metrics` is the container port exposed to enable Triton Distributed Worker metrics reporting.
+    metrics: # (default 9347)
+    # `triton.ports.request` is the container port exposed to enable Triton Distributed Worker request-plane operations.
+    request: # (default 9345)
+  # `triton.resources` contains configuration options related to the resources assigned to Triton Distributed Worker and loaded model(s).
+  resources: # (optional)
+    # `triton.resources.cpu` is the number of logical CPU cores required by the Triton Distributed Worker and loaded model(s).
+    cpu: # (default: 4)
+    # `triton.resources.ephemeral` is the ephemeral storage (aka local disk usage) allowance.
+    # Ephemeral storage MUST include any shared memory allocated to Triton Distributed Worker.
+    # Value must be provided in Kubernetes' unit notation.
+    ephemeral: # (default: 1Gi)
+    # `triton.resources.gpu` contains configuration options related GPU resources to be assigned to the Triton Distributed Worker and loaded model(s).
+    gpu: # (optional)
+      # `triton.resources.gpu.count` specifies the number of GPUs required by the Triton Distributed Worker and loaded model(s).
+      count: # (default: 1)
+      # `triton.resources.gpu.product` defines list of the supported GPUs to which Triton Distributed Worker instance(s) can be deployed.
+      # Value must match the node's `.metadata.labels.nvidia.com/gpu.product` label provided by the NVIDIA GPU Discovery Service.
+      # Run 'kubectl get nodes' to find node names.
+      # Run 'kubectl describe node <node_name>' to inspect a node's labels.
+      product: [] # (optional)
+    # `triton.resources.memory` specifies the amount of CPU visible (aka host) memory available to the Triton Distributed Worker and loaded model(s).
+    # Value must be provided in Kubernetes' unit notation.
+    memory: # (default: 16Gi)
+    # `triton.resources.sharedMemory` specifies about amount of shared CPU visible (aka host) memory available the Triton Distributed Worker and loaded model(s).
+    # Value must be provided in Kubernetes' unit notation.
+    sharedMemory: # (default: 512Mi)
