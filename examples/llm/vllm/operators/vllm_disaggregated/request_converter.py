@@ -49,10 +49,10 @@ class RequestConverter:
     def __init__(
         self,
         nats_url: str,
+        model_name: str,
         data_plane_host: Optional[str] = None,
         data_plane_port: int = 0,
         keep_dataplane_endpoints_open: bool = False,
-        model_name: Optional[str] = None,
     ):
         """Initialize RequestAdapter.
 

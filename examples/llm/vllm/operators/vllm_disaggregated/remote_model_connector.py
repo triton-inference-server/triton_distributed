@@ -97,6 +97,7 @@ class RemoteModelConnector(BaseTriton3Connector):
     async def close(self):
         """Disconnect from Triton 3 server."""
         await self._connector.close()
+        self._model = None
 
     async def __aenter__(self):
         """Enter context manager."""
@@ -122,7 +123,7 @@ class RemoteModelConnector(BaseTriton3Connector):
         Raises:
             TritonInferenceError: error occurred during inference.
         """
-        if not self._connector._connected:
+        if not self._connector._connected or self._model is None:
             await self.connect()
         else:
             if self._model_name != model_name:

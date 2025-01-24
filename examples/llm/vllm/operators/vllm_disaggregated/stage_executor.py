@@ -92,7 +92,7 @@ class PiplineStageExecutor:
         LOGGER.info(
             f"Start handling requests stage_name {self.stage_name} args {self.args}"
         )
-        async with self.request_converter, self.remote_model_connector if self.is_context_stage else nullcontext():
+        async with self.request_converter, self.remote_model_connector or nullcontext():
             LOGGER.info(f"Stage {self.stage_name} starts pulling")
             async for request, return_result in self.request_converter.pull(
                 model_name=self.args.worker_name
