@@ -148,13 +148,15 @@ class Worker:
                     class_ == TritonCoreOperator
                     or issubclass(class_, TritonCoreOperator)
                 ) and not self._triton_core:
-                    if not self._consolidated_logs:
+                    if not self._consolidated_logs and self._log_file:
                         log_file = pathlib.Path(self._log_file)
                         stem = log_file.stem
                         suffix = log_file.suffix
-                        triton_log_path = log_file.parent / f"{stem}.triton{suffix}"
+                        triton_log_path = str(
+                            log_file.parent / f"{stem}.triton{suffix}"
+                        )
                     else:
-                        triton_log_path = self._log_file
+                        triton_log_path = str(self._log_file)
                     self._triton_core = tritonserver.Server(
                         model_repository=".",
                         log_error=True,
@@ -256,7 +258,6 @@ class Worker:
         await asyncio.gather(*handlers)
 
     async def serve(self):
-        error = None
         try:
             await self._request_plane.connect()
         except Exception as e:
@@ -272,7 +273,7 @@ class Worker:
                 "Encountered and error when trying to connect to data plane"
             )
             raise e
-
+        error = None
         try:
             self._import_operators()
             logger.info("Worker started...")

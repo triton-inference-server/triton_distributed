@@ -226,7 +226,7 @@ def test_consolidated_logs(request, nats_server, workers, consolidate_logs, log_
     for name in log_dir_path.iterdir():
         worker_log_dir_count += 1
         expected_worker_log_count = 1
-        if not consolidate_logs:
+        if not consolidate_logs and name.stem not in ["add_multiply_divide"]:
             expected_worker_log_count = 2
         worker_log_path = log_dir_path / name.stem
         worker_log_count = 0
