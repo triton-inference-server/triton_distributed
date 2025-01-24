@@ -217,7 +217,6 @@ class RequestConverter:
                 error: Optional[str] = None,
                 final: Optional[bool] = False,
             ) -> None:
-                # FIXME
                 request_id = request.parameters["icp_request_id"].string_param
 
                 infer_kwargs = {

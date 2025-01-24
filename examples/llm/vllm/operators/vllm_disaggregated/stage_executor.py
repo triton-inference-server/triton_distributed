@@ -46,35 +46,30 @@ class PiplineStageExecutor:
 
     async def baseline_process(self, request, return_result):
         try:
-            print("Processing request")
+            LOGGER.debug("Processing request")
             async for response in self.stage(request):
-                print("Sending response")
+                LOGGER.debug("Sending response")
                 await return_result(**response)
-                print("Response send")
+                LOGGER.debug("Response send")
         except Exception as e:
             LOGGER.error(f"Error processing request: {e}")
             await return_result({"error": e, "final": True})
-        print("Processing finished")
+        LOGGER.debug("Processing finished")
 
     async def process(self, request, return_result):
-        print("Processing request")
+        LOGGER.debug("Processing request")
         try:
-            print(f"Stage {self.stage_name} execution")
+            LOGGER.debug(f"Stage {self.stage_name} execution")
             responses = list([response async for response in self.stage(request)])
-            print(f"Stage {self.stage_name} finished")
+            LOGGER.debug(f"Stage {self.stage_name} finished")
             assert len(responses) == 1
             response = responses[0]
 
-            # FIXME: Why is parameters empty?
             parameters = response.get("parameters", {})
             if not parameters:
                 raise RuntimeError(f"ERROR: Response parameters from stage {self.stage_name} should not be empty!")
 
-            # FIXME
             outputs = response.get("outputs", {})
-            if not outputs:
-                print("DEBUG: Response outputs were empty, but parameters may be used instead")
-
             request = InferenceRequest(
                 inputs=outputs, parameters=parameters
             )
@@ -82,13 +77,13 @@ class PiplineStageExecutor:
             async for response in self.remote_model_connector.inference(
                 model_name=self.next_stage_name, request=request
             ):
-                print(f"Stage {self.stage_name} sending response")
+                LOGGER.debug(f"Stage {self.stage_name} sending response")
                 await return_result(
                     outputs=response.outputs,
                     final=response.final,
                     parameters={"text": response.parameters["text"]},
                 )
-                print(f"Stage {self.stage_name} sended response")
+                LOGGER.debug(f"Stage {self.stage_name} sended response")
         except Exception as e:
             LOGGER.error(f"Error processing request: {e}", exc_info=True)
             await return_result(outputs={}, error=e, final=True)
@@ -97,7 +92,6 @@ class PiplineStageExecutor:
         LOGGER.info(
             f"Start handling requests stage_name {self.stage_name} args {self.args}"
         )
-        # FIXME: Calls __aenter__ for RequestConverter.connect() ?
         async with self.request_converter, self.remote_model_connector if self.is_context_stage else nullcontext():
             LOGGER.info(f"Stage {self.stage_name} starts pulling")
             async for request, return_result in self.request_converter.pull(
@@ -115,8 +109,6 @@ class PiplineStageExecutor:
                 return_callable,
             ) = await self.request_converter.adapt_request(raw_request)
 
-            # FIXME
-            print(f"process_requests: {remote_request.parameters=}")
             request, return_result = {
                 "inputs": inputs,
                 "parameters": remote_request.parameters,
@@ -130,17 +122,17 @@ class PiplineStageExecutor:
         else:
             process_function = self.baseline_process
         # self.request_counter += 1
-        print(f"Stage {self.stage_name} pulled request")
+        LOGGER.debug(f"Stage {self.stage_name} pulled request")
         self.tasks.append(asyncio.create_task(process_function(request, return_result)))
         if len(self.tasks) >= self.args.max_batch_size:
-            print(
+            LOGGER.debug(
                 f"Stage {self.stage_name} waiting some of {len(self.tasks)} requests to finish"
             )
             _, pending = await asyncio.wait(
                 self.tasks, return_when=asyncio.FIRST_COMPLETED
             )
             self.tasks = list(pending)
-            print(
+            LOGGER.debug(
                 f"Stage {self.stage_name} finished some requests with {len(self.tasks)} to do"
             )
 
