@@ -89,8 +89,8 @@ The API server in a vLLM-disaggregated setup listens for OpenAI-compatible reque
 ```bash
 python3 -m llm.api_server \
   --tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
-  --request-plane-uri <YOUR_HOST>:4223 \
-  --api-server-host <YOUR_HOST> \
+  --request-plane-uri ${HOSTNAME}:4223 \
+  --api-server-host ${HOSTNAME} \
   --model-name llama \
   --api-server-port 8005
 ```
@@ -104,7 +104,7 @@ CUDA_VISIBLE_DEVICES=0 \
 VLLM_WORKER_ID=0 \
 python3 -m llm.vllm.deploy \
   --context-worker-count 1 \
-  --request-plane-uri <YOUR_HOST>:4223 \
+  --request-plane-uri ${HOSTNAME}:4223 \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \
@@ -132,7 +132,7 @@ CUDA_VISIBLE_DEVICES=1 \
 VLLM_WORKER_ID=1 \
 python3 -m llm.vllm.deploy \
   --generate-worker-count 1 \
-  --request-plane-uri <YOUR_HOST>:4223 \
+  --request-plane-uri ${HOSTNAME}:4223 \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \
@@ -160,7 +160,7 @@ python3 -m llm.vllm.deploy \
 Once the API server is running (by default on `localhost:8005`), you can send OpenAI-compatible requests. For example:
 
 ```bash
-curl <YOUR_HOST>:8005/v1/chat/completions \
+curl ${HOSTNAME}:8005/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "llama",
@@ -187,7 +187,7 @@ You can benchmark this setup using [**GenAI-Perf**](https://github.com/triton-in
 ```bash
 genai-perf profile \
   -m llama \
-  --url <YOUR_HOST>:8005 \
+  --url ${HOSTNAME}:8005 \
   --endpoint-type chat \
   --streaming \
   --num-dataset-entries 1000 \
