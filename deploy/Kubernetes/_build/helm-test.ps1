@@ -100,9 +100,11 @@ function test_helm_chart([string] $chart_path, [string] $tests_path, [object[]] 
 
   if ($fail_count -gt 0) {
     write-minimal "Failed: ${fail_count}, Passed: ${pass_count}, Total: $($tests.count)" 'Red'
+    return $false
   }
   else
   {
     write-minimal "Passed: ${pass_count}, Total: $($tests.count)" 'Green'
+    return $true
   }
 }
