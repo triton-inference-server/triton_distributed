@@ -100,30 +100,16 @@ def main(args):
         worker_configs.append((generate, 1))
 
 
-    # Baseline worker just for testing purposes
+    # NOTE: Launching baseline worker and context/generate workers at
+    # the same time is not currently supported.
     if args.baseline_worker_count == 1:
-        # Hard-coded name "baseline" for testing purposes
+        # Baseline worker has a hard-coded name just for testing purposes
         baseline_op = _create_baseline_op("baseline", args, 1000)
         baseline = WorkerConfig(
             operators=[baseline_op],
             name="baseline",
         )
         worker_configs.append((baseline, 1))
-
-
-    # Dummy worker just for testing purposes
-    if args.dummy_worker_count == 1:
-        dummy_op = OperatorConfig(
-            name="dummy",
-            implementation=DummyOperator,
-            max_inflight_requests=1000,
-            parameters=vars(args),
-        )
-        dummy = WorkerConfig(
-            operators=[dummy_op],
-            name="dummy",
-        )
-        worker_configs.append((dummy, 1))
 
     deployment = Deployment(
         worker_configs,
