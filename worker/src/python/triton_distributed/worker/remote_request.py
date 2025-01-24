@@ -241,8 +241,6 @@ class RemoteResponseSender:
                 request_id=self._model_infer_request.id,
                 **kwargs,
             )
-        # FIXME
-        print("DEBUG: Remote Request posting response to NATS")
         await self._request_plane.post_response(
             self._model_infer_request,
             inference_response.to_model_infer_response(self._data_plane),
