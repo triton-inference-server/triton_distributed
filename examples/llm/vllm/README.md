@@ -82,7 +82,7 @@ All components must be able to connect to the same request plane to coordinate.
 export HF_TOKEN=<YOUR TOKEN>
 ```
 
-### 3.2 Launch Interactive Environment 
+### 3.2 Launch Interactive Environment
 
 ```bash
 ./container/run.sh --framework vllm -it
@@ -98,9 +98,9 @@ Note: by default this command makes all gpu devices visible. Use flag
 
 to selectively make gpu devices visible.
 
-### 3.2 Launch Context Worker and Request Plane 
+### 3.2 Launch Context Worker and Request Plane
 
-The context stage encodes incoming prompts. By default, vLLM uses GPU resources to tokenize and prepare the model’s key-value (KV) caches. 
+The context stage encodes incoming prompts. By default, vLLM uses GPU resources to tokenize and prepare the model’s key-value (KV) caches.
 
 Within the container start the context worker and the request plane:
 
@@ -129,7 +129,7 @@ python3 -m llm.vllm.deploy \
 - `--kv-cache-dtype fp8`: Using FP8 for caching (requires CC >= 8.9).
 - `CUDA_VISIBLE_DEVICES=0`: Binds worker to GPU `0`.
 
-#### Expected Output 
+#### Expected Output
 ```
 <SNIP>
 Workers started ... press Ctrl-C to Exit
@@ -144,7 +144,7 @@ Workers started ... press Ctrl-C to Exit
 INFO 01-24 09:17:49 parallel_state.py:942] Stage: PREFILL
 ```
 
-### 3.3 Launch Generate (Decode) Worker 
+### 3.3 Launch Generate (Decode) Worker
 
 The generate stage consumes the KV cache produced in the context step and generates output tokens.
 
@@ -171,18 +171,19 @@ python3 -m llm.vllm.deploy \
 ```
 
 > [!NOTE]
-> - First time running in a newly launched container will 
->   include model download 
+> - First time running in a newly launched container will
+>   include model download. Please wait until you see the
+>   llama handler started before sending requests
 
 
 **Key flags**:
 - `--generate-worker-count`: Launches decode worker(s).
 - `CUDA_VISIBLE_DEVICES=1`: Binds worker to GPU `1`.
 
-#### Expected Output 
+#### Expected Output
 
 ```
-<SNIP>
+<SNIP>x
 model-00002-of-00002.safetensors: 100% 4.08G/4.08G [01:36<00:00, 42.2MB/s]
 model-00001-of-00002.safetensors: 100%% 4.71G/5.00G [01:51<00:06, 41.9MB/s]
 <SNIP>
