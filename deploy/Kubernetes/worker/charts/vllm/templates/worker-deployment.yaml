@@ -1,0 +1,382 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- $triton_image_name := "" }}
+{{- with $.Values.image }}
+{{-   $triton_image_name = required "Property '.image.name' is required." .name }}
+{{- else }}
+{{-   fail "Property '.image' is required." }}
+{{- end }}
+{{- $component_name := "" }}
+{{- $instance_count := 1 }}
+{{- $k8s_liveness_delay := 10 }}
+{{- $k8s_liveness_enabled := true }}
+{{- $k8s_liveness_fail := 15 }}
+{{- $k8s_liveness_period := 2 }}
+{{- $k8s_liveness_success := 1 }}
+{{- $k8s_readiness_delay := 10 }}
+{{- $k8s_readiness_enabled := true }}
+{{- $k8s_readiness_fail := 15 }}
+{{- $k8s_readiness_period := 2 }}
+{{- $k8s_readiness_success := 1 }}
+{{- $request_plane_kind := "nats-io" }}
+{{- $request_plane_name := "triton-distributed_request-plane" }}
+{{- $request_plane_port := 30222 }}
+{{- $parallel_pipeline := 1 }}
+{{- $parallel_tensor := 1 }}
+{{- $parallel_world := 1 }}
+{{- $port_data := 9346 }}
+{{- $port_health := 8000 }}
+{{- $port_metrics := 9347 }}
+{{- $port_request := 9345 }}
+{{- $triton_cpu := 4 }}
+{{- $triton_ephemeral := "1Gi" }}
+{{- $triton_gpu := 1 }}
+{{- $triton_logging_iso8601 := 0 }}
+{{- $triton_logging_verbose := 0 }}
+{{- $triton_memory := "16Gi" }}
+{{- $triton_shared := "512Mi" }}
+{{- with $.Values.kubernetes }}
+{{-   with .checks }}
+{{-     with .liveness }}
+{{-       $k8s_liveness_enabled = ne false .enabled }}
+{{-       with .failureThreshold }}
+{{-         $k8s_liveness_fail = (int .) }}
+{{-       end }}
+{{-       with .initialDelaySeconds }}
+{{-         $k8s_liveness_delay = (int .) }}
+{{-       end }}
+{{-       with .periodSeconds }}
+{{-         $k8s_liveness_period = (int .) }}
+{{-       end }}
+{{-       with .successThreshold }}
+{{-         $k8s_liveness_success = (int .) }}
+{{-       end }}
+{{-     end }}
+{{-     with .readiness }}
+{{-       $k8s_readiness_enabled = ne false .enabled }}
+{{-       with .failureThreshold }}
+{{-         $k8s_readiness_fail = (int .) }}
+{{-       end }}
+{{-       with .initialDelaySeconds }}
+{{-         $k8s_readiness_delay = (int .) }}
+{{-       end }}
+{{-       with .periodSeconds }}
+{{-         $k8s_readiness_period = (int .) }}
+{{-       end }}
+{{-       with .successThreshold }}
+{{-         $k8s_readiness_success = (int .) }}
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+{{- with $.Values.triton }}
+{{-   $component_name = required "Property '.triton.componentName' is required." .componentName }}
+{{-   with .distributed }}
+{{-     with .manifold }}
+{{-       with .serverKind }}
+{{-         $request_plane_kind = . }}
+{{-       end }}
+{{-       with .serviceName }}
+{{-         $request_plane_name = . }}
+{{-       end }}
+{{-       with .servicePort }}
+{{-         $request_plane_port = (int .) }}
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{-   with .instance }}
+{{-     with .count }}
+{{-       $instance_count = (int .) }}
+{{-     end }}
+{{-     with .parallelism }}
+{{-       with .pipeline }}
+{{-         $parallel_pipeline = (int .) }}
+{{-       end }}
+{{-       with .tensor }}
+{{-         $parallel_tensor = (int .) }}
+{{-       end }}
+{{-       $parallel_world = mul $parallel_pipeline $parallel_tensor }}
+{{-     end }}
+{{-   end }}
+{{-   with .logging }}
+{{-     if .useIso8601 }}
+{{-       $triton_logging_iso8601 = 1 }}
+{{-     end }}
+{{-     if .verbose }}
+{{-       $triton_logging_verbose = 1 }}
+{{-     end }}
+{{-   end }}
+{{-   with .ports }}
+{{-     with .data }}
+{{-       $port_data = (int .) }}
+{{-     end }}
+{{-     with .health }}
+{{-       $port_health = (int .) }}
+{{-     end }}
+{{-     with .metrics }}
+{{-       $port_metrics = (int .) }}
+{{-     end }}
+{{-     with .request }}
+{{-       $port_request = (int .) }}
+{{-     end }}
+{{-   end }}
+{{-   with .resources }}
+{{-     with .cpu }}
+{{-       $triton_cpu = (int .) }}
+{{-     end }}
+{{-     with .ephemeral }}
+{{-       $triton_ephemeral = . }}
+{{-     end }}
+{{-     with .gpu }}
+{{-       $triton_gpu = (int .count) }}
+{{-     end }}
+{{-     with .memory }}
+{{-       $triton_memory = . }}
+{{-     end }}
+{{-     with .sharedMemory }}
+{{-       $triton_shared = . }}
+{{-     end }}
+{{-   end }}
+{{- else }}
+{{-   fail "Property '.triton' is required." }}
+{{- end }}
+{{- $model_repo_path := "/var/run/models" }}
+{{- with $.Values.modelRepository }}
+{{-   with .path }}
+{{-     $model_repo_path = trimSuffix "/" . }}
+{{-   end }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}
+  annotations:
+{{- include "triton.annotations.chart" . | indent 4 }}
+  labels:
+    app: {{ $.Release.Name }}
+    app.kubernetes.io/component: worker
+{{- include "triton.labels.chart" . | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $.Release.Name }}
+      app.kubernetes.io/component: worker
+  replicas: {{ $instance_count }}
+  template:
+    metadata:
+      annotations:
+{{- include "triton.annotations.chart" . | indent 8 }}
+      labels:
+        app: {{ $.Release.Name }}
+        app.kubernetes.io/component: worker
+{{- include "triton.labels.chart" . | indent 8 }}
+    spec:
+{{- if ne $triton_gpu 0 }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu
+                operator: Exists
+{{-   with $.Values.triton }}
+{{-     with .resources }}
+{{-       with .gpu }}
+{{-         with .product }}
+{{-           if len . }}
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+{{            toYaml . | indent 16 }}
+{{-           end }}
+{{-         end }}
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+      containers:
+      - name: triton
+        command:
+        - --model-repository={{ $model_repo_path }}
+{{- if $triton_logging_iso8601 }}
+        - --iso8601
+{{- end}}
+{{- if $triton_logging_verbose }}
+        - --verbose
+{{- end }}
+        env:
+        - name: TRITON_COMPONENT_NAME
+          value: {{ $component_name | quote }}
+{{- if gt $parallel_world 1 }}
+        - name: TRITON_LLM_PP
+          value: {{ $parallel_pipeline | quote }}
+        - name: TRITON_LLM_TP
+          value: {{ $parallel_tensor | quote }}
+{{- end }}
+        - name: TRITON_request_plane_kind
+          value: {{ $request_plane_kind | quote }}
+        - name: TRITON_request_plane_name
+          value: {{ $request_plane_name | quote }}
+        - name: TRITON_request_plane_port
+          value: {{ $request_plane_port | quote }}
+        - name: TRITON_MODEL_REPOSITORY
+          value: {{ $model_repo_path | quote }}
+{{- if ne $port_data 9346 }}
+        - name: TRITON_PORT_DATA
+          value: {{ $port_data | quote }}
+{{- end }}
+{{- if ne $port_health 8000 }}
+        - name: TRITON_PORT_HEALTH
+          value: {{ $port_health | quote }}
+{{- end }}
+{{- if ne $port_metrics 9347 }}
+        - name: TRITON_PORT_METRICS
+          value: {{ $port_metrics | quote }}
+{{- end }}
+{{- if ne $port_request 9345 }}
+        - name: TRITON_PORT_REQUEST
+          value: {{ $port_request | quote }}
+{{- end }}
+{{- if false }}
+# What are these and are they needed? HELP!
+        - name: VLLM_ATTENTION_BACKEND
+          value: 0
+        - name: VLLM_CONTEXT_WORKERS
+          value: 0
+        - name: VLLM_CONTEXT_TP_SIZE
+          value: 0
+        - name: VLLM_DATA_PLANE_BACKEND
+          value: 0
+        - name: VLLM_GENERATE_TP_SIZE
+          value: 0
+        - name: VLLM_GENERATE_WORKERS
+          value: 0
+        - name: VLLM_TORCH_HOST
+          value: 0
+        - name: VLLM_TORCH_PORT
+          value: 0
+        - name: VLLM_WORKER_ID
+          value: 0
+        - name: VLLM_WORKER_MULTIPROC_METHOD
+          value: 0
+{{- end }}
+        image: {{ $triton_image_name }}
+        imagePullPolicy: IfNotPresent
+{{- if $k8s_liveness_enabled }}
+        livenessProbe:
+          failureThreshold: {{ $k8s_liveness_fail }}
+          httpGet:
+            path: /v2/health/live
+            port: {{ $port_health }}
+          initialDelaySeconds: {{ $k8s_liveness_delay }}
+          periodSeconds: {{ $k8s_liveness_period }}
+          successThreshold: {{ $k8s_liveness_success }}
+{{- end }}
+        ports:
+        - containerPort: {{ $port_health }}
+          name: health
+        - containerPort: {{ $port_request }}
+          name: request
+        - containerPort: {{ $port_data }}
+          name: data
+        - containerPort: {{ $port_metrics }}
+          name: metrics
+{{- if $k8s_readiness_enabled }}
+        readinessProbe:
+          failureThreshold: {{ $k8s_readiness_fail }}
+          httpGet:
+            path: /v2/health/ready
+            port: {{ $port_health }}
+          initialDelaySeconds: {{ $k8s_readiness_delay }}
+          periodSeconds: {{ $k8s_readiness_period }}
+          successThreshold: {{ $k8s_readiness_success }}
+{{- end }}
+        resources:
+          limits:
+            cpu: {{ $triton_cpu }}
+            ephemeral-storage: {{ $triton_ephemeral }}
+            memory: {{ $triton_memory }}
+{{- if gt $triton_gpu 0 }}
+            nvidia.com/gpu: {{ $triton_gpu }}
+{{- end }}
+          requests:
+            cpu: {{ $triton_cpu }}
+            ephemeral-storage: {{ $triton_ephemeral }}
+            memory: {{ $triton_memory }}
+{{- if gt $triton_gpu 0 }}
+            nvidia.com/gpu: {{ $triton_gpu }}
+{{- end }}
+        volumeMounts:
+{{- with $.Values.modelRepository }}
+{{-   with .volumeMounts }}
+{{-     range . }}
+{{-       $mount_path := $model_repo_path }}
+{{-       $volume_name := required "Property '.modelRepository.volumeMounts[*].name' is required." .name }}
+{{-       if eq "shared-memory" $volume_name }}
+{{-         fail "Property '.modelRepository.volumeMounts[*].name' cannot be `shared-memory` because it is a reserved name." }}
+{{-       end }}
+{{-       with .path }}
+{{-         $mount_path = printf "%s/%s" $model_repo_path (trimPrefix "/" .) }}
+{{-         if regexMatch "/\\.\\./?" $mount_path }}
+{{-           fail (printf "Value of property `.modelRepository.volumeMounts[*].path' `%s` is illegal because `%s` is not a sub-directory of `%s`." . (clean $mount_path) $model_repo_path) }}
+{{-         end }}
+{{-       end }}
+        - mountPath: {{ $mount_path }}
+          name: {{ $volume_name  }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+        - mountPath: /dev/shm
+          name: shared-memory
+{{- with $.Values.image }}
+{{-   with .pullSecrets }}
+{{-     if len . }}
+      imagePullSecrets:
+{{        toYaml . | indent 6 }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      tolerations:
+{{- with $.Values.triton }}
+{{-   with .resources }}
+{{-     with .gpu }}
+      - effect: NoSchedule
+        key: nvidia.com/gpu
+        operator: Exists
+{{-     end }}
+{{-   end }}
+{{- end }}
+{{- with $.Values.kubernetes }}
+{{-   with .tolerations }}
+{{      toYaml . | indent 6 }}
+{{-   end }}
+{{- end }}
+      volumes:
+{{- with $.Values.modelRepository }}
+{{-   with .volumeMounts }}
+{{-     range . }}
+      - name: {{ required "Property '.modelRepository.volumeMounts.name' is required." .name  }}
+        persistentVolumeClaim:
+          claimName: {{ required "Property '.modelRepository.volumeMounts.persistentVolumeClaim' is required." .persistentVolumeClaim }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+      - name: shared-memory
+        emptyDir:
+          medium: Memory
+          sizeLimit: {{ $triton_shared }}
