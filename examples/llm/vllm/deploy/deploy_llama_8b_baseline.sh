@@ -6,12 +6,8 @@ export VLLM_ATTENTION_BACKEND=FLASHINFER
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export VLLM_TORCH_HOST=localhost
 export VLLM_TORCH_PORT=36183
-export VLLM_BASELINE_WORKERS=0
-export VLLM_CONTEXT_WORKERS=1
-export VLLM_GENERATE_WORKERS=1
+export VLLM_BASELINE_WORKERS=1
 export VLLM_BASELINE_TP_SIZE=1
-export VLLM_CONTEXT_TP_SIZE=1
-export VLLM_GENERATE_TP_SIZE=1
 export VLLM_LOGGING_LEVEL=INFO
 export VLLM_DATA_PLANE_BACKEND=nccl
 export PYTHONUNBUFFERED=1
@@ -37,68 +33,39 @@ python3 -m llm.api_server \
   --tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
   --api-server-host ${API_SERVER_HOST} \
-  --model-name llama \
+  --model-name "baseline" \
   --api-server-port ${API_SERVER_PORT} &
 
 
-# Start VLLM Worker 0
-# FIXME: Reconsider --log-dir default
-echo "Starting vLLM context workers..."
+# Empty --log-dir will dump logs to stdout
+echo "Starting vLLM baseline workers..."
 CUDA_VISIBLE_DEVICES=0 \
 VLLM_WORKER_ID=0 \
 python3 -m llm.vllm.deploy \
-  --context-worker-count ${VLLM_CONTEXT_WORKERS} \
+  --baseline-worker-count ${VLLM_BASELINE_WORKERS} \
   --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \
-  --worker-name llama \
   --disable-async-output-proc \
   --disable-log-stats \
   --max-model-len 1000 \
   --max-batch-size 10000 \
   --gpu-memory-utilization 0.9 \
-  --context-tp-size ${VLLM_CONTEXT_TP_SIZE} \
-  --generate-tp-size ${VLLM_GENERATE_TP_SIZE} \
-  --log-dir "" &
-
-# Start VLLM Worker 1
-# FIXME: Reconsider --log-dir default
-echo "Starting vLLM generate workers..."
-CUDA_VISIBLE_DEVICES=1 \
-VLLM_WORKER_ID=1 \
-python3 -m llm.vllm.deploy \
-  --generate-worker-count ${VLLM_GENERATE_WORKERS} \
-  --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
-  --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
-  --kv-cache-dtype fp8 \
-  --dtype auto \
-  --worker-name llama \
-  --disable-async-output-proc \
-  --disable-log-stats \
-  --max-model-len 1000 \
-  --max-batch-size 10000 \
-  --gpu-memory-utilization 0.9 \
-  --context-tp-size ${VLLM_CONTEXT_TP_SIZE} \
-  --generate-tp-size ${VLLM_GENERATE_TP_SIZE} \
-  --log-dir "" &
+  --baseline-tp-size ${VLLM_BASELINE_TP_SIZE} \
+  --log-dir ""
 
 # NOTE: It may take more than a minute for the vllm worker to start up
 # if the model weights aren't cached and need to be downloaded.
 echo "Waiting for deployment to finish startup..."
-echo "Once you see all ranks connected to the server, it should be ready..."
-echo "Example output:"
-echo "\tRank 0 connected to the server"
-echo "\t..."
-echo "\tRank 1 connected to the server"
-sleep 120
+sleep 60
 
 # Make a Chat Completion Request
 echo "Sending chat completions request..."
 curl ${API_SERVER_HOST}:${API_SERVER_PORT}/v1/chat/completions \
 -H "Content-Type: application/json" \
 -d '{
-  "model": "llama",
+  "model": "baseline",
   "messages": [
     {"role": "system", "content": "What is the capital of France?"}
   ],
