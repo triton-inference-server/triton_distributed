@@ -290,7 +290,7 @@ genai-perf profile \
   --output-tokens-stddev 0 \
   --tokenizer neuralmagic/Meta-Llama-3.1-70B-Instruct-FP8 \
   --synthetic-input-tokens-mean 300 \
-  --output-tokens-mean 150 \
+  --output-tokens-mean 3000 \
   --extra-inputs seed:100 \
   --extra-inputs min_tokens:150 \
   --extra-inputs max_tokens:150 \
