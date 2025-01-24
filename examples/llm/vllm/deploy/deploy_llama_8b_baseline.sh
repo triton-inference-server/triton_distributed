@@ -67,7 +67,7 @@ curl ${API_SERVER_HOST}:${API_SERVER_PORT}/v1/chat/completions \
 -d '{
   "model": "baseline",
   "messages": [
-    {"role": "system", "content": "What is the capital of France?"}
+    {"role": "user", "content": "What is the capital of France?"}
   ],
   "temperature": 0,
   "top_p": 0.95,
