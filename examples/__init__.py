@@ -12,13 +12,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# Necessary for vLLM engine.
---extra-index-url https://flashinfer.ai/whl/cu121/torch2.4
-flashinfer<0.2.0
-# Necessary for vLLM engine.
-ninja==1.11.1.3
-ucx-py-cu12
-# vLLM is installed by patching script
-# vllm==0.6.3post1
-
