@@ -28,7 +28,7 @@ class VllmContextOperator(Operator):
         repository: Optional[str] = None,
         logger: Optional[Any] = None,
     ):
-        args = argparse.Namespace(**parameters)
+        args = argparse.Namespace(**parameters)  # type: ignore
         stage = PrefillStage(
             model=args.model_name,
             tensor_parallel_size=args.context_tp_size,
@@ -65,7 +65,7 @@ class VllmGenerateOperator(Operator):
         repository: Optional[str] = None,
         logger: Optional[Any] = None,
     ):
-        args = argparse.Namespace(**parameters)
+        args = argparse.Namespace(**parameters)  # type: ignore
         args.worker_name = "generate"
         stage = GenerateStage(
             model=args.model_name,
@@ -102,7 +102,7 @@ class VllmBaselineOperator(Operator):
         repository: Optional[str] = None,
         logger: Optional[Any] = None,
     ):
-        args = argparse.Namespace(**parameters)
+        args = argparse.Namespace(**parameters)  # type: ignore
         stage = SingleComputePipeline(
             model=args.model_name,
             tensor_parallel_size=args.baseline_tp_size,

@@ -240,10 +240,10 @@ class DisaggregatedPipeline:
     ):
         if stage == "prefill":
             LOGGER.info(f"initialize prefill {kwargs}")
-            self.stage = PrefillStage(**kwargs)
+            self.stage = PrefillStage(**kwargs)  # type: ignore
         elif stage == "generate":
             LOGGER.info(f"initialize generate {kwargs}")
-            self.stage = GenerateStage(**kwargs)
+            self.stage = GenerateStage(**kwargs)  # type: ignore
         else:
             raise ValueError(f"Unknown stage: {stage}")
 
