@@ -325,7 +325,7 @@ deployments to avoid any unexpected errors.
 
 NOTE: If you have other unrelated processes in the environment with `python3`
 in the name, the `pkill` command above will terminate them as well. In this
-scenario, you could select specific process IDs and use the following command 
+scenario, you could select specific process IDs and use the following command
 instead for each process ID replacing `<pid>` below:
 ```
 kill -9 <pid>
