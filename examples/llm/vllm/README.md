@@ -309,7 +309,30 @@ genai-perf profile \
 - **`--streaming`**: Ensures tokens are streamed back for chat-like usage.
 
 
-## 6. Model Precision Variants
+## 6. Teardown
+
+To tear down a deployment during local development, you can either kill the
+container or the kill the relevant processes involved in the deployment.
+
+To kill the processes being run inside the container, you can run:
+```bash
+pkill -9 -f python3
+pkill -9 -f nats-server
+```
+
+You will generally want to make sure you have a clean slate between
+deployments to avoid any unexpected errors.
+
+NOTE: If you have other unrelated processes in the environment with `python3`
+in the name, the `pkill` command above will terminate them as well. In this
+scenario, you could select specific process IDs and use the following command 
+instead for each process ID replacing `<pid>` below:
+```
+kill -9 <pid>
+```
+
+
+## 7. Model Precision Variants
 
 In the commands above, we used the FP8 variant `neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8` because it significantly reduces KV cache size, which helps with network transfer and memory usage. However, if your GPU is older or does not support FP8, try using the standard BF16/FP16 precision variant, for example:
 
@@ -319,7 +342,7 @@ In the commands above, we used the FP8 variant `neuralmagic/Meta-Llama-3.1-8B-In
 ```
 
 
-## 7. Multi-node Deployment
+## 8. Multi-node Deployment
 
 To deploy the solution in a multi-node environment please refer to [deploy_llama_8b_disaggregated_multinode.sh](examples/llm/vllm/deploy/deploy_llama_8b_disaggregated_multinode.sh) script. On a head node run NATS server, API server and context worker with
 
@@ -336,7 +359,7 @@ The example script is set by default to launch one context worker with TP 1 on t
 
 
 
-## 8. Known Issues & Limitations
+## 9. Known Issues & Limitations
 
 1. **Fixed Worker Count**
    Currently, the number of prefill and decode workers must be fixed at the start of deployment. Dynamically adding or removing workers is not yet supported.
@@ -357,7 +380,7 @@ The example script is set by default to launch one context worker with TP 1 on t
    When streaming is enabled, only two responses will be returned in the stream: the first token and the complete response.
 
 
-## 9. References
+## 10. References
 
 [^1]: Yinmin Zhong, Shengyu Liu, Junda Chen, Jianbo Hu, Yibo Zhu, Xuanzhe Liu, Xin Jin, and Hao
 Zhang. Distserve: Disaggregating prefill and decoding for goodput-optimized large language
