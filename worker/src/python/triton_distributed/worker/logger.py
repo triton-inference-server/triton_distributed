@@ -67,6 +67,7 @@ def get_logger_config(log_level=1, logger_name=_LOGGER_NAME, log_file=None):
     return config_dict
 
 
+# TODO: Add support for taking logging level as input as well.
 def get_logger(log_level=1, logger_name=_LOGGER_NAME, log_file=None):
     if log_level == 0:
         level = logging.ERROR

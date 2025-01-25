@@ -109,7 +109,7 @@ def workers(request, log_dir):
     consolidate_logs = request.getfixturevalue("consolidate_logs")
     worker_deployment = Deployment(
         worker_configs,
-        consolidated_logs=consolidate_logs,
+        consolidate_logs=consolidate_logs,
         log_dir=log_dir,
     )
 
@@ -213,7 +213,7 @@ def run(num_requests):
     "consolidate_logs",
     [True, False],
 )
-def test_consolidated_logs(request, nats_server, workers, consolidate_logs, log_dir):
+def test_consolidate_logs(request, nats_server, workers, consolidate_logs, log_dir):
     # Using a separate process to use data plane across multiple tests.
     p = Process(target=run, args=(2,))
     p.start()

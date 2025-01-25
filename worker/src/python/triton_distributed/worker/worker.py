@@ -54,7 +54,7 @@ class WorkerConfig:
     operators: list[OperatorConfig] = field(default_factory=list)
     name: str = str(uuid.uuid1())
     log_dir: Optional[str] = None
-    consolidated_logs = False
+    consolidate_logs = False
     metrics_port: int = 0
 
 
@@ -78,7 +78,7 @@ class Worker:
             self._log_level = 0
         self._operator_configs = config.operators
         self._log_dir = config.log_dir
-        self._consolidated_logs = config.consolidated_logs
+        self._consolidate_logs = config.consolidate_logs
         self._stop_requested = False
         self._requests_received: Counter = Counter()
         self._background_tasks: dict[object, set] = {}
@@ -148,7 +148,7 @@ class Worker:
                     class_ == TritonCoreOperator
                     or issubclass(class_, TritonCoreOperator)
                 ) and not self._triton_core:
-                    if not self._consolidated_logs and self._log_file:
+                    if not self._consolidate_logs and self._log_file:
                         log_file = pathlib.Path(self._log_file)
                         stem = log_file.stem
                         suffix = log_file.suffix
