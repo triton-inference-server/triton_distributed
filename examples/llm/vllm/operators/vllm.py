@@ -1,14 +1,20 @@
 import abc
 import argparse
 import json
+import logging
 from dataclasses import field
-from typing import Any, List, Optional
+from typing import AsyncGenerator, List, Optional
 
 import numpy as np
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
-from triton_distributed.worker import Operator, RemoteInferenceRequest, RemoteOperator
+from triton_distributed.worker import (
+    Operator,
+    RemoteInferenceRequest,
+    RemoteInferenceResponse,
+    RemoteOperator,
+)
 
 from .vllm_disaggregated.pipelines import (
     AggregatedPipeline,
@@ -29,13 +35,16 @@ class BaseVllmOperator(Operator):
             default_factory=dict
         ),
         repository: Optional[str] = None,
-        logger: Optional[Any] = None,
+        logger: Optional[logging.Logger] = None,
     ):
         self.name = name
         self.version = version
         self.request_plane = request_plane
         self.data_plane = data_plane
-        self.logger = logger
+        if logger is None:
+            self.logger = logging.getLogger(__name__)
+        else:
+            self.logger = logger
 
         self._init_stages(parameters)
 
@@ -112,7 +121,9 @@ class VllmContextOperator(BaseVllmOperator):
                 assert len(responses) == 1
                 response = responses[0]
                 self.logger.info("Processing generate")
-                generate_response = await self._generate_operator.async_infer(
+                generate_response: AsyncGenerator[
+                    RemoteInferenceResponse, None
+                ] = await self._generate_operator.async_infer(
                     inputs=response["outputs"],
                     parameters={**request.parameters, **response["parameters"]},
                 )
