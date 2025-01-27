@@ -1,8 +1,7 @@
-import abc
 import argparse
 import json
 from dataclasses import field
-from typing import Any, Optional, List
+from typing import Any, List, Optional
 
 import numpy as np
 
@@ -11,9 +10,9 @@ from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.worker import Operator, RemoteInferenceRequest, RemoteOperator
 
 from .vllm_disaggregated.pipelines import (
+    AggregatedPipeline,
     GenerateStage,
     PrefillStage,
-    AggregatedPipeline,
 )
 
 
@@ -65,7 +64,16 @@ class VllmContextOperator(BaseVllmOperator):
         repository: Optional[str] = None,
         logger: Optional[Any] = None,
     ):
-        super().__init__(name, version, triton_core, request_plane, data_plane, parameters, repository, logger)
+        super().__init__(
+            name,
+            version,
+            triton_core,
+            request_plane,
+            data_plane,
+            parameters,
+            repository,
+            logger,
+        )
         args = argparse.Namespace(**parameters)  # type: ignore
         self._prefill_stage = PrefillStage(
             model=args.model_name,
@@ -91,14 +99,21 @@ class VllmContextOperator(BaseVllmOperator):
             inputs, parameters = self._prepare_inputs(request)
             try:
                 self.logger.info("Processing request")
-                responses = list([response async for response in self._prefill_stage({
-                    "inputs": inputs,
-                    "parameters": parameters,
-                })])
-                self.logger.info(f"Prefill finished")
+                responses = list(
+                    [
+                        response
+                        async for response in self._prefill_stage(
+                            {
+                                "inputs": inputs,
+                                "parameters": parameters,
+                            }
+                        )
+                    ]
+                )
+                self.logger.info("Prefill finished")
                 assert len(responses) == 1
                 response = responses[0]
-                self.logger.info(f"Processing generate")
+                self.logger.info("Processing generate")
                 generate_response = await self._generate_operator.async_infer(
                     inputs=response["outputs"],
                     parameters={**request.parameters, **response["parameters"]},
@@ -131,7 +146,16 @@ class VllmGenerateOperator(BaseVllmOperator):
         repository: Optional[str] = None,
         logger: Optional[Any] = None,
     ):
-        super().__init__(name, version, triton_core, request_plane, data_plane, parameters, repository, logger)
+        super().__init__(
+            name,
+            version,
+            triton_core,
+            request_plane,
+            data_plane,
+            parameters,
+            repository,
+            logger,
+        )
         args = argparse.Namespace(**parameters)  # type: ignore
         args.worker_name = "generate"
         self.generate_stage = GenerateStage(
@@ -155,10 +179,12 @@ class VllmGenerateOperator(BaseVllmOperator):
             inputs, parameters = self._prepare_inputs(request)
             try:
                 self.logger.debug("Processing request")
-                async for response in self.generate_stage({
-                    "inputs": inputs,
-                    "parameters": parameters,
-                }):
+                async for response in self.generate_stage(
+                    {
+                        "inputs": inputs,
+                        "parameters": parameters,
+                    }
+                ):
                     self.logger.debug("Sending response")
                     await request.response_sender().send(**response)
                     self.logger.debug("Response send")
@@ -181,7 +207,16 @@ class VllmBaselineOperator(BaseVllmOperator):
         repository: Optional[str] = None,
         logger: Optional[Any] = None,
     ):
-        super().__init__(name, version, triton_core, request_plane, data_plane, parameters, repository, logger)
+        super().__init__(
+            name,
+            version,
+            triton_core,
+            request_plane,
+            data_plane,
+            parameters,
+            repository,
+            logger,
+        )
         args = argparse.Namespace(**parameters)  # type: ignore
         self.aggregated_pipeline = AggregatedPipeline(
             model=args.model_name,
@@ -204,10 +239,12 @@ class VllmBaselineOperator(BaseVllmOperator):
             inputs, parameters = self._prepare_inputs(request)
             try:
                 self.logger.debug("Processing request")
-                async for response in self.aggregated_pipeline({
-                    "inputs": inputs,
-                    "parameters": parameters,
-                }):
+                async for response in self.aggregated_pipeline(
+                    {
+                        "inputs": inputs,
+                        "parameters": parameters,
+                    }
+                ):
                     self.logger.debug("Sending response")
                     await request.response_sender().send(**response)
                     self.logger.debug("Response send")
