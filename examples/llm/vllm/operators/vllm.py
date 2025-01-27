@@ -118,19 +118,19 @@ class VllmContextOperator(BaseVllmOperator):
                 assert len(responses) == 1
                 response = responses[0]
                 self.logger.info("Processing generate")
-                generate_response: AsyncGenerator[
+                generate_responses: AsyncGenerator[
                     RemoteInferenceResponse, None
                 ] = await self._generate_operator.async_infer(
                     inputs=response["outputs"],
                     parameters={**request.parameters, **response["parameters"]},
                 )
-                async for response in generate_response:
+                async for generate_response in generate_responses:
                     self.logger.info("Sending response")
                     await request.response_sender().send(
-                        outputs=response.outputs,
-                        parameters=response.parameters,
-                        final=response.final,
-                        error=response.error,
+                        outputs=generate_response.outputs,
+                        parameters=generate_response.parameters,
+                        final=generate_response.final,
+                        error=generate_response.error,
                     )
                     self.logger.info("Response send")
             except Exception as e:
