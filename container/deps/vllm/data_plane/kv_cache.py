@@ -20,6 +20,7 @@
 # type: ignore
 
 import typing
+import os
 
 if typing.TYPE_CHECKING:
     from vllm.worker.model_runner import ModelInputForGPUWithSamplingMetadata  # type: ignore
@@ -61,7 +62,12 @@ class KVCacheHandler:
 
         self._data_plane_backend = envs.VLLM_DATA_PLANE_BACKEND
         if self._data_plane_backend == "nccl":
-            self._data_plane = VllmNcclDataPlane()
+            hostname = ""
+            # FIXME: This is a hack to get the hostname of the decode worker
+            if envs.VLLM_WORKER_ID >= envs.VLLM_CONTEXT_WORKERS:
+                hostname = os.getenv("VLLM_DATA_PLANE_HOSTNAME", "")
+                logger.debug(f"Hostname: {hostname}")
+            self._data_plane = VllmNcclDataPlane(hostname=hostname)
             self._store = get_store()
             logger.info("Store set up")
             self._store.set(
@@ -317,6 +323,7 @@ class KVCacheHandler:
         target_addr = self._store.get(
             f"worker_{generate_worker_id}_rank_{target_local_rank}"
         ).decode()
+        logger.debug(f"Target addr: {target_addr}")
         self._data_plane.put_output_tensor(
             keys,
             rank=target_rank,
