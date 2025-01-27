@@ -62,7 +62,7 @@ class BaseVllmOperator(Operator):
         inputs, parameters = {}, {}
         for input_name, input_data in request.inputs.items():
             local_tensor = input_data.local_tensor
-            numpy_tensor = np.from_dlpack(local_tensor)
+            numpy_tensor = np.from_dlpack(input_data)
             input_data.__del__()
             inputs[input_name] = numpy_tensor
         for key, value in request.parameters.items():
