@@ -61,10 +61,7 @@ class BaseVllmOperator(Operator):
     def _prepare_inputs(request: RemoteInferenceRequest):
         inputs, parameters = {}, {}
         for input_name, input_data in request.inputs.items():
-            local_tensor = input_data.local_tensor
-            numpy_tensor = np.from_dlpack(input_data)
-            input_data.__del__()
-            inputs[input_name] = numpy_tensor
+            inputs[input_name] = np.from_dlpack(input_data)
         for key, value in request.parameters.items():
             if isinstance(value, str) and value.startswith("JSON:"):
                 parameters[key] = json.loads(value[5:])
