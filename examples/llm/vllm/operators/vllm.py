@@ -1,8 +1,8 @@
 import argparse
+import json
 from dataclasses import field
 from typing import Any, Optional
 
-import json
 import numpy as np
 
 from triton_distributed.icp.data_plane import DataPlane

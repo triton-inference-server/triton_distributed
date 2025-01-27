@@ -1,4 +1,3 @@
-import json
 import asyncio
 import enum
 import logging
@@ -9,6 +8,7 @@ import torch
 
 from .connector import InferenceRequest
 from .remote_model_connector import RemoteModelConnector
+
 LOGGER = logging.getLogger(__name__)
 
 
