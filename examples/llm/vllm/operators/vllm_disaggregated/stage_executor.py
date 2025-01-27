@@ -1,3 +1,4 @@
+import json
 import asyncio
 import enum
 import logging
@@ -8,8 +9,6 @@ import torch
 
 from .connector import InferenceRequest
 from .remote_model_connector import RemoteModelConnector
-from .request_converter import RequestConverter
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -34,11 +33,6 @@ class PiplineStageExecutor:
             )
             if self.is_context_stage
             else None
-        )
-        self.request_converter = RequestConverter(
-            request_plane=request_plane,
-            keep_dataplane_endpoints_open=True,
-            model_name=self.args.worker_name,
         )
         self.request_counter = 0
         self.profile_state = _ProfileState.NOT_STARTED
@@ -101,20 +95,6 @@ class PiplineStageExecutor:
                 # TODO ptarasiewicz - only one context or generate should be profiled at a time
                 await self.process_request(request, return_result)
             LOGGER.info(f"Stage {self.stage_name} finished pulling")
-
-    async def process_requests(self, requests):
-        for raw_request in requests:
-            (
-                inputs,
-                remote_request,
-                return_callable,
-            ) = await self.request_converter.adapt_request(raw_request)
-
-            request, return_result = {
-                "inputs": inputs,
-                "parameters": remote_request.parameters,
-            }, return_callable
-            await self.process_request(request, return_result)
 
     async def process_request(self, request, return_result):
         self._profile()

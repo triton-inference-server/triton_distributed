@@ -2,6 +2,9 @@ import argparse
 from dataclasses import field
 from typing import Any, Optional
 
+import json
+import numpy as np
+
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.worker import Operator, RemoteInferenceRequest
@@ -50,7 +53,10 @@ class VllmContextOperator(Operator):
         )
 
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
-        await self.executor.process_requests(requests)
+        for request in requests:
+            stage_request = _prepare_inputs(request)
+            return_result = request.response_sender().send
+            await self.executor.process_request(stage_request, return_result)
 
 
 class VllmGenerateOperator(Operator):
@@ -87,7 +93,10 @@ class VllmGenerateOperator(Operator):
         self.executor = PiplineStageExecutor(args, request_plane, stage, "generate")
 
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
-        await self.executor.process_requests(requests)
+        for request in requests:
+            stage_request = _prepare_inputs(request)
+            return_result = request.response_sender().send
+            await self.executor.process_request(stage_request, return_result)
 
 
 class VllmBaselineOperator(Operator):
@@ -123,4 +132,25 @@ class VllmBaselineOperator(Operator):
         self.executor = PiplineStageExecutor(args, request_plane, stage, "baseline")
 
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
-        await self.executor.process_requests(requests)
+        for request in requests:
+            stage_request = _prepare_inputs(request)
+            return_result = request.response_sender().send
+            await self.executor.process_request(stage_request, return_result)
+
+
+def _prepare_inputs(request: RemoteInferenceRequest):
+    inputs, parameters = {}, {}
+    for input_name, input_data in request.inputs.items():
+        local_tensor = input_data.local_tensor
+        numpy_tensor = np.from_dlpack(local_tensor)
+        input_data.__del__()
+        inputs[input_name] = numpy_tensor
+    for key, value in request.parameters.items():
+        if isinstance(value, str) and value.startswith("JSON:"):
+            parameters[key] = json.loads(value[5:])
+        else:
+            parameters[key] = value
+    return {
+        "inputs": inputs,
+        "parameters": parameters,
+    }
