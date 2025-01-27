@@ -29,7 +29,7 @@ LOGGER = vllm.logger.init_logger(__name__)
 RETURN_EVERY_N = 1000000
 
 
-class SingleComputePipeline:
+class AggregatedPipeline:
     def __init__(
         self,
         **kwargs,
@@ -159,7 +159,7 @@ class PrefillStage:
                     "outputs": {},  # See line 195 for context
                     "error": None,
                     "parameters": {
-                        **input_payload["parameters"],
+                        # **input_payload["parameters"],
                         "context_worker_id": os.environ["VLLM_WORKER_ID"],
                         "first_token": result.outputs[0].token_ids[0],
                         "seq_len": len(result.prompt_token_ids),
