@@ -1,3 +1,4 @@
+import abc
 import argparse
 import json
 from dataclasses import field
@@ -31,8 +32,21 @@ class BaseVllmOperator(Operator):
         logger: Optional[Any] = None,
     ):
         self.name = name
+        self.version = version
         self.request_plane = request_plane
+        self.data_plane = data_plane
         self.logger = logger
+
+        self._init_stages(parameters)
+
+    @abc.abstractmethod
+    def _init_stages(
+        self,
+        parameters: Optional[dict[str, str | int | bool | bytes]] = field(
+            default_factory=dict
+        ),
+    ):
+        pass
 
     @staticmethod
     def _prepare_inputs(request: RemoteInferenceRequest):
@@ -51,29 +65,12 @@ class BaseVllmOperator(Operator):
 
 
 class VllmContextOperator(BaseVllmOperator):
-    def __init__(
+    def _init_stages(
         self,
-        name: str,
-        version: int,
-        triton_core,
-        request_plane: RequestPlane,
-        data_plane: DataPlane,
         parameters: Optional[dict[str, str | int | bool | bytes]] = field(
             default_factory=dict
         ),
-        repository: Optional[str] = None,
-        logger: Optional[Any] = None,
     ):
-        super().__init__(
-            name,
-            version,
-            triton_core,
-            request_plane,
-            data_plane,
-            parameters,
-            repository,
-            logger,
-        )
         args = argparse.Namespace(**parameters)  # type: ignore
         self._prefill_stage = PrefillStage(
             model=args.model_name,
@@ -91,8 +88,9 @@ class VllmContextOperator(BaseVllmOperator):
             disable_async_output_proc=args.disable_async_output_proc,
             disable_log_stats=args.disable_log_stats,
         )
-
-        self._generate_operator = RemoteOperator("generate", request_plane, data_plane)
+        self._generate_operator = RemoteOperator(
+            "generate", self.request_plane, self.data_plane
+        )
 
     async def execute(self, requests: List[RemoteInferenceRequest]) -> None:
         for request in requests:
@@ -133,29 +131,12 @@ class VllmContextOperator(BaseVllmOperator):
 
 
 class VllmGenerateOperator(BaseVllmOperator):
-    def __init__(
+    def _init_stages(
         self,
-        name: str,
-        version: int,
-        triton_core,
-        request_plane: RequestPlane,
-        data_plane: DataPlane,
         parameters: Optional[dict[str, str | int | bool | bytes]] = field(
             default_factory=dict
         ),
-        repository: Optional[str] = None,
-        logger: Optional[Any] = None,
     ):
-        super().__init__(
-            name,
-            version,
-            triton_core,
-            request_plane,
-            data_plane,
-            parameters,
-            repository,
-            logger,
-        )
         args = argparse.Namespace(**parameters)  # type: ignore
         args.worker_name = "generate"
         self.generate_stage = GenerateStage(
@@ -194,29 +175,12 @@ class VllmGenerateOperator(BaseVllmOperator):
 
 
 class VllmBaselineOperator(BaseVllmOperator):
-    def __init__(
+    def _init_stages(
         self,
-        name: str,
-        version: int,
-        triton_core,
-        request_plane: RequestPlane,
-        data_plane: DataPlane,
         parameters: Optional[dict[str, str | int | bool | bytes]] = field(
             default_factory=dict
         ),
-        repository: Optional[str] = None,
-        logger: Optional[Any] = None,
     ):
-        super().__init__(
-            name,
-            version,
-            triton_core,
-            request_plane,
-            data_plane,
-            parameters,
-            repository,
-            logger,
-        )
         args = argparse.Namespace(**parameters)  # type: ignore
         self.aggregated_pipeline = AggregatedPipeline(
             model=args.model_name,
