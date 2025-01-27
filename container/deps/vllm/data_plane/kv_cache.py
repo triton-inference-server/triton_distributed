@@ -26,6 +26,7 @@ if typing.TYPE_CHECKING:
     from vllm.attention.backends.abstract import AttentionMetadata  # type: ignore
 
 import hashlib
+import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
@@ -40,6 +41,7 @@ from vllm.distributed.parallel_state import get_store, get_tp_group  # type: ign
 from vllm.logger import init_logger
 
 logger = init_logger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 _kv_cache_handler = None

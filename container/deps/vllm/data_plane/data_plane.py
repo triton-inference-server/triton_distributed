@@ -39,7 +39,7 @@ from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest
 from triton_distributed.icp.ucp_data_plane import DataPlaneError, UcpDataPlane
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)
 
 class VllmUcpDataPlane:
     def __init__(
