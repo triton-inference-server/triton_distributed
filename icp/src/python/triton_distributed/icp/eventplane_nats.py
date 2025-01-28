@@ -4,8 +4,8 @@ from typing import Optional
 
 import nats
 
-from triton_distributed.eventplane import event_pb2
-from triton_distributed.eventplane.eventplane import Channel, Event
+from triton_distributed.icp.protos import event_pb2
+from triton_distributed.icp.eventplane import Channel, Event
 
 
 class EventPlaneNats:

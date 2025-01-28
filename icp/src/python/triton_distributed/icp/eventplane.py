@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Union, List
 
-from triton_distributed.eventplane import event_pb2
+from triton_distributed.icp.protos import event_pb2
 
 
 class Channel:

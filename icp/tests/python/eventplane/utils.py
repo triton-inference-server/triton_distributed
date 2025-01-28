@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 import pytest_asyncio
 
-from triton_distributed.eventplane.eventplane_nats import EventPlaneNats
+from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
 @pytest_asyncio.fixture(loop_scope="session")

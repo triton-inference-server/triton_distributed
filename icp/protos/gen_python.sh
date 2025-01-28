@@ -22,3 +22,5 @@ mkdir -p $PROTO_OUT
 
 python3 -m grpc_tools.protoc -I$PROTO_SRC --python_out=$PROTO_OUT --pyi_out=$PROTO_OUT icp.proto \
   && ls $PROTO_OUT
+python3 -m grpc_tools.protoc -I$PROTO_SRC --python_out=$PROTO_OUT --pyi_out=$PROTO_OUT event.proto \
+  && ls $PROTO_OUT

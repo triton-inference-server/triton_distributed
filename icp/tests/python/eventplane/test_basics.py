@@ -3,8 +3,8 @@ from datetime import datetime
 
 import pytest
 
-from triton_distributed.eventplane.eventplane import Event, Channel
-from triton_distributed.eventplane.eventplane_nats import EventPlaneNats
+from triton_distributed.icp.eventplane import Event, Channel
+from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
 class TestChannel:

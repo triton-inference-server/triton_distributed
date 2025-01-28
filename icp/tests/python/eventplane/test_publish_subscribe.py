@@ -3,8 +3,8 @@ import uuid
 
 import pytest
 
-from triton_distributed.eventplane.eventplane import Channel
-from triton_distributed.eventplane.eventplane_nats import EventPlaneNats
+from triton_distributed.icp.eventplane import Channel
+from triton_distributed.icp.eventplane_nats import EventPlaneNats
 from .utils import nats_server, event_plane
 
 

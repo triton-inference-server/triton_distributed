@@ -2,8 +2,8 @@ import argparse
 import asyncio
 import uuid
 
-from triton_distributed.eventplane.eventplane import Channel
-from triton_distributed.eventplane.eventplane_nats import EventPlaneNats
+from triton_distributed.icp.eventplane import Channel
+from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
 async def main(subscriber_id, channel, event_type, component_id):
