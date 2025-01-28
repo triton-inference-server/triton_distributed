@@ -21,6 +21,7 @@
 
 import typing
 import os
+import socket
 
 if typing.TYPE_CHECKING:
     from vllm.worker.model_runner import ModelInputForGPUWithSamplingMetadata  # type: ignore
@@ -62,17 +63,19 @@ class KVCacheHandler:
 
         self._data_plane_backend = envs.VLLM_DATA_PLANE_BACKEND
         if self._data_plane_backend == "nccl":
-            hostname = ""
-            # FIXME: This is a hack to get the hostname of the decode worker
             if envs.VLLM_WORKER_ID >= envs.VLLM_CONTEXT_WORKERS:
-                hostname = os.getenv("VLLM_DATA_PLANE_HOSTNAME", "")
-                logger.debug(f"Hostname: {hostname}")
-            self._data_plane = VllmNcclDataPlane(hostname=hostname)
+                # bind to actual host but advertise a service
+                self._data_plane = VllmNcclDataPlane(
+                    bind_hostname=socket.gethostname(),
+                    advertise_hostname=os.getenv("VLLM_DATA_PLANE_HOSTNAME", ""),
+                )
+            else:
+                self._data_plane = VllmNcclDataPlane()
             self._store = get_store()
             logger.info("Store set up")
             self._store.set(
                 f"worker_{envs.VLLM_WORKER_ID}_rank_{get_tp_group().local_rank}",
-                f"{self._data_plane._hostname}:{self._data_plane._port}",
+                f"{self._data_plane._advertise_hostname}:{self._data_plane._port}",
             )
         elif self._data_plane_backend == "ucx":
             self._data_plane = VllmUcpDataPlane(keep_endpoints_open=True)

@@ -128,7 +128,8 @@ class VllmUcpDataPlane:
 class VllmNcclDataPlane:
     def __init__(
         self,
-        hostname: str = "",
+        bind_hostname: str = "",
+        advertise_hostname: str = "",
         port: int = 0,
         # FIXME: world_size and rank both unused
         world_size: int = -1,
@@ -137,12 +138,10 @@ class VllmNcclDataPlane:
         if not torch.distributed.is_initialized():
             raise RuntimeError("NCCL backend not initialized")
 
-        if not hostname:
-            hostname = socket.gethostname()
-        if port == 0:
-            port = 13337 + torch.distributed.get_rank()
-        self._hostname = hostname
-        self._port = port
+        self._bind_hostname = bind_hostname or socket.gethostname()
+        self._advertise_hostname = advertise_hostname or self._bind_hostname
+        self._port = port or (13337 + torch.distributed.get_rank())
+
         self._rank = torch.distributed.get_rank()
         self._world_size: int = world_size
         self._current_device = torch.cuda.current_device()
@@ -150,8 +149,9 @@ class VllmNcclDataPlane:
         self.store: typing.Dict[str, typing.Tuple[torch.Tensor, int, typing.Any]] = {}
         self.context = zmq.Context()
         self.rep_socket = self.context.socket(zmq.REP)
-        logger.info(f"Rank {self._rank} binding to {self._hostname}:{self._port}")
-        self.rep_socket.bind(f"tcp://{self._hostname}:{self._port}")
+        logger.info(f"Rank {self._rank} binding to {self._bind_hostname}:{self._port}")
+        logger.info(f"Advertising to {self._advertise_hostname}:{self._port}")
+        self.rep_socket.bind(f"tcp://{self._bind_hostname}:{self._port}")
         self._listener_thread = threading.Thread(
             target=self.listen_for_requests, daemon=True
         )
