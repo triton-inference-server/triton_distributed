@@ -150,7 +150,7 @@ class VllmNcclDataPlane:
         self.context = zmq.Context()
         self.rep_socket = self.context.socket(zmq.REP)
         logger.info(f"Rank {self._rank} binding to {self._bind_hostname}:{self._port}")
-        logger.info(f"Advertising to {self._advertise_hostname}:{self._port}")
+        logger.info(f"Advertising as {self._advertise_hostname}:{self._port}")
         self.rep_socket.bind(f"tcp://{self._bind_hostname}:{self._port}")
         self._listener_thread = threading.Thread(
             target=self.listen_for_requests, daemon=True
