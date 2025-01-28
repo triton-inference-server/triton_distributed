@@ -1,4 +1,3 @@
-import abc
 import argparse
 import json
 import logging
@@ -16,14 +15,10 @@ from triton_distributed.worker import (
     RemoteOperator,
 )
 
-from .vllm_disaggregated.pipelines import (
-    AggregatedPipeline,
-    GenerateStage,
-    PrefillStage,
-)
+from .stages import AggregatedStage, GenerateStage, PrefillStage
 
 
-class BaseVllmOperator(Operator):
+class VllmOperator(Operator):
     def __init__(
         self,
         name: str,
@@ -48,14 +43,46 @@ class BaseVllmOperator(Operator):
 
         self._init_stages(parameters)
 
-    @abc.abstractmethod
+    async def execute(self, requests: List[RemoteInferenceRequest]) -> None:
+        for request in requests:
+            inputs, parameters = self._prepare_inputs(request)
+            try:
+                self.logger.debug("Processing request")
+                async for response in self._stage(
+                    {
+                        "inputs": inputs,
+                        "parameters": parameters,
+                    }
+                ):
+                    self.logger.debug("Sending response")
+                    await request.response_sender().send(**response)
+                    self.logger.debug("Response send")
+            except Exception as e:
+                self.logger.error(f"Error processing request: {e}")
+                await request.response_sender().send(error=e, final=True)
+
     def _init_stages(
         self,
         parameters: Optional[dict[str, str | int | bool | bytes]] = field(
             default_factory=dict
         ),
     ):
-        pass
+        args = argparse.Namespace(**parameters)  # type: ignore
+        self._stage = AggregatedStage(
+            model=args.model_name,
+            tensor_parallel_size=args.baseline_tp_size,
+            gpu_memory_utilization=args.gpu_memory_utilization,
+            max_model_len=args.max_model_len,
+            dtype=args.dtype,
+            kv_cache_dtype=args.kv_cache_dtype,
+            enable_prefix_caching=args.enable_prefix_caching,
+            enable_chunked_prefill=args.enable_chunked_prefill,
+            enforce_eager=args.enforce_eager,
+            ignore_eos=args.ignore_eos,
+            max_num_seqs=args.max_num_seqs,
+            disable_async_output_proc=args.disable_async_output_proc,
+            disable_log_stats=args.disable_log_stats,
+        )
 
     @staticmethod
     def _prepare_inputs(request: RemoteInferenceRequest):
@@ -70,7 +97,7 @@ class BaseVllmOperator(Operator):
         return inputs, parameters
 
 
-class VllmContextOperator(BaseVllmOperator):
+class VllmContextOperator(VllmOperator):
     def _init_stages(
         self,
         parameters: Optional[dict[str, str | int | bool | bytes]] = field(
@@ -103,17 +130,15 @@ class VllmContextOperator(BaseVllmOperator):
             inputs, parameters = self._prepare_inputs(request)
             try:
                 self.logger.info("Processing request")
-                responses = list(
-                    [
-                        response
-                        async for response in self._prefill_stage(
-                            {
-                                "inputs": inputs,
-                                "parameters": parameters,
-                            }
-                        )
-                    ]
-                )
+                responses = [
+                    response
+                    async for response in self._prefill_stage(
+                        {
+                            "inputs": inputs,
+                            "parameters": parameters,
+                        }
+                    )
+                ]
                 self.logger.info("Prefill finished")
                 assert len(responses) == 1
                 response = responses[0]
@@ -138,7 +163,7 @@ class VllmContextOperator(BaseVllmOperator):
                 await request.response_sender().send(error=e, final=True)
 
 
-class VllmGenerateOperator(BaseVllmOperator):
+class VllmGenerateOperator(VllmOperator):
     def _init_stages(
         self,
         parameters: Optional[dict[str, str | int | bool | bytes]] = field(
@@ -147,7 +172,7 @@ class VllmGenerateOperator(BaseVllmOperator):
     ):
         args = argparse.Namespace(**parameters)  # type: ignore
         args.worker_name = "generate"
-        self.generate_stage = GenerateStage(
+        self._stage = GenerateStage(
             model=args.model_name,
             tensor_parallel_size=args.generate_tp_size,
             gpu_memory_utilization=args.gpu_memory_utilization,
@@ -162,64 +187,3 @@ class VllmGenerateOperator(BaseVllmOperator):
             disable_async_output_proc=args.disable_async_output_proc,
             disable_log_stats=args.disable_log_stats,
         )
-
-    async def execute(self, requests: List[RemoteInferenceRequest]) -> None:
-        for request in requests:
-            inputs, parameters = self._prepare_inputs(request)
-            try:
-                self.logger.debug("Processing request")
-                async for response in self.generate_stage(
-                    {
-                        "inputs": inputs,
-                        "parameters": parameters,
-                    }
-                ):
-                    self.logger.debug("Sending response")
-                    await request.response_sender().send(**response)
-                    self.logger.debug("Response send")
-            except Exception as e:
-                self.logger.error(f"Error processing request: {e}")
-                await request.response_sender().send(error=e, final=True)
-
-
-class VllmBaselineOperator(BaseVllmOperator):
-    def _init_stages(
-        self,
-        parameters: Optional[dict[str, str | int | bool | bytes]] = field(
-            default_factory=dict
-        ),
-    ):
-        args = argparse.Namespace(**parameters)  # type: ignore
-        self.aggregated_pipeline = AggregatedPipeline(
-            model=args.model_name,
-            tensor_parallel_size=args.baseline_tp_size,
-            gpu_memory_utilization=args.gpu_memory_utilization,
-            max_model_len=args.max_model_len,
-            dtype=args.dtype,
-            kv_cache_dtype=args.kv_cache_dtype,
-            enable_prefix_caching=args.enable_prefix_caching,
-            enable_chunked_prefill=args.enable_chunked_prefill,
-            enforce_eager=args.enforce_eager,
-            ignore_eos=args.ignore_eos,
-            max_num_seqs=args.max_num_seqs,
-            disable_async_output_proc=args.disable_async_output_proc,
-            disable_log_stats=args.disable_log_stats,
-        )
-
-    async def execute(self, requests: List[RemoteInferenceRequest]) -> None:
-        for request in requests:
-            inputs, parameters = self._prepare_inputs(request)
-            try:
-                self.logger.debug("Processing request")
-                async for response in self.aggregated_pipeline(
-                    {
-                        "inputs": inputs,
-                        "parameters": parameters,
-                    }
-                ):
-                    self.logger.debug("Sending response")
-                    await request.response_sender().send(**response)
-                    self.logger.debug("Response send")
-            except Exception as e:
-                self.logger.error(f"Error processing request: {e}")
-                await request.response_sender().send(error=e, final=True)

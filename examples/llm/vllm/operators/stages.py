@@ -29,7 +29,7 @@ LOGGER = vllm.logger.init_logger(__name__)
 RETURN_EVERY_N = 1000000
 
 
-class AggregatedPipeline:
+class AggregatedStage:
     def __init__(
         self,
         **kwargs,
@@ -230,28 +230,3 @@ class GenerateStage:
                 }
             counter += 1
         LOGGER.debug("results_generator finished for generate")
-
-
-class DisaggregatedPipeline:
-    def __init__(
-        self,
-        stage,
-        **kwargs,
-    ):
-        if stage == "prefill":
-            LOGGER.info(f"initialize prefill {kwargs}")
-            self.stage = PrefillStage(**kwargs)  # type: ignore
-        elif stage == "generate":
-            LOGGER.info(f"initialize generate {kwargs}")
-            self.stage = GenerateStage(**kwargs)  # type: ignore
-        else:
-            raise ValueError(f"Unknown stage: {stage}")
-
-    async def __call__(
-        self, input_payload: Dict[str, Any]
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        LOGGER.debug("Start pipeline")
-        async for result in self.stage(input_payload):
-            LOGGER.debug("yield result")
-            yield result
-        LOGGER.debug("Pipeline generator finished")
