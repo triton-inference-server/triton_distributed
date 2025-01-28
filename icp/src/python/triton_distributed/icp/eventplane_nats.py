@@ -4,8 +4,8 @@ from typing import Optional
 
 import nats
 
-from triton_distributed.icp.protos import event_pb2
 from triton_distributed.icp.eventplane import Channel, Event
+from triton_distributed.icp.protos import event_pb2
 
 
 class EventPlaneNats:
@@ -26,7 +26,7 @@ class EventPlaneNats:
             event_type=event_type,
             timestamp=datetime.utcnow(),
             component_id=self.component_id,
-            payload=payload
+            payload=payload,
         )
         return event
 
@@ -36,8 +36,13 @@ class EventPlaneNats:
         subject = f"ep.{event.event_type}.{event.component_id}.{event.channel}.trunk"
         await self.nc.publish(subject, message)
 
-    async def subscribe(self, callback, channel: Optional[Channel] = None, event_type: Optional[str] = None,
-                        component_id: Optional[uuid.UUID] = None):
+    async def subscribe(
+        self,
+        callback,
+        channel: Optional[Channel] = None,
+        event_type: Optional[str] = None,
+        component_id: Optional[uuid.UUID] = None,
+    ):
         async def message_handler(msg):
             event_pb = event_pb2.Event()
             event_pb.ParseFromString(msg.data)

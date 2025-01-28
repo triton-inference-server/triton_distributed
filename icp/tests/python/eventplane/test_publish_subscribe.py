@@ -5,12 +5,10 @@ import pytest
 
 from triton_distributed.icp.eventplane import Channel
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
-from .utils import nats_server, event_plane
 
 
 @pytest.mark.asyncio
 class TestEventPlaneFunctional:
-
     @pytest.mark.asyncio
     async def test_single_publisher_subscriber(self, nats_server, event_plane):
         print(f"Print loop test: {id(asyncio.get_running_loop())}")

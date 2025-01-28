@@ -33,8 +33,7 @@ async def test_single_publisher_subscriber():
     await asyncio.sleep(3)
 
     print(f"received_events: {received_events}")
-    #assert received_events[0][0].event_id == event.event_id
-
+    # assert received_events[0][0].event_id == event.event_id
 
     await plane.disconnect()
 

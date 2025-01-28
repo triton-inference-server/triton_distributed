@@ -2,7 +2,7 @@ import uuid
 from abc import abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 from triton_distributed.icp.protos import event_pb2
 
@@ -17,7 +17,7 @@ class Channel:
             self.chunks = channel
 
     def __str__(self):
-        return '.'.join(self.chunks)
+        return ".".join(self.chunks)
 
     def to_string(self):
         """Convert Channel to string."""
@@ -84,12 +84,15 @@ class EventPlane:
         pass
 
     @abstractmethod
-    async def subscribe(self, callback, channel: Optional[Channel] = None, event_type: Optional[str] = None,
-                        component_id: Optional[uuid.UUID] = None):
+    async def subscribe(
+        self,
+        callback,
+        channel: Optional[Channel] = None,
+        event_type: Optional[str] = None,
+        component_id: Optional[uuid.UUID] = None,
+    ):
         pass
 
     @abstractmethod
     async def disconnect(self):
         pass
-
-

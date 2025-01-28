@@ -27,8 +27,15 @@ async def main(component_id, event_type, publisher_id):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Event publisher script")
-    parser.add_argument("--component_id", type=uuid.UUID, default=uuid.uuid4(), help="Component ID (UUID)")
-    parser.add_argument("--event_type", type=str, default="test_event", help="Event type")
+    parser.add_argument(
+        "--component_id",
+        type=uuid.UUID,
+        default=uuid.uuid4(),
+        help="Component ID (UUID)",
+    )
+    parser.add_argument(
+        "--event_type", type=str, default="test_event", help="Event type"
+    )
     parser.add_argument("--publisher_id", type=int, required=True, help="Publisher ID")
 
     args = parser.parse_args()

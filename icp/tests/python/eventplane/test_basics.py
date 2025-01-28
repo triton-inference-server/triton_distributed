@@ -3,7 +3,7 @@ from datetime import datetime
 
 import pytest
 
-from triton_distributed.icp.eventplane import Event, Channel
+from triton_distributed.icp.eventplane import Channel, Event
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 

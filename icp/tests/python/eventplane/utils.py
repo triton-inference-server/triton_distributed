@@ -29,7 +29,7 @@ async def nats_server():
 
 @asynccontextmanager
 async def event_plane_context():
-    #with nats_server_context() as server:
+    # with nats_server_context() as server:
     print(f"Print loop plane context: {id(asyncio.get_running_loop())}")
     server_url = "nats://localhost:4222"
     component_id = uuid.uuid4()
