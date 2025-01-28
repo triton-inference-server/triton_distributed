@@ -4,7 +4,7 @@ from typing import Optional
 
 import nats
 
-from triton_distributed.icp.eventplane import EventTopic, Event
+from triton_distributed.icp.eventplane import Event, EventTopic
 from triton_distributed.icp.protos import event_pb2
 
 
