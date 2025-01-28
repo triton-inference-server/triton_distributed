@@ -15,7 +15,7 @@ from triton_distributed.worker import (
     RemoteOperator,
 )
 
-from .stages import AggregatedStage, GenerateStage, PrefillStage
+from .stages import AggregatedStage, GenerateStage, PrefillStage, Stage
 
 
 class VllmOperator(Operator):
@@ -40,6 +40,7 @@ class VllmOperator(Operator):
             self.logger = logging.getLogger(__name__)
         else:
             self.logger = logger
+        self._stage: Stage
 
         self._init_stages(parameters)
 

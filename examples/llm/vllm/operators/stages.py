@@ -35,7 +35,7 @@ class Stage(abc.ABC):
     async def __call__(
         self, input_payload: Dict[str, Any]
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        pass
+        yield {}
 
 
 class AggregatedStage(Stage):
