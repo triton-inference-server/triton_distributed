@@ -19,9 +19,9 @@
 # FIXME: Address type checking with divergent interfaces for Ucp/Nccl data planes
 # type: ignore
 
-import typing
 import os
 import socket
+import typing
 
 if typing.TYPE_CHECKING:
     from vllm.worker.model_runner import ModelInputForGPUWithSamplingMetadata  # type: ignore
