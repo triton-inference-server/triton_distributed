@@ -39,7 +39,10 @@ from triton_distributed.icp.request_plane import (
     set_icp_final_response,
     set_icp_response_error,
 )
+from triton_distributed.worker.logger import get_logger
 from triton_distributed.worker.remote_tensor import RemoteTensor
+
+logger = get_logger(__name__)
 
 
 class AsyncRemoteResponseIterator:
@@ -185,7 +188,7 @@ class AsyncRemoteResponseIterator:
 
         except Exception as e:
             message = f"Catastrophic failure in response callback: {e}"
-            print(message)
+            logger.exception(message)
             # catastrophic failure
             raise e from None
 

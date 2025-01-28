@@ -16,14 +16,14 @@
 from frontend.fastapi_frontend import FastApiFrontend
 from llm.api_server.triton_distributed_engine import TritonDistributedEngine
 
-from triton_distributed.worker.log_formatter import setup_logger
+from triton_distributed.worker.logger import get_logger
 
 from .parser import parse_args
 
 
 def main(args):
     print(args)
-    logger = setup_logger(args.log_level, args.program_name)
+    logger = get_logger(args.log_level, args.program_name)
 
     logger.info("Starting")
 

@@ -25,7 +25,7 @@ from triton_distributed.icp import (
     RequestPlane,
     UcpDataPlane,
 )
-from triton_distributed.worker.log_formatter import setup_logger
+from triton_distributed.worker.logger import get_logger
 from triton_distributed.worker.worker import Worker, WorkerConfig
 
 LOGGER_NAME = __name__
@@ -43,12 +43,13 @@ class Deployment:
         data_plane: Optional[Type[DataPlane]] = UcpDataPlane,
         data_plane_args: Optional[tuple[list, dict]] = None,
         log_dir="logs",
+        consolidate_logs=False,
         starting_metrics_port=0,
     ):
         self._process_context = multiprocessing.get_context("spawn")
         self._worker_configs = worker_configs
         self._workers: list[multiprocessing.context.SpawnProcess] = []
-        self._logger = setup_logger(log_level, LOGGER_NAME)
+        self._logger = get_logger(log_level, LOGGER_NAME)
         self._default_request_plane = request_plane
         self._default_request_plane_args = request_plane_args
         self._default_data_plane = data_plane
@@ -58,6 +59,7 @@ class Deployment:
         self.request_plane_server: NatsServer = None
         self._default_log_dir = log_dir
         self._default_log_level = log_level
+        self._consolidate_logs = consolidate_logs
         self._starting_metrics_port = starting_metrics_port
 
     @staticmethod
@@ -102,6 +104,9 @@ class Deployment:
 
             if not worker_config.log_level:
                 worker_config.log_level = self._default_log_level
+
+            if self._consolidate_logs:
+                worker_config.consolidate_logs = True
 
             for index in range(worker_instances):
                 worker_config.name = f"{base_name}.{index}"

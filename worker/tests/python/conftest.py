@@ -23,9 +23,8 @@ import pytest
 import pytest_asyncio
 
 from triton_distributed.icp.nats_request_plane import NatsServer
-from triton_distributed.worker.log_formatter import LOGGER_NAME
 
-logger = logging.getLogger(LOGGER_NAME)
+logger = logging.getLogger(__name__)
 
 
 NATS_PORT = 4223

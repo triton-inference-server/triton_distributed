@@ -9,8 +9,6 @@ def parse_args():
     #    default_log_dir = "" example_dir.joinpath("logs")
     default_log_dir = ""
 
-    parser = argparse.ArgumentParser(description="Hello World Deployment")
-
     parser.add_argument(
         "--log-dir",
         type=str,

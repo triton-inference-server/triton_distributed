@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import asyncio
+import pathlib
 import sys
 from multiprocessing import Process
 
@@ -60,8 +61,6 @@ pytestmark = pytest.mark.pre_merge
 @pytest.fixture
 def workers(request, log_dir):
     operator_configs = {}
-
-    store_outputs_in_response = request.getfixturevalue("store_outputs_in_response")
     # Add configs for triton core operators
     triton_core_operators = ["add", "multiply", "divide"]
     for operator_name in triton_core_operators:
@@ -70,7 +69,6 @@ def workers(request, log_dir):
             implementation=TritonCoreOperator,
             version=1,
             max_inflight_requests=10,
-            parameters={"store_outputs_in_response": store_outputs_in_response},
             repository=MODEL_REPOSITORY,
         )
 
@@ -81,7 +79,6 @@ def workers(request, log_dir):
         implementation="add_multiply_divide:AddMultiplyDivide",
         version=1,
         max_inflight_requests=10,
-        parameters={"store_outputs_in_response": store_outputs_in_response},
         repository=OPERATORS_REPOSITORY,
     )
 
@@ -109,7 +106,12 @@ def workers(request, log_dir):
             )
         )
 
-    worker_deployment = Deployment(worker_configs)
+    consolidate_logs = request.getfixturevalue("consolidate_logs")
+    worker_deployment = Deployment(
+        worker_configs,
+        consolidate_logs=consolidate_logs,
+        log_dir=log_dir,
+    )
 
     worker_deployment.start()
     yield worker_deployment
@@ -145,7 +147,7 @@ def _create_inputs(number, size):
     return inputs, outputs
 
 
-async def post_requests(num_requests, store_inputs_in_request):
+async def post_requests(num_requests):
     """
     Post requests to add_multiply_divide operator.
     """
@@ -172,8 +174,6 @@ async def post_requests(num_requests, store_inputs_in_request):
         request = add_multiply_divide_operator.create_request(
             inputs={"int64_input": input_}, request_id=request_id
         )
-        if store_inputs_in_request:
-            request.store_inputs_in_request.add("int64_input")
         print(request)
         results.append(add_multiply_divide_operator.async_infer(request))
         expected_results[request_id] = outputs[i]
@@ -200,15 +200,8 @@ async def post_requests(num_requests, store_inputs_in_request):
     await request_plane.close()
 
 
-def run(num_requests, store_inputs_in_request=False):
-    sys.exit(
-        asyncio.run(
-            post_requests(
-                num_requests=num_requests,
-                store_inputs_in_request=store_inputs_in_request,
-            )
-        )
-    )
+def run(num_requests):
+    sys.exit(asyncio.run(post_requests(num_requests=num_requests)))
 
 
 @pytest.mark.skipif(
@@ -217,18 +210,28 @@ def run(num_requests, store_inputs_in_request=False):
 )
 @pytest.mark.timeout(30)
 @pytest.mark.parametrize(
-    ["store_inputs_in_request", "store_outputs_in_response"],
-    [(False, False), (True, True)],
+    "consolidate_logs",
+    [True, False],
 )
-def test_add_multiply_divide(
-    request,
-    nats_server,
-    workers,
-    store_inputs_in_request,
-    store_outputs_in_response,
-):
+def test_consolidate_logs(request, nats_server, workers, consolidate_logs, log_dir):
     # Using a separate process to use data plane across multiple tests.
-    p = Process(target=run, args=(2, store_inputs_in_request))
+    p = Process(target=run, args=(2,))
     p.start()
     p.join()
     assert p.exitcode == 0
+
+    # Test the number of logs that were created
+    log_dir_path = pathlib.Path(log_dir) / request.node.name
+    worker_log_dir_count = 0
+    for name in log_dir_path.iterdir():
+        worker_log_dir_count += 1
+        expected_worker_log_count = 1
+        if not consolidate_logs and name.stem not in ["add_multiply_divide"]:
+            expected_worker_log_count = 2
+        worker_log_path = log_dir_path / name.stem
+        worker_log_count = 0
+        for log_name in worker_log_path.iterdir():
+            worker_log_count += 1
+        assert worker_log_count == expected_worker_log_count
+
+    assert worker_log_dir_count == 4

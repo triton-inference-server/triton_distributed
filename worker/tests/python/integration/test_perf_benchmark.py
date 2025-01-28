@@ -26,7 +26,6 @@
 
 
 import asyncio
-import logging
 
 import numpy
 import pytest
@@ -35,7 +34,7 @@ import ucp
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
 from triton_distributed.worker.deployment import Deployment
-from triton_distributed.worker.log_formatter import LOGGER_NAME
+from triton_distributed.worker.logger import get_logger
 from triton_distributed.worker.operator import OperatorConfig
 from triton_distributed.worker.remote_operator import RemoteOperator
 from triton_distributed.worker.worker import WorkerConfig
@@ -45,10 +44,9 @@ MODEL_REPOSITORY = (
     "/workspace/worker/tests/python/integration/operators/triton_core_models"
 )
 OPERATORS_REPOSITORY = "/workspace/worker/tests/python/integration/operators"
-TRITON_LOG_FILE = "triton.log"
-TRITON_LOG_LEVEL = 6
+TRITON_LOG_LEVEL = 0
 
-logger = logging.getLogger(LOGGER_NAME)
+logger = get_logger(__name__)
 
 # TODO
 # Decide if this should be
@@ -81,6 +79,7 @@ def workers(log_dir, request, number_workers=1):
         worker_log_dir = test_log_dir / (operator_name + "_" + str(i))
         worker_configs.append(
             WorkerConfig(
+                name=operator_name,
                 request_plane=NatsRequestPlane,
                 data_plane=UcpDataPlane,
                 request_plane_args=(
@@ -89,7 +88,6 @@ def workers(log_dir, request, number_workers=1):
                 ),
                 log_level=TRITON_LOG_LEVEL,
                 log_dir=str(worker_log_dir),
-                triton_log_path=str(worker_log_dir / TRITON_LOG_FILE),
                 operators=[operator_config],
             )
         )
@@ -222,7 +220,7 @@ def data_plane_tracker():
     "tensor_size_in_kb",
     [10, 100, 500],
 )
-@pytest.mark.benchmark(min_rounds=50, max_time=0.5)
+@pytest.mark.benchmark(min_rounds=100, max_time=1)
 def test_identity(
     request,
     nats_server,

@@ -40,6 +40,7 @@ class TritonPythonModel:
 
         # Using a mock hard coded auto-tokenizer
         self.tokenizer = XLNetTokenizer.from_pretrained("xlnet-base-cased")
+        self._logger = pb_utils.Logger
 
     def execute(self, requests):
         responses = []
@@ -52,7 +53,7 @@ class TritonPythonModel:
             output_result = np.array(
                 self.tokenizer.convert_ids_to_tokens((output_ids.tolist()))
             )
-            print(f"Output Result \n\n {output_result}", flush=True)
+            self._logger.log_verbose(f"Output Result \n\n {output_result}")
 
             output_tensor = pb_utils.Tensor(
                 "OUTPUT", output_result.astype(self.output_dtype)
