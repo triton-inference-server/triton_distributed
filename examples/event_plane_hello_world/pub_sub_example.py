@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 
-from triton_distributed.icp.eventplane import Channel
+from triton_distributed.icp.eventplane import EventTopic
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
@@ -20,7 +20,7 @@ async def test_single_publisher_subscriber():
         print(event)
         received_events.append(event)
 
-    channel = Channel("test.channel")
+    channel = EventTopic("test.channel")
     event_type = "test_event"
     payload = b"test_payload"
 

@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 
-from triton_distributed.icp.eventplane import Channel
+from triton_distributed.icp.eventplane import EventTopic
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
@@ -18,7 +18,7 @@ class TestEventPlaneFunctional:
         async def callback(event):
             received_events.append(event)
 
-        channel = Channel("test.channel")
+        channel = EventTopic("test.channel")
         event_type = "test_event"
         payload = b"test_payload"
 
@@ -48,7 +48,7 @@ class TestEventPlaneFunctional:
         async def callback_3(event):
             results_3.append(event)
 
-        channel = Channel(["test"])
+        channel = EventTopic(["test"])
         event_type = "multi_event"
         payload = b"multi_payload"
 
@@ -67,8 +67,8 @@ class TestEventPlaneFunctional:
         event_plane1 = EventPlaneNats(server_url, component_id)
         await event_plane1.connect()
 
-        ch1 = Channel(["test", "1"])
-        ch2 = Channel(["test", "2"])
+        ch1 = EventTopic(["test", "1"])
+        ch2 = EventTopic(["test", "2"])
         event1 = await event_plane1.create_event(event_type, ch1, payload)
         await event_plane1.publish(event1)
         event2 = await event_plane1.create_event(event_type, ch2, payload)

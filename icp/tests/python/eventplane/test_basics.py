@@ -3,25 +3,25 @@ from datetime import datetime
 
 import pytest
 
-from triton_distributed.icp.eventplane import Channel, Event
+from triton_distributed.icp.eventplane import EventTopic, Event
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
 class TestChannel:
     def test_from_string(self):
         channel_str = "level1.level2"
-        channel = Channel.from_string(channel_str)
+        channel = EventTopic.from_string(channel_str)
         assert channel.chunks == ["level1", "level2"]
 
     def test_to_string(self):
-        channel = Channel(["level1", "level2"])
+        channel = EventTopic(["level1", "level2"])
         assert channel.to_string() == "level1.level2"
 
 
 class TestEvent:
     @pytest.fixture
     def sample_event(self):
-        channel = Channel("test.channel")
+        channel = EventTopic("test.channel")
         return Event(
             event_id=uuid.uuid4(),
             channel=channel,
@@ -54,7 +54,7 @@ class TestEventPlaneNats:
     @pytest.mark.asyncio
     async def test_create_event(self, event_plane_instance):
         event_type = "test_event"
-        channel = Channel("test.channel")
+        channel = EventTopic("test.channel")
         payload = b"test_payload"
         event = await event_plane_instance.create_event(event_type, channel, payload)
         assert event.event_type == event_type

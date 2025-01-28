@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import uuid
 
-from triton_distributed.icp.eventplane import Channel
+from triton_distributed.icp.eventplane import EventTopic
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
@@ -18,7 +18,7 @@ async def main(subscriber_id, channel, event_type, component_id):
     await event_plane.connect()
 
     try:
-        channel = Channel(channel.split(".")) if channel else None
+        channel = EventTopic(channel.split(".")) if channel else None
         print(f"Subscribing to channel: {channel}")
         await event_plane.subscribe(
             callback, channel=channel, event_type=event_type, component_id=component_id

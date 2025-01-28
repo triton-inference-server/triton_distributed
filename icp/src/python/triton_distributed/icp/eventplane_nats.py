@@ -4,7 +4,7 @@ from typing import Optional
 
 import nats
 
-from triton_distributed.icp.eventplane import Channel, Event
+from triton_distributed.icp.eventplane import EventTopic, Event
 from triton_distributed.icp.protos import event_pb2
 
 
@@ -19,7 +19,7 @@ class EventPlaneNats:
     async def connect(self):
         await self.nc.connect(self.server_url)
 
-    async def create_event(self, event_type: str, channel: Channel, payload: bytes):
+    async def create_event(self, event_type: str, channel: EventTopic, payload: bytes):
         event = Event(
             event_id=uuid.uuid4(),
             channel=channel,
@@ -39,7 +39,7 @@ class EventPlaneNats:
     async def subscribe(
         self,
         callback,
-        channel: Optional[Channel] = None,
+        channel: Optional[EventTopic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
     ):

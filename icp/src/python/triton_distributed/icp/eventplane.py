@@ -7,8 +7,8 @@ from typing import List, Optional, Union
 from triton_distributed.icp.protos import event_pb2
 
 
-class Channel:
-    """Channel class for identifying event streams."""
+class EventTopic:
+    """Event topic class for identifying event streams."""
 
     def __init__(self, channel: Union[List[str], str]):
         if isinstance(channel, str):
@@ -20,13 +20,13 @@ class Channel:
         return ".".join(self.chunks)
 
     def to_string(self):
-        """Convert Channel to string."""
+        """Convert Topic to string."""
         return str(self)
 
     @staticmethod
     def from_string(channel_str: str):
-        """Create Channel from string."""
-        return Channel(channel_str.split("."))
+        """Create Topic from string."""
+        return EventTopic(channel_str.split("."))
 
 
 @dataclass
@@ -34,7 +34,7 @@ class Event:
     """Event class for representing events."""
 
     event_id: uuid.UUID
-    channel: Channel
+    channel: EventTopic
     event_type: str
     timestamp: datetime
     component_id: uuid.UUID
@@ -57,7 +57,7 @@ class Event:
 
         return Event(
             event_id=uuid.UUID(event_pb.event_id),
-            channel=Channel.from_string(event_pb.channel),
+            channel=EventTopic.from_string(event_pb.channel),
             event_type=event_pb.event_type,
             timestamp=event_pb.timestamp.ToDatetime(),
             component_id=uuid.UUID(event_pb.component_id),
@@ -76,7 +76,7 @@ class EventPlane:
         pass
 
     @abstractmethod
-    async def create_event(self, event_type: str, channel: Channel, payload: bytes):
+    async def create_event(self, event_type: str, channel: EventTopic, payload: bytes):
         pass
 
     @abstractmethod
@@ -87,7 +87,7 @@ class EventPlane:
     async def subscribe(
         self,
         callback,
-        channel: Optional[Channel] = None,
+        channel: Optional[EventTopic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
     ):

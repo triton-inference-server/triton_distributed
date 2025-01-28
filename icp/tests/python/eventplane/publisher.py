@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import uuid
 
-from triton_distributed.icp.eventplane import Channel
+from triton_distributed.icp.eventplane import EventTopic
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
@@ -13,7 +13,7 @@ async def main(component_id, event_type, publisher_id):
     await event_plane.connect()
 
     try:
-        channel = Channel(["publisher", str(publisher_id)])
+        channel = EventTopic(["publisher", str(publisher_id)])
 
         for i in range(10):
             payload = f"Payload from publisher {publisher_id}".encode()
