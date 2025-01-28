@@ -46,8 +46,9 @@ class VllmOperator(Operator):
 
     async def execute(self, requests: List[RemoteInferenceRequest]) -> None:
         for request in requests:
-            inputs, parameters = self._prepare_inputs(request)
+            response_sender = request.response_sender()
             try:
+                inputs, parameters = self._prepare_inputs(request)
                 self.logger.debug("Processing request")
                 async for response in self._stage(
                     {
@@ -56,11 +57,11 @@ class VllmOperator(Operator):
                     }
                 ):
                     self.logger.debug("Sending response")
-                    await request.response_sender().send(**response)
+                    await response_sender.send(**response)
                     self.logger.debug("Response send")
             except Exception as e:
                 self.logger.error(f"Error processing request: {e}")
-                await request.response_sender().send(error=e, final=True)
+                await response_sender.send(error=e, final=True)
 
     def _init_stages(
         self,
@@ -128,9 +129,10 @@ class VllmContextOperator(VllmOperator):
 
     async def execute(self, requests: List[RemoteInferenceRequest]) -> None:
         for request in requests:
-            inputs, parameters = self._prepare_inputs(request)
+            response_sender = request.response_sender()
             try:
                 self.logger.info("Processing request")
+                inputs, parameters = self._prepare_inputs(request)
                 responses = [
                     response
                     async for response in self._prefill_stage(
@@ -152,16 +154,17 @@ class VllmContextOperator(VllmOperator):
                 )
                 async for generate_response in generate_responses:
                     self.logger.info("Sending response")
-                    await request.response_sender().send(
+                    parameters = {"text": generate_response.parameters["text"]}
+                    await response_sender.send(
                         outputs=generate_response.outputs,
-                        parameters=generate_response.parameters,
+                        parameters=parameters,
                         final=generate_response.final,
                         error=generate_response.error,
                     )
                     self.logger.info("Response send")
             except Exception as e:
                 self.logger.error(f"Error processing request: {e}")
-                await request.response_sender().send(error=e, final=True)
+                await response_sender.send(error=e, final=True)
 
 
 class VllmGenerateOperator(VllmOperator):
