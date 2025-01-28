@@ -18,7 +18,11 @@ import sys
 import time
 from pathlib import Path
 
-from llm.vllm.operators import VllmContextOperator, VllmGenerateOperator, VllmOperator
+from llm.vllm.operators.vllm import (
+    VllmContextOperator,
+    VllmGenerateOperator,
+    VllmOperator,
+)
 
 from triton_distributed.worker import Deployment, OperatorConfig, WorkerConfig
 

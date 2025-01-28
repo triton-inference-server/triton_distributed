@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import abc
 import inspect
 import os
 import time
@@ -29,7 +30,15 @@ LOGGER = vllm.logger.init_logger(__name__)
 RETURN_EVERY_N = 1000000
 
 
-class AggregatedStage:
+class Stage(abc.ABC):
+    @abc.abstractmethod
+    async def __call__(
+        self, input_payload: Dict[str, Any]
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        pass
+
+
+class AggregatedStage(Stage):
     def __init__(
         self,
         **kwargs,
@@ -80,7 +89,7 @@ class AggregatedStage:
             yield {"outputs": {}, "error": str(e), "final": True}
 
 
-class PrefillStage:
+class PrefillStage(Stage):
     def __init__(
         self,
         generate_tensor_parallel_size: Optional[int] = None,
@@ -172,7 +181,7 @@ class PrefillStage:
             yield {"outputs": {}, "error": str(e), "final": True}
 
 
-class GenerateStage:
+class GenerateStage(Stage):
     def __init__(
         self,
         **kwargs,
