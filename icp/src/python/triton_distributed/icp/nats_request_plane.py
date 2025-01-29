@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import shutil
 import subprocess
@@ -39,9 +40,8 @@ from triton_distributed.icp.request_plane import (
     set_icp_request_to_uri,
     set_icp_response_to_uri,
 )
-from triton_distributed.worker.logger import get_logger
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class AsyncModelInferRequestIterator:
