@@ -38,7 +38,8 @@ def run_benchmark(
         f"--tokenizer {tokenizer} --synthetic-input-tokens-mean {input_tokens_uncached} --output-tokens-mean {output_tokens} "
         f"--extra-inputs seed:100 --extra-inputs min_tokens:{output_tokens} --extra-inputs max_tokens:{output_tokens} "
         f"--profile-export-file my_profile_export.json --url {url} --artifact-dir {run_folder} "
-        f"--num-prefix-prompts 1 --prefix-prompt-length {input_tokens_cached} "
+        #FIXME: Not supported in the current container
+        #f"--num-prefix-prompts 1 --prefix-prompt-length {input_tokens_cached} "
     )
     if load_type == "rps":
         command += f"--request-rate {load_value} "
