@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 
-from triton_distributed.icp.eventplane import EventTopic
+from triton_distributed.icp.eventplane import Topic
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
@@ -20,13 +20,13 @@ async def test_single_publisher_subscriber():
         print(event)
         received_events.append(event)
 
-    event_topic = EventTopic("test.event_topic")
+    topic = Topic("test.topic")
     event_type = "test_event"
     payload = b"my_payload"
 
-    await plane.subscribe(callback, event_topic=event_topic, event_type=event_type)
+    await plane.subscribe(callback, topic=topic, event_type=event_type)
 
-    event = await plane.create_event(event_type, event_topic, payload)
+    event = await plane.create_event(event_type, topic, payload)
     await plane.publish(event)
 
     # Allow time for message to propagate

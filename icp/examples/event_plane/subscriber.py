@@ -2,11 +2,11 @@ import argparse
 import asyncio
 import uuid
 
-from triton_distributed.icp.eventplane import EventTopic
+from triton_distributed.icp.eventplane import Topic
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
-async def main(subscriber_id, event_topic, event_type, component_id):
+async def main(subscriber_id, topic, event_type, component_id):
     server_url = "nats://localhost:4222"
     event_plane = EventPlaneNats(server_url, uuid.uuid4())
 
@@ -18,16 +18,16 @@ async def main(subscriber_id, event_topic, event_type, component_id):
     await event_plane.connect()
 
     try:
-        event_topic = EventTopic(event_topic.split(".")) if event_topic else None
-        print(f"Subscribing to event_topic: {event_topic}")
+        topic = Topic(topic.split(".")) if topic else None
+        print(f"Subscribing to topic: {topic}")
         await event_plane.subscribe(
             callback,
-            event_topic=event_topic,
+            topic=topic,
             event_type=event_type,
             component_id=component_id,
         )
         print(
-            f"Subscriber {subscriber_id} is listening on event_topic {event_topic} with event type '{event_type or 'all'}' "
+            f"Subscriber {subscriber_id} is listening on topic {topic} with event type '{event_type or 'all'}' "
             + f"component ID '{component_id}'"
         )
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
         "--subscriber_id", type=int, required=True, help="Subscriber ID"
     )
     parser.add_argument(
-        "--event-topic",
+        "--topic",
         type=str,
         default=None,
         help="Event Topic to subscribe to (comma-separated for multiple levels)",
@@ -65,5 +65,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     asyncio.run(
-        main(args.subscriber_id, args.event_topic, args.event_type, args.component_id)
+        main(args.subscriber_id, args.topic, args.event_type, args.component_id)
     )

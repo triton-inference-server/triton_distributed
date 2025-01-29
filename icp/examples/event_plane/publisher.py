@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import uuid
 
-from triton_distributed.icp.eventplane import EventTopic
+from triton_distributed.icp.eventplane import Topic
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
@@ -13,11 +13,11 @@ async def main(component_id, event_type, publisher_id, event_count):
     await event_plane.connect()
 
     try:
-        event_topic = EventTopic(["publisher", str(publisher_id)])
+        topic = Topic(["publisher", str(publisher_id)])
 
         for i in range(event_count):
             payload = f"Payload from publisher {publisher_id}".encode()
-            event = await event_plane.create_event(event_type, event_topic, payload)
+            event = await event_plane.create_event(event_type, topic, payload)
             await event_plane.publish(event)
             print(f"Published event from publisher {publisher_id}: {event.event_id}")
             await asyncio.sleep(0.01)

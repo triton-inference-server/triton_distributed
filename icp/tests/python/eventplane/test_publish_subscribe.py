@@ -4,7 +4,7 @@ from typing import List
 
 import pytest
 
-from triton_distributed.icp.event_plane import Event, EventTopic
+from triton_distributed.icp.event_plane import Event, Topic
 from triton_distributed.icp.event_plane_nats import EventPlaneNats
 
 
@@ -19,15 +19,13 @@ class TestEventPlaneFunctional:
         async def callback(event: Event):
             received_events.append(event)
 
-        event_topic = EventTopic("test.event_topic")
+        topic = Topic("test.topic")
         event_type = "test_event"
         payload = b"test_payload"
 
-        await event_plane.subscribe(
-            callback, event_topic=event_topic, event_type=event_type
-        )
+        await event_plane.subscribe(callback, topic=topic, event_type=event_type)
 
-        event = await event_plane.create_event(event_type, event_topic, payload)
+        event = await event_plane.create_event(event_type, topic, payload)
         await event_plane.publish(event)
 
         # Allow time for message to propagate
@@ -51,7 +49,7 @@ class TestEventPlaneFunctional:
         async def callback_3(event):
             results_3.append(event)
 
-        event_topic = EventTopic(["test"])
+        topic = Topic(["test"])
         event_type = "multi_event"
         payload = b"multi_payload"
 
@@ -62,16 +60,16 @@ class TestEventPlaneFunctional:
         event_plane2 = EventPlaneNats(server_url, component_id)
         await event_plane2.connect()
 
-        await event_plane2.subscribe(callback_1, event_topic=event_topic)
-        await event_plane2.subscribe(callback_2, event_topic=event_topic)
+        await event_plane2.subscribe(callback_1, topic=topic)
+        await event_plane2.subscribe(callback_2, topic=topic)
         await event_plane2.subscribe(callback_3, event_type=event_type)
 
         component_id = uuid.uuid4()
         event_plane1 = EventPlaneNats(server_url, component_id)
         await event_plane1.connect()
 
-        ch1 = EventTopic(["test", "1"])
-        ch2 = EventTopic(["test", "2"])
+        ch1 = Topic(["test", "1"])
+        ch2 = Topic(["test", "2"])
         event1 = await event_plane1.create_event(event_type, ch1, payload)
         await event_plane1.publish(event1)
         event2 = await event_plane1.create_event(event_type, ch2, payload)
