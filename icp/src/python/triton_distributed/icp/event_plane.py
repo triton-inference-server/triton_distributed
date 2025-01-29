@@ -12,12 +12,12 @@ class EventTopic:
 
     def __init__(self, event_topic: Union[List[str], str]):
         if isinstance(event_topic, str):
-            self.chunks = event_topic.split(".")
+            self._event_topic = event_topic
         else:
-            self.chunks = event_topic
+            self._event_topic = ".".join(event_topic)
 
     def __str__(self):
-        return ".".join(self.chunks)
+        return self._event_topic
 
     def to_string(self):
         """Convert Topic to string."""
@@ -26,7 +26,7 @@ class EventTopic:
     @staticmethod
     def from_string(event_topic_str: str):
         """Create Topic from string."""
-        return EventTopic(event_topic_str.split("."))
+        return EventTopic(event_topic_str)
 
 
 @dataclass
@@ -67,9 +67,6 @@ class Event:
 
 class EventPlane:
     """EventPlane interface for publishing and subscribing to events."""
-
-    def __init__(self, server_url: str):
-        pass
 
     @abstractmethod
     async def connect(self):

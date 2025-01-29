@@ -11,13 +11,13 @@ from triton_distributed.icp.protos import event_pb2
 class EventPlaneNats:
     """EventPlane implementation using NATS."""
 
-    def __init__(self, server_url: str, component_id: uuid.UUID):
-        self.server_url = server_url
+    def __init__(self, server_uri: str, component_id: uuid.UUID):
+        self.server_uri = server_uri
         self.component_id = component_id
         self.nc = nats.NATS()
 
     async def connect(self):
-        await self.nc.connect(self.server_url)
+        await self.nc.connect(self.server_uri)
 
     async def create_event(
         self, event_type: str, event_topic: EventTopic, payload: bytes
