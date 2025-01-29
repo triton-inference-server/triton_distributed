@@ -6,7 +6,7 @@ from triton_distributed.icp.eventplane import EventTopic
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
-async def main(component_id, event_type, publisher_id):
+async def main(component_id, event_type, publisher_id, event_count):
     server_url = "nats://localhost:4222"
     event_plane = EventPlaneNats(server_url, component_id)
 
@@ -15,7 +15,7 @@ async def main(component_id, event_type, publisher_id):
     try:
         channel = EventTopic(["publisher", str(publisher_id)])
 
-        for i in range(10):
+        for i in range(event_count):
             payload = f"Payload from publisher {publisher_id}".encode()
             event = await event_plane.create_event(event_type, channel, payload)
             await event_plane.publish(event)
@@ -37,6 +37,11 @@ if __name__ == "__main__":
         "--event_type", type=str, default="test_event", help="Event type"
     )
     parser.add_argument("--publisher_id", type=int, required=True, help="Publisher ID")
+    parser.add_argument(
+        "--event-count", type=int, default=10, help="Event count to be published."
+    )
 
     args = parser.parse_args()
-    asyncio.run(main(args.component_id, args.event_type, args.publisher_id))
+    asyncio.run(
+        main(args.component_id, args.event_type, args.publisher_id, args.event_count)
+    )

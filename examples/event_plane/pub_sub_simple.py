@@ -22,7 +22,7 @@ async def test_single_publisher_subscriber():
 
     channel = EventTopic("test.channel")
     event_type = "test_event"
-    payload = b"test_payload"
+    payload = b"my_payload"
 
     await plane.subscribe(callback, channel=channel, event_type=event_type)
 

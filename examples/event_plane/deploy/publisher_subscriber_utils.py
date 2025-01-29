@@ -1,12 +1,13 @@
 import subprocess
 import sys
 import tempfile
+from typing import List, Optional, Set
 
 
-def check_recieved_events(all_events, subscriber_logs):
+def check_recieved_events(all_events: Set[str], subscriber_logs: List[str]):
     for log_file in subscriber_logs:
         with open(log_file, "r") as f:
-            subscriber_events = set()
+            subscriber_events: Set[str] = set()
             for line in f:
                 if "received event" in line:
                     parts = line.split()
@@ -18,10 +19,10 @@ def check_recieved_events(all_events, subscriber_logs):
             )
 
 
-def gather_published_events(log_files):
-    all_events = set()
+def gather_published_events(log_files: List[str]) -> Set[str]:
+    all_events: Set[str] = set()
     for log_file in log_files:
-        publisher_events = set()
+        publisher_events: Set[str] = set()
         with open(log_file, "r") as f:
             for line in f:
                 if "Published event" in line:
@@ -33,8 +34,12 @@ def gather_published_events(log_files):
     return all_events
 
 
-def run_publishers(processes, publisher_count, event_type=None):
-    publisher_logs = []
+def run_publishers(
+    processes: List[subprocess.Popen],
+    publisher_count: int,
+    event_type: Optional[str] = None,
+) -> List[str]:
+    publisher_logs: List[str] = []
     for i in range(publisher_count):
         log_file = tempfile.NamedTemporaryFile(
             delete=False, mode="w", prefix=f"publisher_{i + 1}_", suffix=".log"
@@ -48,8 +53,12 @@ def run_publishers(processes, publisher_count, event_type=None):
     return publisher_logs
 
 
-def run_subscribers(processes, subscriber_count, event_type=None):
-    subscriber_logs = []
+def run_subscribers(
+    processes: List[subprocess.Popen],
+    subscriber_count: int,
+    event_type: Optional[str] = None,
+) -> List[str]:
+    subscriber_logs: List[str] = []
     for i in range(subscriber_count):
         log_file = tempfile.NamedTemporaryFile(
             delete=False, mode="w", prefix=f"subscriber_{i + 1}_", suffix=".log"

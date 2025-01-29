@@ -2,8 +2,7 @@ import os
 import time
 
 import pytest
-
-from .publisher_subscriber_utils import (
+from event_plane.deploy.publisher_subscriber_utils import (
     check_recieved_events,
     gather_published_events,
     run_publishers,
