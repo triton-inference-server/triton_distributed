@@ -39,6 +39,9 @@ from triton_distributed.icp.request_plane import (
     set_icp_request_to_uri,
     set_icp_response_to_uri,
 )
+from triton_distributed.worker.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class AsyncModelInferRequestIterator:
@@ -87,6 +90,7 @@ class NatsServer:
     def __init__(
         self,
         port: int = 4223,
+        host: str = "0.0.0.0",
         store_dir: str = "/tmp/nats_store",
         log_dir: str = "logs",
         debug: bool = False,
@@ -95,10 +99,12 @@ class NatsServer:
     ) -> None:
         self._process = None
         self.port = port
-        self.url = f"nats://localhost:{port}"
+        self.url = f"nats://{host}:{port}"
         command = [
             "/usr/local/bin/nats-server",
             "--jetstream",
+            "--addr",
+            str(host),
             "--port",
             str(port),
             "--store_dir",
@@ -108,8 +114,9 @@ class NatsServer:
         if debug:
             command.extend(["--debug", "--trace"])
 
+        logger.info(command)
+
         if dry_run:
-            print(command)
             return
 
         if clear_store:
@@ -165,6 +172,9 @@ class NatsRequestPlane(RequestPlane):
     ) -> None:
         self._request_plane_uri = request_plane_uri
         self._component_id = component_id if component_id else uuid.uuid1()
+
+        logger.info(self._request_plane_uri)
+        logger.info(self._component_id)
 
         self._response_stream_name = f"component-{self._component_id}-response"
 
@@ -258,22 +268,34 @@ class NatsRequestPlane(RequestPlane):
                 return handler(response)
 
     async def connect(self):
+        logger.info("NATS connect", self._request_plane_uri)
         self._nats_client = await nats.connect(self._request_plane_uri)
         self._jet_stream = self._nats_client.jetstream()
         self._event_loop = asyncio.get_event_loop()
 
+        logger.info(
+            "JETSTREAM add stream",
+            self._response_stream_name,
+            self._response_stream_name,
+        )
         await self._jet_stream.add_stream(
             name=self._response_stream_name,
             subjects=[self._response_stream_name],
             retention=nats.js.api.RetentionPolicy.WORK_QUEUE,
         )
 
+        logger.info(
+            "JETSTREAM subscribe",
+            self._response_stream_name,
+            self._response_stream_name,
+        )
         await self._jet_stream.subscribe(
             self._response_stream_name,
             cb=self._response_callback,
             durable=self._response_stream_name,
             stream=self._response_stream_name,
         )
+        logger.info("NATS connected")
 
     async def pull_requests(
         self,

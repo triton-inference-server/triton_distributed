@@ -605,7 +605,7 @@ def _parse_args():
     hosts = parse_slurm_nodelist()
     host = hosts[0]
 
-    parser.add_argument("--nats-url", type=str, default=f"nats://{host}:4223")
+    parser.add_argument("--nats-url", type=str, default=f"{host}:4223")
     parser.add_argument("--nats-store", type=str, default="/tmp/nats/triton-3-demo")
     parser.add_argument("--nats-debug", action="store_true", default=False)
 

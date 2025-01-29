@@ -69,7 +69,15 @@ class Deployment:
     def start(self):
         if self._initialize_request_plane:
             if self._default_request_plane == NatsRequestPlane:
-                self.request_plane_server = NatsServer(log_dir=self._default_log_dir)
+                (
+                    request_plane_args,
+                    request_plane_kwargs,
+                ) = self._default_request_plane_args
+                self.request_plane_server = NatsServer(
+                    *request_plane_args,
+                    log_dir=self._default_log_dir,
+                    **request_plane_kwargs,
+                )
             else:
                 raise InvalidArgumentError(
                     f"Unknown Request Plane Type, can not initialize {self._default_request_plane}"
