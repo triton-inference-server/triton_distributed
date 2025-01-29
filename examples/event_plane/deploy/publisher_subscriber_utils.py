@@ -68,7 +68,7 @@ def run_subscribers(
             "subscriber.py",
             "--subscriber_id",
             str(i + 1),
-            "--channel",
+            "--event-topic",
             "publisher",
         ]
         if event_type:

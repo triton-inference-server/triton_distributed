@@ -7,7 +7,7 @@ import "google/protobuf/timestamp.proto";
 message Event
 {
   string event_id = 1;                      // Unique identifier for the event
-  string channel = 2;                       // Store the channel as a string
+  string event_topic = 2;                   // Store the event_topic as a string
   string event_type = 3;                    // The type of the event
   google.protobuf.Timestamp timestamp = 4;  // ISO 8601 formatted timestamp
   string component_id = 5;  // Identifier of the source component

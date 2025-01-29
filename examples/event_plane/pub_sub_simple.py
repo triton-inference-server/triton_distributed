@@ -20,13 +20,13 @@ async def test_single_publisher_subscriber():
         print(event)
         received_events.append(event)
 
-    channel = EventTopic("test.channel")
+    event_topic = EventTopic("test.event_topic")
     event_type = "test_event"
     payload = b"my_payload"
 
-    await plane.subscribe(callback, channel=channel, event_type=event_type)
+    await plane.subscribe(callback, event_topic=event_topic, event_type=event_type)
 
-    event = await plane.create_event(event_type, channel, payload)
+    event = await plane.create_event(event_type, event_topic, payload)
     await plane.publish(event)
 
     # Allow time for message to propagate

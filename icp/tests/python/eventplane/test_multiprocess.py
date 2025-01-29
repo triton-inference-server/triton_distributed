@@ -1,5 +1,7 @@
 import os
+import subprocess
 import time
+from typing import List
 
 import pytest
 from event_plane.deploy.publisher_subscriber_utils import (
@@ -18,8 +20,8 @@ class TestEventPlaneMultiProcess:
         for publishers, subscribers in pub_sub_count:
             await self.run_test_case(publishers, subscribers)
 
-    async def run_test_case(self, publisher_count, subscriber_count):
-        processes = []
+    async def run_test_case(self, publisher_count: int, subscriber_count: int):
+        processes: List[subprocess.Popen] = []
 
         try:
             # Start subscribers

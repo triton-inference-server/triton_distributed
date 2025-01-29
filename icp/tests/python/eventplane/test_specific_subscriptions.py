@@ -1,5 +1,7 @@
 import os
+import subprocess
 import time
+from typing import List
 
 import pytest
 from event_plane.deploy.publisher_subscriber_utils import (
@@ -14,7 +16,7 @@ from event_plane.deploy.publisher_subscriber_utils import (
 class TestEventPlaneSpecificSubscriptions:
     @pytest.mark.asyncio
     async def test_subscription_on_event_type(self, nats_server):
-        processes = []
+        processes: List[subprocess.Popen] = []
         subscriber_count = 2
         publisher_count = 2
 

@@ -19,10 +19,12 @@ class EventPlaneNats:
     async def connect(self):
         await self.nc.connect(self.server_url)
 
-    async def create_event(self, event_type: str, channel: EventTopic, payload: bytes):
+    async def create_event(
+        self, event_type: str, event_topic: EventTopic, payload: bytes
+    ):
         event = Event(
             event_id=uuid.uuid4(),
-            channel=channel,
+            event_topic=event_topic,
             event_type=event_type,
             timestamp=datetime.utcnow(),
             component_id=self.component_id,
@@ -33,13 +35,15 @@ class EventPlaneNats:
     async def publish(self, event: Event):
         event_pb = event.to_protobuf()
         message = event_pb.SerializeToString()
-        subject = f"ep.{event.event_type}.{event.component_id}.{event.channel}.trunk"
+        subject = (
+            f"ep.{event.event_type}.{event.component_id}.{event.event_topic}.trunk"
+        )
         await self.nc.publish(subject, message)
 
     async def subscribe(
         self,
         callback,
-        channel: Optional[EventTopic] = None,
+        event_topic: Optional[EventTopic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
     ):
@@ -49,7 +53,7 @@ class EventPlaneNats:
             event = Event.from_protobuf(event_pb)
             await callback(event)
 
-        subject = f"ep.{event_type or '*'}.{component_id or '*'}.{str(channel) + '.' if channel else ''}>"
+        subject = f"ep.{event_type or '*'}.{component_id or '*'}.{str(event_topic) + '.' if event_topic else ''}>"
         await self.nc.subscribe(subject, cb=message_handler)
 
     async def disconnect(self):

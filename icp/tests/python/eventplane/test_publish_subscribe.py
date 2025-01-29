@@ -1,9 +1,10 @@
 import asyncio
 import uuid
+from typing import List
 
 import pytest
 
-from triton_distributed.icp.eventplane import EventTopic
+from triton_distributed.icp.eventplane import Event, EventTopic
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
@@ -13,18 +14,20 @@ class TestEventPlaneFunctional:
     async def test_single_publisher_subscriber(self, nats_server, event_plane):
         print(f"Print loop test: {id(asyncio.get_running_loop())}")
 
-        received_events = []
+        received_events: List[Event] = []
 
-        async def callback(event):
+        async def callback(event: Event):
             received_events.append(event)
 
-        channel = EventTopic("test.channel")
+        event_topic = EventTopic("test.event_topic")
         event_type = "test_event"
         payload = b"test_payload"
 
-        await event_plane.subscribe(callback, channel=channel, event_type=event_type)
+        await event_plane.subscribe(
+            callback, event_topic=event_topic, event_type=event_type
+        )
 
-        event = await event_plane.create_event(event_type, channel, payload)
+        event = await event_plane.create_event(event_type, event_topic, payload)
         await event_plane.publish(event)
 
         # Allow time for message to propagate
@@ -35,9 +38,9 @@ class TestEventPlaneFunctional:
 
     @pytest.mark.asyncio
     async def test_one_publisher_multiple_subscribers(self, nats_server):
-        results_1 = []
-        results_2 = []
-        results_3 = []
+        results_1: List[Event] = []
+        results_2: List[Event] = []
+        results_3: List[Event] = []
 
         async def callback_1(event):
             results_1.append(event)
@@ -48,7 +51,7 @@ class TestEventPlaneFunctional:
         async def callback_3(event):
             results_3.append(event)
 
-        channel = EventTopic(["test"])
+        event_topic = EventTopic(["test"])
         event_type = "multi_event"
         payload = b"multi_payload"
 
@@ -59,8 +62,8 @@ class TestEventPlaneFunctional:
         event_plane2 = EventPlaneNats(server_url, component_id)
         await event_plane2.connect()
 
-        await event_plane2.subscribe(callback_1, channel=channel)
-        await event_plane2.subscribe(callback_2, channel=channel)
+        await event_plane2.subscribe(callback_1, event_topic=event_topic)
+        await event_plane2.subscribe(callback_2, event_topic=event_topic)
         await event_plane2.subscribe(callback_3, event_type=event_type)
 
         component_id = uuid.uuid4()

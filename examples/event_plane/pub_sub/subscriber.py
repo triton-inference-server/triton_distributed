@@ -6,7 +6,7 @@ from triton_distributed.icp.eventplane import EventTopic
 from triton_distributed.icp.eventplane_nats import EventPlaneNats
 
 
-async def main(subscriber_id, channel, event_type, component_id):
+async def main(subscriber_id, event_topic, event_type, component_id):
     server_url = "nats://localhost:4222"
     event_plane = EventPlaneNats(server_url, uuid.uuid4())
 
@@ -18,13 +18,16 @@ async def main(subscriber_id, channel, event_type, component_id):
     await event_plane.connect()
 
     try:
-        channel = EventTopic(channel.split(".")) if channel else None
-        print(f"Subscribing to channel: {channel}")
+        event_topic = EventTopic(event_topic.split(".")) if event_topic else None
+        print(f"Subscribing to event_topic: {event_topic}")
         await event_plane.subscribe(
-            callback, channel=channel, event_type=event_type, component_id=component_id
+            callback,
+            event_topic=event_topic,
+            event_type=event_type,
+            component_id=component_id,
         )
         print(
-            f"Subscriber {subscriber_id} is listening on channel {channel} with event type '{event_type or 'all'}' "
+            f"Subscriber {subscriber_id} is listening on event_topic {event_topic} with event type '{event_type or 'all'}' "
             + f"component ID '{component_id}'"
         )
 
@@ -41,10 +44,10 @@ if __name__ == "__main__":
         "--subscriber_id", type=int, required=True, help="Subscriber ID"
     )
     parser.add_argument(
-        "--channel",
+        "--event-topic",
         type=str,
         default=None,
-        help="Channel to subscribe to (comma-separated for multiple levels)",
+        help="Event Topic to subscribe to (comma-separated for multiple levels)",
     )
     parser.add_argument(
         "--event_type",
@@ -54,7 +57,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--component_id",
-        type=None,
+        type=uuid.UUID,
         default=None,
         help="Component ID (UUID) for the subscriber",
     )
@@ -62,5 +65,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     asyncio.run(
-        main(args.subscriber_id, args.channel, args.event_type, args.component_id)
+        main(args.subscriber_id, args.event_topic, args.event_type, args.component_id)
     )
