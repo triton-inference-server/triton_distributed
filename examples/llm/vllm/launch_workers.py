@@ -249,11 +249,11 @@ def generate_common_args(args):
         "--disable-async-output-proc",
         "--disable-log-stats",
         "--context-tp-size",
-        args.context_tp_size,
+        str(args.context_tp_size),
         "--generate-tp-size",
-        args.generate_tp_size,
+        str(args.generate_tp_size),
         "--baseline-tp-size",
-        args.baseline_tp_size,
+        str(args.baseline_tp_size),
         # The new script might require or accept a single max-model-len, etc.
     ]
     if args.max_model_len is not None:
