@@ -4,7 +4,7 @@ import time
 from typing import List
 
 import pytest
-from event_plane.deploy.publisher_subscriber_utils import (
+from python.eventplane.publisher_subscriber_utils import (
     check_recieved_events,
     gather_published_events,
     run_publishers,
