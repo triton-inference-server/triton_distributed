@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import abc
 import inspect
 import os
 import time
@@ -29,7 +30,15 @@ LOGGER = vllm.logger.init_logger(__name__)
 RETURN_EVERY_N = 1000000
 
 
-class SingleComputePipeline:
+class Stage(abc.ABC):
+    @abc.abstractmethod
+    async def __call__(
+        self, input_payload: Dict[str, Any]
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        yield {}
+
+
+class AggregatedStage(Stage):
     def __init__(
         self,
         **kwargs,
@@ -80,7 +89,7 @@ class SingleComputePipeline:
             yield {"outputs": {}, "error": str(e), "final": True}
 
 
-class PrefillStage:
+class PrefillStage(Stage):
     def __init__(
         self,
         generate_tensor_parallel_size: Optional[int] = None,
@@ -159,7 +168,6 @@ class PrefillStage:
                     "outputs": {},  # See line 195 for context
                     "error": None,
                     "parameters": {
-                        **input_payload["parameters"],
                         "context_worker_id": os.environ["VLLM_WORKER_ID"],
                         "first_token": result.outputs[0].token_ids[0],
                         "seq_len": len(result.prompt_token_ids),
@@ -172,7 +180,7 @@ class PrefillStage:
             yield {"outputs": {}, "error": str(e), "final": True}
 
 
-class GenerateStage:
+class GenerateStage(Stage):
     def __init__(
         self,
         **kwargs,
@@ -230,28 +238,3 @@ class GenerateStage:
                 }
             counter += 1
         LOGGER.debug("results_generator finished for generate")
-
-
-class DisaggregatedPipeline:
-    def __init__(
-        self,
-        stage,
-        **kwargs,
-    ):
-        if stage == "prefill":
-            LOGGER.info(f"initialize prefill {kwargs}")
-            self.stage = PrefillStage(**kwargs)  # type: ignore
-        elif stage == "generate":
-            LOGGER.info(f"initialize generate {kwargs}")
-            self.stage = GenerateStage(**kwargs)  # type: ignore
-        else:
-            raise ValueError(f"Unknown stage: {stage}")
-
-    async def __call__(
-        self, input_payload: Dict[str, Any]
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        LOGGER.debug("Start pipeline")
-        async for result in self.stage(input_payload):
-            LOGGER.debug("yield result")
-            yield result
-        LOGGER.debug("Pipeline generator finished")

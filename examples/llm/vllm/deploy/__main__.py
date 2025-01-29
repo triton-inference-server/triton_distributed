@@ -19,9 +19,9 @@ import time
 from pathlib import Path
 
 from llm.vllm.operators.vllm import (
-    VllmBaselineOperator,
     VllmContextOperator,
     VllmGenerateOperator,
+    VllmOperator,
 )
 
 from triton_distributed.worker import Deployment, OperatorConfig, WorkerConfig
@@ -69,7 +69,7 @@ def _create_generate_op(name, args, max_inflight_requests):
 def _create_baseline_op(name, args, max_inflight_requests):
     return OperatorConfig(
         name=name,
-        implementation=VllmBaselineOperator,
+        implementation=VllmOperator,
         max_inflight_requests=int(max_inflight_requests),
         parameters=vars(args),
     )
