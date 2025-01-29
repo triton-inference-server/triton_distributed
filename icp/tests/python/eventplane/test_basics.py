@@ -3,8 +3,8 @@ from datetime import datetime
 
 import pytest
 
-from triton_distributed.icp.eventplane import Event, EventTopic
-from triton_distributed.icp.eventplane_nats import EventPlaneNats
+from triton_distributed.icp.event_plane import Event, EventTopic
+from triton_distributed.icp.event_plane_nats import EventPlaneNats
 
 
 class TestEventTopic:
