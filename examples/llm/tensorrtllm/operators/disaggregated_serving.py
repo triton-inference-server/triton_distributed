@@ -43,6 +43,8 @@ class DisaggregatedServingOperator(TritonCoreOperator):
         self._decode = RemoteOperator("generate", request_plane, data_plane)
 
         self._triton_core = triton_core
+        self._repository = repository
+        print(f"Repository: {self._repository}")
         self._preprocess_model = self._triton_core.load("preprocessing")
         self._postprocess_model = self._triton_core.load("postprocessing")
         self._logger = logger

@@ -46,17 +46,12 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--context-worker-count",
-        type=int,
-        required=False,
-        default=0,
-        help="Number of context workers",
+        "--context-worker-count", type=int, default=0, help="Number of context workers"
     )
 
     parser.add_argument(
         "--generate-worker-count",
         type=int,
-        required=False,
         default=0,
         help="Number of generate workers",
     )
@@ -66,6 +61,22 @@ def parse_args():
         type=str,
         default=str(default_operator_repository),
         help="Operator repository",
+    )
+
+    parser.add_argument(
+        "--worker-name",
+        type=str,
+        required=False,
+        default="llama",
+        help="Name of the worker",
+    )
+
+    parser.add_argument(
+        "--ignore-eos",
+        action=argparse.BooleanOptionalAction,
+        required=False,
+        default=False,
+        help="Ignore EOS token when generating",
     )
 
     return parser.parse_args()

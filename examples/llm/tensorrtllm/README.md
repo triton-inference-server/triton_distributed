@@ -101,10 +101,21 @@ After this you should see the following in `/workspace/examples/llm/tensorrtllm`
 
 ```
 
-python3 -m llm.vllm.deploy --initialize-request-plane
+python3 -m llm.tensorrtllm.deploy --initialize-request-plane
+
+mv hf_downloads tensorrtllm_checkpoints tensorrtllm_engines tensorrtllm_models /workspace/examples/llm/tensorrtllm/operators/
+
+CUDA_VISIBLE_DEVICES=0 \
+python3 -m llm.tensorrtllm.deploy \
+  --context-worker-count 1 \
+  --worker-name llama \
+  --initialize-request-plane \
+  --request-plane-uri ${HOSTNAME}:4223 &
 
 
+CUDA_VISIBLE_DEVICES=1 python3 -m llm.tensorrtllm.deploy   --generate-worker-count 1   --worker-name generate  --request-plane-uri ${HOSTNAME}:4223 &
 
+HF_TOKEN= python3 -m llm.api_server --tokenizer meta-llama/Llama-3.1-8B --request-plane-uri ${HOSTNAME}:4223 --api-server-host ${HOSTNAME} --model-name llama
 
 
 ## X. References

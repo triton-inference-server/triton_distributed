@@ -96,60 +96,68 @@ def main(args):
         log_dir = Path(args.log_dir)
         log_dir.mkdir(exist_ok=True)
 
-    # TODO: argparse these
-    prefill_op = _create_triton_core_op(
-        name="context",
-        max_inflight_requests=1000,
-        instances_per_worker=1,
-        kind="GPU",
-        delay_per_token=0,
-        input_copies=1,
-        args=args,
-    )
+    worker_configs = []
+    # Context/Generate workers used for Disaggregated Serving
+    if args.context_worker_count == 1:
+        prefill_op = _create_triton_core_op(
+            name="context",
+            max_inflight_requests=1000,
+            instances_per_worker=1,
+            kind="GPU",
+            delay_per_token=0,
+            input_copies=1,
+            args=args,
+        )
 
-    prefill = WorkerConfig(
-        operators=[prefill_op],
-        name="prefill",
-    )
+        prefill = WorkerConfig(
+            operators=[prefill_op],
+            # Context worker gets --worker-name as it is the model that will
+            # be hit first in a disaggregated setting.
+            name=args.worker_name,
+        )
+        worker_configs.append((prefill, 1))
 
-    # TODO: argparse these
-    decoder_op = _create_triton_core_op(
-        name="generate",
-        max_inflight_requests=1000,
-        instances_per_worker=1,
-        kind="GPU",
-        delay_per_token=0,
-        input_copies=1,
-        args=args,
-    )
+    if args.generate_worker_count == 1:
+        decoder_op = _create_triton_core_op(
+            name="generate",
+            max_inflight_requests=1000,
+            instances_per_worker=1,
+            kind="GPU",
+            delay_per_token=0,
+            input_copies=1,
+            args=args,
+        )
 
-    decoder = WorkerConfig(
-        operators=[decoder_op],
-        name="decode",
-    )
+        decoder = WorkerConfig(
+            operators=[decoder_op],
+            # Generate worker gets a hard-coded name "generate" as the context
+            # worker will talk directly to it.
+            name="generate",
+        )
+        worker_configs.append((decoder, 1))
 
-    # TODO: argparse these
-    prefill_decode_op = _create_disaggregated_serving_op(
-        name="prefill_decode",
-        max_inflight_requests=1000,
-        args=args,
-    )
+        # Add the disaggregated serving operator when both workers are present
+        # This coordinates between context and generate workers
+        prefill_decode_op = _create_disaggregated_serving_op(
+            name="prefill_decode",
+            max_inflight_requests=1000,
+            args=args,
+        )
 
-    prefill_decode = WorkerConfig(
-        operators=[prefill_decode_op],
-        name="prefill_decode",
-    )
-
-    worker_configs = [(prefill, 1), (decoder, 1), (prefill_decode, 1)]
+        prefill_decode = WorkerConfig(
+            operators=[prefill_decode_op],
+            name="prefill_decode",
+        )
+        worker_configs.append((prefill_decode, 1))
 
     print("Starting Workers")
-
     deployment = Deployment(
         worker_configs,
         initialize_request_plane=args.initialize_request_plane,
         log_dir=args.log_dir,
         log_level=args.log_level,
         starting_metrics_port=args.starting_metrics_port,
+        request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
     )
 
     deployment.start()
