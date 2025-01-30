@@ -20,7 +20,8 @@ from typing import List
 
 import pytest
 
-from triton_distributed.icp import Event, NatsEventPlane, Topic
+from triton_distributed.icp import NatsEventPlane, Topic
+from triton_distributed.icp.event_plane import EventMetadata, EventMetadataWrapped
 
 
 @pytest.mark.asyncio
@@ -29,39 +30,37 @@ class TestEventPlaneFunctional:
     async def test_single_publisher_subscriber(self, nats_server, event_plane):
         print(f"Print loop test: {id(asyncio.get_running_loop())}")
 
-        received_events: List[Event] = []
+        received_events: List[EventMetadata] = []
 
-        async def callback(event: Event):
-            received_events.append(event)
+        async def callback(_payload, event_metadata: EventMetadataWrapped):
+            received_events.append(event_metadata.get_metadata())
 
         topic = Topic("test.topic")
         event_type = "test_event"
         payload = b"test_payload"
 
         await event_plane.subscribe(callback, topic=topic, event_type=event_type)
-
-        event = event_plane.create_event(event_type, topic, payload)
-        await event_plane.publish(event)
+        event_metadata = await event_plane.publish(event_type, topic, payload)
 
         # Allow time for message to propagate
         await asyncio.sleep(2)
 
         assert len(received_events) == 1
-        assert received_events[0].event_id == event.event_id
+        assert received_events[0].event_id == event_metadata.event_id
 
     @pytest.mark.asyncio
     async def test_one_publisher_multiple_subscribers(self, nats_server):
-        results_1: List[Event] = []
-        results_2: List[Event] = []
-        results_3: List[Event] = []
+        results_1: List[EventMetadata] = []
+        results_2: List[EventMetadata] = []
+        results_3: List[EventMetadata] = []
 
-        async def callback_1(event):
+        async def callback_1(event, _metadata):
             results_1.append(event)
 
-        async def callback_2(event):
+        async def callback_2(event, _metadata):
             results_2.append(event)
 
-        async def callback_3(event):
+        async def callback_3(event, _metadata):
             results_3.append(event)
 
         topic = Topic(["test"])
@@ -85,10 +84,8 @@ class TestEventPlaneFunctional:
 
         ch1 = Topic(["test", "1"])
         ch2 = Topic(["test", "2"])
-        event1 = event_plane1.create_event(event_type, ch1, payload)
-        await event_plane1.publish(event1)
-        event2 = event_plane1.create_event(event_type, ch2, payload)
-        await event_plane1.publish(event2)
+        await event_plane1.publish(event_type, ch1, payload)
+        await event_plane1.publish(event_type, ch2, payload)
 
         # Allow time for message propagation
         await asyncio.sleep(2)

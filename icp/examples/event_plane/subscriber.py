@@ -19,15 +19,17 @@ import asyncio
 import uuid
 
 from triton_distributed.icp import NatsEventPlane, Topic
+from triton_distributed.icp.event_plane import EventMetadataWrapped
 
 
 async def main(subscriber_id, topic, event_type, component_id):
     server_url = "nats://localhost:4222"
     event_plane = NatsEventPlane(server_url, uuid.uuid4())
 
-    async def callback(event):
+    async def callback(payload, metadata_wr: EventMetadataWrapped):
+        metadata = metadata_wr.get_metadata()
         print(
-            f"Subscriber {subscriber_id} received event: {event.event_id} payload: {event.payload.decode()}"
+            f"Subscriber {subscriber_id} received event: {metadata.event_id} payload: {payload.decode()}"
         )
 
     await event_plane.connect()

@@ -32,9 +32,8 @@ async def main(component_id, event_type, publisher_id, event_count):
 
         for i in range(event_count):
             payload = f"Payload from publisher {publisher_id}".encode()
-            event = event_plane.create_event(event_type, topic, payload)
-            await event_plane.publish(event)
-            print(f"Published event from publisher {publisher_id}: {event.event_id}")
+            await event_plane.publish(event_type, topic, payload)
+            print(f"Published event from publisher {publisher_id}")
             await asyncio.sleep(0.01)
     finally:
         await event_plane.disconnect()

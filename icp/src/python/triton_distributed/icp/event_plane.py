@@ -16,11 +16,10 @@
 
 import uuid
 from abc import abstractmethod
-from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
-from triton_distributed.icp.protos import icp_pb2
+from pydantic import BaseModel
 
 
 class Topic:
@@ -45,40 +44,20 @@ class Topic:
         return Topic(topic_str)
 
 
-@dataclass
-class Event:
-    """Event class for representing events."""
-
+class EventMetadata(BaseModel):
     event_id: uuid.UUID
     topic: Topic
     event_type: str
     timestamp: datetime
     component_id: uuid.UUID
-    payload: bytes
 
-    def to_protobuf(self):
-        """Convert Event to Protobuf message."""
-        event_pb = icp_pb2.Event()
-        event_pb.event_id = str(self.event_id)
-        event_pb.topic = self.topic.to_string()
-        event_pb.event_type = self.event_type
-        event_pb.timestamp.FromDatetime(self.timestamp)
-        event_pb.component_id = str(self.component_id)
-        event_pb.payload = self.payload
-        return event_pb
 
-    @staticmethod
-    def from_protobuf(event_pb):
-        """Create Event from Protobuf message."""
+class EventMetadataWrapped:
+    def __init__(self, event_metadata_serialized: bytes):
+        self._event_metadata_serialized = event_metadata_serialized
 
-        return Event(
-            event_id=uuid.UUID(event_pb.event_id),
-            topic=Topic.from_string(event_pb.topic),
-            event_type=event_pb.event_type,
-            timestamp=event_pb.timestamp.ToDatetime(),
-            component_id=uuid.UUID(event_pb._component_id),
-            payload=event_pb.payload,
-        )
+    def get_metadata(self) -> EventMetadata:
+        return EventMetadata.parse_raw(self._event_metadata_serialized)
 
 
 class EventPlane:
@@ -89,11 +68,9 @@ class EventPlane:
         pass
 
     @abstractmethod
-    def create_event(self, event_type: str, topic: Topic, payload: bytes):
-        pass
-
-    @abstractmethod
-    async def publish(self, event: Event):
+    async def publish(
+        self, event_type: str, topic: Topic, payload: Union[bytes, Any]
+    ) -> EventMetadata:
         pass
 
     @abstractmethod

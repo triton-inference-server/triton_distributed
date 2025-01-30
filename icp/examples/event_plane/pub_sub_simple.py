@@ -31,9 +31,9 @@ async def test_single_publisher_subscriber():
     await plane.connect()
     received_events = []
 
-    async def callback(event):
-        print(event)
-        received_events.append(event)
+    async def callback(event, metadata):
+        print(metadata)
+        received_events.append(metadata)
 
     topic = Topic("test.topic")
     event_type = "test_event"
@@ -41,8 +41,7 @@ async def test_single_publisher_subscriber():
 
     await plane.subscribe(callback, topic=topic, event_type=event_type)
 
-    event = plane.create_event(event_type, topic, payload)
-    await plane.publish(event)
+    await plane.publish(event_type, topic, payload)
 
     # Allow time for message to propagate
     await asyncio.sleep(3)
