@@ -61,6 +61,20 @@ input [
     dims: [ -1 ]
     allow_ragged_batch: true
   },
+    {
+    name: "encoder_input_features"
+    data_type: TYPE_FP16
+    dims: [ -1, -1 ]
+    allow_ragged_batch: true
+    optional: true
+  },
+  {
+    name: "encoder_output_lengths"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+    reshape: { shape: [ ] }
+    optional: true
+  },
   {
     name: "input_lengths"
     data_type: TYPE_INT32
@@ -277,6 +291,13 @@ input [
     optional: true
   },
   {
+    name: "return_kv_cache_reuse_stats"
+    data_type: TYPE_BOOL
+    dims: [ 1 ]
+    reshape: { shape: [ ] }
+    optional: true
+  },
+  {
     name: "exclude_input_in_output"
     data_type: TYPE_BOOL
     dims: [ 1 ]
@@ -317,6 +338,14 @@ input [
     dims: [ 1 ]
     reshape: { shape: [ ] }
     optional: true
+  },
+  # cross_attention_mask shape `[bs, seq_len, num_images*num_tiles]`
+  {
+    name: "cross_attention_mask"
+    data_type: TYPE_BOOL
+    dims: [ -1, -1 ]
+    optional: true
+    allow_ragged_batch: true
   },
   # the unique task ID for the given LoRA.
   # To perform inference with a specific LoRA for the first time `lora_task_id` `lora_weights` and `lora_config` must all be given.
@@ -366,6 +395,14 @@ input [
     dims: [ -1 ]
     optional: true
     allow_ragged_batch: true
+  },
+  # skip_cross_attn_blocks shape `[bs, 1]`, only used in mllama
+  {
+    name: "skip_cross_attn_blocks"
+    data_type: TYPE_BOOL
+    dims: [ 1 ]
+    optional: true
+    allow_ragged_batch: true
   }
 ]
 output [
@@ -413,6 +450,21 @@ output [
     name: "context_phase_params"
     data_type: TYPE_UINT8
     dims: [ -1 ]
+  },
+  {
+    name: "kv_cache_alloc_new_blocks"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+  },
+  {
+    name: "kv_cache_reused_blocks"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+  },
+  {
+    name: "kv_cache_alloc_total_blocks"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
   }
 ]
 

@@ -57,6 +57,14 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--aggregate-worker-count",
+        type=int,
+        required=False,
+        default=0,
+        help="Number of baseline workers",
+    )
+
+    parser.add_argument(
         "--operator-repository",
         type=str,
         default=str(default_operator_repository),

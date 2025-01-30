@@ -62,10 +62,6 @@ def _create_disaggregated_serving_op(name, args, max_inflight_requests):
 def _create_triton_core_op(
     name,
     max_inflight_requests,
-    instances_per_worker,
-    kind,
-    delay_per_token,
-    input_copies,
     args,
 ):
     # TODO: argparse repo
@@ -91,15 +87,19 @@ def main(args):
         log_dir.mkdir(exist_ok=True)
 
     worker_configs = []
+
+    if args.aggregate_worker_count == 1:
+        aggregate_op = _create_triton_core_op(
+            name="mock", max_inflight_requests=1000, args=args
+        )
+        aggregate = WorkerConfig(operators=[aggregate_op], name="mock")
+        worker_configs.append((aggregate, 1))
+
     # Context/Generate workers used for Disaggregated Serving
     if args.context_worker_count == 1:
         prefill_op = _create_triton_core_op(
             name="context",
             max_inflight_requests=1000,
-            instances_per_worker=1,
-            kind="GPU",
-            delay_per_token=0,
-            input_copies=1,
             args=args,
         )
 
@@ -115,10 +115,6 @@ def main(args):
         decoder_op = _create_triton_core_op(
             name="generate",
             max_inflight_requests=1000,
-            instances_per_worker=1,
-            kind="GPU",
-            delay_per_token=0,
-            input_copies=1,
             args=args,
         )
 
