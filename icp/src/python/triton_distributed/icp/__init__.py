@@ -14,6 +14,8 @@
 # limitations under the License.
 
 from triton_distributed.icp.data_plane import DataPlane as DataPlane
+from triton_distributed.icp.event_plane import EventPlane as EventPlane
+from triton_distributed.icp.nats_event_plane import NatsEventPlane as NatsEventPlane
 from triton_distributed.icp.nats_request_plane import (
     NatsRequestPlane as NatsRequestPlane,
 )

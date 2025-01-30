@@ -60,7 +60,7 @@ class Event:
             topic=Topic.from_string(event_pb.topic),
             event_type=event_pb.event_type,
             timestamp=event_pb.timestamp.ToDatetime(),
-            component_id=uuid.UUID(event_pb.component_id),
+            component_id=uuid.UUID(event_pb._component_id),
             payload=event_pb.payload,
         )
 
