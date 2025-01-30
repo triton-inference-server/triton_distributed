@@ -61,6 +61,8 @@ filterwarnings = [
 ]
 # NOTE: Can also manually mark tests with @pytest.mark.asyncio
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+
 markers = [
 	"pre_merge: marks tests to run before merging",
         "nightly: marks tests to run nightly",
