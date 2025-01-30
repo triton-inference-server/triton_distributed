@@ -149,7 +149,7 @@ class RemoteModelConnector(BaseTriton3Connector):
                     try:
                         local_tensor = remote_tensor.local_tensor
                         if local_tensor.data_type == DataType.BYTES:
-                            numpy_tensor = local_tensor.to_bytes_array()
+                            numpy_tensor = local_tensor.to_string_array()
                         else:
                             numpy_tensor = np.from_dlpack(local_tensor)
                     finally:
