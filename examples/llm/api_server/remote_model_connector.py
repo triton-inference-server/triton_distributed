@@ -25,6 +25,7 @@ from llm.api_server.connector import (
     InferenceResponse,
 )
 from llm.api_server.remote_connector import RemoteConnector
+from tritonserver import DataType
 
 from triton_distributed.worker.remote_operator import RemoteOperator
 from triton_distributed.worker.remote_tensor import RemoteTensor
@@ -147,7 +148,10 @@ class RemoteModelConnector(BaseTriton3Connector):
                     remote_tensor = RemoteTensor(output, self._connector._data_plane)
                     try:
                         local_tensor = remote_tensor.local_tensor
-                        numpy_tensor = np.from_dlpack(local_tensor)
+                        if local_tensor.data_type == DataType.BYTES:
+                            numpy_tensor = local_tensor.to_bytes_array()
+                        else:
+                            numpy_tensor = np.from_dlpack(local_tensor)
                     finally:
                         # FIXME: This is a workaround for the issue that the remote tensor
                         # is released after connection is closed.

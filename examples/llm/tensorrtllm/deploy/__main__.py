@@ -50,13 +50,7 @@ for sig in signals:
 
 
 def _create_disaggregated_serving_op(name, args, max_inflight_requests):
-    model_repository = str(
-        Path(args.operator_repository)
-        / "tensorrtllm_models"
-        / "mock"
-        / "NVIDIA_RTX_A6000"
-        / "TP_1"
-    )
+    model_repository = str(Path(args.operator_repository) / "triton_core_models")
     return OperatorConfig(
         name=name,
         implementation=DisaggregatedServingOperator,
