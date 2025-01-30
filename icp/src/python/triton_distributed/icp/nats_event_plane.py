@@ -35,7 +35,7 @@ class NatsEventPlane:
     async def connect(self):
         await self._nc.connect(self._server_uri)
 
-    async def create_event(self, event_type: str, topic: Topic, payload: bytes):
+    def create_event(self, event_type: str, topic: Topic, payload: bytes):
         event = Event(
             event_id=uuid.uuid4(),
             topic=topic,

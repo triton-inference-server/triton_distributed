@@ -72,6 +72,6 @@ class TestEventPlaneNats:
         event_type = "test_event"
         topic = Topic("test.topic")
         payload = b"test_payload"
-        event = await event_plane_instance.create_event(event_type, topic, payload)
+        event = event_plane_instance.create_event(event_type, topic, payload)
         assert event.event_type == event_type
         assert event.topic.to_string() == topic.to_string()

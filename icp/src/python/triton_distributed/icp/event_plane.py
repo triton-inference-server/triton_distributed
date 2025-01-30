@@ -89,7 +89,7 @@ class EventPlane:
         pass
 
     @abstractmethod
-    async def create_event(self, event_type: str, topic: Topic, payload: bytes):
+    def create_event(self, event_type: str, topic: Topic, payload: bytes):
         pass
 
     @abstractmethod

@@ -40,7 +40,7 @@ class TestEventPlaneFunctional:
 
         await event_plane.subscribe(callback, topic=topic, event_type=event_type)
 
-        event = await event_plane.create_event(event_type, topic, payload)
+        event = event_plane.create_event(event_type, topic, payload)
         await event_plane.publish(event)
 
         # Allow time for message to propagate
@@ -85,9 +85,9 @@ class TestEventPlaneFunctional:
 
         ch1 = Topic(["test", "1"])
         ch2 = Topic(["test", "2"])
-        event1 = await event_plane1.create_event(event_type, ch1, payload)
+        event1 = event_plane1.create_event(event_type, ch1, payload)
         await event_plane1.publish(event1)
-        event2 = await event_plane1.create_event(event_type, ch2, payload)
+        event2 = event_plane1.create_event(event_type, ch2, payload)
         await event_plane1.publish(event2)
 
         # Allow time for message propagation
