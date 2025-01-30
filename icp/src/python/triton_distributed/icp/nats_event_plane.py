@@ -1,3 +1,19 @@
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -33,7 +49,7 @@ class NatsEventPlane:
     async def publish(self, event: Event):
         event_pb = event.to_protobuf()
         message = event_pb.SerializeToString()
-        subject = f"ep.{event.event_type}.{event.component_id}.{event.topic}.trunk"
+        subject = self._compose_publish_subject(event)
         await self._nc.publish(subject, message)
 
     async def subscribe(
@@ -43,14 +59,22 @@ class NatsEventPlane:
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
     ):
-        async def message_handler(msg):
+        async def _message_handler(msg):
             event_pb = event_pb2.Event()
             event_pb.ParseFromString(msg.data)
             event = Event.from_protobuf(event_pb)
             await callback(event)
 
-        subject = f"ep.{event_type or '*'}.{component_id or '*'}.{str(topic) + '.' if topic else ''}>"
-        await self._nc.subscribe(subject, cb=message_handler)
+        subject = self._comoase_subscribe_subject(topic, event_type, component_id)
+        await self._nc.subscribe(subject, cb=_message_handler)
 
     async def disconnect(self):
         await self._nc.close()
+
+    def _compose_publish_subject(self, event: Event):
+        return f"ep.{event.event_type}.{event.component_id}.{event.topic}.trunk"
+
+    def _comoase_subscribe_subject(
+        self, topic: Topic, event_type: str, component_id: uuid.UUID
+    ):
+        return f"ep.{event_type or '*'}.{component_id or '*'}.{str(topic) + '.' if topic else ''}>"
