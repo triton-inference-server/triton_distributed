@@ -50,7 +50,9 @@ for sig in signals:
 
 
 def _create_disaggregated_serving_op(name, args, max_inflight_requests):
-    model_repository = str(Path(args.operator_repository) / "triton_core_models")
+    model_repository = str(
+        Path(args.operator_repository) / "triton_core_models"
+    )  # stores our simple pre/post processing
     return OperatorConfig(
         name=name,
         implementation=DisaggregatedServingOperator,
@@ -76,8 +78,8 @@ def _create_triton_core_op(
         repository=str(
             Path(args.operator_repository)
             / "tensorrtllm_models"
-            / "mock"
-            / "NVIDIA_RTX_A6000"
+            / "llama-3.1-8b-instruct"
+            / "NVIDIA_H100_NVL"
             / "TP_1"
         ),
     )
@@ -105,8 +107,6 @@ def main(args):
 
         prefill = WorkerConfig(
             operators=[prefill_op],
-            # Context worker gets --worker-name as it is the model that will
-            # be hit first in a disaggregated setting.
             name=args.worker_name,
         )
         worker_configs.append((prefill, 1))
@@ -124,14 +124,10 @@ def main(args):
 
         decoder = WorkerConfig(
             operators=[decoder_op],
-            # Generate worker gets a hard-coded name "generate" as the context
-            # worker will talk directly to it.
             name="generate",
         )
         worker_configs.append((decoder, 1))
 
-        # Add the disaggregated serving operator when both workers are present
-        # This coordinates between context and generate workers
         prefill_decode_op = _create_disaggregated_serving_op(
             name="mock",
             max_inflight_requests=1000,
