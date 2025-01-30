@@ -78,7 +78,7 @@ def _create_triton_core_op(
     )
 
 
-async def main(args):
+def main(args):
     global deployment
 
     if args.log_dir:

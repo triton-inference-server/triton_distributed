@@ -34,7 +34,7 @@ from gpu_info import get_gpu_product_name
 from huggingface_hub import snapshot_download
 from known_models import KNOWN_MODELS
 
-TARGET_DIR = "/workspace/examples/llm/tensorrtllm"
+TARGET_DIR = "/workspace/examples/llm/tensorrtllm/operators"
 
 TENSORRTLLM_EXAMPLE_DIR = "/tensorrtllm_backend/tensorrt_llm/examples"
 
@@ -143,7 +143,7 @@ def _existing_dir(args, directory_type, force, command, suffix=[], model_name=No
 
 def _download(args):
     if "hf_id" not in KNOWN_MODELS[args.model]:
-        print("SKipping Download")
+        print("Skipping Download")
         return
 
     if "download_patterns" in KNOWN_MODELS[args.model]:

@@ -101,7 +101,7 @@ After this you should see the following in `/workspace/examples/llm/tensorrtllm`
 
 ```
 
-
+python3 -m llm.vllm.deploy --initialize-request-plane
 
 
 
