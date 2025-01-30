@@ -53,8 +53,8 @@ def _create_disaggregated_serving_op(name, args, max_inflight_requests):
     model_repository = str(
         Path(args.operator_repository)
         / "tensorrtllm_models"
-        / "llama-3.1-8b-instruct"
-        / "NVIDIA_H100_NVL"
+        / "mock"
+        / "NVIDIA_RTX_A6000"
         / "TP_1"
     )
     return OperatorConfig(
@@ -82,8 +82,8 @@ def _create_triton_core_op(
         repository=str(
             Path(args.operator_repository)
             / "tensorrtllm_models"
-            / "llama-3.1-8b-instruct"
-            / "NVIDIA_H100_NVL"
+            / "mock"
+            / "NVIDIA_RTX_A6000"
             / "TP_1"
         ),
     )
@@ -139,14 +139,15 @@ def main(args):
         # Add the disaggregated serving operator when both workers are present
         # This coordinates between context and generate workers
         prefill_decode_op = _create_disaggregated_serving_op(
-            name="prefill_decode",
+            #            name="prefill_decode",
+            name="mock",
             max_inflight_requests=1000,
             args=args,
         )
 
         prefill_decode = WorkerConfig(
             operators=[prefill_decode_op],
-            name="prefill_decode",
+            name="mock",
         )
         worker_configs.append((prefill_decode, 1))
 
