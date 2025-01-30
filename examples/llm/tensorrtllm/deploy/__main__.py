@@ -133,7 +133,6 @@ def main(args):
         # Add the disaggregated serving operator when both workers are present
         # This coordinates between context and generate workers
         prefill_decode_op = _create_disaggregated_serving_op(
-            #            name="prefill_decode",
             name="mock",
             max_inflight_requests=1000,
             args=args,

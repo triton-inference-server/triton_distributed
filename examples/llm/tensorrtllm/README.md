@@ -113,9 +113,9 @@ python3 -m llm.tensorrtllm.deploy \
   --request-plane-uri ${HOSTNAME}:4223 &
 
 
-CUDA_VISIBLE_DEVICES=1 python3 -m llm.tensorrtllm.deploy   --generate-worker-count 1   --worker-name generate  --request-plane-uri ${HOSTNAME}:4223 &
+CUDA_VISIBLE_DEVICES=1 python3 -m llm.tensorrtllm.deploy   --generate-worker-count 1   --worker-name lolol  --request-plane-uri ${HOSTNAME}:4223 --starting-metrics-port 50001 &
 
-HF_TOKEN= python3 -m llm.api_server --tokenizer meta-llama/Llama-3.1-8B --request-plane-uri ${HOSTNAME}:4223 --api-server-host ${HOSTNAME} --model-name llama
+HF_TOKEN= python3 -m llm.api_server --tokenizer meta-llama/Llama-3.1-8B --request-plane-uri ${HOSTNAME}:4223 --api-server-host ${HOSTNAME} --model-name lolol  &
 
 
 ## X. References
