@@ -17,14 +17,17 @@ import asyncio
 import logging
 
 import numpy
-from worker.log_formatter import LOGGER_NAME
 
-from triton_distributed.worker import Operator, RemoteInferenceRequest, RemoteOperator
+from triton_distributed.worker import (
+    RemoteInferenceRequest,
+    RemoteOperator,
+    TritonCoreOperator,
+)
 
-logger = logging.getLogger(LOGGER_NAME)
+logger = logging.getLogger(__name__)
 
 
-class DisaggregatedServingOperator(Operator):
+class DisaggregatedServingOperator(TritonCoreOperator):
     def __init__(
         self,
         name,

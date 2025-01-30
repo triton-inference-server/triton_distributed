@@ -18,7 +18,14 @@ import sys
 import time
 from pathlib import Path
 
-from triton_distributed.worker import Deployment, OperatorConfig, WorkerConfig
+from llm.tensorrtllm.operators.disaggregated_serving import DisaggregatedServingOperator
+
+from triton_distributed.worker import (
+    Deployment,
+    OperatorConfig,
+    TritonCoreOperator,
+    WorkerConfig,
+)
 
 from .parser import parse_args
 
@@ -43,11 +50,18 @@ for sig in signals:
 
 
 def _create_disaggregated_serving_op(name, args, max_inflight_requests):
+    model_repository = str(
+        Path(args.operator_repository)
+        / "tensorrtllm_models"
+        / "llama-3.1-8b-instruct"
+        / "NVIDIA_H100_NVL"
+        / "TP_1"
+    )
     return OperatorConfig(
         name=name,
-        implementation="DisaggregatedServingOperator",
+        implementation=DisaggregatedServingOperator,
         max_inflight_requests=int(max_inflight_requests),
-        repository=args.operator_repository,
+        repository=model_repository,
     )
 
 
@@ -60,21 +74,18 @@ def _create_triton_core_op(
     input_copies,
     args,
 ):
+    # TODO: argparse repo
     return OperatorConfig(
         name=name,
-        implementation="TritonCoreOperator",
+        implementation=TritonCoreOperator,
         max_inflight_requests=int(max_inflight_requests),
-        parameters={
-            "config": {
-                "instance_group": [
-                    {"count": int(instances_per_worker), "kind": f"KIND_{kind}"}
-                ],
-                "parameters": {
-                    "delay": {"string_value": f"{delay_per_token}"},
-                    "input_copies": {"string_value": f"{input_copies}"},
-                },
-            }
-        },
+        repository=str(
+            Path(args.operator_repository)
+            / "tensorrtllm_models"
+            / "llama-3.1-8b-instruct"
+            / "NVIDIA_H100_NVL"
+            / "TP_1"
+        ),
     )
 
 
@@ -87,7 +98,7 @@ def main(args):
 
     # TODO: argparse these
     prefill_op = _create_triton_core_op(
-        name="prefill",
+        name="context",
         max_inflight_requests=1000,
         instances_per_worker=1,
         kind="GPU",
@@ -103,7 +114,7 @@ def main(args):
 
     # TODO: argparse these
     decoder_op = _create_triton_core_op(
-        name="decode",
+        name="generate",
         max_inflight_requests=1000,
         instances_per_worker=1,
         kind="GPU",
