@@ -75,6 +75,9 @@ class NatsEventPlane:
         return f"ep.{event.event_type}.{event.component_id}.{event.topic}.trunk"
 
     def _comoase_subscribe_subject(
-        self, topic: Topic, event_type: str, component_id: uuid.UUID
+        self,
+        topic: Optional[Topic],
+        event_type: Optional[str],
+        component_id: Optional[uuid.UUID],
     ):
         return f"ep.{event_type or '*'}.{component_id or '*'}.{str(topic) + '.' if topic else ''}>"
