@@ -43,8 +43,8 @@ class DisaggregatedServingOperator(TritonCoreOperator):
         self._decode = RemoteOperator("generate", request_plane, data_plane)
 
         self._triton_core = triton_core
-        self._preprocess_model = self._triton_core.model("preprocessing")
-        self._postprocess_model = self._triton_core.model("postprocessing")
+        self._preprocess_model = self._triton_core.load("preprocessing")
+        self._postprocess_model = self._triton_core.load("postprocessing")
         self._logger = logger
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
