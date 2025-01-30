@@ -139,9 +139,9 @@ def main(args):
         # Add the disaggregated serving operator when both workers are present
         # This coordinates between context and generate workers
         prefill_decode_op = _create_disaggregated_serving_op(
-            name="prefill_decode",
-            max_inflight_requests=1000,
+            name=args.worker_name,
             args=args,
+            max_inflight_requests=1000,
         )
 
         prefill_decode = WorkerConfig(
