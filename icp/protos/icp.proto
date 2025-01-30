@@ -17,6 +17,8 @@ syntax = "proto3";
 
 package triton.distributed.icp;
 
+import "google/protobuf/timestamp.proto";
+
 //@@
 //@@.. cpp:var:: message ModelInferRequest
 //@@
@@ -282,4 +284,14 @@ message InferTensorContents
   //@@     row-major order of the tensor elements.
   //@@
   repeated bytes bytes_contents = 8;
+}
+
+message Event
+{
+  string event_id = 1;                      // Unique identifier for the event
+  string topic = 2;                         // Store the topic as a string
+  string event_type = 3;                    // The type of the event
+  google.protobuf.Timestamp timestamp = 4;  // ISO 8601 formatted timestamp
+  string component_id = 5;  // Identifier of the source component
+  bytes payload = 6;        // Binary payload
 }

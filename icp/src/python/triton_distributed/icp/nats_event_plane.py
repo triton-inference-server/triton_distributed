@@ -21,7 +21,7 @@ from typing import Optional
 import nats
 
 from triton_distributed.icp.event_plane import Event, Topic
-from triton_distributed.icp.protos import event_pb2
+from triton_distributed.icp.protos import icp_pb2
 
 
 class NatsEventPlane:
@@ -60,7 +60,7 @@ class NatsEventPlane:
         component_id: Optional[uuid.UUID] = None,
     ):
         async def _message_handler(msg):
-            event_pb = event_pb2.Event()
+            event_pb = icp_pb2.Event()
             event_pb.ParseFromString(msg.data)
             event = Event.from_protobuf(event_pb)
             await callback(event)

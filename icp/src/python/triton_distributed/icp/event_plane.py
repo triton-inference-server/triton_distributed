@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Union
 
-from triton_distributed.icp.protos import event_pb2
+from triton_distributed.icp.protos import icp_pb2
 
 
 class Topic:
@@ -58,7 +58,7 @@ class Event:
 
     def to_protobuf(self):
         """Convert Event to Protobuf message."""
-        event_pb = event_pb2.Event()
+        event_pb = icp_pb2.Event()
         event_pb.event_id = str(self.event_id)
         event_pb.topic = self.topic.to_string()
         event_pb.event_type = self.event_type
