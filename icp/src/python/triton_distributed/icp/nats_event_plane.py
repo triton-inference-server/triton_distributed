@@ -27,16 +27,30 @@ class NatsEventPlane:
     """EventPlane implementation using NATS."""
 
     def __init__(self, server_uri: str, component_id: uuid.UUID):
+        """Initialize the NATS event plane.
+
+        Args:
+            server_uri: URI of the NATS server.
+            component_id: Component ID.
+        """
         self._server_uri = server_uri
         self._component_id = component_id
         self._nc = nats.NATS()
 
     async def connect(self):
+        """Connect to the NATS server."""
         await self._nc.connect(self._server_uri)
 
     async def publish(
         self, event: bytes, event_type: str, topic: Optional[Topic]
     ) -> EventMetadata:
+        """Publish an event to the NATS server.
+
+        Args:
+            event: Event payload.
+            event_type: Type of the event.
+            topic: Topic of the event.
+        """
         event_metadata = EventMetadata(
             event_id=uuid.uuid4(),
             topic=topic,
@@ -62,11 +76,20 @@ class NatsEventPlane:
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
     ):
+        """Subscribe to events on the NATS server.
+
+        Args:
+            callback: Callback function to be called when an event is received.
+            topic: Event topic.
+            event_type: Event type.
+            component_id: Component ID.
+        """
+
         async def _message_handler(msg):
             metadata, event = self._extract_metadata_and_payload(msg.data)
             await callback(event, metadata)
 
-        subject = self._comoase_subscribe_subject(topic, event_type, component_id)
+        subject = self._compose_subscribe_subject(topic, event_type, component_id)
         await self._nc.subscribe(subject, cb=_message_handler)
 
     async def subscribe_iter(
@@ -75,19 +98,27 @@ class NatsEventPlane:
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
     ) -> AsyncIterator[Tuple[bytes, bytes]]:
-        subject = self._comoase_subscribe_subject(topic, event_type, component_id)
+        """Subscribe to events on the NATS server and return an async iterator.
+
+        Args:
+            topic: Event topic.
+            event_type: Event type.
+            component_id: Component ID.
+        """
+        subject = self._compose_subscribe_subject(topic, event_type, component_id)
         sub = await self._nc.subscribe(subject)
         async for msg in sub.messages:
             metadata, event = self._extract_metadata_and_payload(msg.data)
             yield event, metadata
 
     async def disconnect(self):
+        """Disconnect from the NATS server."""
         await self._nc.close()
 
     def _compose_publish_subject(self, event_metadata: EventMetadata):
         return f"ep.{event_metadata.event_type}.{event_metadata.component_id}.{str(event_metadata.topic) + '.' if event_metadata.topic else ''}trunk"
 
-    def _comoase_subscribe_subject(
+    def _compose_subscribe_subject(
         self,
         topic: Optional[Topic],
         event_type: Optional[str],

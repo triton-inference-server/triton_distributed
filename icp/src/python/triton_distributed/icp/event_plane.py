@@ -14,12 +14,25 @@
 # limitations under the License.
 
 
+import re
 import uuid
 from abc import abstractmethod
 from datetime import datetime
 from typing import Any, AsyncIterator, Awaitable, Callable, List, Optional, Tuple, Union
 
 from pydantic import BaseModel
+
+
+def _validate_subjects(subjects: List[str]) -> bool:
+    """
+    Checks if all strings in the list are alphanumeric and can contain underscores (_) and hyphens (-).
+
+    :param subjects: List of strings to validate
+    :return: True if all strings are valid, False otherwise
+    """
+    pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+    return all(pattern.match(subject) for subject in subjects)
 
 
 class Topic(BaseModel):
@@ -35,10 +48,13 @@ class Topic(BaseModel):
         """
 
         if isinstance(topic, str):
-            _topic = topic
-        else:
-            _topic = ".".join(topic)
-        super().__init__(topic=_topic)
+            topic = [topic]
+        if not _validate_subjects(topic):
+            raise ValueError(
+                "Invalid topic string. Only alphanumeric characters, underscores, and hyphens are allowed."
+            )
+        topic = ".".join(topic)
+        super().__init__(topic=topic)
 
     def __str__(self):
         return self.topic
@@ -65,6 +81,7 @@ class EventPlane:
 
     @abstractmethod
     async def connect(self):
+        """Connect to the event plane."""
         pass
 
     @abstractmethod
@@ -74,6 +91,9 @@ class EventPlane:
         """Publish an event to the event plane.
 
         Args:
+            event (Union[bytes, Any]): Event payload
+            event_type (str): Event type
+            topic (Optional[Topic]): Event topic
         """
         pass
 
@@ -85,6 +105,14 @@ class EventPlane:
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
     ):
+        """Subscribe to events on the event plane.
+
+        Args:
+            callback (Callable[[bytes, bytes], Awaitable[None]]): Callback function to be called when an event is received
+            topic (Optional[Topic]): Event topic
+            event_type (Optional[str]): Event type
+            component_id (Optional[uuid.UUID]): Component ID
+        """
         pass
 
     @abstractmethod
@@ -94,8 +122,17 @@ class EventPlane:
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
     ) -> AsyncIterator[Tuple[bytes, bytes]]:
+        """
+        Subscribe to events on the event plane and return an async iterator.
+
+        Args:
+            topic (Optional[Topic]): Event topic
+            event_type (Optional[str]): Event type
+            component_id (Optional[uuid.UUID]): Component ID
+        """
         pass
 
     @abstractmethod
     async def disconnect(self):
+        """Disconnect from the event plane."""
         pass
