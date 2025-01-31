@@ -156,7 +156,7 @@ def _launch_nats_server(args):
         "/usr/local/bin/nats-server",
         "--jetstream",
         "--port",
-        args.nats_port,
+        str(args.nats_port),
     ]
 
     if args.dry_run:
