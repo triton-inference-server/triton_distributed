@@ -47,3 +47,10 @@ genai-perf profile \
   -- -v \
   --async
 ```
+
+## Results (placeholder)
+
+| label    | configuration                  | concurrency | output_token_throughput_per_request | output_token_throughput_per_gpu | time_to_first_token | inter_token_latency |
+|----------|--------------------------------|-------------|-------------------------------------|---------------------------------|---------------------|---------------------|
+| disagg   | context_tp4dp1_generate_tp4dp1 |          16 |                         45.70218424 |                     86.75790947 |         719.2443455 |         17.47573939 |
+| baseline | baseline_tp4dp1                |           4 |                         49.60947526 |                     49.60134097 |         500.9769517 |         16.93055177 |
