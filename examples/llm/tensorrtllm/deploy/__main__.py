@@ -106,8 +106,8 @@ def main(args):
         prefill = WorkerConfig(
             operators=[prefill_op],
             name="context",
-            log_level=3,
-            metrics_port=50000,
+            log_level=args.log_level,
+            metrics_port=args.starting_metrics_port,
         )
         worker_configs.append(prefill)
 
@@ -125,8 +125,8 @@ def main(args):
         decoder = WorkerConfig(
             operators=[decoder_op],
             name="generate",
-            log_level=3,
-            metrics_port=50001,
+            log_level=args.log_level,
+            metrics_port=args.starting_metrics_port + 1,
         )
         worker_configs.append(decoder)
 
@@ -140,8 +140,8 @@ def main(args):
         prefill_decode = WorkerConfig(
             operators=[prefill_decode_op],
             name=args.worker_name,
-            log_level=3,
-            metrics_port=50002,
+            log_level=args.log_level,
+            metrics_port=args.starting_metrics_port + 2,
         )
         worker_configs.append(prefill_decode)
 

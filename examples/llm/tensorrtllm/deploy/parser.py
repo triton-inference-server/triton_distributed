@@ -28,7 +28,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--log-level", type=int, default=1, help="log level applied to all workers"
+        "--log-level", type=int, default=3, help="log level applied to all workers"
     )
 
     parser.add_argument(
@@ -49,7 +49,7 @@ def parse_args():
         "--starting-metrics-port",
         type=int,
         default=50000,
-        help="Metrics port for first worker. Each worker will expose metrics on subsequent ports, ex. worker 1: 50000, worker 2: 50001, worker 3: 50002",
+        help="Metrics port",
     )
 
     parser.add_argument(
