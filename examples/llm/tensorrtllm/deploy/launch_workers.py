@@ -40,14 +40,8 @@ for sig in signals:
     except Exception:
         pass
 
-
-def _launch_workers(args):
+def _launch_mpi_workers(args):
     if args.context_worker_count == 1 or args.generate_worker_count == 1:
-        processes = []
-
-        if args.initialize_request_plane:
-            processes.append(_launch_nats_server(args))
-
         WORKER_LOG_DIR = str(Path(args.log_dir) / "workers")
         command = [
             "mpiexec",
@@ -71,13 +65,7 @@ def _launch_workers(args):
             command.extend(_generate_cmd(args, starting_gpu))
             command.append(":")
 
-        if args.disaggregated_serving:
-            starting_gpu = 0
-            command.extend(_disaggregated_serving_cmd(args, starting_gpu))
-            command.append(":")
-
         command = command[0:-1]
-
         print(" ".join(command))
 
         if args.dry_run:
@@ -89,10 +77,41 @@ def _launch_workers(args):
         raise ValueError("Only supporting 1 worker each for now")
 
 
+def _launch_disagg_model(args):
+    if not args.disaggregated_serving:
+        return
+
+    starting_gpu = 0
+    env = os.environ.copy()
+    command = _disaggregated_serving_cmd(args, starting_gpu)
+    print(" ".join(command))
+
+    if args.dry_run:
+        return
+
+    return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
+
+
+def _launch_workers(args):
+    # Launch nats-server if requested by user for convenience, otherwise 
+    # it can be started separately beforehand.
+    if args.initialize_request_plane:
+        _launch_nats_server(args)
+
+    # Launch TRT-LLM models via mpiexec in the same MPI WORLD
+    _launch_mpi_workers(args)
+
+    # Launch disaggregated serving "orchestration" model to interface 
+    # client-facing requests with Triton Distributed deployment.
+    _launch_disagg_model(args)
+
+
 def _context_cmd(args, starting_gpu):
     command = [
         "-np",
         "1",
+        # FIXME: May need to double check this CUDA_VISIBLE_DEVICES
+        # and trtllm gpu_device_id/participant_id interaction
         "-x",
         f"CUDA_VISIBLE_DEVICES={starting_gpu}",
         "python3",
@@ -114,6 +133,8 @@ def _generate_cmd(args, starting_gpu):
     command = [
         "-np",
         "1",
+        # FIXME: May need to double check this CUDA_VISIBLE_DEVICES
+        # and trtllm gpu_device_id/participant_id interaction
         "-x",
         f"CUDA_VISIBLE_DEVICES={starting_gpu}",
         "python3",
@@ -135,6 +156,7 @@ def _disaggregated_serving_cmd(args, starting_gpu):
         "-np",
         "1",
         "-x",
+        # FIXME: Does this model need a GPU assigned to it?
         f"CUDA_VISIBLE_DEVICES={starting_gpu}",
         "python3",
         "-m",
@@ -159,13 +181,12 @@ def _launch_nats_server(args):
         str(args.nats_port),
     ]
 
+    print(" ".join(command))
     if args.dry_run:
-        print(" ".join(command))
         return
 
     env = os.environ.copy()
-    process = subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
-    return process
+    return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
 
 
 if __name__ == "__main__":
