@@ -25,9 +25,10 @@ import vllm.inputs.data
 LOGGER = vllm.logger.init_logger(__name__)
 
 
+# TODO ptarasiewicz remove after veryfing streaming works efficiently
 # FIXME currently streaming all the tokens is not efficient
 # with RETURN_EVERY_N so large we return only first token and whole sequence at the end
-RETURN_EVERY_N = 1000000
+RETURN_EVERY_N = 1
 
 
 class Stage(abc.ABC):
