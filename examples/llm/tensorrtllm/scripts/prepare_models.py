@@ -341,3 +341,5 @@ if __name__ == "__main__":
     _convert(args)
     _build(args)
     _prepare(args)
+
+    print("Your models under GPU type: ", args.gpu_name)

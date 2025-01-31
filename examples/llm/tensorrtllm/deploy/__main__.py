@@ -75,7 +75,7 @@ def _create_triton_core_op(
             Path(args.operator_repository)
             / "tensorrtllm_models"
             / args.model
-            / "NVIDIA_H100_NVL"
+            / args.gpu_name
             / "TP_1"
         ),
         parameters={"store_outputs_in_response": True},
@@ -93,8 +93,12 @@ def main(args):
         aggregate_op = _create_triton_core_op(
             name=args.model, max_inflight_requests=1000, args=args
         )
-        aggregate = WorkerConfig(operators=[aggregate_op], name=args.model)
-        worker_configs.append((aggregate, 1))
+        aggregate = WorkerConfig(
+            operators=[aggregate_op],
+            name=args.model,
+            request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
+        )
+        worker_configs.append(aggregate)
 
     # Context/Generate workers used for Disaggregated Serving
     if args.context_worker_count == 1:
@@ -109,6 +113,7 @@ def main(args):
             name="context",
             log_level=args.log_level,
             metrics_port=args.starting_metrics_port,
+            request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
         )
         worker_configs.append(prefill)
 
@@ -124,6 +129,7 @@ def main(args):
             name="generate",
             log_level=args.log_level,
             metrics_port=args.starting_metrics_port + 1,
+            request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
         )
         worker_configs.append(decoder)
 
@@ -139,6 +145,7 @@ def main(args):
             name=args.worker_name,
             log_level=args.log_level,
             metrics_port=args.starting_metrics_port + 2,
+            request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
         )
         worker_configs.append(prefill_decode)
 

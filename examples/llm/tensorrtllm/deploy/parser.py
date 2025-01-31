@@ -21,6 +21,13 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--gpu-name",
+        type=str,
+        required=True,
+        help="GPU name that comes from the prepare_models.py script",
+    )
+
+    parser.add_argument(
         "--initialize-request-plane",
         default=False,
         action="store_true",
