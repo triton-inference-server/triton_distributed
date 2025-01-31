@@ -21,9 +21,9 @@ from pathlib import Path
 from llm.tensorrtllm.operators.disaggregated_serving import DisaggregatedServingOperator
 
 from triton_distributed.worker import (
-    Deployment,
     OperatorConfig,
     TritonCoreOperator,
+    Worker,
     WorkerConfig,
 )
 
@@ -86,8 +86,6 @@ def _create_triton_core_op(
 
 
 def main(args):
-    global deployment
-
     if args.log_dir:
         log_dir = Path(args.log_dir)
         log_dir.mkdir(exist_ok=True)
@@ -107,9 +105,11 @@ def main(args):
 
         prefill = WorkerConfig(
             operators=[prefill_op],
-            name=args.worker_name,
+            name="context",
+            log_level=3,
+            metrics_port=50000,
         )
-        worker_configs.append((prefill, 1))
+        worker_configs.append(prefill)
 
     if args.generate_worker_count == 1:
         decoder_op = _create_triton_core_op(
@@ -125,9 +125,12 @@ def main(args):
         decoder = WorkerConfig(
             operators=[decoder_op],
             name="generate",
+            log_level=3,
+            metrics_port=50001,
         )
-        worker_configs.append((decoder, 1))
+        worker_configs.append(decoder)
 
+    if args.disaggregated_serving:
         prefill_decode_op = _create_disaggregated_serving_op(
             name="mock",
             max_inflight_requests=1000,
@@ -137,20 +140,17 @@ def main(args):
         prefill_decode = WorkerConfig(
             operators=[prefill_decode_op],
             name="mock",
+            log_level=3,
+            metrics_port=50002,
         )
-        worker_configs.append((prefill_decode, 1))
+        worker_configs.append(prefill_decode)
 
     print("Starting Workers")
-    deployment = Deployment(
-        worker_configs,
-        initialize_request_plane=args.initialize_request_plane,
-        log_dir=args.log_dir,
-        log_level=args.log_level,
-        starting_metrics_port=args.starting_metrics_port,
-        request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
-    )
+    for worker_config in worker_configs:
+        worker = Worker(worker_config)
+        print(f"worker: {worker}")
+        worker.start()
 
-    deployment.start()
     print("Workers started ... press Ctrl-C to Exit")
 
     while True:

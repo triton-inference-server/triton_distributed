@@ -79,4 +79,20 @@ def parse_args():
         help="Ignore EOS token when generating",
     )
 
+    parser.add_argument(
+        "--dry-run",
+        action=argparse.BooleanOptionalAction,
+        required=False,
+        default=False,
+        help="Dry run the command",
+    )
+
+    parser.add_argument(
+        "--disaggregated-serving",
+        action=argparse.BooleanOptionalAction,
+        required=False,
+        default=True,
+        help="Enable disaggregated serving",
+    )
+
     return parser.parse_args()
