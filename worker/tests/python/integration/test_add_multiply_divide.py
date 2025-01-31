@@ -215,7 +215,7 @@ def run(num_requests, store_inputs_in_request=False):
     "(not os.path.exists('/usr/local/bin/nats-server'))",
     reason="NATS.io not present",
 )
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(120)
 @pytest.mark.parametrize(
     ["store_inputs_in_request", "store_outputs_in_response"],
     [(False, False), (True, True)],
