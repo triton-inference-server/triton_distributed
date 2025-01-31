@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
+import asyncio
 import uuid
 from datetime import datetime
 from typing import AsyncIterator, Awaitable, Callable, Optional, Tuple
@@ -26,13 +25,19 @@ from triton_distributed.icp import EventMetadata, Topic
 class NatsEventPlane:
     """EventPlane implementation using NATS."""
 
-    def __init__(self, server_uri: str, component_id: uuid.UUID):
+    def __init__(
+        self,
+        server_uri: str,
+        component_id: uuid.UUID,
+        run_callback_in_parallel: bool = False,
+    ):
         """Initialize the NATS event plane.
 
         Args:
             server_uri: URI of the NATS server.
             component_id: Component ID.
         """
+        self._run_callback_in_parallel = run_callback_in_parallel
         self._server_uri = server_uri
         self._component_id = component_id
         self._nc = nats.NATS()
@@ -87,7 +92,10 @@ class NatsEventPlane:
 
         async def _message_handler(msg):
             metadata, event = self._extract_metadata_and_payload(msg.data)
-            await callback(event, metadata)
+            if self._run_callback_in_parallel:
+                asyncio.create_task(callback(event, metadata))  # Run in parallel
+            else:
+                await callback(event, metadata)  # Await normally
 
         subject = self._compose_subscribe_subject(topic, event_type, component_id)
         await self._nc.subscribe(subject, cb=_message_handler)
