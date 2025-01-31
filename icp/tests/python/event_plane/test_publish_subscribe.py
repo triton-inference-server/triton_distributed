@@ -38,10 +38,10 @@ class TestEventPlaneFunctional:
 
         topic = Topic("test.topic")
         event_type = "test_event"
-        payload = b"test_payload"
+        event = b"test_payload"
 
         await event_plane.subscribe(callback, topic=topic, event_type=event_type)
-        event_metadata = await event_plane.publish(payload, event_type, topic)
+        event_metadata = await event_plane.publish(event, event_type, topic)
 
         # Allow time for message to propagate
         await asyncio.sleep(2)
@@ -66,7 +66,7 @@ class TestEventPlaneFunctional:
 
         topic = Topic(["test"])
         event_type = "multi_event"
-        payload = b"multi_payload"
+        event = b"multi_payload"
 
         # async with event_plane_context() as event_plane1:
         server_url = "nats://localhost:4222"
@@ -85,8 +85,8 @@ class TestEventPlaneFunctional:
 
         ch1 = Topic(["test", "1"])
         ch2 = Topic(["test", "2"])
-        await event_plane1.publish(payload, event_type, ch1)
-        await event_plane1.publish(payload, event_type, ch2)
+        await event_plane1.publish(event, event_type, ch1)
+        await event_plane1.publish(event, event_type, ch2)
 
         # Allow time for message propagation
         await asyncio.sleep(2)

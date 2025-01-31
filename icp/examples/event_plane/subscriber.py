@@ -25,10 +25,10 @@ async def main(subscriber_id, topic, event_type, component_id):
     server_url = "nats://localhost:4222"
     event_plane = NatsEventPlane(server_url, uuid.uuid4())
 
-    async def callback(payload, metadata_wr: bytes):
+    async def callback(event, metadata_wr: bytes):
         metadata = EventMetadata.from_raw(metadata_wr)
         print(
-            f"Subscriber {subscriber_id} received event: {metadata.event_id} payload: {payload.decode()}"
+            f"Subscriber {subscriber_id} received event: {metadata.event_id} event payload: {event.decode()}"
         )
 
     await event_plane.connect()

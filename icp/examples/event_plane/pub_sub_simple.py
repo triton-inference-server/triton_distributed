@@ -37,11 +37,11 @@ async def single_publisher_subscriber_example():
 
     topic = Topic(["test", "topic"])
     event_type = "test_event"
-    payload = b"my_payload"
+    event = b"my_payload"
 
     await plane.subscribe(callback, topic=topic, event_type=event_type)
 
-    await plane.publish(payload, event_type, topic)
+    await plane.publish(event, event_type, topic)
 
     # Allow time for message to propagate
     await asyncio.sleep(3)

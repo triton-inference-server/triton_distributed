@@ -28,6 +28,12 @@ class Topic(BaseModel):
     topic: str
 
     def __init__(self, topic: Union[List[str], str]):
+        """Initialize the topic.
+
+        Args:
+            topic (Union[List[str], str]): The topic as a list of strings or a single string. Strings should be alphanumeric + underscore and '-' characters only. The list forms a hierarchy of topics.
+        """
+
         if isinstance(topic, str):
             _topic = topic
         else:
@@ -39,6 +45,10 @@ class Topic(BaseModel):
 
 
 class EventMetadata(BaseModel):
+    """
+    Class keeps metadata of an event.
+    """
+
     event_id: uuid.UUID
     topic: Optional[Topic] = None
     event_type: str
@@ -59,8 +69,12 @@ class EventPlane:
 
     @abstractmethod
     async def publish(
-        self, payload: Union[bytes, Any], event_type: str, topic: Optional[Topic]
+        self, event: Union[bytes, Any], event_type: str, topic: Optional[Topic]
     ) -> EventMetadata:
+        """Publish an event to the event plane.
+
+        Args:
+        """
         pass
 
     @abstractmethod

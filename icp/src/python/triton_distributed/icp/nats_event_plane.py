@@ -35,7 +35,7 @@ class NatsEventPlane:
         await self._nc.connect(self._server_uri)
 
     async def publish(
-        self, payload: bytes, event_type: str, topic: Optional[Topic]
+        self, event: bytes, event_type: str, topic: Optional[Topic]
     ) -> EventMetadata:
         event_metadata = EventMetadata(
             event_id=uuid.uuid4(),
@@ -48,8 +48,8 @@ class NatsEventPlane:
         metadata_serialized = event_metadata.model_dump_json().encode("utf-8")
         metadata_size = len(metadata_serialized).to_bytes(4, byteorder="big")
 
-        # Concatenate metadata size, metadata, and payload
-        message = metadata_size + metadata_serialized + payload
+        # Concatenate metadata size, metadata, and event payload
+        message = metadata_size + metadata_serialized + event
 
         subject = self._compose_publish_subject(event_metadata)
         await self._nc.publish(subject, message)
@@ -63,8 +63,8 @@ class NatsEventPlane:
         component_id: Optional[uuid.UUID] = None,
     ):
         async def _message_handler(msg):
-            metadata, payload = self._extract_metadata_and_payload(msg.data)
-            await callback(payload, metadata)
+            metadata, event = self._extract_metadata_and_payload(msg.data)
+            await callback(event, metadata)
 
         subject = self._comoase_subscribe_subject(topic, event_type, component_id)
         await self._nc.subscribe(subject, cb=_message_handler)
@@ -78,8 +78,8 @@ class NatsEventPlane:
         subject = self._comoase_subscribe_subject(topic, event_type, component_id)
         sub = await self._nc.subscribe(subject)
         async for msg in sub.messages:
-            metadata, payload = self._extract_metadata_and_payload(msg.data)
-            yield payload, metadata
+            metadata, event = self._extract_metadata_and_payload(msg.data)
+            yield event, metadata
 
     async def disconnect(self):
         await self._nc.close()
@@ -99,8 +99,8 @@ class NatsEventPlane:
         # Extract metadata size
         metadata_size = int.from_bytes(message[:4], byteorder="big")
 
-        # Extract metadata and payload
+        # Extract metadata and event
         metadata_serialized = message[4 : 4 + metadata_size]
-        payload = message[4 + metadata_size :]
+        event = message[4 + metadata_size :]
 
-        return metadata_serialized, payload
+        return metadata_serialized, event

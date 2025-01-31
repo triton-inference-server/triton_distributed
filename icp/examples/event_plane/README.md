@@ -37,11 +37,11 @@ A basic example that demonstrates how to use the Event Plane API to create an ev
         received_events.append(metadata)
 ```
 
-### 3) Prepare the event topic, event type, and payload
+### 3) Prepare the event topic, event type, and event payload
 ```python
     topic = Topic(["test", "topic"])
     event_type = "test_event"
-    payload = b"my_payload"
+    event = b"my_payload"
 ```
 
 ### 4) Subscribe to the event topic and type and register the callback function
@@ -51,5 +51,5 @@ A basic example that demonstrates how to use the Event Plane API to create an ev
 
 ### 5) Publish the event
 ```python
-    await plane.publish(payload, event_type, topic)
+    await plane.publish(event, event_type, topic)
 ```
