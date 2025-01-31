@@ -40,6 +40,7 @@ for sig in signals:
     except Exception:
         pass
 
+
 def _launch_mpi_workers(args):
     if args.context_worker_count == 1 or args.generate_worker_count == 1:
         WORKER_LOG_DIR = str(Path(args.log_dir) / "workers")
