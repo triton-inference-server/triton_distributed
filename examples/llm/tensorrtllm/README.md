@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Disaggregated Serving with TensorRT-LLM
+# [WIP] Disaggregated Serving with TensorRT-LLM
 
 This example demonstrates **disaggregated serving** [^1] using Triton Distributed together with TensorRT-LLM engines. Disaggregated serving decouples the prefill (prompt encoding) and the decode (token generation) stages of large language model (LLM) inference into separate processes. This separation allows you to independently scale, optimize, and distribute resources for each stage.
 
@@ -90,36 +90,118 @@ to selectively make gpu devices visible.
 
 # 3.3: Build model directories
 
-TODO: swap to neural magic fp8 so no key required.
-```
+```bash
+export HF_TOKEN=<YOUR TOKEN>
 cd /workspace/examples/llm/tensorrtllm/scripts
-HF_TOKEN=<> python3 prepare_models.py --tp-size 1 --model llama-3.1-8b-instruct --max-num-tokens 8192
+python3 prepare_models.py --tp-size 1 --model llama-3.1-8b-instruct --max-num-tokens 8192
 ```
 
-After this you should see the following in `/workspace/examples/llm/tensorrtllm`
+After this you should see the following in `/workspace/examples/llm/tensorrtllm/operators`
+
+```bash
+|-- hf_downloads
+|   `-- llama-3.1-8b-instruct
+|       |-- config.json
+|       |-- generation_config.json
+|       |-- model-00001-of-00004.safetensors
+|       |-- model-00002-of-00004.safetensors
+|       |-- model-00003-of-00004.safetensors
+|       |-- model-00004-of-00004.safetensors
+|       |-- model.safetensors.index.json
+|       |-- original
+|       |   `-- params.json
+|       |-- special_tokens_map.json
+|       |-- tokenizer.json
+|       `-- tokenizer_config.json
+|-- tensorrtllm_checkpoints
+|   `-- llama-3.1-8b-instruct
+|       `-- NVIDIA_H100_NVL
+|           `-- TP_1
+|               |-- config.json
+|               `-- rank0.safetensors
+|-- tensorrtllm_engines
+|   `-- llama-3.1-8b-instruct
+|       `-- NVIDIA_H100_NVL
+|           `-- TP_1
+|               |-- config.json
+|               `-- rank0.engine
+|-- tensorrtllm_models
+|   `-- llama-3.1-8b-instruct
+|       `-- NVIDIA_H100_NVL
+|           `-- TP_1
+|               |-- context
+|               |   |-- 1
+|               |   |   `-- model.py
+|               |   `-- config.pbtxt
+|               |-- generate
+|               |   |-- 1
+|               |   |   `-- model.py
+|               |   `-- config.pbtxt
+|               |-- llama-3.1-8b-instruct
+|               |   |-- 1
+|               |   `-- config.pbtxt
+|               |-- postprocessing
+|               |   |-- 1
+|               |   |   `-- model.py
+|               |   `-- config.pbtxt
+|               |-- preprocessing
+|               |   |-- 1
+|               |   |   `-- model.py
+|               |   `-- config.pbtxt
+|               `-- tensorrt_llm
+|                   |-- 1
+|                   |   `-- model.py
+|                   `-- config.pbtxt
+`-- triton_core_models
+    |-- mock
+    |   |-- 1
+    |   |   `-- model.py
+    |   `-- config.pbtxt
+    |-- simple_postprocessing
+    |   |-- 1
+    |   |   `-- model.py
+    |   `-- config.pbtxt
+    `-- simple_preprocessing
+        |-- 1
+        |   `-- model.py
+        `-- config.pbtxt
 ```
 
-```
+## X. Deployment Example
 
-python3 -m llm.tensorrtllm.deploy --initialize-request-plane
+[WIP] To start a basic deployment with 1 prefill and 1 decode worker:
 
-mv hf_downloads tensorrtllm_checkpoints tensorrtllm_engines tensorrtllm_models /workspace/examples/llm/tensorrtllm/operators/
-
-CUDA_VISIBLE_DEVICES=0 \
-python3 -m llm.tensorrtllm.deploy \
+```bash
+python3 examples/llm/tensorrtllm/deploy/launch_workers.py \
   --context-worker-count 1 \
+  --generate-worker-count 1 \
   --worker-name llama \
   --initialize-request-plane \
-  --request-plane-uri ${HOSTNAME}:4223 &
+  --request-plane-uri ${HOSTNAME}:4222
+```
 
+Then start the OpenAI compatible API server
 
-CUDA_VISIBLE_DEVICES=1 python3 -m llm.tensorrtllm.deploy   --generate-worker-count 1   --worker-name lolol  --request-plane-uri ${HOSTNAME}:4223 --starting-metrics-port 50001 &
+```bash
+python3 -m llm.api_server \
+  --tokenizer meta-llama/Llama-3.1-8B-Instruct \
+  --request-plane-uri ${HOSTNAME}:4222 \
+  --api-server-host ${HOSTNAME} \
+  --model-name llama
+```
 
-HF_TOKEN= python3 -m llm.api_server --tokenizer meta-llama/Llama-3.1-8B --request-plane-uri ${HOSTNAME}:4223 --api-server-host ${HOSTNAME} --model-name lolol  &
+## Y. Known Issues & Limitations
 
+1. **Tensor Parallelism Constraints**
+   - Currently limited to TP=1 for both prefill and decode workers
 
-## X. References
+2. **MPI Integration**
+   - There is a known issue with MPI initialization that may cause hangs
+
+## Z. References
 
 [^1]: Yinmin Zhong, Shengyu Liu, Junda Chen, Jianbo Hu, Yibo Zhu, Xuanzhe Liu, Xin Jin, and Hao
 Zhang. Distserve: Disaggregating prefill and decoding for goodput-optimized large language
 model serving. *arXiv:2401.09670v3 [cs.DC]*, 2024.
+
+For more details on Triton Distributed, see the [Hello World example](../../hello_world/) and [Triton Inference Server documentation](https://github.com/triton-inference-server/server).
