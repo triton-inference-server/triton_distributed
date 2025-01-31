@@ -54,3 +54,17 @@ genai-perf profile \
 |----------|--------------------------------|-------------|-------------------------------------|---------------------------------|---------------------|---------------------|
 | disagg   | context_tp4dp1_generate_tp4dp1 |          16 |                         45.70218424 |                     86.75790947 |         719.2443455 |         17.47573939 |
 | baseline | baseline_tp4dp1                |           4 |                         49.60947526 |                     49.60134097 |         500.9769517 |         16.93055177 |
+
+
+
+## Stopping deployment
+
+```
+pkill -9 -f python3
+pkill -9 -f nats
+```
+
+
+## Known issue
+
+Sometimes during the first run there there are nats errors. In that case just restart the deployment.
