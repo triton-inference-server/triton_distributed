@@ -72,10 +72,11 @@ def _create_triton_core_op(
         repository=str(
             Path(args.operator_repository)
             / "tensorrtllm_models"
-            / "mock"
+            / args.model
             / "NVIDIA_RTX_A6000"
             / "TP_1"
         ),
+        parameters={"store_outputs_in_response": True},
     )
 
 
@@ -90,9 +91,9 @@ def main(args):
 
     if args.aggregate_worker_count == 1:
         aggregate_op = _create_triton_core_op(
-            name="mock", max_inflight_requests=1000, args=args
+            name=args.model, max_inflight_requests=1000, args=args
         )
-        aggregate = WorkerConfig(operators=[aggregate_op], name="mock")
+        aggregate = WorkerConfig(operators=[aggregate_op], name=args.model)
         worker_configs.append((aggregate, 1))
 
     # Context/Generate workers used for Disaggregated Serving

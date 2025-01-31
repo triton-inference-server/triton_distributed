@@ -80,6 +80,26 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--model",
+        type=str,
+        required=False,
+        default="mock",
+        choices=[
+            "mock",
+            "llama-3.1-70b-instruct",
+            "llama-3.1-8b-instruct",
+            "llama-3-8b-instruct-generate",
+            "llama-3-8b-instruct-context",
+            "llama-3-8b-instruct",
+            "llama-3-8b-instruct-default",
+            "llama-3-70b-instruct-context",
+            "llama-3-70b-instruct-generate",
+            "llama-3-70b-instruct",
+        ],
+        help="model to serve",
+    )
+
+    parser.add_argument(
         "--ignore-eos",
         action=argparse.BooleanOptionalAction,
         required=False,
