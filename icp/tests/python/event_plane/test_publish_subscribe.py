@@ -46,7 +46,7 @@ class TestEventPlaneFunctional:
         payload = b"test_payload"
 
         await event_plane.subscribe(callback, topic=topic, event_type=event_type)
-        event_metadata = await event_plane.publish(event_type, topic, payload)
+        event_metadata = await event_plane.publish(payload, event_type, topic)
 
         # Allow time for message to propagate
         await asyncio.sleep(2)
@@ -90,8 +90,8 @@ class TestEventPlaneFunctional:
 
         ch1 = Topic(["test", "1"])
         ch2 = Topic(["test", "2"])
-        await event_plane1.publish(event_type, ch1, payload)
-        await event_plane1.publish(event_type, ch2, payload)
+        await event_plane1.publish(payload, event_type, ch1)
+        await event_plane1.publish(payload, event_type, ch2)
 
         # Allow time for message propagation
         await asyncio.sleep(2)

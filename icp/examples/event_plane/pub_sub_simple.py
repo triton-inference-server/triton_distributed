@@ -41,7 +41,7 @@ async def test_single_publisher_subscriber():
 
     await plane.subscribe(callback, topic=topic, event_type=event_type)
 
-    await plane.publish(event_type, topic, payload)
+    await plane.publish(payload, event_type, topic)
 
     # Allow time for message to propagate
     await asyncio.sleep(3)

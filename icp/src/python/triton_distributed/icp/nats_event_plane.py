@@ -16,7 +16,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Callable, Optional
 
 import nats
 
@@ -35,7 +35,7 @@ class NatsEventPlane:
         await self._nc.connect(self._server_uri)
 
     async def publish(
-        self, event_type: str, topic: Topic, payload: bytes
+        self, payload: bytes, event_type: str, topic: Optional[Topic]
     ) -> EventMetadata:
         event_metadata = EventMetadata(
             event_id=uuid.uuid4(),
@@ -57,7 +57,7 @@ class NatsEventPlane:
 
     async def subscribe(
         self,
-        callback,
+        callback: Callable[[bytes, EventMetadataWrapped], None],
         topic: Optional[Topic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
@@ -73,7 +73,7 @@ class NatsEventPlane:
         await self._nc.close()
 
     def _compose_publish_subject(self, event_metadata: EventMetadata):
-        return f"ep.{event_metadata.event_type}.{event_metadata.component_id}.{event_metadata.topic}.trunk"
+        return f"ep.{event_metadata.event_type}.{event_metadata.component_id}.{str(event_metadata.topic) + '.' if event_metadata.topic else ''}trunk"
 
     def _comoase_subscribe_subject(
         self,

@@ -63,7 +63,7 @@ class EventPlane:
 
     @abstractmethod
     async def publish(
-        self, event_type: str, topic: Topic, payload: Union[bytes, Any]
+        self, payload: Union[bytes, Any], event_type: str, topic: Optional[Topic]
     ) -> EventMetadata:
         pass
 
