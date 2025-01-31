@@ -136,10 +136,12 @@ class NatsEventPlane:
 
     def _extract_metadata_and_payload(self, message: bytes):
         # Extract metadata size
-        metadata_size = int.from_bytes(message[:4], byteorder="big")
+        message_view = memoryview(message)
+
+        metadata_size = int.from_bytes(message_view[:4], byteorder="big")
 
         # Extract metadata and event
-        metadata_serialized = message[4 : 4 + metadata_size]
-        event = message[4 + metadata_size :]
+        metadata_serialized = message_view[4 : 4 + metadata_size]
+        event = message_view[4 + metadata_size :]
 
         return metadata_serialized, event
