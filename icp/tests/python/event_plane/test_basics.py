@@ -19,19 +19,18 @@ from datetime import datetime
 
 import pytest
 
-from triton_distributed.icp.event_plane import EventMetadata, Topic
-from triton_distributed.icp.nats_event_plane import NatsEventPlane
+from triton_distributed.icp import EventMetadata, NatsEventPlane, Topic
 
 
 class TestEventTopic:
     def test_from_string(self):
         topic_str = "level1.level2"
-        topic = Topic.from_string(topic_str)
-        assert topic.chunks == ["level1", "level2"]
+        topic = Topic(topic_str)
+        assert topic.topic == topic_str
 
     def test_to_string(self):
         topic = Topic(["level1", "level2"])
-        assert topic.to_string() == "level1.level2"
+        assert str(topic) == "level1.level2"
 
 
 class TestEvent:

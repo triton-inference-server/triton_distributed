@@ -22,31 +22,25 @@ from typing import Any, List, Optional, Union
 from pydantic import BaseModel
 
 
-class Topic:
+class Topic(BaseModel):
     """Event topic class for identifying event streams."""
+
+    topic: str
 
     def __init__(self, topic: Union[List[str], str]):
         if isinstance(topic, str):
-            self._topic = topic
+            _topic = topic
         else:
-            self._topic = ".".join(topic)
+            _topic = ".".join(topic)
+        super().__init__(topic=_topic)
 
     def __str__(self):
-        return self._topic
-
-    def to_string(self):
-        """Convert Topic to string."""
-        return str(self)
-
-    @staticmethod
-    def from_string(topic_str: str):
-        """Create Topic from string."""
-        return Topic(topic_str)
+        return self.topic
 
 
 class EventMetadata(BaseModel):
     event_id: uuid.UUID
-    topic: Topic
+    topic: Optional[Topic] = None
     event_type: str
     timestamp: datetime
     component_id: uuid.UUID
@@ -57,7 +51,7 @@ class EventMetadataWrapped:
         self._event_metadata_serialized = event_metadata_serialized
 
     def get_metadata(self) -> EventMetadata:
-        return EventMetadata.parse_raw(self._event_metadata_serialized)
+        return EventMetadata.model_validate_json(self._event_metadata_serialized)
 
 
 class EventPlane:

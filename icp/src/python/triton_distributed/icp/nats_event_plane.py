@@ -20,11 +20,7 @@ from typing import Optional
 
 import nats
 
-from triton_distributed.icp.event_plane import (
-    EventMetadata,
-    EventMetadataWrapped,
-    Topic,
-)
+from triton_distributed.icp import EventMetadata, EventMetadataWrapped, Topic
 
 
 class NatsEventPlane:
@@ -49,7 +45,7 @@ class NatsEventPlane:
             component_id=self._component_id,
         )
 
-        metadata_serialized = event_metadata.json().encode("utf-8")
+        metadata_serialized = event_metadata.model_dump_json().encode("utf-8")
         metadata_size = len(metadata_serialized).to_bytes(4, byteorder="big")
 
         # Concatenate metadata size, metadata, and payload
@@ -95,7 +91,4 @@ class NatsEventPlane:
         metadata_serialized = message[4 : 4 + metadata_size]
         payload = message[4 + metadata_size :]
 
-        # Deserialize metadata
-        metadata = EventMetadata.parse_raw(metadata_serialized)
-
-        return metadata, payload
+        return metadata_serialized, payload
