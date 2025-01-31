@@ -17,7 +17,7 @@
 import uuid
 from abc import abstractmethod
 from datetime import datetime
-from typing import Any, List, Optional, Union
+from typing import Any, Callable, List, NoReturn, Optional, Union
 
 from pydantic import BaseModel
 
@@ -70,7 +70,7 @@ class EventPlane:
     @abstractmethod
     async def subscribe(
         self,
-        callback,
+        callback: Callable[[bytes, EventMetadataWrapped], NoReturn],
         topic: Optional[Topic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,

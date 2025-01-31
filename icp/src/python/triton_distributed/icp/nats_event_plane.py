@@ -16,7 +16,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Callable, Optional
+from typing import Callable, NoReturn, Optional
 
 import nats
 
@@ -57,7 +57,7 @@ class NatsEventPlane:
 
     async def subscribe(
         self,
-        callback: Callable[[bytes, EventMetadataWrapped], None],
+        callback: Callable[[bytes, EventMetadataWrapped], NoReturn],
         topic: Optional[Topic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
