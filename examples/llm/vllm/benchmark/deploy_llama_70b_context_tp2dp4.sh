@@ -71,5 +71,5 @@ for i in "${!gpu_configs[@]}"; do
     --disable-log-stats \
     --max-model-len 3500 \
     --max-batch-size 10000 \
-    --gpu-memory-utilization 0.9 &
+    --gpu-memory-utilization 0.5 &
 done

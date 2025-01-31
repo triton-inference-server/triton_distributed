@@ -30,25 +30,19 @@ export API_SERVER_HOST="$head_url"
 # Empty --log-dir will dump logs to stdout
 echo "Starting vLLM generate workers..."
 
-gpu_configs=(
-  "0,1,2,3,4,5,6,7"
-)
-
-for i in "${!gpu_configs[@]}"; do
-    CUDA_VISIBLE_DEVICES="${gpu_configs[$i]}" \
-    VLLM_WORKER_ID=$i \
-    python3 -m llm.vllm.deploy \
-    --generate-worker-count 1 \
-    --context-tp-size ${VLLM_CONTEXT_TP_SIZE} \
-    --generate-tp-size ${VLLM_GENERATE_TP_SIZE} \
-    --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
-    --model-name neuralmagic/Meta-Llama-3.1-70B-Instruct-FP8 \
-    --worker-name llama \
-    --kv-cache-dtype fp8 \
-    --dtype auto \
-    --disable-async-output-proc \
-    --disable-log-stats \
-    --max-model-len 3500 \
-    --max-batch-size 10000 \
-    --gpu-memory-utilization 0.9 &
-done
+CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" \
+  VLLM_WORKER_ID=${VLLM_CONTEXT_WORKERS} \
+  python3 -m llm.vllm.deploy \
+  --generate-worker-count 1 \
+  --context-tp-size ${VLLM_CONTEXT_TP_SIZE} \
+  --generate-tp-size ${VLLM_GENERATE_TP_SIZE} \
+  --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
+  --model-name neuralmagic/Meta-Llama-3.1-70B-Instruct-FP8 \
+  --worker-name llama \
+  --kv-cache-dtype fp8 \
+  --dtype auto \
+  --disable-async-output-proc \
+  --disable-log-stats \
+  --max-model-len 3500 \
+  --max-batch-size 10000 \
+  --gpu-memory-utilization 0.9 &
