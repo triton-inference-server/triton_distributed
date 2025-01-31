@@ -65,8 +65,6 @@ class Worker:
         if config is None:
             config = WorkerConfig(**kwargs)
 
-        print(f"fuckingconfig: {config}")
-
         self._request_plane = config.request_plane(
             *config.request_plane_args[0], **config.request_plane_args[1]
         )
@@ -374,11 +372,9 @@ class Worker:
         loop.stop()
 
     def start(self):
-        print("are were here yet?")
         exit_condition = None
         logger = get_logger(log_level=self._log_level, log_file=self._log_file)
         logger.info(f"Starting Worker ==> {self._name}")
-        print("but we def dont get here lol")
         loop = asyncio.get_event_loop()
         loop.set_exception_handler(Worker.exception_handler)
         signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
