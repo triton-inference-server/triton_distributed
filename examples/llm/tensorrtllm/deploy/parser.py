@@ -34,8 +34,15 @@ def parse_args():
     parser.add_argument(
         "--request-plane-uri",
         type=str,
-        default="nats://localhost:4223",
+        default="nats://localhost:4222",
         help="URI of request plane",
+    )
+
+    parser.add_argument(
+        "--nats-port",
+        type=int,
+        default=4222,
+        help="Port for NATS server",
     )
 
     parser.add_argument(

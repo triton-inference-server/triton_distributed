@@ -132,14 +132,14 @@ def main(args):
 
     if args.disaggregated_serving:
         prefill_decode_op = _create_disaggregated_serving_op(
-            name="mock",
+            name=args.worker_name,
             max_inflight_requests=1000,
             args=args,
         )
 
         prefill_decode = WorkerConfig(
             operators=[prefill_decode_op],
-            name="mock",
+            name=args.worker_name,
             log_level=3,
             metrics_port=50002,
         )

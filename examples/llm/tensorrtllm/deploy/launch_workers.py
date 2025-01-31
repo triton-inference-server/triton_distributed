@@ -43,6 +43,11 @@ for sig in signals:
 
 def _launch_workers(args):
     if args.context_worker_count == 1 or args.generate_worker_count == 1:
+        processes = []
+
+        if args.initialize_request_plane:
+            processes.append(_launch_nats_server(args))
+
         WORKER_LOG_DIR = str(Path(args.log_dir) / "workers")
         command = [
             "mpiexec",
@@ -99,7 +104,7 @@ def _context_cmd(args, starting_gpu):
         "llama",
         "--initialize-request-plane",
         "--request-plane-uri",
-        f"{os.getenv('HOSTNAME')}:4223",
+        f"{os.getenv('HOSTNAME')}:{args.nats_port}",
     ]
 
     return command
@@ -119,7 +124,7 @@ def _generate_cmd(args, starting_gpu):
         "--worker-name",
         "llama",
         "--request-plane-uri",
-        f"{os.getenv('HOSTNAME')}:4223",
+        f"{os.getenv('HOSTNAME')}:{args.nats_port}",
     ]
 
     return command
@@ -140,10 +145,27 @@ def _disaggregated_serving_cmd(args, starting_gpu):
         "--worker-name",
         "llama",
         "--request-plane-uri",
-        f"{os.getenv('HOSTNAME')}:4223",
+        f"{os.getenv('HOSTNAME')}:{args.nats_port}",
     ]
 
     return command
+
+
+def _launch_nats_server(args):
+    command = [
+        "/usr/local/bin/nats-server",
+        "--jetstream",
+        "--port",
+        args.nats_port,
+    ]
+
+    if args.dry_run:
+        print(" ".join(command))
+        return
+
+    env = os.environ.copy()
+    process = subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
+    return process
 
 
 if __name__ == "__main__":
