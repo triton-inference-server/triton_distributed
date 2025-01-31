@@ -16,7 +16,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Callable, NoReturn, Optional
+from typing import AsyncIterator, Awaitable, Callable, Optional
 
 import nats
 
@@ -57,7 +57,7 @@ class NatsEventPlane:
 
     async def subscribe(
         self,
-        callback: Callable[[bytes, EventMetadataWrapped], NoReturn],
+        callback: Callable[[bytes, EventMetadataWrapped], Awaitable[None]],
         topic: Optional[Topic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
@@ -68,6 +68,18 @@ class NatsEventPlane:
 
         subject = self._comoase_subscribe_subject(topic, event_type, component_id)
         await self._nc.subscribe(subject, cb=_message_handler)
+
+    async def subscribe_iter(
+        self,
+        topic: Optional[Topic] = None,
+        event_type: Optional[str] = None,
+        component_id: Optional[uuid.UUID] = None,
+    ) -> AsyncIterator[bytes, EventMetadataWrapped]:
+        subject = self._comoase_subscribe_subject(topic, event_type, component_id)
+        sub = await self._nc.subscribe(subject)
+        async for msg in sub.messages:
+            metadata, payload = self._extract_metadata_and_payload(msg.data)
+            yield payload, EventMetadataWrapped(metadata)
 
     async def disconnect(self):
         await self._nc.close()
