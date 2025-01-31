@@ -19,7 +19,7 @@ bash deploy_llama_70b_generate_tp8dp1.sh --head-url <head url>
 ```
 
 
-## Benchmark
+## Benchmark disagg
 
 ```
 genai-perf profile \
