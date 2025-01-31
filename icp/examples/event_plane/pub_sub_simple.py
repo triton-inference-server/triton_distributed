@@ -20,7 +20,7 @@ import uuid
 from triton_distributed.icp import NatsEventPlane, Topic
 
 
-async def test_single_publisher_subscriber():
+async def single_publisher_subscriber_example():
     # async with aclosing(event_plane()) as event_plane_instance:
     # event_plane_instance = await anext(event_plane)
 
@@ -35,7 +35,7 @@ async def test_single_publisher_subscriber():
         print(metadata)
         received_events.append(metadata)
 
-    topic = Topic("test.topic")
+    topic = Topic(["test", "topic"])
     event_type = "test_event"
     payload = b"my_payload"
 
@@ -53,4 +53,4 @@ async def test_single_publisher_subscriber():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_single_publisher_subscriber())
+    asyncio.run(single_publisher_subscriber_example())

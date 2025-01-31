@@ -19,7 +19,37 @@ limitations under the License.
 
 A basic example that demonstrates how to use the Event Plane API to create an event plane, register an event, and trigger the event.
 
-## Description
+## Code overview
 
-Todo
+### 1) Initialize NATS server and create an event plane
+```python
+    server_url = "nats://localhost:4223"
+    component_id = uuid.uuid4()
+    plane = NatsEventPlane(server_url, component_id)
+    await plane.connect()
+```
 
+### 2) Define the callback function for receiving events
+```python
+    received_events = []
+    async def callback(event, metadata):
+        print(metadata)
+        received_events.append(metadata)
+```
+
+### 3) Prepare the event topic, event type, and payload
+```python
+    topic = Topic(["test", "topic"])
+    event_type = "test_event"
+    payload = b"my_payload"
+```
+
+### 4) Subscribe to the event topic and type and register the callback function
+```python
+    await plane.subscribe(callback, topic=topic, event_type=event_type)
+```
+
+### 5) Publish the event
+```python
+    await plane.publish(payload, event_type, topic)
+```
