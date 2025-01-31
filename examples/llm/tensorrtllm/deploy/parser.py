@@ -64,6 +64,14 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--aggregate-worker-count",
+        type=int,
+        required=False,
+        default=0,
+        help="Number of baseline workers",
+    )
+
+    parser.add_argument(
         "--operator-repository",
         type=str,
         default=str(default_operator_repository),
@@ -76,6 +84,26 @@ def parse_args():
         required=False,
         default="llama",
         help="Name of the worker",
+    )
+
+    parser.add_argument(
+        "--model",
+        type=str,
+        required=False,
+        default="llama-3.1-8b-instruct",
+        choices=[
+            "mock",
+            "llama-3.1-70b-instruct",
+            "llama-3.1-8b-instruct",
+            "llama-3-8b-instruct-generate",
+            "llama-3-8b-instruct-context",
+            "llama-3-8b-instruct",
+            "llama-3-8b-instruct-default",
+            "llama-3-70b-instruct-context",
+            "llama-3-70b-instruct-generate",
+            "llama-3-70b-instruct",
+        ],
+        help="model to serve",
     )
 
     parser.add_argument(
@@ -98,7 +126,7 @@ def parse_args():
         "--disaggregated-serving",
         action=argparse.BooleanOptionalAction,
         required=False,
-        default=True,
+        default=False,
         help="Enable disaggregated serving",
     )
 

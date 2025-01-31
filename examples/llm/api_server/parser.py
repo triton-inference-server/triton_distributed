@@ -89,4 +89,13 @@ def parse_args():
         help="Logging level",
     )
 
+    parser.add_argument(
+        "--backend",
+        type=str,
+        required=False,
+        default="vllm",
+        choices=["vllm", "tensorrtllm"],
+        help="Backendtype",
+    )
+
     return parser, parser.parse_args()

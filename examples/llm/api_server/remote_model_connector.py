@@ -28,7 +28,6 @@ from llm.api_server.remote_connector import RemoteConnector
 from tritonserver import DataType
 
 from triton_distributed.worker.remote_operator import RemoteOperator
-from triton_distributed.worker.remote_tensor import RemoteTensor
 
 
 class RemoteModelConnector(BaseTriton3Connector):
@@ -130,33 +129,37 @@ class RemoteModelConnector(BaseTriton3Connector):
             if isinstance(value, dict):
                 request.parameters[key] = "JSON:" + json.dumps(value)
 
+        store_inputs_in_request = set()
+        for k, v in request.inputs.items():
+            store_inputs_in_request.add(k)
         results.append(
             self._model.async_infer(
                 inputs=request.inputs,
                 parameters=request.parameters,
+                store_inputs_in_request=store_inputs_in_request,
             )
         )
 
         for result in asyncio.as_completed(results):
             responses = await result
+            outputs = {}
             async for response in responses:
-                triton_response = response.to_model_infer_response(
-                    self._connector._data_plane
-                )
-                outputs = {}
-                for output in triton_response.outputs:
-                    remote_tensor = RemoteTensor(output, self._connector._data_plane)
+                for output_name, value in response.outputs.items():
                     try:
-                        local_tensor = remote_tensor.local_tensor
-                        if local_tensor.data_type == DataType.BYTES:
-                            numpy_tensor = local_tensor.to_string_array()
+                        print("here4", flush=True)
+                        print("here", value, flush=True)
+                        if value.data_type == DataType.BYTES:
+                            numpy_tensor = [value.to_string_array()]
                         else:
-                            numpy_tensor = np.from_dlpack(local_tensor)
+                            numpy_tensor = np.from_dlpack(value)
+                        print(value)
                     finally:
                         # FIXME: This is a workaround for the issue that the remote tensor
                         # is released after connection is closed.
-                        remote_tensor.__del__()
-                    outputs[output.name] = numpy_tensor
+                        # value.__del__()
+                        pass
+                    print("here", numpy_tensor, flush=True)
+                    outputs[output_name] = numpy_tensor
                 infer_response = InferenceResponse(
                     outputs=outputs,
                     final=response.final,
