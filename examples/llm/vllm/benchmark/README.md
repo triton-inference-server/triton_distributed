@@ -54,7 +54,7 @@ genai-perf profile \
 
 | label    | configuration                  | concurrency | output_token_throughput_per_request | output_token_throughput_per_gpu | time_to_first_token | inter_token_latency |
 |----------|--------------------------------|-------------|-------------------------------------|---------------------------------|---------------------|---------------------|
-| disagg   | context_tp2dp4_generate_tp8dp1 |          48 |                    49.18197330348195      |        136.55798331              |       1157.4852116520833    |       15.935926391666667  |  
+| disagg   | context_tp2dp4_generate_tp8dp1 |          48 |                    49.18197330348195      |        136.55798331              |       1157.4852116520833    |       15.935926391666667  |
 | baseline | baseline_tp4dp1                |           4 |                         50.27116554062172 |                     50.26445983 |         709.2506074249999 |         15.265875249999999 |
 
 
