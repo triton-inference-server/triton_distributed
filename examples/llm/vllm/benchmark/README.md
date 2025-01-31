@@ -1,5 +1,7 @@
 
 
+For `output_token_throughput_per_request` at 50 tok/s we found the best TP setting is TP4 for baseline and TP2 context, TP8 generate for disagg.
+
 ## Run baseline
 
 ```
@@ -52,8 +54,8 @@ genai-perf profile \
 
 | label    | configuration                  | concurrency | output_token_throughput_per_request | output_token_throughput_per_gpu | time_to_first_token | inter_token_latency |
 |----------|--------------------------------|-------------|-------------------------------------|---------------------------------|---------------------|---------------------|
-| disagg   | context_tp4dp1_generate_tp4dp1 |          16 |                         45.70218424 |                     86.75790947 |         719.2443455 |         17.47573939 |
-| baseline | baseline_tp4dp1                |           4 |                         49.60947526 |                     49.60134097 |         500.9769517 |         16.93055177 |
+| disagg   | context_tp2dp4_generate_tp8dp1 |          48 |                    49.18197330348195      |        136.55798331              |       1157.4852116520833    |       15.935926391666667  |  
+| baseline | baseline_tp4dp1                |           4 |                         50.27116554062172 |                     50.26445983 |         709.2506074249999 |         15.265875249999999 |
 
 
 
