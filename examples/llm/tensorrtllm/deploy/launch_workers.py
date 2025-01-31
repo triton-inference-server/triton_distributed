@@ -93,7 +93,7 @@ def _launch_disagg_model(args):
 
 
 def _launch_workers(args):
-    # Launch nats-server if requested by user for convenience, otherwise 
+    # Launch nats-server if requested by user for convenience, otherwise
     # it can be started separately beforehand.
     if args.initialize_request_plane:
         _launch_nats_server(args)
@@ -101,7 +101,7 @@ def _launch_workers(args):
     # Launch TRT-LLM models via mpiexec in the same MPI WORLD
     _launch_mpi_workers(args)
 
-    # Launch disaggregated serving "orchestration" model to interface 
+    # Launch disaggregated serving "workflow" model to interface
     # client-facing requests with Triton Distributed deployment.
     _launch_disagg_model(args)
 
