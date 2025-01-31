@@ -17,7 +17,7 @@
 import uuid
 from abc import abstractmethod
 from datetime import datetime
-from typing import Any, AsyncIterator, Awaitable, Callable, List, Optional, Union
+from typing import Any, AsyncIterator, Awaitable, Callable, List, Optional, Tuple, Union
 
 from pydantic import BaseModel
 
@@ -74,12 +74,12 @@ class EventPlane:
         pass
 
     @abstractmethod
-    async def subscribe_iter(
+    def subscribe_iter(
         self,
         topic: Optional[Topic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
-    ) -> AsyncIterator[bytes, bytes]:
+    ) -> AsyncIterator[Tuple[bytes, bytes]]:
         pass
 
     @abstractmethod

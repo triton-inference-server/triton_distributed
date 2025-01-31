@@ -16,7 +16,7 @@
 
 import uuid
 from datetime import datetime
-from typing import AsyncIterator, Awaitable, Callable, Optional
+from typing import AsyncIterator, Awaitable, Callable, Optional, Tuple
 
 import nats
 
@@ -74,7 +74,7 @@ class NatsEventPlane:
         topic: Optional[Topic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
-    ) -> AsyncIterator[bytes, bytes]:
+    ) -> AsyncIterator[Tuple[bytes, bytes]]:
         subject = self._comoase_subscribe_subject(topic, event_type, component_id)
         sub = await self._nc.subscribe(subject)
         async for msg in sub.messages:
