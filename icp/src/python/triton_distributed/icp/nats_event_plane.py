@@ -20,7 +20,7 @@ from typing import AsyncIterator, Awaitable, Callable, Optional
 
 import nats
 
-from triton_distributed.icp import EventMetadata, EventMetadataWrapped, Topic
+from triton_distributed.icp import EventMetadata, Topic
 
 
 class NatsEventPlane:
@@ -57,14 +57,14 @@ class NatsEventPlane:
 
     async def subscribe(
         self,
-        callback: Callable[[bytes, EventMetadataWrapped], Awaitable[None]],
+        callback: Callable[[bytes, bytes], Awaitable[None]],
         topic: Optional[Topic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
     ):
         async def _message_handler(msg):
             metadata, payload = self._extract_metadata_and_payload(msg.data)
-            await callback(payload, EventMetadataWrapped(metadata))
+            await callback(payload, metadata)
 
         subject = self._comoase_subscribe_subject(topic, event_type, component_id)
         await self._nc.subscribe(subject, cb=_message_handler)
@@ -74,12 +74,12 @@ class NatsEventPlane:
         topic: Optional[Topic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
-    ) -> AsyncIterator[bytes, EventMetadataWrapped]:
+    ) -> AsyncIterator[bytes, bytes]:
         subject = self._comoase_subscribe_subject(topic, event_type, component_id)
         sub = await self._nc.subscribe(subject)
         async for msg in sub.messages:
             metadata, payload = self._extract_metadata_and_payload(msg.data)
-            yield payload, EventMetadataWrapped(metadata)
+            yield payload, metadata
 
     async def disconnect(self):
         await self._nc.close()

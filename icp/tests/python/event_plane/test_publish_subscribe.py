@@ -20,12 +20,7 @@ from typing import List
 
 import pytest
 
-from triton_distributed.icp import (
-    EventMetadata,
-    EventMetadataWrapped,
-    NatsEventPlane,
-    Topic,
-)
+from triton_distributed.icp import EventMetadata, NatsEventPlane, Topic
 
 
 @pytest.mark.asyncio
@@ -36,8 +31,8 @@ class TestEventPlaneFunctional:
 
         received_events: List[EventMetadata] = []
 
-        async def callback(_payload, event_metadata: EventMetadataWrapped):
-            metadata = event_metadata.get_metadata()
+        async def callback(_payload, event_metadata):
+            metadata = EventMetadata.from_raw(event_metadata)
             received_events.append(metadata)
             print(metadata)
 

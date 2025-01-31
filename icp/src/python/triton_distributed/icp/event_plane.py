@@ -45,13 +45,9 @@ class EventMetadata(BaseModel):
     timestamp: datetime
     component_id: uuid.UUID
 
-
-class EventMetadataWrapped:
-    def __init__(self, event_metadata_serialized: bytes):
-        self._event_metadata_serialized = event_metadata_serialized
-
-    def get_metadata(self) -> EventMetadata:
-        return EventMetadata.model_validate_json(self._event_metadata_serialized)
+    @classmethod
+    def from_raw(cls, event_metadata_serialized: bytes):
+        return cls.model_validate_json(event_metadata_serialized)
 
 
 class EventPlane:
@@ -70,7 +66,7 @@ class EventPlane:
     @abstractmethod
     async def subscribe(
         self,
-        callback: Callable[[bytes, EventMetadataWrapped], Awaitable[None]],
+        callback: Callable[[bytes, bytes], Awaitable[None]],
         topic: Optional[Topic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
@@ -83,7 +79,7 @@ class EventPlane:
         topic: Optional[Topic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
-    ) -> AsyncIterator[bytes, EventMetadataWrapped]:
+    ) -> AsyncIterator[bytes, bytes]:
         pass
 
     @abstractmethod
