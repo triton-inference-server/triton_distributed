@@ -46,10 +46,18 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--starting-metrics-port",
+        "--metrics-port",
         type=int,
         default=50000,
         help="Metrics port",
+    )
+
+    parser.add_argument(
+        "--worker-type", type=str, default="aggregate", help="Type of worker", choices=["aggregate","context","generate","disaggregated-serving"]
+    )
+
+    parser.add_argument(
+        "--gpu-device-id", type=int, default=0, help="gpu id"
     )
 
     parser.add_argument(

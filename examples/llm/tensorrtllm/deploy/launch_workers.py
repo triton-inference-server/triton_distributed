@@ -43,7 +43,11 @@ for sig in signals:
 
 
 def _launch_mpi_workers(args):
-    if args.context_worker_count == 1 or args.generate_worker_count == 1:
+    if (
+        args.context_worker_count == 1
+        or args.generate_worker_count == 1
+        or args.aggregate_worker_count == 1
+    ):
         command = [
             "mpiexec",
             "--allow-run-as-root",
@@ -66,6 +70,11 @@ def _launch_mpi_workers(args):
         for index in range(args.generate_worker_count):
             starting_gpu = index * aggregate_gpus + args.context_worker_count
             command.extend(_generate_cmd(args, starting_gpu))
+            command.append(":")
+
+        for index in range(args.aggregate_worker_count):
+            starting_gpu = index * aggregate_gpus + args.context_worker_count
+            command.extend(_aggregate_cmd(args, starting_gpu))
             command.append(":")
 
         command = command[0:-1]
@@ -123,10 +132,16 @@ def _context_cmd(args, starting_gpu):
         "python3",
         "-m",
         "llm.tensorrtllm.deploy",
-        "--context-worker-count",
-        "1",
+        "--worker-type",
+        "context",
         "--worker-name",
         worker_name,
+        "--model",
+        args.model,
+        "--gpu-device-id",
+        f"{starting_gpu}",
+        "--metrics-port",
+        "50000",
         "--initialize-request-plane",
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
@@ -149,10 +164,47 @@ def _generate_cmd(args, starting_gpu):
         "python3",
         "-m",
         "llm.tensorrtllm.deploy",
-        "--generate-worker-count",
-        "1",
+        "--worker-type",
+        "generate",
         "--worker-name",
         worker_name,
+        "--model",
+        args.model,
+        "--gpu-device-id",
+        f"{starting_gpu}",
+        "--metrics-port",
+        "50001",
+        "--request-plane-uri",
+        f"{os.getenv('HOSTNAME')}:{args.nats_port}",
+    ]
+
+    return command
+
+
+def _aggregate_cmd(args, starting_gpu):
+    # Hard-coded worker name for internal communication
+    # see tensorrtllm.deploy script
+    worker_name = "aggregate"
+    command = [
+        "-np",
+        "1",
+        # FIXME: May need to double check this CUDA_VISIBLE_DEVICES
+        # and trtllm gpu_device_id/participant_id interaction
+        # "-x",
+        # f"CUDA_VISIBLE_DEVICES={starting_gpu}",
+        "python3",
+        "-m",
+        "llm.tensorrtllm.deploy",
+        "--worker-type",
+        "aggregate",
+        "--worker-name",
+        worker_name,
+        "--model",
+        args.model,
+        "--gpu-device-id",
+        f"{starting_gpu}",
+        "--metrics-port",
+        "50001",
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
     ]
@@ -172,9 +224,12 @@ def _disaggregated_serving_cmd(args, starting_gpu):
         "python3",
         "-m",
         "llm.tensorrtllm.deploy",
-        "--disaggregated-serving",
-        "--starting-metrics-port",
+        "--worker-type",
+        "disaggregated-serving",
+        "--metrics-port",
         "50002",
+        "--model",
+        args.model,
         "--worker-name",
         args.worker_name,
         "--request-plane-uri",

@@ -46,7 +46,7 @@ In this example, you will deploy
 The example is designed to run in a containerized environment using Triton Distributed, TensorRT-LLM, and associated dependencies. To build the container:
 
 ```bash
-./container/build.sh --framework TENSORRTLLM
+./container/build.sh --framework tensorrtllm
 ```
 
 ---
@@ -65,7 +65,7 @@ All components must be able to connect to the same request plane to coordinate.
 ### 3.1 Launch Interactive Environment
 
 ```bash
-./container/run.sh --framework TENSORRTLLM -it
+./container/run.sh --framework tensorrtllm -it
 ```
 
 Note: all subsequent commands will be run in the same container for simplicity
@@ -157,18 +157,17 @@ After this you should see the following in `/workspace/examples/llm/tensorrtllm/
         `-- config.pbtxt
 ```
 
-For now - must manually edit the `generate` and `postprocessing` config.pbtxt files to set the `gpu_device_ids` to 0/1.
 
 ### 3.3: Deployment Example
 
 To start a basic deployment with 1 prefill and 1 decode worker:
 
 ```bash
-export WORKER_NAME="llama"
+export MODEL_NAME="llama-3.1-8b-instruct"
 python3 /workspace/examples/llm/tensorrtllm/deploy/launch_workers.py \
   --context-worker-count 1 \
   --generate-worker-count 1 \
-  --worker-name ${WORKER_NAME} \
+  --model ${MODEL_NAME} \
   --initialize-request-plane \
   --disaggregated-serving \
   --request-plane-uri ${HOSTNAME}:4222 &
@@ -181,7 +180,7 @@ python3 -m llm.api_server \
   --tokenizer meta-llama/Llama-3.1-8B-Instruct \
   --request-plane-uri ${HOSTNAME}:4222 \
   --api-server-host ${HOSTNAME} \
-  --model-name ${WORKER_NAME} &
+  --model-name ${MODEL_NAME} &
 ```
 
 ### 3.4: Sending Requests
@@ -192,7 +191,7 @@ Once the API server is running (by default on `localhost:8000`), you can send Op
 curl ${HOSTNAME}:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "llama",
+    "model": "llama-3.1-8b-instruct",
     "messages": [
       {"role": "user", "content": "Why is Roger Federer the greatest tennis player of all time?"}
     ],
@@ -215,8 +214,8 @@ container or the kill the relevant processes involved in the deployment.
 
 To kill the processes being run inside the container, you can run:
 ```bash
-pkill -9 -f python3
-pkill -9 -f nats-server
+pkill -SIGINT -f python3
+pkill -SIGINT -f nats-server
 ```
 
 You will generally want to make sure you have a clean slate between

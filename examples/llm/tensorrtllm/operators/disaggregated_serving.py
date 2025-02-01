@@ -211,7 +211,7 @@ class DisaggregatedServingOperator(TritonCoreOperator):
         if self._store_outputs_in_response:
             store_outputs_in_response.add("text_output")
         await response_sender.send(
-            outputs={"text_output": output},
+            outputs={"text_output": output[0]},
             final=final,
             store_outputs_in_response=store_outputs_in_response,
         )

@@ -102,4 +102,5 @@ class ChatHandlerTensorrtLLM(ChatHandler):
         if "text" in response.parameters:
             return {"model_output": [response.parameters["text"]]}
         elif "text_output" in response.outputs:
+            print(response.outputs["text_output"])
             return {"model_output": response.outputs["text_output"][0]}

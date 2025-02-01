@@ -20,7 +20,10 @@
 **/.cache/*
 **/*onnx*
 # Engine must be allowed because code contains triton_distributed_engine.py
-#**/*engine*
+**/*tensorrtllm_engines*
+**/*tensorrtllm_models*
+**/*tensorrtllm_checkpoints*
+**/*hf_downloads*
 **/*pytorch_model*
 **/*.pth*
 **/*.pt

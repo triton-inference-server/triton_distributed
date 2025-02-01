@@ -80,7 +80,13 @@ def _create_triton_core_op(
             / gpu_name
             / "TP_1"
         ),
-        parameters={"store_outputs_in_response": True},
+        parameters={"store_outputs_in_response": True,
+                    "config": {
+                        "parameters": {
+                            "participant_ids": {"string_value": f"{args.gpu_device_id}"},
+                            "gpu_device_ids": {"string_value": f"{args.gpu_device_id}"},
+                        }
+                    },},
     )
 
 
@@ -91,7 +97,7 @@ def main(args):
 
     worker_configs = []
 
-    if args.aggregate_worker_count == 1:
+    if args.worker_type == "aggregate":
         aggregate_op = _create_triton_core_op(
             name=args.model, max_inflight_requests=1000, args=args
         )
@@ -99,11 +105,12 @@ def main(args):
             operators=[aggregate_op],
             name=args.model,
             request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
+            metrics_port = args.metrics_port
         )
         worker_configs.append(aggregate)
 
     # Context/Generate workers used for Disaggregated Serving
-    if args.context_worker_count == 1:
+    elif args.worker_type == "context":
         prefill_op = _create_triton_core_op(
             name="context",
             max_inflight_requests=1000,
@@ -114,12 +121,12 @@ def main(args):
             operators=[prefill_op],
             name="context",
             log_level=args.log_level,
-            metrics_port=args.starting_metrics_port,
+            metrics_port=args.metrics_port,
             request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
         )
         worker_configs.append(prefill)
 
-    if args.generate_worker_count == 1:
+    elif args.worker_type == "generate":
         decoder_op = _create_triton_core_op(
             name="generate",
             max_inflight_requests=1000,
@@ -130,14 +137,14 @@ def main(args):
             operators=[decoder_op],
             name="generate",
             log_level=args.log_level,
-            metrics_port=args.starting_metrics_port + 1,
+            metrics_port=args.metrics_port,
             request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
         )
         worker_configs.append(decoder)
 
-    if args.disaggregated_serving:
+    elif args.worker_type=="disaggregated-serving":
         prefill_decode_op = _create_disaggregated_serving_op(
-            name=args.worker_name,
+            name=args.model,
             max_inflight_requests=1000,
             args=args,
         )
@@ -146,18 +153,18 @@ def main(args):
             operators=[prefill_decode_op],
             name=args.worker_name,
             log_level=args.log_level,
-            metrics_port=args.starting_metrics_port + 2,
+            metrics_port=args.metrics_port,
             request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
         )
         worker_configs.append(prefill_decode)
 
-    print("Starting Workers")
+    print("Starting Worker")
     for worker_config in worker_configs:
         worker = Worker(worker_config)
         print(f"worker: {worker}")
         worker.start()
 
-    print("Workers started ... press Ctrl-C to Exit")
+    print("Worker started ... press Ctrl-C to Exit")
 
     while True:
         time.sleep(10)
