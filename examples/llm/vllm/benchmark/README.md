@@ -1,27 +1,73 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
 
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-For `output_token_throughput_per_request` at 50 tok/s we found the best TP setting is TP4 for baseline and TP2 context, TP8 generate for disagg.
+http://www.apache.org/licenses/LICENSE-2.0
 
-## Run baseline
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
 
-```
-bash deploy_llama_70b_baseline_tp4dp2.sh --head-url <head url>
-```
+# Tuning and Benchmarking Disaggregated Serving
 
-## Run disagg
+**Disaggregated Serving** [^1] enables developers and teams deploying
+LLMs to tune their deployment based on input and output sequence
+lengths to achieve a targeted SLA with the right mix of context and
+generation workers. In particular disaggregated serving enables teams
+the ability to choose different parallelization strategies for each
+phase and balance throughput (tokens / sec / gpu) and latency (tokens
+/ sec / user).
 
-On head node:
+## Example:
+
+### 50 tokens per sec SLA with Input (3000) / Output (150)  Sequence Length Tuning
+
+To determine the best mix of context and generate workers for a
+targeted latency and input and output sequence length generally we
+perform "sweeps" comparing different strategies to find the best
+throughput within the SLA.
+
+For example for input sequence length 3000 and output sequence length
+150 after sweeping different tensor parallellism strategies on an two
+H100 x 8 GPU nodes we've found that using 2 instances of TP 4 for
+context (on one node) and using 1 instance of TP 8 for generate gives
+the best throughput at a latency target of 50 tokens per sec per user.
+
+At that latency target, in our early measurements disaggregated
+serving outperforms traditional aggregated LLM serving by more than 2x
+(with throughput normalized per GPU).
+
+### Reproducing Results
+
+To reproduce similar results on a 2 node H100 x 8 GPU system we
+provide sample scripts.
+
+## Launch Context Workers on First Node
+
+On first (head) node:
+
 ```
 bash deploy_llama_70b_context_tp2dp4.sh --head-url <head url>
 ```
 
-on a second node:
+## Launch Generate Worker on Second Node
+
+On second node:
+
 ```
 bash deploy_llama_70b_generate_tp8dp1.sh --head-url <head url>
 ```
 
+## Benchmark
 
-## Benchmark disagg
+The following `genai-perf` command simulates traffic with 3000 input and 150 output sequence lengths.
 
 ```
 genai-perf profile \
@@ -50,7 +96,10 @@ genai-perf profile \
   --async
 ```
 
-## Results (placeholder)
+## Example Results
+
+The following results are given as an example, are not fully
+optimized, and do not indicate what you may get locally.
 
 | label    | configuration                  | concurrency | output_token_throughput_per_request | output_token_throughput_per_gpu | time_to_first_token | inter_token_latency |
 |----------|--------------------------------|-------------|-------------------------------------|---------------------------------|---------------------|---------------------|
@@ -58,15 +107,33 @@ genai-perf profile \
 | baseline | baseline_tp4dp1                |           4 |                         50.27116554062172 |                     50.26445983 |         709.2506074249999 |         15.265875249999999 |
 
 
+##  Baseline Comparison
+
+On a single node you can run a comparison. With aggregated workers we
+found the best throughput at the target SLA and input and output
+sequence lengths 2 two instances of tensor parallelism 4.
+
+```
+bash deploy_llama_70b_baseline_tp4dp2.sh --head-url <head url>
+```
+
+To see the results use the same `genai-perf` command used to benchmark
+the disaggregated setup.
+
 
 ## Stopping deployment
 
 ```
-pkill -9 -f python3
-pkill -9 -f nats
+pkill -SIGINT -f python3
+pkill -SIGINT -f nats
 ```
-
 
 ## Known issue
 
 Sometimes during the first run there there are nats errors. In that case just restart the deployment.
+
+## References
+
+[^1]: Yinmin Zhong, Shengyu Liu, Junda Chen, Jianbo Hu, Yibo Zhu, Xuanzhe Liu, Xin Jin, and Hao
+Zhang. Distserve: Disaggregating prefill and decoding for goodput-optimized large language
+model serving. *arXiv:2401.09670v3 [cs.DC]*, 2024.
