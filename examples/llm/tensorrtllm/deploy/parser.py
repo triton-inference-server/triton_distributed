@@ -53,12 +53,14 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--worker-type", type=str, default="aggregate", help="Type of worker", choices=["aggregate","context","generate","disaggregated-serving"]
+        "--worker-type",
+        type=str,
+        default="aggregate",
+        help="Type of worker",
+        choices=["aggregate", "context", "generate", "disaggregated-serving"],
     )
 
-    parser.add_argument(
-        "--gpu-device-id", type=int, default=0, help="gpu id"
-    )
+    parser.add_argument("--gpu-device-id", type=int, default=0, help="gpu id")
 
     parser.add_argument(
         "--context-worker-count", type=int, default=0, help="Number of context workers"

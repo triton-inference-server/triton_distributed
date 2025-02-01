@@ -80,13 +80,15 @@ def _create_triton_core_op(
             / gpu_name
             / "TP_1"
         ),
-        parameters={"store_outputs_in_response": True,
-                    "config": {
-                        "parameters": {
-                            "participant_ids": {"string_value": f"{args.gpu_device_id}"},
-                            "gpu_device_ids": {"string_value": f"{args.gpu_device_id}"},
-                        }
-                    },},
+        parameters={
+            "store_outputs_in_response": True,
+            "config": {
+                "parameters": {
+                    "participant_ids": {"string_value": f"{args.gpu_device_id}"},
+                    "gpu_device_ids": {"string_value": f"{args.gpu_device_id}"},
+                }
+            },
+        },
     )
 
 
@@ -105,7 +107,7 @@ def main(args):
             operators=[aggregate_op],
             name=args.model,
             request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
-            metrics_port = args.metrics_port
+            metrics_port=args.metrics_port,
         )
         worker_configs.append(aggregate)
 
@@ -142,7 +144,7 @@ def main(args):
         )
         worker_configs.append(decoder)
 
-    elif args.worker_type=="disaggregated-serving":
+    elif args.worker_type == "disaggregated-serving":
         prefill_decode_op = _create_disaggregated_serving_op(
             name=args.model,
             max_inflight_requests=1000,

@@ -133,7 +133,9 @@ def create_chat_response(
             detokenized_output = str(detokenized_output[0])
 
         if not isinstance(detokenized_output, str):
-            raise RuntimeError(f"ERROR: detokenized_output is not a string! {type(detokenized_output)=} | {detokenized_output=}")
+            raise RuntimeError(
+                f"ERROR: detokenized_output is not a string! {type(detokenized_output)=} | {detokenized_output=}"
+            )
 
         # FIXME: Should this be handled by 'echo' param instead?
         if detokenized_output.startswith(prompt):
