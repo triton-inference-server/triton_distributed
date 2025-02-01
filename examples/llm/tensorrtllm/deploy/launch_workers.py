@@ -14,8 +14,8 @@
 # limitations under the License.
 
 import os
-import signal
 import shutil
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -118,8 +118,8 @@ def _context_cmd(args, starting_gpu):
         "1",
         # FIXME: May need to double check this CUDA_VISIBLE_DEVICES
         # and trtllm gpu_device_id/participant_id interaction
-        #"-x",
-        #f"CUDA_VISIBLE_DEVICES={starting_gpu}",
+        # "-x",
+        # f"CUDA_VISIBLE_DEVICES={starting_gpu}",
         "python3",
         "-m",
         "llm.tensorrtllm.deploy",
@@ -144,8 +144,8 @@ def _generate_cmd(args, starting_gpu):
         "1",
         # FIXME: May need to double check this CUDA_VISIBLE_DEVICES
         # and trtllm gpu_device_id/participant_id interaction
-        #"-x",
-        #f"CUDA_VISIBLE_DEVICES={starting_gpu}",
+        # "-x",
+        # f"CUDA_VISIBLE_DEVICES={starting_gpu}",
         "python3",
         "-m",
         "llm.tensorrtllm.deploy",
@@ -167,8 +167,8 @@ def _disaggregated_serving_cmd(args, starting_gpu):
     # registered to the API Server.
     command = [
         # FIXME: Does this model need a GPU assigned to it?
-        #"-x",
-        #f"CUDA_VISIBLE_DEVICES={starting_gpu}",
+        # "-x",
+        # f"CUDA_VISIBLE_DEVICES={starting_gpu}",
         "python3",
         "-m",
         "llm.tensorrtllm.deploy",
@@ -196,7 +196,7 @@ def _launch_nats_server(args, clear_store=True):
         "--port",
         str(args.nats_port),
         "--store_dir",
-        store_dir
+        store_dir,
     ]
 
     print(" ".join(command))
