@@ -66,13 +66,7 @@ Below is a minimal example of how to start each component of a disaggregated ser
 
 All components must be able to connect to the same request plane to coordinate.
 
-### 3.1 HuggingFace Token
-
-```bash
-export HF_TOKEN=<YOUR TOKEN>
-```
-
-### 3.2 Launch Interactive Environment
+### 3.1 Launch Interactive Environment
 
 ```bash
 ./container/run.sh --framework TENSORRTLLM -it
@@ -88,12 +82,11 @@ Note: by default this command makes all gpu devices visible. Use flag
 
 to selectively make gpu devices visible.
 
-# 3.3: Build model directories
+# 3.2: Build model directories
 
 ```bash
 export HF_TOKEN=<YOUR TOKEN>
-cd /workspace/examples/llm/tensorrtllm/scripts
-python3 prepare_models.py --tp-size 1 --model llama-3.1-8b-instruct --max-num-tokens 8192
+python3 /workspace/examples/llm/tensorrtllm/scripts/prepare_models.py --tp-size 1 --model llama-3.1-8b-instruct --max-num-tokens 8192
 ```
 
 After this you should see the following in `/workspace/examples/llm/tensorrtllm/operators`
@@ -172,12 +165,12 @@ After this you should see the following in `/workspace/examples/llm/tensorrtllm/
 [WIP] To start a basic deployment with 1 prefill and 1 decode worker:
 
 ```bash
-python3 examples/llm/tensorrtllm/deploy/launch_workers.py \
+python3 /workspace/examples/llm/tensorrtllm/deploy/launch_workers.py \
   --context-worker-count 1 \
   --generate-worker-count 1 \
   --worker-name llama \
   --initialize-request-plane \
-  --request-plane-uri ${HOSTNAME}:4222
+  --request-plane-uri ${HOSTNAME}:4222 &
 ```
 
 Then start the OpenAI compatible API server
@@ -187,8 +180,55 @@ python3 -m llm.api_server \
   --tokenizer meta-llama/Llama-3.1-8B-Instruct \
   --request-plane-uri ${HOSTNAME}:4222 \
   --api-server-host ${HOSTNAME} \
-  --model-name llama
+  --model-name llama &
 ```
+
+## X. Sending Requests
+
+Once the API server is running (by default on `localhost:8000`), you can send OpenAI-compatible requests. For example:
+
+```bash
+curl ${HOSTNAME}:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "llama",
+    "messages": [
+      {"role": "user", "content": "What is the capital of France?"}
+    ],
+    "temperature": 0,
+    "top_p": 0.95,
+    "max_tokens": 25,
+    "stream": true,
+    "n": 1,
+    "frequency_penalty": 0.0,
+    "stop": []
+  }'
+```
+
+The above request will return a streamed response with the model’s answer.
+
+## X. Teardown
+
+To tear down a deployment during local development, you can either kill the
+container or the kill the relevant processes involved in the deployment.
+
+To kill the processes being run inside the container, you can run:
+```bash
+pkill -9 -f python3
+pkill -9 -f nats-server
+```
+
+You will generally want to make sure you have a clean slate between
+deployments to avoid any unexpected errors.
+
+NOTE: If you have other unrelated processes in the environment with `python3`
+in the name, the `pkill` command above will terminate them as well. In this
+scenario, you could select specific process IDs and use the following command
+instead for each process ID replacing `<pid>` below:
+```
+kill -9 <pid>
+```
+
 
 ## Y. Known Issues & Limitations
 

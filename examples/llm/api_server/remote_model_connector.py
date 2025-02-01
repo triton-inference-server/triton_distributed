@@ -146,8 +146,6 @@ class RemoteModelConnector(BaseTriton3Connector):
             async for response in responses:
                 for output_name, value in response.outputs.items():
                     try:
-                        print("here4", flush=True)
-                        print("here", value, flush=True)
                         if value.data_type == DataType.BYTES:
                             numpy_tensor = [value.to_string_array()]
                         else:
@@ -158,7 +156,6 @@ class RemoteModelConnector(BaseTriton3Connector):
                         # is released after connection is closed.
                         # value.__del__()
                         pass
-                    print("here", numpy_tensor, flush=True)
                     outputs[output_name] = numpy_tensor
                 infer_response = InferenceResponse(
                     outputs=outputs,

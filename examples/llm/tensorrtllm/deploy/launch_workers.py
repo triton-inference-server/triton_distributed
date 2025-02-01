@@ -15,6 +15,7 @@
 
 import os
 import signal
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -43,16 +44,17 @@ for sig in signals:
 
 def _launch_mpi_workers(args):
     if args.context_worker_count == 1 or args.generate_worker_count == 1:
-        WORKER_LOG_DIR = str(Path(args.log_dir) / "workers")
         command = [
             "mpiexec",
             "--allow-run-as-root",
             "--oversubscribe",
-            "--output-filename",
-            WORKER_LOG_DIR,
             "--display-map",
             "--verbose",
         ]
+
+        if args.log_dir:
+            WORKER_LOG_DIR = str(Path(args.log_dir) / "workers")
+            command += ["--output-filename", WORKER_LOG_DIR]
 
         aggregate_gpus = args.context_worker_count + args.generate_worker_count
 
@@ -108,20 +110,23 @@ def _launch_workers(args):
 
 
 def _context_cmd(args, starting_gpu):
+    # Hard-coded worker name for internal communication,
+    # see tensorrtllm.deploy script
+    worker_name = "context"
     command = [
         "-np",
         "1",
         # FIXME: May need to double check this CUDA_VISIBLE_DEVICES
         # and trtllm gpu_device_id/participant_id interaction
-        "-x",
-        f"CUDA_VISIBLE_DEVICES={starting_gpu}",
+        #"-x",
+        #f"CUDA_VISIBLE_DEVICES={starting_gpu}",
         "python3",
         "-m",
         "llm.tensorrtllm.deploy",
         "--context-worker-count",
         "1",
         "--worker-name",
-        "llama",
+        worker_name,
         "--initialize-request-plane",
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
@@ -133,20 +138,23 @@ def _context_cmd(args, starting_gpu):
 
 
 def _generate_cmd(args, starting_gpu):
+    # Hard-coded worker name for internal communication
+    # see tensorrtllm.deploy script
+    worker_name = "generate"
     command = [
         "-np",
         "1",
         # FIXME: May need to double check this CUDA_VISIBLE_DEVICES
         # and trtllm gpu_device_id/participant_id interaction
-        "-x",
-        f"CUDA_VISIBLE_DEVICES={starting_gpu}",
+        #"-x",
+        #f"CUDA_VISIBLE_DEVICES={starting_gpu}",
         "python3",
         "-m",
         "llm.tensorrtllm.deploy",
         "--generate-worker-count",
         "1",
         "--worker-name",
-        "llama",
+        worker_name,
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
         "--gpu-name",
@@ -157,12 +165,14 @@ def _generate_cmd(args, starting_gpu):
 
 
 def _disaggregated_serving_cmd(args, starting_gpu):
+    # NOTE: This worker gets the args --worker-name because it will
+    # receive the API-serving facing requests, and internally handle
+    # the disaggregation. So this worker name should match the one
+    # registered to the API Server.
     command = [
-        "-np",
-        "1",
-        "-x",
         # FIXME: Does this model need a GPU assigned to it?
-        f"CUDA_VISIBLE_DEVICES={starting_gpu}",
+        #"-x",
+        #f"CUDA_VISIBLE_DEVICES={starting_gpu}",
         "python3",
         "-m",
         "llm.tensorrtllm.deploy",
@@ -170,7 +180,7 @@ def _disaggregated_serving_cmd(args, starting_gpu):
         "--starting-metrics-port",
         "50002",
         "--worker-name",
-        "llama",
+        args.worker_name,
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
         "--gpu-name",
@@ -180,12 +190,19 @@ def _disaggregated_serving_cmd(args, starting_gpu):
     return command
 
 
-def _launch_nats_server(args):
+def _launch_nats_server(args, clear_store=True):
+    # FIXME: Use NatsServer object defined in icp package
+    store_dir = "/tmp/nats_store"
+    if clear_store:
+        shutil.rmtree(store_dir, ignore_errors=True)
+
     command = [
         "/usr/local/bin/nats-server",
         "--jetstream",
         "--port",
         str(args.nats_port),
+        "--store_dir",
+        store_dir
     ]
 
     print(" ".join(command))
