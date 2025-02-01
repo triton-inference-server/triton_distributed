@@ -40,7 +40,7 @@ For more details on the basics of Triton Distributed, please see the [Hello Worl
    In production systems with heavier loads, you will typically allocate more GPUs across multiple prefill and decode workers.
 
 2. **NATS or Another Coordination Service**
-   Triton Distributed uses NATS by default for coordination and message passing. Make sure your environment has a running NATS service accessible via a valid `nats://<address>:<port>` endpoint. By default, examples assume `nats://localhost:4223`.
+   Triton Distributed uses NATS by default for coordination and message passing. Make sure your environment has a running NATS service accessible via a valid `nats://<address>:<port>` endpoint. By default, examples assume `nats://localhost:4222`.
 
 3. **vLLM Patch**
    This example requires some features that are not yet in the main vLLM release. A patch is automatically applied inside the provided container. Details of the patch can be found [here](../../../container/deps/vllm/). The current patch is compatible with **vLLM 0.6.3post1**.
@@ -104,12 +104,12 @@ The context stage encodes incoming prompts. By default, vLLM uses GPU resources 
 
 Within the container start the context worker and the request plane:
 
-```
+```bash
 CUDA_VISIBLE_DEVICES=0 \
 VLLM_WORKER_ID=0 \
 python3 -m llm.vllm.deploy \
   --context-worker-count 1 \
-  --request-plane-uri ${HOSTNAME}:4223 \
+  --request-plane-uri ${DEFAULT_REQUESTS_URI} \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \
@@ -156,7 +156,7 @@ CUDA_VISIBLE_DEVICES=1 \
 VLLM_WORKER_ID=1 \
 python3 -m llm.vllm.deploy \
   --generate-worker-count 1 \
-  --request-plane-uri ${HOSTNAME}:4223 \
+  --request-plane-uri ${DEFAULT_REQUESTS_URI} \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \
@@ -208,7 +208,7 @@ The API server in a vLLM-disaggregated setup listens for OpenAI-compatible reque
 ```bash
 python3 -m llm.api_server \
   --tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
-  --request-plane-uri ${HOSTNAME}:4223 \
+  --request-plane-uri ${DEFAULT_REQUESTS_URI} \
   --api-server-host ${HOSTNAME} \
   --model-name llama \
   --api-server-port 8005 &

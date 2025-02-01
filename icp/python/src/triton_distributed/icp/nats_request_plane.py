@@ -40,6 +40,12 @@ from triton_distributed.icp.request_plane import (
     set_icp_response_to_uri,
 )
 
+DEFAULT_REQUESTS_PORT = int(os.getenv("DEFAULT_REQUESTS_PORT", 4222))
+DEFAULT_REQUESTS_HOST = os.getenv("DEFAULT_REQUESTS_HOST", "localhost")
+DEFAULT_REQUESTS_URI = os.getenv(
+    "DEFAULT_REQUESTS_URI", f"nats://{DEFAULT_REQUESTS_HOST}:{DEFAULT_REQUESTS_PORT}"
+)
+
 
 class AsyncModelInferRequestIterator:
     def __init__(self, requests: list[ModelInferRequest]) -> None:
@@ -83,10 +89,18 @@ class AsyncModelInferResponseIterator:
         raise NotImplementedError()
 
 
+def is_port_in_use(port: int) -> bool:
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("localhost", port)) == 0
+
+
 class NatsServer:
     def __init__(
         self,
-        port: int = 4223,
+        port: int = DEFAULT_REQUESTS_PORT,
+        host: str = DEFAULT_REQUESTS_HOST,
         store_dir: str = "/tmp/nats_store",
         log_dir: str = "logs",
         debug: bool = False,
@@ -95,10 +109,12 @@ class NatsServer:
     ) -> None:
         self._process = None
         self.port = port
-        self.url = f"nats://localhost:{port}"
+        self.url = f"{host}:{port}"
         command = [
             "/usr/local/bin/nats-server",
             "--jetstream",
+            "--addr",
+            str(host),
             "--port",
             str(port),
             "--store_dir",
@@ -111,6 +127,12 @@ class NatsServer:
         if dry_run:
             print(command)
             return
+
+        # Raise more intuitive error to developer if port is already in-use.
+        if is_port_in_use(port):
+            raise RuntimeError(
+                f"ERROR: NATS Port {port} already in use. Is a nats-server already running?"
+            )
 
         if clear_store:
             shutil.rmtree(store_dir, ignore_errors=True)
@@ -160,7 +182,7 @@ class NatsRequestPlane(RequestPlane):
 
     def __init__(
         self,
-        request_plane_uri: str = "nats://localhost:4222",
+        request_plane_uri: str = DEFAULT_REQUESTS_URI,
         component_id: Optional[uuid.UUID] = None,
     ) -> None:
         self._request_plane_uri = request_plane_uri

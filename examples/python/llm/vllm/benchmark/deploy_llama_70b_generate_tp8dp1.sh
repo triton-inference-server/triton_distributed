@@ -12,9 +12,6 @@ export VLLM_LOGGING_LEVEL=INFO
 export VLLM_DATA_PLANE_BACKEND=nccl
 export PYTHONUNBUFFERED=1
 
-export NATS_PORT=4223
-export NATS_STORE="$(mktemp -d)"
-export API_SERVER_PORT=8005
 
 
 if [ "$1" != "--head-url" ] || [ -z "$2" ]; then
@@ -23,7 +20,8 @@ if [ "$1" != "--head-url" ] || [ -z "$2" ]; then
 fi
 head_url=$2
 
-export NATS_HOST="$head_url"
+export DEFAULT_REQUESTS_HOST="$head_url"
+export DEFAULT_REQUESTS_URI="nats://${DEFAULT_REQUESTS_HOST}:${DEFAULT_REQUESTS_PORT}"
 export VLLM_TORCH_HOST="$head_url"
 export API_SERVER_HOST="$head_url"
 
@@ -37,7 +35,7 @@ CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" \
   --generate-worker-count 1 \
   --context-tp-size ${VLLM_CONTEXT_TP_SIZE} \
   --generate-tp-size ${VLLM_GENERATE_TP_SIZE} \
-  --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
+  --request-plane-uri ${DEFAULT_REQUESTS_URI} \
   --model-name neuralmagic/Meta-Llama-3.1-70B-Instruct-FP8 \
   --worker-name llama \
   --kv-cache-dtype fp8 \

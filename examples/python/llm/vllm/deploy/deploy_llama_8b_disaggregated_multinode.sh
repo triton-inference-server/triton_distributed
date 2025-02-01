@@ -14,28 +14,28 @@ export VLLM_LOGGING_LEVEL=INFO
 export VLLM_DATA_PLANE_BACKEND=nccl
 export PYTHONUNBUFFERED=1
 
-export NATS_HOST=""
-export NATS_PORT=4223
 export NATS_STORE="$(mktemp -d)"
 export API_SERVER_HOST=""
 export API_SERVER_PORT=8005
 
 start_nats_server() {
     local head_url=$1
-    export NATS_HOST="$head_url"
+    export DEFAULT_REQUESTS_HOST="$head_url"
     echo "Flushing NATS store: ${NATS_STORE}..."
     rm -r "${NATS_STORE}"
     echo "Starting NATS Server..."
-    nats-server -p ${NATS_PORT} --jetstream --store_dir "${NATS_STORE}" &
+    nats-server -p ${DEFAULT_REQUESTS_PORT} --addr ${DEFAULT_REQUESTS_HOST} --jetstream --store_dir "${NATS_STORE}" &
 }
 
 start_api_server() {
     local head_url=$1
     export VLLM_TORCH_HOST="$head_url"
+    export DEFAULT_REQUESTS_HOST="$head_url"
+    export DEFAULT_REQUESTS_URI="nats://${DEFAULT_REQUESTS_HOST}:${DEFAULT_REQUESTS_PORT}"
     echo "Starting LLM API Server..."
     python3 -m llm.api_server \
       --tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
-      --request-plane-uri ${head_url}:${NATS_PORT} \
+      --request-plane-uri ${DEFAULT_REQUESTS_URI} \
       --api-server-host ${API_SERVER_HOST} \
       --model-name llama \
       --api-server-port ${API_SERVER_PORT} &
@@ -45,12 +45,14 @@ start_api_server() {
 start_context_worker() {
     local head_url=$1
     export VLLM_TORCH_HOST="$head_url"
+    export DEFAULT_REQUESTS_HOST="$head_url"
+    export DEFAULT_REQUESTS_URI="nats://${DEFAULT_REQUESTS_HOST}:${DEFAULT_REQUESTS_PORT}"
     echo "Starting vLLM context workers..."
     CUDA_VISIBLE_DEVICES=0 \
     VLLM_WORKER_ID=0 \
     python3 -m llm.vllm.deploy \
       --context-worker-count ${VLLM_CONTEXT_WORKERS} \
-      --request-plane-uri ${head_url}:${NATS_PORT} \
+      --request-plane-uri ${DEFAULT_REQUESTS_URI} \
       --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
       --kv-cache-dtype fp8 \
       --dtype auto \
@@ -68,12 +70,14 @@ start_context_worker() {
 start_generate_worker() {
     local head_url=$1
     export VLLM_TORCH_HOST="$head_url"
+    export DEFAULT_REQUESTS_HOST="$head_url"
+    export DEFAULT_REQUESTS_URI="nats://${DEFAULT_REQUESTS_HOST}:${DEFAULT_REQUESTS_PORT}"
     echo "Starting vLLM generate workers..."
     CUDA_VISIBLE_DEVICES=1 \
     VLLM_WORKER_ID=1 \
     python3 -m llm.vllm.deploy \
       --generate-worker-count ${VLLM_GENERATE_WORKERS} \
-      --request-plane-uri ${head_url}:${NATS_PORT} \
+      --request-plane-uri ${DEFAULT_REQUESTS_URI} \
       --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
       --kv-cache-dtype fp8 \
       --dtype auto \

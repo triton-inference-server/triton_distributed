@@ -120,6 +120,10 @@ ENV PYTHONUNBUFFERED=1
 # Install NATS - pointing toward NATS github instead of binaries.nats.dev due to server instability
 RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
 
+ENV DEFAULT_REQUESTS_PORT=4222
+ENV DEFAULT_REQUESTS_HOST=localhost
+ENV DEFAULT_REQUESTS_URI="nats://${DEFAULT_REQUESTS_HOST}:${DEFAULT_REQUESTS_PORT}"
+
 # Enable Git operations in the /workspace directory.
 RUN printf "[safe]\n      directory=/workspace\n" > /root/.gitconfig
 

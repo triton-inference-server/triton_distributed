@@ -16,6 +16,7 @@
 import pytest
 
 from triton_distributed.runtime.parser import Parser
+from triton_distributed.runtime.worker import DEFAULT_REQUESTS_URI
 
 """
 Tests for parsing the arguments by command line parser
@@ -26,7 +27,7 @@ Tests for parsing the arguments by command line parser
 def default_values():
     # Add default values for the command-line interface
     return {
-        "request_plane_uri": "nats://localhost:4222",
+        "request_plane_uri": DEFAULT_REQUESTS_URI,
         "log_level": 0,
         # TODO: Add the default options for the worker executable here
     }

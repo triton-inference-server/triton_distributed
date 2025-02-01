@@ -17,10 +17,9 @@ import argparse
 import json
 import os
 
-from triton_distributed.runtime.worker import OperatorConfig
+from triton_distributed.runtime.worker import DEFAULT_REQUESTS_URI, OperatorConfig
 
 # Default values
-DEFAULT_REQUEST_PLANE_URI = "nats://localhost:4222"
 DEFAULT_LOG_LEVEL = 0
 
 # Property keys
@@ -114,7 +113,7 @@ class Parser:
             "-c",
             "--request-plane-uri",
             type=str,
-            default=DEFAULT_REQUEST_PLANE_URI,
+            default=DEFAULT_REQUESTS_URI,
             help="Request plane URI for the worker",
         )
         parser.add_argument(

@@ -12,8 +12,6 @@ export VLLM_LOGGING_LEVEL=INFO
 export VLLM_DATA_PLANE_BACKEND=nccl
 export PYTHONUNBUFFERED=1
 
-export NATS_HOST=localhost
-export NATS_PORT=4223
 export NATS_STORE="$(mktemp -d)"
 export API_SERVER_HOST=localhost
 export API_SERVER_PORT=8005
@@ -31,7 +29,7 @@ nats-server -p ${NATS_PORT} --jetstream --store_dir "${NATS_STORE}" &
 echo "Starting LLM API Server..."
 python3 -m llm.api_server \
   --tokenizer neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
-  --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
+  --request-plane-uri ${DEFAULT_REQUESTS_URI} \
   --api-server-host ${API_SERVER_HOST} \
   --model-name "baseline" \
   --api-server-port ${API_SERVER_PORT} &
@@ -43,7 +41,7 @@ CUDA_VISIBLE_DEVICES=0 \
 VLLM_WORKER_ID=0 \
 python3 -m llm.vllm.deploy \
   --baseline-worker-count ${VLLM_BASELINE_WORKERS} \
-  --request-plane-uri ${NATS_HOST}:${NATS_PORT} \
+  --request-plane-uri ${DEFAULT_REQUESTS_URI} \
   --model-name neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8 \
   --kv-cache-dtype fp8 \
   --dtype auto \

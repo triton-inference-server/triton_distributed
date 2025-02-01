@@ -14,8 +14,6 @@
 # limitations under the License.
 
 import asyncio
-import shutil
-import subprocess
 import time
 import uuid
 from multiprocessing import Process, Queue
@@ -25,11 +23,10 @@ import pytest
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 from triton_distributed.icp.request_plane import (
+    NatsServer,
     get_icp_component_id,
     set_icp_final_response,
 )
-
-NATS_PORT = 4222
 
 # TODO decide if some tests should be removed
 # from pre_merge
@@ -45,36 +42,7 @@ def is_port_in_use(port: int) -> bool:
 
 @pytest.fixture
 def nats_server(request):
-    command = [
-        "/usr/local/bin/nats-server",
-        "--jetstream",
-        "--debug",
-        "--trace",
-        "--port",
-        str(NATS_PORT),
-    ]
-    print(f"Running: [{' '.join(command)}]")
-
-    # Raise more intuitive error to developer if port is already in-use.
-    if is_port_in_use(NATS_PORT):
-        raise RuntimeError(
-            f"ERROR: NATS Port {NATS_PORT} already in use. Is a nats-server already running?"
-        )
-
-    shutil.rmtree("/tmp/nats", ignore_errors=True)
-
-    with open("nats_server.stdout.log", "wt") as output_:
-        with open("nats_server.stderr.log", "wt") as output_err:
-            process = subprocess.Popen(
-                command, stdin=subprocess.DEVNULL, stdout=output_, stderr=output_err
-            )
-            time.sleep(1)
-            yield process
-
-            process.terminate()
-            process.wait()
-
-            shutil.rmtree("/tmp/nats", ignore_errors=True)
+    yield NatsServer()
 
 
 class ResponseHandler:
