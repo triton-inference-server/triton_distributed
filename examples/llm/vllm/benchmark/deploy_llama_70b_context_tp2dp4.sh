@@ -1,5 +1,6 @@
 #!/bin/bash
-
+set -e 
+set -x
 export VLLM_ATTENTION_BACKEND=FLASHINFER
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export VLLM_TORCH_PORT=36183
