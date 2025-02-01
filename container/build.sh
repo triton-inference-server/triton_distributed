@@ -14,10 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 TAG=
 RUN_PREFIX=
 PLATFORM=linux/amd64
-VERSION=0.1.1
+
+# Get short commit hash
+commit_id=$(git rev-parse --short HEAD)
+
+# Attempt to get current tag
+current_tag=$(git describe --tags --exact-match 2>/dev/null) || true
+
+# Use tag if available, otherwise use commit hash
+VERSION=${current_tag:-$commit_id}
+
 
 # Frameworks
 #
