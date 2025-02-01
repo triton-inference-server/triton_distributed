@@ -234,6 +234,8 @@ kill -9 <pid>
 1. **Tensor Parallelism Constraints**
    - Currently limited to TP=1 for both prefill and decode workers
 
+2. Currently streaming is not supported and results are returned all at once.
+
 ## References
 
 [^1]: Yinmin Zhong, Shengyu Liu, Junda Chen, Jianbo Hu, Yibo Zhu, Xuanzhe Liu, Xin Jin, and Hao
