@@ -82,9 +82,9 @@ def _prepare(args):
         print(template_path, os.path.exists(template_path), target_path)
 
         with open(template_path) as f:
-            pbtxt = Template(f.read())
+            pbtxt_template = Template(f.read())
 
-        pbtxt = pbtxt.safe_substitute(template_arguments)
+        pbtxt = pbtxt_template.safe_substitute(template_arguments)
 
         pbtxt = pbtxt.replace(f'name: "{os.path.basename(template)}"', "")
 

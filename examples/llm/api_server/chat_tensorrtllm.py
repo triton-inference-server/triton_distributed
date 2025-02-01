@@ -82,7 +82,7 @@ class ChatHandlerTensorrtLLM(ChatHandler):
             raise ValueError(
                 f"Model name mismatch: {self._model_name} != {request.model}"
             )
-        inputs: Dict[str, np.ndarray] = {}
+        inputs: Dict[str, np.ndarray | Any] = {}
         sampling_params = generate_sampling_params_vllm(request)
         parameters = {
             "sampling_params": sampling_params,
@@ -104,3 +104,4 @@ class ChatHandlerTensorrtLLM(ChatHandler):
         elif "text_output" in response.outputs:
             print(response.outputs["text_output"])
             return {"model_output": response.outputs["text_output"][0]}
+        return {}

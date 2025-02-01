@@ -98,3 +98,4 @@ class ChatHandlerVllm(ChatHandler):
             return {"model_output": [response.parameters["text"]]}
         elif "text_output" in response.outputs:
             return {"model_output": response.outputs["text_output"][0]}
+        return {}

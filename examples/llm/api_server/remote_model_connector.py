@@ -16,7 +16,7 @@
 import asyncio
 import json
 import typing
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 from llm.api_server.connector import (
@@ -146,17 +146,17 @@ class RemoteModelConnector(BaseTriton3Connector):
             async for response in responses:
                 for output_name, value in response.outputs.items():
                     try:
+                        output_value: Any = None
                         if value.data_type == DataType.BYTES:
-                            numpy_tensor = [value.to_string_array()]
+                            output_value = [value.to_string_array()]
                         else:
-                            numpy_tensor = np.from_dlpack(value)
-                        print(value)
+                            output_value = np.from_dlpack(value)
                     finally:
                         # FIXME: This is a workaround for the issue that the remote tensor
                         # is released after connection is closed.
                         # value.__del__()
                         pass
-                    outputs[output_name] = numpy_tensor
+                    outputs[output_name] = output_value
                 infer_response = InferenceResponse(
                     outputs=outputs,
                     final=response.final,
