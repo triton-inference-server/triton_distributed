@@ -36,11 +36,7 @@ In this example, you will deploy
 2. **NATS or Another Coordination Service**
    Triton Distributed uses NATS by default for coordination and message passing. Make sure your environment has a running NATS service accessible via a valid `nats://<address>:<port>` endpoint. By default, examples assume `nats://localhost:4223`.
 
-4. **Supported GPUs**
-   - For FP8 usage, GPUs with **Compute Capability >= 8.9** are required.
-   - If you have older GPUs, consider BF16/FP16 precision variants instead of `FP8`. (See [below](#model-precision-variants).)
-
-5. **HuggingFace**
+3. **HuggingFace**
    - You need a HuggingFace account to download the model and set HF_TOKEN environment variable.
 
 ---
@@ -60,9 +56,9 @@ The example is designed to run in a containerized environment using Triton Distr
 Below is a minimal example of how to start each component of a disaggregated serving setup. The typical sequence is:
 
 1. **Download and build model directories**
-<!-- 2. **Start the Context Worker(s) and Request Plane**
+2. **Start the Context Worker(s) and Request Plane**
 3. **Start the Generate Worker(s)**
-1. **Start the API Server** (handles incoming requests and coordinates workers) -->
+1. **Start the API Server** (handles incoming requests and coordinates workers)
 
 All components must be able to connect to the same request plane to coordinate.
 
