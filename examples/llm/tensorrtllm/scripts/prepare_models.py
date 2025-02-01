@@ -99,22 +99,6 @@ def _prepare(args):
 
         pbtxt = pbtxt.replace(f'name: "{os.path.basename(template)}"', "")
 
-        # Add specific parameter values based on template type
-        if template == "generate":
-            pbtxt = pbtxt.replace('"${gpu_device_ids}"', '"1"')
-            pbtxt = pbtxt.replace('"0"', '"1"')  # Replace participant_ids
-        elif template == "context":
-            pbtxt = pbtxt.replace('"${gpu_device_ids}"', '"0"')
-            # participant_ids is already "0" by default
-
-        # Print the relevant parameters from the config
-        print(f"\nConfig parameters for {template_basename}:")
-        for line in pbtxt.split('\n'):
-            if 'gpu_device_ids' in line and 'string_value' in line:
-                print(line.strip())
-            elif 'participant_ids' in line and 'string_value' in line:
-                print(line.strip())
-
         if not args.dry_run:
             os.makedirs(os.path.dirname(target_path), exist_ok=True)
             with open(target_path, "w") as f:

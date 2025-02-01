@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# [WIP] Disaggregated Serving with TensorRT-LLM
+# Disaggregated Serving with TensorRT-LLM
 
 This example demonstrates **disaggregated serving** [^1] using Triton Distributed together with TensorRT-LLM engines. Disaggregated serving decouples the prefill (prompt encoding) and the decode (token generation) stages of large language model (LLM) inference into separate processes. This separation allows you to independently scale, optimize, and distribute resources for each stage.
 
@@ -82,12 +82,13 @@ Note: by default this command makes all gpu devices visible. Use flag
 
 to selectively make gpu devices visible.
 
-# 3.2: Build model directories
+### 3.2: Build model directories
 
 ```bash
 export HF_TOKEN=<YOUR TOKEN>
 python3 /workspace/examples/llm/tensorrtllm/scripts/prepare_models.py --tp-size 1 --model llama-3.1-8b-instruct --max-num-tokens 8192
 ```
+
 
 After this you should see the following in `/workspace/examples/llm/tensorrtllm/operators`
 
@@ -160,16 +161,20 @@ After this you should see the following in `/workspace/examples/llm/tensorrtllm/
         `-- config.pbtxt
 ```
 
-## X. Deployment Example
+For now - must manually edit the `generate` and `postprocessing` config.pbtxt files to set the `gpu_device_ids` to 0/1.
 
-[WIP] To start a basic deployment with 1 prefill and 1 decode worker:
+### 3.3: Deployment Example
+
+To start a basic deployment with 1 prefill and 1 decode worker:
 
 ```bash
+export WORKER_NAME="llama"
 python3 /workspace/examples/llm/tensorrtllm/deploy/launch_workers.py \
   --context-worker-count 1 \
   --generate-worker-count 1 \
-  --worker-name llama \
+  --worker-name ${WORKER_NAME} \
   --initialize-request-plane \
+  --disaggregated-serving \
   --request-plane-uri ${HOSTNAME}:4222 &
 ```
 
@@ -180,10 +185,10 @@ python3 -m llm.api_server \
   --tokenizer meta-llama/Llama-3.1-8B-Instruct \
   --request-plane-uri ${HOSTNAME}:4222 \
   --api-server-host ${HOSTNAME} \
-  --model-name llama &
+  --model-name ${WORKER_NAME} &
 ```
 
-## X. Sending Requests
+### 3.4: Sending Requests
 
 Once the API server is running (by default on `localhost:8000`), you can send OpenAI-compatible requests. For example:
 
@@ -193,7 +198,7 @@ curl ${HOSTNAME}:8000/v1/chat/completions \
   -d '{
     "model": "llama",
     "messages": [
-      {"role": "user", "content": "What is the capital of France?"}
+      {"role": "user", "content": "Why is Roger Federer the greatest tennis player of all time?"}
     ],
     "temperature": 0,
     "top_p": 0.95,
@@ -207,7 +212,7 @@ curl ${HOSTNAME}:8000/v1/chat/completions \
 
 The above request will return a streamed response with the model’s answer.
 
-## X. Teardown
+## 4. Teardown
 
 To tear down a deployment during local development, you can either kill the
 container or the kill the relevant processes involved in the deployment.
@@ -229,14 +234,10 @@ instead for each process ID replacing `<pid>` below:
 kill -9 <pid>
 ```
 
-
 ## Y. Known Issues & Limitations
 
 1. **Tensor Parallelism Constraints**
    - Currently limited to TP=1 for both prefill and decode workers
-
-2. **MPI Integration**
-   - There is a known issue with MPI initialization that may cause hangs
 
 ## Z. References
 
