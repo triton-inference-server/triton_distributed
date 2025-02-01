@@ -37,8 +37,9 @@ throughput within the SLA.
 For example for input sequence length 3000 and output sequence length
 150 after sweeping different tensor parallellism strategies on an two
 H100 x 8 GPU nodes we've found that using 2 instances of TP 4 for
-context (on one node) and using 1 instance of TP 8 for generate gives
-the best throughput at a latency target of 50 tokens per sec per user.
+context (on one node) and using 1 instance of TP 8 for generate (on
+the second node) gives the best throughput at a latency target of 50
+tokens per sec per user.
 
 At that latency target, in our early measurements disaggregated
 serving outperforms traditional aggregated LLM serving by more than 2x
