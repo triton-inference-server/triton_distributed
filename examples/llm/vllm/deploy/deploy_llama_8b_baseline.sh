@@ -13,7 +13,7 @@ export VLLM_DATA_PLANE_BACKEND=nccl
 export PYTHONUNBUFFERED=1
 
 export NATS_HOST=localhost
-export NATS_PORT=4223
+export NATS_PORT=4222
 export NATS_STORE="$(mktemp -d)"
 export API_SERVER_HOST=localhost
 export API_SERVER_PORT=8005

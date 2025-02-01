@@ -43,7 +43,7 @@ def parse_args():
         "--request-plane-uri",
         type=str,
         required=False,
-        default="nats://localhost:4223",
+        default="nats://localhost:4222",
         help="URL of request plane",
     )
 

@@ -86,7 +86,7 @@ class AsyncModelInferResponseIterator:
 class NatsServer:
     def __init__(
         self,
-        port: int = 4223,
+        port: int = 4222,
         store_dir: str = "/tmp/nats_store",
         log_dir: str = "logs",
         debug: bool = False,

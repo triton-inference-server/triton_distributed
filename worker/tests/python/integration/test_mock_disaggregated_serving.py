@@ -39,7 +39,7 @@ from triton_distributed.worker.remote_operator import RemoteOperator
 from triton_distributed.worker.triton_core_operator import TritonCoreOperator
 from triton_distributed.worker.worker import WorkerConfig
 
-NATS_PORT = 4223
+NATS_PORT = 4222
 MODEL_REPOSITORY = (
     "/workspace/worker/tests/python/integration/operators/triton_core_models"
 )

@@ -54,7 +54,7 @@ class RemoteModelConnector(BaseTriton3Connector):
 
         Example:
             remote_model_connector = RemoteModelConnector(
-                request_plane_uri="localhost:4223",
+                request_plane_uri="localhost:4222",
                 data_plane_host="localhost",
                 data_plane_port=8001,
                 model_name="model_name",
