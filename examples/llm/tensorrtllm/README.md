@@ -229,12 +229,12 @@ instead for each process ID replacing `<pid>` below:
 kill -9 <pid>
 ```
 
-## Y. Known Issues & Limitations
+## Known Issues & Limitations
 
 1. **Tensor Parallelism Constraints**
    - Currently limited to TP=1 for both prefill and decode workers
 
-## Z. References
+## References
 
 [^1]: Yinmin Zhong, Shengyu Liu, Junda Chen, Jianbo Hu, Yibo Zhu, Xuanzhe Liu, Xin Jin, and Hao
 Zhang. Distserve: Disaggregating prefill and decoding for goodput-optimized large language
