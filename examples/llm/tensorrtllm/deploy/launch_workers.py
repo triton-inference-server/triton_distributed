@@ -130,8 +130,6 @@ def _context_cmd(args, starting_gpu):
         "--initialize-request-plane",
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
-        "--gpu-name",
-        args.gpu_name,
     ]
 
     return command
@@ -157,8 +155,6 @@ def _generate_cmd(args, starting_gpu):
         worker_name,
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
-        "--gpu-name",
-        args.gpu_name,
     ]
 
     return command
@@ -183,8 +179,6 @@ def _disaggregated_serving_cmd(args, starting_gpu):
         args.worker_name,
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
-        "--gpu-name",
-        "NVIDIA_H100_NVL",
     ]
 
     return command

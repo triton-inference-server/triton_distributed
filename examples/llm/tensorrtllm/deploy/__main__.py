@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 
 from llm.tensorrtllm.operators.disaggregated_serving import DisaggregatedServingOperator
+from llm.tensorrtllm.scripts.gpu_info import get_gpu_product_name
 
 from triton_distributed.worker import (
     OperatorConfig,
@@ -67,6 +68,7 @@ def _create_triton_core_op(
     args,
 ):
     # TODO: argparse repo
+    gpu_name = get_gpu_product_name()
     return OperatorConfig(
         name=name,
         implementation=TritonCoreOperator,
@@ -75,7 +77,7 @@ def _create_triton_core_op(
             Path(args.operator_repository)
             / "tensorrtllm_models"
             / args.model
-            / args.gpu_name
+            / gpu_name
             / "TP_1"
         ),
         parameters={"store_outputs_in_response": True},
