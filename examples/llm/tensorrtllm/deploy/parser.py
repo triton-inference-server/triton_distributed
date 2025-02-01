@@ -43,7 +43,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--log-level", type=int, default=3, help="log level applied to all workers"
+        "--log-level", type=int, default=1, help="log level applied to all workers"
     )
 
     parser.add_argument(
