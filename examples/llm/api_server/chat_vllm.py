@@ -65,43 +65,6 @@ def generate_sampling_params_vllm(
     return sampling_params
 
 
-class ChatHandlerTensorrtLLM(ChatHandler):
-    def __init__(
-        self, triton_connector: BaseTriton3Connector, model_name: str, tokenizer: str
-    ):
-        super().__init__(triton_connector, tokenizer)
-        self._model_name = model_name
-
-    def translate_chat_inputs(
-        self, request: CreateChatCompletionRequest, request_id: str, prompt: str
-    ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
-        """Translate the chat completion request to inference request"""
-
-        if self._model_name is not None and self._model_name != request.model:
-            raise ValueError(
-                f"Model name mismatch: {self._model_name} != {request.model}"
-            )
-        inputs: Dict[str, np.ndarray] = {}
-        sampling_params = generate_sampling_params_vllm(request)
-        parameters = {
-            "sampling_params": sampling_params,
-            "request_id": request_id,
-            #            "prompt": prompt,
-        }
-        inputs["text_input"] = prompt
-        inputs["max_tokens"] = sampling_params["max_tokens"]
-        return inputs, parameters
-
-    def translate_chat_outputs(
-        self, response: InferenceResponse, model_name: str
-    ) -> Dict[str, Any]:
-        """Translate the inference outputs to chat completion response"""
-        if "text" in response.parameters:
-            return {"model_output": [response.parameters["text"]]}
-        elif "text_output" in response.outputs:
-            return {"model_output": response.outputs["text_output"][0]}
-
-
 class ChatHandlerVllm(ChatHandler):
     def __init__(
         self, triton_connector: BaseTriton3Connector, model_name: str, tokenizer: str
