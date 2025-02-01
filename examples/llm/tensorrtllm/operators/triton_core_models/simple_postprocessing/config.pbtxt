@@ -13,26 +13,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-**/*.onnx
-**/*.plan
-**/*.onnx
-**/*.plan
-**/.cache/*
-**/*onnx*
-# Engine must be allowed because code contains triton_distributed_engine.py
-**/*tensorrtllm_engines*
-**/*tensorrtllm_models*
-**/*tensorrtllm_checkpoints*
-**/*hf_downloads*
-**/*pytorch_model*
-**/*.pth*
-**/*.pt
-**/*.models/*
-**/*.model-store/*
-**/*.model.*/*
-**/*.cache/*
-**/*.libtorch_model_store/*
-**/.git
-**/.github
-**/*backup*/
-.dockerignore
+backend: "python"
+# TODO: Tune dynamic batcher
+max_batch_size: 64
+dynamic_batching {}
+
+
+parameters {
+  key: "tokenizer_dir"
+  value: {
+    string_value: "/workspace/examples/llm/tensorrtllm/operators/hf_downloads/llama-3.1-8b-instruct"
+  }
+}
+
+#parameters {
+#  key: "skip_special_tokens"
+#  value: {
+#    string_value: "${skip_special_tokens}"
+#  }
+#}
+
+instance_group [
+    {
+        count: 10
+        kind : KIND_CPU
+    }
+]

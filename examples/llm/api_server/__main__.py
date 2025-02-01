@@ -34,6 +34,7 @@ def main(args):
         data_plane_port=args.data_plane_port,
         model_name=args.model_name,
         tokenizer=args.tokenizer,
+        backend=args.backend,
     )
 
     # Attach TritonLLMEngine as the backbone for inference and model management

@@ -16,6 +16,7 @@
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
+import numpy
 import numpy as np
 from llm.api_server.chat import ChatHandler, generate_sampling_params
 from llm.api_server.connector import BaseTriton3Connector, InferenceResponse
@@ -65,7 +66,7 @@ def generate_sampling_params_vllm(
     return sampling_params
 
 
-class ChatHandlerVllm(ChatHandler):
+class ChatHandlerTensorrtLLM(ChatHandler):
     def __init__(
         self, triton_connector: BaseTriton3Connector, model_name: str, tokenizer: str
     ):
@@ -81,13 +82,17 @@ class ChatHandlerVllm(ChatHandler):
             raise ValueError(
                 f"Model name mismatch: {self._model_name} != {request.model}"
             )
-        inputs: Dict[str, np.ndarray] = {}
+        inputs: Dict[str, np.ndarray | Any] = {}
         sampling_params = generate_sampling_params_vllm(request)
         parameters = {
             "sampling_params": sampling_params,
             "request_id": request_id,
-            "prompt": prompt,
+            #            "prompt": prompt,
         }
+        inputs["text_input"] = [[prompt]]
+        inputs["max_tokens"] = numpy.array(
+            [[sampling_params["max_tokens"]]], dtype=numpy.int32
+        )
         return inputs, parameters
 
     def translate_chat_outputs(
@@ -97,5 +102,6 @@ class ChatHandlerVllm(ChatHandler):
         if "text" in response.parameters:
             return {"model_output": [response.parameters["text"]]}
         elif "text_output" in response.outputs:
+            print(response.outputs["text_output"])
             return {"model_output": response.outputs["text_output"][0]}
         return {}

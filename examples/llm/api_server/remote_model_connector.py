@@ -16,7 +16,7 @@
 import asyncio
 import json
 import typing
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 from llm.api_server.connector import (
@@ -25,9 +25,9 @@ from llm.api_server.connector import (
     InferenceResponse,
 )
 from llm.api_server.remote_connector import RemoteConnector
+from tritonserver import DataType
 
 from triton_distributed.worker.remote_operator import RemoteOperator
-from triton_distributed.worker.remote_tensor import RemoteTensor
 
 
 class RemoteModelConnector(BaseTriton3Connector):
@@ -129,30 +129,34 @@ class RemoteModelConnector(BaseTriton3Connector):
             if isinstance(value, dict):
                 request.parameters[key] = "JSON:" + json.dumps(value)
 
+        store_inputs_in_request = set()
+        for k, v in request.inputs.items():
+            store_inputs_in_request.add(k)
         results.append(
             self._model.async_infer(
                 inputs=request.inputs,
                 parameters=request.parameters,
+                store_inputs_in_request=store_inputs_in_request,
             )
         )
 
         for result in asyncio.as_completed(results):
             responses = await result
+            outputs = {}
             async for response in responses:
-                triton_response = response.to_model_infer_response(
-                    self._connector._data_plane
-                )
-                outputs = {}
-                for output in triton_response.outputs:
-                    remote_tensor = RemoteTensor(output, self._connector._data_plane)
+                for output_name, value in response.outputs.items():
                     try:
-                        local_tensor = remote_tensor.local_tensor
-                        numpy_tensor = np.from_dlpack(local_tensor)
+                        output_value: Any = None
+                        if value.data_type == DataType.BYTES:
+                            output_value = [value.to_string_array()]
+                        else:
+                            output_value = np.from_dlpack(value)
                     finally:
                         # FIXME: This is a workaround for the issue that the remote tensor
                         # is released after connection is closed.
-                        remote_tensor.__del__()
-                    outputs[output.name] = numpy_tensor
+                        # value.__del__()
+                        pass
+                    outputs[output_name] = output_value
                 infer_response = InferenceResponse(
                     outputs=outputs,
                     final=response.final,

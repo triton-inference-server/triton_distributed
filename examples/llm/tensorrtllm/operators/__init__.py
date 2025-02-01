@@ -13,26 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-**/*.onnx
-**/*.plan
-**/*.onnx
-**/*.plan
-**/.cache/*
-**/*onnx*
-# Engine must be allowed because code contains triton_distributed_engine.py
-**/*tensorrtllm_engines*
-**/*tensorrtllm_models*
-**/*tensorrtllm_checkpoints*
-**/*hf_downloads*
-**/*pytorch_model*
-**/*.pth*
-**/*.pt
-**/*.models/*
-**/*.model-store/*
-**/*.model.*/*
-**/*.cache/*
-**/*.libtorch_model_store/*
-**/.git
-**/.github
-**/*backup*/
-.dockerignore
+from llm.tensorrtllm.operators.disaggregated_serving import DisaggregatedServingOperator
+
+__all__ = ["DisaggregatedServingOperator"]

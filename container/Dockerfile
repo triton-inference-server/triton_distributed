@@ -97,6 +97,7 @@ ARG TENSORRTLLM_FRAMEWORK
 ENV FRAMEWORK_LD_LIBRARY_PATH=${TENSORRTLLM_FRAMEWORK:+/opt/tritonserver/backends/tensorrtllm/}
 ENV LD_LIBRARY_PATH=${FRAMEWORK_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
 ENV TENSORRTLLM_BACKEND_COMMIT=$TENSORRTLLM_BACKEND_COMMIT
+ENV TRTLLM_USE_MPI_KVCACHE=${TENSORRTLLM_FRAMEWORK:+"1"}
 
 # TODO set VLLM Version
 # ENV VLLM_VERSION
@@ -152,6 +153,9 @@ RUN /workspace/icp/protos/gen_python.sh
 
 # Sets pythonpath for python modules
 ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/src/python:/workspace/worker/src/python:/workspace/examples:/opt/tritonserver/python/openai/openai_frontend"
+
+# Enable system UCX
+ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
 
 # Command and Entrypoint
 CMD []
