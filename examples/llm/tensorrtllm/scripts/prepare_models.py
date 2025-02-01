@@ -159,7 +159,7 @@ def _download(args):
     snapshot_download(
         KNOWN_MODELS[args.model]["hf_id"],
         allow_patterns=patterns,
-        use_auth_token=True,
+        token=True,
         local_dir=args.hf_download,
     )
 
