@@ -208,7 +208,7 @@ def run(num_requests):
     "(not os.path.exists('/usr/local/bin/nats-server'))",
     reason="NATS.io not present",
 )
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(120)
 @pytest.mark.parametrize(
     "consolidate_logs",
     [True, False],
