@@ -36,7 +36,7 @@ throughput within the SLA.
 
 For example for input sequence length 3000 and output sequence length
 150 after sweeping different tensor parallellism strategies on two
-8 x H100 GPU nodes, we've found that using 2 instances of TP 4 for
+8 x H100 GPU nodes, we've found that using 4 instances of TP 2 for
 context (on one node) and using 1 instance of TP 8 for generate (on
 the second node) gives the best throughput at a latency target of 50
 tokens per sec per user.
@@ -102,11 +102,10 @@ genai-perf profile \
 The following results are given as an example, are not fully
 optimized, and do not indicate what you may get locally.
 
-| label    | configuration                  | concurrency | output_token_throughput_per_request | output_token_throughput_per_gpu | time_to_first_token | inter_token_latency |
+| label    | configuration                  | concurrency | output token throughput per request | output token throughput per gpu | time to first token | inter token latency |
 |----------|--------------------------------|-------------|-------------------------------------|---------------------------------|---------------------|---------------------|
-| disagg   | context_tp2dp4_generate_tp8dp1 |          48 |                    49.18197330348195      |        87.55798331              |       1157.4852116520833    |       15.935926391666667  |
-| baseline | baseline_tp4dp1                |           4 |                         50.27116554062172 |                     56.26445983 |         709.2506074249999 |         15.265875249999999 |
-
+| disagg   | context tp2dp4 generate tp8dp1 |          48 |                    49.18197330348195      |        87.55798331              |       1157.4852116520833    |       15.935926391666667  |
+| baseline | baseline tp4dp1                |           4 |                         50.27116554062172 |                     56.26445983 |         709.2506074249999 |         15.265875249999999 |
 
 ###  Baseline Comparison
 
