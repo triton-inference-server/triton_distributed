@@ -50,7 +50,7 @@ serving outperforms traditional aggregated LLM serving by more than 2x
 To reproduce similar results on a 2 node H100 x 8 GPU system we
 provide sample scripts.
 
-## Launch Context Workers on First Node
+### Launch Context Workers on First Node
 
 On first (head) node:
 
@@ -58,7 +58,7 @@ On first (head) node:
 bash deploy_llama_70b_context_tp2dp4.sh --head-url <head url>
 ```
 
-## Launch Generate Worker on Second Node
+### Launch Generate Worker on Second Node
 
 On second node:
 
@@ -66,7 +66,7 @@ On second node:
 bash deploy_llama_70b_generate_tp8dp1.sh --head-url <head url>
 ```
 
-## Benchmark
+### Benchmark
 
 The following `genai-perf` command simulates traffic with 3000 input and 150 output sequence lengths.
 
@@ -97,7 +97,7 @@ genai-perf profile \
   --async
 ```
 
-## Example Results
+### Example Results
 
 The following results are given as an example, are not fully
 optimized, and do not indicate what you may get locally.
@@ -108,7 +108,7 @@ optimized, and do not indicate what you may get locally.
 | baseline | baseline_tp4dp1                |           4 |                         50.27116554062172 |                     50.26445983 |         709.2506074249999 |         15.265875249999999 |
 
 
-##  Baseline Comparison
+###  Baseline Comparison
 
 On a single node you can run a comparison. With aggregated workers we
 found the best throughput at the target SLA and input and output
@@ -122,7 +122,7 @@ To see the results use the same `genai-perf` command used to benchmark
 the disaggregated setup.
 
 
-## Stopping deployment
+### Stopping deployment
 
 ```
 pkill -SIGINT -f python3
