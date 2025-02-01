@@ -112,7 +112,7 @@ optimized, and do not indicate what you may get locally.
 
 On a single node you can run a comparison. With aggregated workers we
 found the best throughput at the target SLA and input and output
-sequence lengths 2 two instances of tensor parallelism 4.
+sequence lengths with 2 instances of tensor parallelism 4.
 
 ```
 bash deploy_llama_70b_baseline_tp4dp2.sh --head-url <head url>
