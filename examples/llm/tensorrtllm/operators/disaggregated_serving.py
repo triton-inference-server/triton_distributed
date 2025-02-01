@@ -77,7 +77,7 @@ class DisaggregatedServingOperator(TritonCoreOperator):
         response_sender = request.response_sender()
 
         """Preprocessing"""
-        print(request)
+        self._logger.debug(request)
         if "text_input" in request.inputs:
             query = request.inputs["text_input"].to_bytes_array()
         elif "prompt" in request.inputs:
@@ -102,7 +102,7 @@ class DisaggregatedServingOperator(TritonCoreOperator):
 
         streaming = request.parameters.get("streaming", False)
         input_ids, input_lengths = await self._preprocess(query)
-        print(input_ids, input_lengths)
+        self._logger.debug(input_ids, input_lengths)
         prefill_inputs["input_ids"] = input_ids
         prefill_inputs["input_lengths"] = input_lengths
         prefill_inputs["request_output_len"] = request_output_len
@@ -177,7 +177,6 @@ class DisaggregatedServingOperator(TritonCoreOperator):
     async def _preprocess(self, query):
         start_ids = None
         start_lengths = None
-        print("here!")
         if isinstance(query, str):
             query = [[query]]
         async for preprocess_response in self._preprocess_model.async_infer(
