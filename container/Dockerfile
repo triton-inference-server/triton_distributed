@@ -152,7 +152,7 @@ COPY . /workspace
 RUN /workspace/icp/protos/gen_python.sh
 
 # Sets pythonpath for python modules
-ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/src/python:/workspace/worker/src/python:/workspace/examples:/opt/tritonserver/python/openai/openai_frontend"
+ENV PYTHONPATH="${PYTHONPATH}:/workspace/worker/src/python:/workspace/examples:/opt/tritonserver/python/openai/openai_frontend"
 
 # Enable system UCX
 ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
