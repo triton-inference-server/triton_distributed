@@ -92,8 +92,12 @@ class NatsEventPlane:
 
         async def _message_handler(msg):
             metadata, event = self._extract_metadata_and_payload(msg.data)
+
+            async def wrapper():
+                await callback(event, metadata)  # Ensure it's a proper coroutine
+
             if self._run_callback_in_parallel:
-                asyncio.create_task(callback(event, metadata))  # Run in parallel
+                asyncio.create_task(wrapper())  # Run in parallel
             else:
                 await callback(event, metadata)  # Await normally
 
