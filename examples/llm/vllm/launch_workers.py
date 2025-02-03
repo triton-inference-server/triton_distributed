@@ -421,8 +421,8 @@ def _launch_workers(args):
 
         # If you only want the first worker on rank 0 to initialize the request-plane (like nats):
         # or if each worker should do it, adapt as needed:
-        if rank == 0 and worker_id_in_rank == 0:
-            cmd += ["--initialize-request-plane"]
+        #if rank == 0 and worker_id_in_rank == 0:
+        #    cmd += ["--initialize-request-plane"]
 
         # Possibly add profiling
         if args.profile_workers:
@@ -605,7 +605,7 @@ def _parse_args():
     hosts = parse_slurm_nodelist()
     host = hosts[0]
 
-    parser.add_argument("--nats-url", type=str, default=f"nats://{host}:4223")
+    parser.add_argument("--nats-url", type=str, default=f"{host}:4223")
     parser.add_argument("--nats-store", type=str, default="/tmp/nats/triton-3-demo")
     parser.add_argument("--nats-debug", action="store_true", default=False)
 
