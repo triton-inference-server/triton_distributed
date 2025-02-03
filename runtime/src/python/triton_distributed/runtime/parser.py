@@ -17,7 +17,7 @@ import argparse
 import json
 import os
 
-from triton_distributed.worker.worker import OperatorConfig
+from triton_distributed.runtime.worker import OperatorConfig
 
 # Default values
 DEFAULT_REQUEST_PLANE_URI = "nats://localhost:4222"

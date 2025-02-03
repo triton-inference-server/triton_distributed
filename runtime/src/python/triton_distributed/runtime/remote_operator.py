@@ -23,8 +23,8 @@ from tritonserver import InvalidArgumentError
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
-from triton_distributed.worker.remote_request import RemoteInferenceRequest
-from triton_distributed.worker.remote_response import AsyncRemoteResponseIterator
+from triton_distributed.runtime.remote_request import RemoteInferenceRequest
+from triton_distributed.runtime.remote_response import AsyncRemoteResponseIterator
 
 
 class RemoteOperator:

@@ -12,20 +12,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from triton_distributed.worker.deployment import Deployment as Deployment
-from triton_distributed.worker.logger import get_logger as get_logger
-from triton_distributed.worker.logger import get_logger_config as get_logger_config
-from triton_distributed.worker.operator import Operator as Operator
-from triton_distributed.worker.operator import OperatorConfig as OperatorConfig
-from triton_distributed.worker.remote_operator import RemoteOperator as RemoteOperator
-from triton_distributed.worker.remote_request import (
+from triton_distributed.runtime.deployment import Deployment as Deployment
+from triton_distributed.runtime.logger import get_logger as get_logger
+from triton_distributed.runtime.logger import get_logger_config as get_logger_config
+from triton_distributed.runtime.operator import Operator as Operator
+from triton_distributed.runtime.operator import OperatorConfig as OperatorConfig
+from triton_distributed.runtime.remote_operator import RemoteOperator as RemoteOperator
+from triton_distributed.runtime.remote_request import (
     RemoteInferenceRequest as RemoteInferenceRequest,
 )
-from triton_distributed.worker.remote_response import (
+from triton_distributed.runtime.remote_response import (
     RemoteInferenceResponse as RemoteInferenceResponse,
 )
-from triton_distributed.worker.triton_core_operator import (
+from triton_distributed.runtime.triton_core_operator import (
     TritonCoreOperator as TritonCoreOperator,
 )
-from triton_distributed.worker.worker import Worker as Worker
-from triton_distributed.worker.worker import WorkerConfig as WorkerConfig
+from triton_distributed.runtime.worker import Worker as Worker
+from triton_distributed.runtime.worker import WorkerConfig as WorkerConfig

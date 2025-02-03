@@ -25,8 +25,8 @@ from triton_distributed.icp import (
     RequestPlane,
     UcpDataPlane,
 )
-from triton_distributed.worker.logger import get_logger
-from triton_distributed.worker.worker import Worker, WorkerConfig
+from triton_distributed.runtime.logger import get_logger
+from triton_distributed.runtime.worker import Worker, WorkerConfig
 
 LOGGER_NAME = __name__
 

@@ -30,8 +30,8 @@ from tritonserver import InferenceRequest, InvalidArgumentError, Tensor
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest
 from triton_distributed.icp.request_plane import RequestPlane, get_icp_component_id
-from triton_distributed.worker.remote_response import RemoteInferenceResponse
-from triton_distributed.worker.remote_tensor import RemoteTensor
+from triton_distributed.runtime.remote_response import RemoteInferenceResponse
+from triton_distributed.runtime.remote_tensor import RemoteTensor
 
 
 @dataclass

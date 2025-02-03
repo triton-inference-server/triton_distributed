@@ -25,7 +25,7 @@ from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.protos.icp_pb2 import ModelInferResponse
 
 if TYPE_CHECKING:
-    from triton_distributed.worker.remote_request import RemoteInferenceRequest
+    from triton_distributed.runtime.remote_request import RemoteInferenceRequest
 
 import uuid
 
@@ -39,8 +39,8 @@ from triton_distributed.icp.request_plane import (
     set_icp_final_response,
     set_icp_response_error,
 )
-from triton_distributed.worker.logger import get_logger
-from triton_distributed.worker.remote_tensor import RemoteTensor
+from triton_distributed.runtime.logger import get_logger
+from triton_distributed.runtime.remote_tensor import RemoteTensor
 
 logger = get_logger(__name__)
 

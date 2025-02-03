@@ -17,8 +17,8 @@ import sys
 
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
-from triton_distributed.worker.parser import Parser
-from triton_distributed.worker.worker import Worker
+from triton_distributed.runtime.parser import Parser
+from triton_distributed.runtime.worker import Worker
 
 
 def main(args=None):

@@ -30,13 +30,13 @@ from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
-from triton_distributed.worker.logger import get_logger, get_logger_config
-from triton_distributed.worker.operator import Operator, OperatorConfig
-from triton_distributed.worker.remote_request import (
+from triton_distributed.runtime.logger import get_logger, get_logger_config
+from triton_distributed.runtime.operator import Operator, OperatorConfig
+from triton_distributed.runtime.remote_request import (
     RemoteInferenceRequest,
     RemoteResponseSender,
 )
-from triton_distributed.worker.triton_core_operator import TritonCoreOperator
+from triton_distributed.runtime.triton_core_operator import TritonCoreOperator
 
 if TYPE_CHECKING:
     import uvicorn

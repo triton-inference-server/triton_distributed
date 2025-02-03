@@ -17,7 +17,7 @@ import logging
 import logging.config
 from typing import Any
 
-_LOGGER_NAME = "Triton Distributed Worker"
+_LOGGER_NAME = "Triton Distributed Runtime"
 
 _FHANDLER_CONFIG_TEMPLATE = {
     "class": "logging.FileHandler",
