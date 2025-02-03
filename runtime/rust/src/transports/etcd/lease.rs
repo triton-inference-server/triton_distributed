@@ -63,7 +63,7 @@ pub async fn keep_alive(
 
     loop {
         // if the deadline is exceeded, then we have failed to issue a heartbeat in time
-        // we maybe be permanently disconnected from the etcd server, so we are now offically done
+        // we maybe be permanently disconnected from the etcd server, so we are now officially done
         if deadline < std::time::Instant::now() {
             return Err(error!("failed to issue heartbeat in time"));
         }

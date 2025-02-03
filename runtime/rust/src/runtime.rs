@@ -17,7 +17,7 @@
 //! The [Runtime] module is the interface for [crate::component::Component][crate::component::Component]
 //! to access shared resources. These include thread pool, memory allocators and other shared resources.
 //!
-//! The [Runtime] holds the primary [CancellationToken] which can be used to terminate all attached
+//! The [Runtime] holds the primary [`CancellationToken`] which can be used to terminate all attached
 //! [crate::component::Component][crate::component::Component].
 //!
 //! We expect in the future to offer topologically aware thread and memory resources, but for now the
@@ -95,7 +95,7 @@ impl Runtime {
         self.cancellation_token.clone()
     }
 
-    /// Creates a child [`CancellationToken`] tied to the lifecycle of the [`Runtime`]'s root [`CancellationToken::child_token`] method.
+    /// Creates a child [`CancellationToken`] tied to the life-cycle of the [`Runtime`]'s root [`CancellationToken::child_token`] method.
     pub fn child_token(&self) -> CancellationToken {
         self.cancellation_token.child_token()
     }

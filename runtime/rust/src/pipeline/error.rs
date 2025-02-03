@@ -59,10 +59,10 @@ pub enum PipelineError {
     #[error("SegmentSink is not connected to an EgressPort")]
     NoNetworkEdge,
 
-    /// In the interim between when a request was made and when the stream was receieved, the
+    /// In the interim between when a request was made and when the stream was received, the
     /// requesting task was dropped. This maybe a logic error in the pipeline; and become a
-    /// panic/fatal error in the future. This error is thrown when the on_data method of a
-    /// terminating sink either cannot find the oneshot channel sender or the corresponding
+    /// panic/fatal error in the future. This error is thrown when the `on_data` method of a
+    /// terminating sink either cannot find the `oneshot` channel sender or the corresponding
     /// receiver was dropped
     #[error("Unlinked request; initiating request task was dropped or cancelled")]
     DetatchedStreamReceiver,

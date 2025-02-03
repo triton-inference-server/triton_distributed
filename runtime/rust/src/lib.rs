@@ -72,7 +72,7 @@ pub struct DistributedRuntime {
     nats_client: transports::nats::Client,
     tcp_server: Arc<OnceCell<Arc<transports::tcp::server::TcpStreamServer>>>,
 
-    // local registery for components
+    // local registry for components
     // the registry allows us to use share runtime resources across instances of the same component object.
     // take fo example two instances of a client to the same remote component. The registry allows us to use
     // a single endpoint watcher for both clients, this keeps the number background tasking watching specific

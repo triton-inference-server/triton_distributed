@@ -144,7 +144,7 @@ where
 
         let msg = TwoPartMessage::from_parts(ctrl.into(), data.into());
 
-        // the request plane / work queue shoudl provide a two part message codec that can be used
+        // the request plane / work queue should provide a two part message codec that can be used
         // or it should take a two part message directly
         // todo - update this
         let codec = TwoPartCodec::default();

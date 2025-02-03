@@ -21,15 +21,15 @@
 //! that can be accessed by other [Component][Component] in the distributed application.
 //!
 //! A [Component] is made discoverable by registering it with the distributed runtime under
-//! a [Namespace].
+//! a [`Namespace`].
 //!
-//! A [Namespace] is a logical grouping of [Component][Component] that are grouped together.
+//! A [`Namespace`] is a logical grouping of [Component][Component] that are grouped together.
 //!
 //! We might extend namespace to include grouping behavior, which would define groups of
 //! components that are tightly coupled.
 //!
 //! A [Component] is the core building block of a distributed application. It is a logical
-//! unit of work such as a Preprocessor or SmartRouter that has a well-defined role in the
+//! unit of work such as a `Preprocessor` or `SmartRouter` that has a well-defined role in the
 //! distributed application.
 //!
 //! A [Component] can present to the distributed application one or more configuration files
@@ -85,7 +85,7 @@ pub struct ComponentEndpointInfo {
     pub transport: TransportType,
 }
 
-/// A [Component] a discoverable entity in the distrubuted runtime.
+/// A [Component] a discoverable entity in the distributed runtime.
 /// You can host [Endpoint][Endpoint] on a [Component] by first creating
 /// a [Service] then adding one or more [Endpoint][Endpoint] to the [Service].
 ///
@@ -125,7 +125,7 @@ impl Component {
         }
     }
 
-    /// Get keys from etcd on the slug, spliting the endpoints and only returning the
+    /// Get keys from etcd on the slug, splitting the endpoints and only returning the
     /// set of unique endpoints.
     pub async fn list_endpoints(&self) -> Vec<Endpoint> {
         unimplemented!("endpoints")
@@ -133,7 +133,7 @@ impl Component {
 
     /// This method will scrape the stats for all available services
     /// Returns a stream of [`ServiceInfo`] objects.
-    /// This should be consumed by a `[tokio::time::timeout_at`] becasue each services
+    /// This should be consumed by a `[tokio::time::timeout_at`] because each services
     /// will only respond once, but there is no way to know when all services have responded.
     pub async fn stats_stream(&self) -> Result<()> {
         unimplemented!("collect_stats")

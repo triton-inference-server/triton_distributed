@@ -14,7 +14,7 @@
  * the License.
  */
 
-/// In a Pipeline, the [`AsyncEngine`] is constrainted to take a [`Context`] as input and return
+/// In a Pipeline, the [`AsyncEngine`] is constrained to take a [`Context`] as input and return
 /// a [`super::engine::ResponseStream`] as output.
 use serde::{Deserialize, Serialize};
 
@@ -37,11 +37,11 @@ pub use anyhow::Error;
 pub use context::Context;
 pub use error::{PipelineError, PipelineErrorExt, TwoPartCodecError};
 
-/// Pipeline inputs carry a [`Context`] which can be used to carry metadata or additional informationa
+/// Pipeline inputs carry a [`Context`] which can be used to carry metadata or additional information
 /// about the request. This information propagates through the stages, both local and distributed.
 pub type SingleIn<T> = Context<T>;
 
-/// Pipeline inputs carry a [`Context`] which can be used to carry metadata or additional informationa
+/// Pipeline inputs carry a [`Context`] which can be used to carry metadata or additional information
 /// about the request. This information propagates through the stages, both local and distributed.
 pub type ManyIn<T> = Context<DataStream<T>>;
 
@@ -56,15 +56,15 @@ pub type ServiceEngine<T, U> = Engine<T, U, Error>;
 /// Unary Engine is a pipeline that takes a single input and returns a single output
 pub type UnaryEngine<T, U> = ServiceEngine<SingleIn<T>, SingleOut<U>>;
 
-/// ClientStreaming Engine is a pipeline that takes multiple inputs and returns a single output
+/// `ClientStreaming` Engine is a pipeline that takes multiple inputs and returns a single output
 /// Typically the engine will consume the entire input stream; however, it can also decided to exit
 /// early and emit a response without consuming the entire input stream.
 pub type ClientStreamingEngine<T, U> = ServiceEngine<ManyIn<T>, SingleOut<U>>;
 
-/// ServerStreaming takes a single input and returns multiple outputs.
+/// `ServerStreaming` takes a single input and returns multiple outputs.
 pub type ServerStreamingEngine<T, U> = ServiceEngine<SingleIn<T>, ManyOut<U>>;
 
-/// BidirectionalStreaming takes multiple inputs and returns multiple outputs. Input and output values
+/// `BidirectionalStreaming` takes multiple inputs and returns multiple outputs. Input and output values
 /// are considered independent of each other; however, they could be constrained to be related.
 pub type BidirectionalStreamingEngine<T, U> = ServiceEngine<ManyIn<T>, ManyOut<U>>;
 

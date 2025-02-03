@@ -192,7 +192,7 @@ impl ResponseService for TcpStreamServer {
     /// we make it into register sender and register receiver, both would return a connection object
     /// and when a connection is established, we'd get the respective sender or receiver
     ///
-    /// the registation probably needs to be done in one-go, so we should use a builder object for
+    /// the registration probably needs to be done in one-go, so we should use a builder object for
     /// requesting a receiver and optional sender
     async fn register(&self, options: StreamOptions) -> PendingConnections {
         // oneshot channels to pass back the sender and receiver objects
@@ -433,7 +433,7 @@ async fn tcp_listener(
 
         // monitor task
         // if the context is cancelled, we need to forward the message across the transport layer
-        // we only termine the forwarding task on a kill signal, on a stop signal, we issue the stop signal, then await for the producer
+        // we only determine the forwarding task on a kill signal, on a stop signal, we issue the stop signal, then await for the producer
         // to naturally close the stream
         let monitor_task = tokio::spawn(monitor(writer, context.clone(), alive_tx));
 

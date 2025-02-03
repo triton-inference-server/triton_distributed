@@ -28,7 +28,7 @@
 //!
 //! An [`PipelineOperator`] is a node that can transform both the forward and backward paths using the
 //! logic supplied by the implementation of an [`Operator`] trait. Because the [`PipelineOperator`] is
-//! both a [`Source`] and a [`Sink`] of the forward request path and the backward response path respectivly,
+//! both a [`Source`] and a [`Sink`] of the forward request path and the backward response path respectively,
 //! i.e. it is two sources and two sinks. We can differentiate the two by using the [`PipelineOperator::forward_edge`]
 //! and [`PipelineOperator::backward_edge`] methods.
 //!

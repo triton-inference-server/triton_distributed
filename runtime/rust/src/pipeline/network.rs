@@ -41,7 +41,7 @@ use super::{
 pub trait Codable: PipelineIO + Serialize + for<'de> Deserialize<'de> {}
 impl<T: PipelineIO + Serialize + for<'de> Deserialize<'de>> Codable for T {}
 
-/// WorkQueueConsumer is a generic interface for a work queue that can be used to send and receive
+/// `WorkQueueConsumer` is a generic interface for a work queue that can be used to send and receive
 #[async_trait]
 pub trait WorkQueueConsumer {
     async fn dequeue(&self) -> Result<Bytes, String>;
@@ -54,12 +54,12 @@ pub enum StreamType {
     Response,
 }
 
-/// This is the first message in a ResponseStream. This is not a message that gets process
+/// This is the first message in a `ResponseStream`. This is not a message that gets process
 /// by the general pipeline, but is a control message that is awaited before the
 /// [`AsyncEngine::generate`] method is allowed to return.
 ///
 /// If an error is present, the [`AsyncEngine::generate`] method will return the error instead
-/// of returning the ResponseStream.
+/// of returning the `ResponseStream`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ResponseStreamPrologue {
     error: Option<String>,
@@ -105,7 +105,7 @@ impl PendingConnections {
     }
 }
 
-/// A [`ResponseService`] implments a services in which a context a specific subject with will
+/// A [`ResponseService`] implements a services in which a context a specific subject with will
 /// be associated with a stream of responses. The key difference between a [`ResponseService`]
 /// and a [`RequestService`] is that the [`ResponseService`] is the awaits an explicit connection
 /// to be established, where as a [`RequestService`] has no known knowledge about incoming

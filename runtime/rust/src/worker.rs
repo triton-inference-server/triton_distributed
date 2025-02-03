@@ -22,8 +22,8 @@
 //! #[triton::main] or similar.
 //!
 //! The [Worker::execute] method is designed to be called once from main and will block
-//! the calling thread until the application completes or is cancelled. The method initialized
-//! the signal handler used to trap SIGINT and SIGTERM signals and trigger a graceful shutdown.
+//! the calling thread until the application completes or is canceled. The method initialized
+//! the signal handler used to trap `SIGINT` and `SIGTERM` signals and trigger a graceful shutdown.
 //!
 //! On termination, the user application is given a graceful shutdown period of controlled by
 //! the [TRITON_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT] environment variable. If the application does not
@@ -44,7 +44,7 @@ static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
 static INIT: OnceCell<Mutex<Option<tokio::task::JoinHandle<Result<()>>>>> = OnceCell::new();
 
 const SHUTDOWN_MESSAGE: &str =
-    "Application recieved shutdown signal; attempting to gracefully shutdown";
+    "Application received shutdown signal; attempting to gracefully shutdown";
 const SHUTDOWN_TIMEOUT_MESSAGE: &str =
     "Use TRITON_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT to control the graceful shutdown timeout";
 

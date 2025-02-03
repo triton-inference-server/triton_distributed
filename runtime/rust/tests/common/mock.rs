@@ -79,7 +79,7 @@ enum MockNetworkDataPlaneHeaders {
     // note: for transports like nats where the subscriber could
     // be left dangling, we will also want to have a keep alive
     // and a timeout mechanism
-    Sentinal,
+    Sentinel,
 
     // heart beat / keep-alive signal to maintain the connection
     HeartBeat,
@@ -174,7 +174,7 @@ where
 
         // subscribe to the response stream
         // but in this case, we are doing a mock, so we are going to be more explicit
-        // since we are transfering data over a channel instead of the networ, creating the channel
+        // since we are transferring data over a channel instead of the networ, creating the channel
         // is the same as subscribing to the response stream
         let (data_tx, data_rx) = mpsc::channel::<DataPlaneMessage>(16);
         let mut byte_stream = tokio_stream::wrappers::ReceiverStream::new(data_rx);
@@ -251,7 +251,7 @@ where
             None => {
                 // todo(metrics): increment metric counter for failed requests
                 Err(PipelineError::ControlPlaneRequestError(
-                    "Failed data plane connection closed before receieving handshake".to_string(),
+                    "Failed data plane connection closed before receiving handshake".to_string(),
                 ))?;
             }
         }
@@ -271,11 +271,11 @@ where
                             // this is a good place to send a heartbeat to the control plane
                             // to keep the connection alive
                         }
-                        MockNetworkDataPlaneHeaders::Sentinal => {
-                            // todo(metrics): increment metric counter for sentinals
+                        MockNetworkDataPlaneHeaders::Sentinel => {
+                            // todo(metrics): increment metric counter for sentinels
                             // the stream has ended
-                            // send a sentinal to the control plane
-                            // this is a good place to send a sentinal to the control plane
+                            // send a sentinel to the control plane
+                            // this is a good place to send a sentinel to the control plane
                             // to indicate the end of the stream
                             return futures::future::ready(None);
                         }
@@ -291,9 +291,9 @@ where
             });
 
         // cancellation can be tricky and is transport / protocol specific
-        // in this case, our control plane channel for the is both orded and 1:1, thus we can
+        // in this case, our channel for this is both ordered and 1:1, thus we can
         // use that fact to first send the request, then forward any cancellation requests
-        // this ensure the downstream node should register the context/request id before any
+        // this ensures the downstream node should register the context/request id before any
         // cancellation requests are sent
 
         // create the cancellation monitor object
@@ -448,7 +448,7 @@ where
 //     format!("Failed to deserialize request [id: {}]: {}", id, e)
 // }
 
-/// Object transfered to the Cancellation Monitor Task
+/// Object transferred to the Cancellation Monitor Task
 ///
 /// The cancellation monitor task will be responsible for taking action on a
 /// cancellation request.

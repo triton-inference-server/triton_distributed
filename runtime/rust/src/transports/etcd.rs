@@ -58,13 +58,13 @@ impl Lease {
     }
 
     /// Get the primary [`CancellationToken`] associated with the lease.
-    /// This token will revoke the lease if cancelled.
+    /// This token will revoke the lease if canceled.
     pub fn primary_token(&self) -> CancellationToken {
         self.cancel_token.clone()
     }
 
     /// Get a child [`CancellationToken`] from the lease's [`CancellationToken`].
-    /// This child token will be triggered if the lease is revoked, but will not revoke the lease if cancelled.
+    /// This child token will be triggered if the lease is revoked, but will not revoke the lease if canceled.
     pub fn child_token(&self) -> CancellationToken {
         self.cancel_token.child_token()
     }

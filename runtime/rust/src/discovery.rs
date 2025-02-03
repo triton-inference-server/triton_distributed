@@ -75,7 +75,7 @@ impl DiscoveryClient {
     // /// - Multiple members sharing the lease and contributing to the heartbeat might cause some overheads.
     // ///   The implementation will try to randomize the heartbeat intervals to avoid thundering herd problem,
     // ///   and with any luck, the heartbeat watchers will be able to detect when if a external member triggered
-    // ///   the heartbeat checking this interval and skip unnecesary heartbeat messages.
+    // ///   the heartbeat checking this interval and skip unnecessary heartbeat messages.
     // ///
     // /// A new lease will be created for this object. If you wish to add an object to a shared group s
     // ///

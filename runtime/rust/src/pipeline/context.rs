@@ -19,9 +19,9 @@
 //! There are two context object defined in this module:
 //!
 //! - [`Context`] is an input context which is propagated through the processing pipeline,
-//!    upto the point where the input is pass to an [`nim_llm_async_engine::AsyncEngine`] for processing.
-//! - [`StreamContext`] is the input context tranformed into to a type erased context that maintains the inputs
-//!   registry and vistors. StreamAdaptors will amend themselves to the [`StreamContext`] to allow for the
+//!    up to the point where the input is pass to an [`nim_llm_async_engine::AsyncEngine`] for processing.
+//! - [`StreamContext`] is the input context transformed into to a type erased context that maintains the inputs
+//!   registry and visitors. `StreamAdaptors` will amend themselves to the [`StreamContext`] to allow for the
 
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;

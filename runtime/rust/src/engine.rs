@@ -57,7 +57,7 @@ pub trait AsyncEngineContext: Send + Sync + Debug {
     /// the stream.
     ///
     /// An ideal location for a `[.take_while(!ctx.is_killed())]` stream combinator is on
-    /// the most downstream sinks's return stream.
+    /// the most downstream  return stream.
     fn is_killed(&self) -> bool;
 
     /// Calling this method when [`AsyncEngineContext::is_stopped`] is `true` will return
@@ -80,7 +80,7 @@ pub trait AsyncEngineContext: Send + Sync + Debug {
     fn stop(&self);
 
     /// Extends the [`AsyncEngineContext::stop_generating`] also indicates a preference to
-    /// terminate without draining the remaining items in the stream. This is implmentation
+    /// terminate without draining the remaining items in the stream. This is implementation
     /// specific and may not be supported by all engines.
     fn kill(&self);
 }
@@ -109,7 +109,7 @@ pub trait AsyncEngine<Req: Data, Resp: Data + AsyncEngineContextProvider, E: Dat
     async fn generate(&self, request: Req) -> Result<Resp, E>;
 }
 
-/// Adaptor for a [`DataStream`] to a [`ResponseStream`].
+/// Adapter for a [`DataStream`] to a [`ResponseStream`].
 ///
 /// A common pattern is to consume the [`ResponseStream`] with standard stream combinators
 /// which produces a [`DataStream`] stream, then form a [`ResponseStream`] by propagating the

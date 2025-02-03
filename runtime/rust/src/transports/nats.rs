@@ -593,7 +593,7 @@ mod tests {
 }
 // let frontend_client = client.frontend_client("test".to_string());
 
-//     // the represents the frontend resposne subscription
+//     // the represents the frontend response subscription
 //     let mut frontend_sub = frontend_client
 //         .subscribe()
 //         .await

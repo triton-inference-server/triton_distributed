@@ -88,7 +88,7 @@ impl RuntimeConfig {
 
     /// Load the runtime configuration from the environment and configuration files
     /// Configuration is priorities in the following order, where the last has the lowest priority:
-    /// 1. Environment variables (top proirity)
+    /// 1. Environment variables (top priority)
     /// 2. /opt/triton/etc/runtime.toml
     /// 3. /opt/triton/defaults/runtime.toml (lowest priority)
     ///

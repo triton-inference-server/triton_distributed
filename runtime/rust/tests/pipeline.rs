@@ -31,7 +31,8 @@ pub enum Annotated<T: Data> {
     Error(String),
 
     /// A sentinel value to indicate the end of the stream. This should not be emitted publicly.
-    /// The implementation should to the eqivalent of a `.take_while` to stop if detected.
+    /// The implementation should be able to do the equivalent of a `.take_while` and trigger a
+    /// stop if detected.
     End,
 }
 
