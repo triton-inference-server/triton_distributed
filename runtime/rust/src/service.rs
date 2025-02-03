@@ -15,7 +15,6 @@
  */
 
 // TODO - refactor this entire module
-// this was pulled from nim_llm_common
 //
 // we want to carry forward the concept of live vs ready for the components
 // we will want to associate the components cancellation token with the
