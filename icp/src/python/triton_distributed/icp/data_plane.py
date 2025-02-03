@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Abstract Class for interacting with Triton Inference Serving Platform Inter-Component Protocol Data Plane"""
+"""Abstract Class for interacting with Triton Distributed Inter-Component Protocol Data Plane"""
 
 import abc
 import uuid
@@ -21,28 +21,12 @@ from typing import Optional, Sequence
 
 import cupy
 import numpy
-from tritonserver import (
-    DataType,
-    InvalidArgumentError,
-    MemoryBuffer,
-    MemoryType,
-    Tensor,
-)
-from tritonserver._api._datautils import (
-    STRING_TO_TRITON_MEMORY_TYPE,
-    TRITON_TO_NUMPY_DTYPE,
-)
-from tritonserver._c.triton_bindings import (
-    TRITONSERVER_DataTypeString as DataTypeString,
-)
-from tritonserver._c.triton_bindings import (
-    TRITONSERVER_MemoryTypeString as MemoryTypeString,
-)
-from tritonserver._c.triton_bindings import (
-    TRITONSERVER_StringToDataType as StringToDataType,
-)
 
+from triton_distributed.icp.data_type import DATA_TYPE_TO_NUMPY_DTYPE, DataType
+from triton_distributed.icp.memory_buffer import MemoryBuffer
+from triton_distributed.icp.memory_type import MemoryType
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
+from triton_distributed.icp.tensor import Tensor
 
 
 class DataPlaneError(Exception):
@@ -73,13 +57,13 @@ def set_icp_data_type(
     message: ModelInferRequest.InferInputTensor | ModelInferResponse.InferOutputTensor,
     value: DataType,
 ) -> None:
-    message.datatype = DataTypeString(value)
+    message.datatype = value.name
 
 
 def get_icp_data_type(
     message: ModelInferRequest.InferInputTensor | ModelInferResponse.InferOutputTensor,
 ) -> DataType:
-    return StringToDataType(message.datatype)
+    return DataType(message.datatype)
 
 
 def set_icp_tensor_uri(
@@ -116,7 +100,7 @@ def set_icp_memory_type(
     message: ModelInferRequest.InferInputTensor | ModelInferResponse.InferOutputTensor,
     value: MemoryType,
 ) -> None:
-    message.parameters[ICP_MEMORY_TYPE].string_param = MemoryTypeString(value)
+    message.parameters[ICP_MEMORY_TYPE].string_param = value.name
 
 
 def get_icp_memory_type(
@@ -124,9 +108,7 @@ def get_icp_memory_type(
 ) -> MemoryType | None:
     if ICP_MEMORY_TYPE not in message.parameters:
         return None
-    return STRING_TO_TRITON_MEMORY_TYPE[
-        message.parameters[ICP_MEMORY_TYPE].string_param
-    ]
+    return MemoryType(message.parameters[ICP_MEMORY_TYPE].string_param)
 
 
 def set_icp_memory_type_id(
@@ -163,9 +145,7 @@ def set_icp_tensor_contents(
             with cupy.cuda.Device(tensor.memory_buffer.memory_type_id):
                 array = cupy.from_dlpack(tensor)
         else:
-            raise InvalidArgumentError(
-                f"Invalid Tensor Memory Type {tensor.memory_type}"
-            )
+            raise ValueError(f"Invalid Tensor Memory Type {tensor.memory_type}")
         message.contents.bytes_contents.append(array.tobytes())
 
 
@@ -193,7 +173,7 @@ def get_icp_tensor_contents(
         array = numpy.array(
             numpy.frombuffer(
                 message.contents.bytes_contents[0],
-                dtype=TRITON_TO_NUMPY_DTYPE[datatype],
+                dtype=DATA_TYPE_TO_NUMPY_DTYPE[datatype],
             )
         )
         tensor = Tensor(datatype, shape, MemoryBuffer.from_dlpack(array))
