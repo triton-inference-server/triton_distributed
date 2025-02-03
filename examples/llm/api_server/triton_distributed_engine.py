@@ -16,6 +16,7 @@ import asyncio
 from typing import AsyncIterator
 
 from engine.engine import LLMEngine
+from llm.api_server.chat_tensorrtllm import ChatHandlerTensorrtLLM
 from llm.api_server.chat_vllm import ChatHandlerVllm
 from llm.api_server.remote_model_connector import RemoteModelConnector
 from schemas.openai import (
@@ -26,6 +27,32 @@ from schemas.openai import (
     Model,
     ObjectType,
 )
+
+
+class TritonDistributedTensorrtLLMChatHandler(ChatHandlerTensorrtLLM):
+    def __init__(
+        self, triton_connector: RemoteModelConnector, model_name: str, tokenizer: str
+    ):
+        super().__init__(triton_connector, model_name, tokenizer)
+
+    # Request / response format can vary between frontends, so allow override
+    # of adaptor functions accordingly.
+    def stream_response_adaptor(self, response_stream):
+        async def adaptor_stream():
+            async for response in response_stream():
+                if isinstance(response, Exception):
+                    raise response
+                else:
+                    # Already in SSE String format
+                    yield response
+
+        return adaptor_stream
+
+    def response_adaptor(self, response):
+        return response
+
+    def exception_adaptor(self, exception):
+        raise exception
 
 
 class TritonDistributedChatHandler(ChatHandlerVllm):
@@ -62,6 +89,7 @@ class TritonDistributedEngine(LLMEngine):
         data_plane_port: int,
         model_name: str,
         tokenizer: str,
+        backend: str,
     ):
         self.triton_connector = RemoteModelConnector(
             nats_url=nats_url,
@@ -71,10 +99,15 @@ class TritonDistributedEngine(LLMEngine):
             keep_dataplane_endpoints_open=True,
         )
 
-        # FIXME: Consider supporting multiple or per-model tokenizers
-        self.request_handler = TritonDistributedChatHandler(
-            self.triton_connector, model_name, tokenizer
-        )
+        if not backend or backend == "vllm":
+            # FIXME: Consider supporting multiple or per-model tokenizers
+            self.request_handler = TritonDistributedChatHandler(
+                self.triton_connector, model_name, tokenizer
+            )
+        else:
+            self.request_handler = TritonDistributedTensorrtLLMChatHandler(
+                self.triton_connector, model_name, tokenizer
+            )
 
     async def chat(
         self, request: CreateChatCompletionRequest

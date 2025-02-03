@@ -96,7 +96,14 @@ of simple workers to load balance requests from a local work queue.
 
 ## LLM
 
-[LLM](./examples/llm/vllm)
+[TENSORRTLLM](./examples/llm/tensorrtllm)
+
+An intermediate example expanding further on the concepts indroduced
+in the Hello World example. In this example, we demonstrate
+[Disaggregated Serving](https://arxiv.org/abs/2401.09670)
+as an application of the components defined in Triton Distributed.
+
+[VLLM](./examples/llm/vllm)
 
 An intermediate example expanding further on the concepts indroduced
 in the Hello World example. In this example, we demonstrate

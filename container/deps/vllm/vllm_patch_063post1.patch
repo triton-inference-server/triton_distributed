@@ -537,7 +537,7 @@ diff -Naur v0.6.3.post1_vllm/worker/model_runner.py patched_vllm/worker/model_ru
 +    def init_kv_cache_handler(self) -> None:
 +        if envs.VLLM_DISAGG_STAGE is not None:
 +            self._kv_cache_handler = get_kv_cache_handler()
-+            torch.distributed.barrier()
++            # torch.distributed.barrier() # TODO ptarasiewicz check why this is raising NCCL errors
 +
      def _update_inputs_to_capture_for_enc_dec_model(self,
                                                      capture_inputs: Dict[str,
