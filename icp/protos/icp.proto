@@ -17,6 +17,8 @@ syntax = "proto3";
 
 package triton.distributed.icp;
 
+import "google/protobuf/timestamp.proto";
+
 //@@
 //@@.. cpp:var:: message ModelInferRequest
 //@@
