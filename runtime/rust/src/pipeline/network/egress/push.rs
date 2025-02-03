@@ -14,14 +14,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-#![allow(unused_variables)]
 
 use anyhow::Result;
+use async_nats::client::Client;
 use tracing as log;
 
 use super::*;
-
-use async_nats::client::Client;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -156,11 +154,10 @@ where
 
         // we might need to add a timeout on this if there is no subscriber to the subject; however, I think nats
         // will handle this for us
-        let response = self
+        let _response = self
             .req_transport
             .request(address.to_string(), buffer)
-            .await
-            .unwrap();
+            .await?;
 
         log::trace!("[req: {}] awaiting transport handshake", id);
         let response_stream = response_stream_provider

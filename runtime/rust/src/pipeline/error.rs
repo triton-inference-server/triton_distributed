@@ -67,7 +67,7 @@ pub enum PipelineError {
     #[error("Unlinked request; initiating request task was dropped or cancelled")]
     DetatchedStreamReceiver,
 
-    // In the interim between when a response was made and when the stream was receieved, the
+    // In the interim between when a response was made and when the stream was received, the
     // Sender for the stream was dropped. This maybe a logic error in the pipeline; and become a
     // panic/fatal error in the future.
     #[error("Unlinked response; response task was dropped or cancelled")]
