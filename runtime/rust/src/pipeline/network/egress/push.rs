@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 /*
  * Copyright 2024-2025 NVIDIA CORPORATION & AFFILIATES
  *
