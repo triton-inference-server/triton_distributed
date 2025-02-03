@@ -20,9 +20,12 @@ import os
 import uuid
 from typing import Optional
 
+import tritonserver
 from google.protobuf import json_format, text_format
 from tritonclient.grpc import model_config_pb2
-from tritonserver import InvalidArgumentError, Server
+from tritonserver import InvalidArgumentError
+from tritonserver import Server as TritonCore
+from tritonserver._api._response import InferenceResponse
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
@@ -37,12 +40,12 @@ class TritonCoreOperator(Operator):
         self,
         name: str,
         version: int,
-        triton_core: Server,
         request_plane: RequestPlane,
         data_plane: DataPlane,
         parameters: dict,
         repository: Optional[str] = None,
         logger: logging.Logger = get_logger(__name__),
+        triton_core: TritonCore = None,
     ):
         self._repository = repository
         self._name = name
@@ -90,13 +93,71 @@ class TritonCoreOperator(Operator):
             model_config = None
         self._local_model = self._triton_core.load(self._name, model_config)
 
+    @staticmethod
+    def _remote_request_to_local_request(
+        request: RemoteInferenceRequest, model: tritonserver.Model
+    ):
+        local_request = model.create_request()
+        if request.request_id is not None:
+            local_request.request_id = request.request_id
+        if request.priority is not None:
+            local_request.priority = request.priority
+        if request.timeout is not None:
+            local_request.timeout = request.timeout
+
+        if request.correlation_id is not None:
+            local_request.correlation_id = request.correlation_id
+        TritonCoreOperator._set_local_request_inputs(request, local_request)
+        TritonCoreOperator._set_local_request_parameters(request, local_request)
+
+        return local_request
+
+    @staticmethod
+    def _set_local_request_inputs(
+        request: RemoteInferenceRequest, local_request: tritonserver.InferenceRequest
+    ):
+        for input_name, remote_tensor in request.inputs.items():
+            local_request.inputs[input_name] = remote_tensor.local_tensor
+
+    @staticmethod
+    def _set_local_request_parameters(
+        request: RemoteInferenceRequest, local_request: tritonserver.InferenceRequest
+    ):
+        for parameter_name, parameter_value in request.parameters.items():
+            local_request.parameters[parameter_name] = parameter_value
+
+    @staticmethod
+    def _local_response_to_remote_response(
+        local_response: InferenceResponse, store_outputs_in_response: bool = False
+    ):
+        result = RemoteInferenceResponse(
+            local_response.model.name,
+            local_response.model.version,
+            None,
+            local_response.request_id,
+            final=local_response.final,
+        )
+
+        for tensor_name, tensor_value in local_response.outputs.items():
+            result.outputs[tensor_name] = tensor_value
+            if store_outputs_in_response:
+                result.store_outputs_in_response.add(tensor_name)
+
+        for parameter_name, parameter_value in local_response.parameters.items():
+            result.parameters[parameter_name] = parameter_value
+
+        result.error = local_response.error
+        return result
+
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
         request_id_map = {}
         response_queue: asyncio.Queue = asyncio.Queue()
         for request in requests:
             self._logger.debug("\n\nReceived request: \n\n%s\n\n", request)
             try:
-                local_request = request.to_local_request(self._local_model)
+                local_request = TritonCoreOperator._remote_request_to_local_request(
+                    request, self._local_model
+                )
             except Exception as e:
                 message = f"Can't resolve tensors for request, ignoring request,{e}"
                 self._logger.error(message)
@@ -118,7 +179,7 @@ class TritonCoreOperator(Operator):
         while request_id_map:
             local_response = await response_queue.get()
 
-            remote_response = RemoteInferenceResponse.from_local_response(
+            remote_response = TritonCoreOperator._local_response_to_remote_response(
                 local_response, self._store_outputs_in_response
             )
 

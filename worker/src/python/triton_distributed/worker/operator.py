@@ -19,7 +19,13 @@ import abc
 from dataclasses import dataclass, field
 from typing import Any, Optional, Type
 
-from tritonserver import Server
+try:
+    from tritonserver import Server as TritonCore
+
+    TRITON_CORE_AVAILABLE = True
+except ImportError:
+    TRITON_CORE_AVAILABLE = False
+    TritonCore = type(None)
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
@@ -32,7 +38,6 @@ class Operator(abc.ABC):
         self,
         name: str,
         version: int,
-        triton_core: Server,
         request_plane: RequestPlane,
         data_plane: DataPlane,
         parameters: Optional[dict[str, str | int | bool | bytes]] = field(
@@ -40,6 +45,7 @@ class Operator(abc.ABC):
         ),
         repository: Optional[str] = None,
         logger: Optional[Any] = None,
+        triton_core: Optional[TritonCore] = None,
     ):
         pass
 

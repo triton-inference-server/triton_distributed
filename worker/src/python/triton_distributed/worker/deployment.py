@@ -16,8 +16,6 @@ import multiprocessing
 from pprint import pformat
 from typing import Optional, Type
 
-from tritonserver import InvalidArgumentError
-
 from triton_distributed.icp import (
     DataPlane,
     NatsRequestPlane,
@@ -71,7 +69,7 @@ class Deployment:
             if self._default_request_plane == NatsRequestPlane:
                 self.request_plane_server = NatsServer(log_dir=self._default_log_dir)
             else:
-                raise InvalidArgumentError(
+                raise ValueError(
                     f"Unknown Request Plane Type, can not initialize {self._default_request_plane}"
                 )
 
