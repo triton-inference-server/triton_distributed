@@ -18,6 +18,7 @@ import logging
 import os
 import subprocess
 import time
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -28,9 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 NATS_PORT = 4223
-TEST_API_SERVER_MODEL_REPO_PATH = (
-    "/workspace/worker/tests/python/integration/api_server/models"
-)
+TEST_API_SERVER_MODEL_REPO_PATH = "integration/api_server/models"
 
 
 def pytest_addoption(parser):
@@ -64,7 +63,11 @@ def nats_server(log_dir):
 
 @pytest.fixture(scope="session")
 def api_server(log_dir):
-    command = ["tritonserver", "--model-store", str(TEST_API_SERVER_MODEL_REPO_PATH)]
+    command = [
+        "tritonserver",
+        "--model-store",
+        str(Path(__file__).parent.resolve() / TEST_API_SERVER_MODEL_REPO_PATH),
+    ]
     api_server_log_dir = log_dir / "api_server"
     os.makedirs(api_server_log_dir, exist_ok=True)
     with open(api_server_log_dir / "api_server.stdout.log", "wt") as output_:
