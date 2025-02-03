@@ -35,9 +35,9 @@ from triton_distributed.runtime.worker import WorkerConfig
 
 NATS_PORT = 4223
 MODEL_REPOSITORY = (
-    "/workspace/worker/tests/python/integration/operators/triton_core_models"
+    "/workspace/runtime/tests/python/integration/operators/triton_core_models"
 )
-OPERATORS_REPOSITORY = "/workspace/worker/tests/python/integration/operators"
+OPERATORS_REPOSITORY = "/workspace/runtime/tests/python/integration/operators"
 TRITON_LOG_LEVEL = 6
 
 logger = get_logger(__name__)

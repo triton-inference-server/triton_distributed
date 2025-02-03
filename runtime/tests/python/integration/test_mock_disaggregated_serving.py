@@ -41,9 +41,9 @@ from triton_distributed.runtime.worker import WorkerConfig
 
 NATS_PORT = 4223
 MODEL_REPOSITORY = (
-    "/workspace/worker/tests/python/integration/operators/triton_core_models"
+    "/workspace/runtime/tests/python/integration/operators/triton_core_models"
 )
-OPERATORS_REPOSITORY = "/workspace/worker/tests/python/integration/operators"
+OPERATORS_REPOSITORY = "/workspace/runtime/tests/python/integration/operators"
 TRITON_LOG_LEVEL = 6
 
 logger = get_logger(__name__)
@@ -249,7 +249,6 @@ async def send_kserve_requests(num_requests):
     inputs.append(grpcclient.InferInput("request_output_len", [1], "INT32"))
 
     user_data = UserData()
-
     with grpcclient.InferenceServerClient("localhost:8001") as client:
         client.start_stream(
             callback=partial(callback, user_data),
