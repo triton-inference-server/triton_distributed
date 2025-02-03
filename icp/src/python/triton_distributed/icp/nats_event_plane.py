@@ -64,7 +64,7 @@ class NatsEventPlane:
             component_id=self._component_id,
         )
 
-        metadata_serialized = event_metadata.model_dump_json().encode("utf-8")
+        metadata_serialized = event_metadata.to_raw()
         metadata_size = len(metadata_serialized).to_bytes(4, byteorder="big")
 
         # Concatenate metadata size, metadata, and event payload

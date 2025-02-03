@@ -12,15 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
+import dataclasses
+import json
 import re
 import uuid
 from abc import abstractmethod
 from datetime import datetime
 from typing import Any, AsyncIterator, Awaitable, Callable, List, Optional, Tuple, Union
-
-from pydantic import BaseModel
 
 
 def _validate_subjects(subjects: List[str]) -> bool:
@@ -35,7 +33,8 @@ def _validate_subjects(subjects: List[str]) -> bool:
     return all(pattern.match(subject) for subject in subjects)
 
 
-class Topic(BaseModel):
+@dataclasses.dataclass
+class Topic:
     """Event topic class for identifying event streams."""
 
     topic: str
@@ -60,20 +59,37 @@ class Topic(BaseModel):
         return self.topic
 
 
-class EventMetadata(BaseModel):
+@dataclasses.dataclass
+class EventMetadata:
     """
     Class keeps metadata of an event.
     """
 
     event_id: uuid.UUID
-    topic: Optional[Topic] = None
     event_type: str
     timestamp: datetime
     component_id: uuid.UUID
+    topic: Optional[Topic] = None
 
     @classmethod
     def from_raw(cls, event_metadata_serialized: bytes):
-        return cls.model_validate_json(event_metadata_serialized)
+        event_metadata_dict = json.loads(event_metadata_serialized.decode("utf-8"))
+        metadata = EventMetadata(
+            **{
+                **event_metadata_dict,
+                "topic": Topic(**event_metadata_dict["topic"])
+                if event_metadata_dict["topic"]
+                else None,
+                "event_id": uuid.UUID(event_metadata_dict["event_id"]),
+                "component_id": uuid.UUID(event_metadata_dict["component_id"]),
+                "timestamp": datetime.fromisoformat(event_metadata_dict["timestamp"]),
+            }
+        )
+        return metadata
+
+    def to_raw(self) -> bytes:
+        json_string = json.dumps(self.__dict__, indent=4)
+        return json_string.encode("utf-8")
 
 
 class EventPlane:
