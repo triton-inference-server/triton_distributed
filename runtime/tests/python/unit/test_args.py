@@ -15,7 +15,7 @@
 
 import pytest
 
-from triton_distributed.worker.parser import Parser
+from triton_distributed.runtime.parser import Parser
 
 """
 Tests for parsing the arguments by command line parser

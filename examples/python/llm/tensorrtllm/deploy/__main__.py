@@ -21,7 +21,7 @@ from pathlib import Path
 from llm.tensorrtllm.operators.disaggregated_serving import DisaggregatedServingOperator
 from llm.tensorrtllm.scripts.gpu_info import get_gpu_product_name
 
-from triton_distributed.worker import (
+from triton_distributed.runtime import (
     OperatorConfig,
     TritonCoreOperator,
     Worker,

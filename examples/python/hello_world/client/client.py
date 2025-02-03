@@ -22,7 +22,7 @@ from tqdm import tqdm
 from tritonserver import MemoryType
 
 from triton_distributed.icp import NatsRequestPlane, UcpDataPlane
-from triton_distributed.worker import RemoteOperator
+from triton_distributed.runtime import RemoteOperator
 
 
 def _get_input_sizes(args):

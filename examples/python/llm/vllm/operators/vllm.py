@@ -8,7 +8,7 @@ import numpy as np
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
-from triton_distributed.worker import (
+from triton_distributed.runtime import (
     Operator,
     RemoteInferenceRequest,
     RemoteInferenceResponse,

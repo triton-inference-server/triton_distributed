@@ -25,7 +25,7 @@ from tritonserver import MemoryType
 
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
-from triton_distributed.worker import (
+from triton_distributed.runtime import (
     Deployment,
     Operator,
     OperatorConfig,

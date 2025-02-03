@@ -27,7 +27,7 @@ from llm.api_server.connector import (
 from llm.api_server.remote_connector import RemoteConnector
 from tritonserver import DataType
 
-from triton_distributed.worker.remote_operator import RemoteOperator
+from triton_distributed.runtime.remote_operator import RemoteOperator
 
 
 class RemoteModelConnector(BaseTriton3Connector):

@@ -16,7 +16,7 @@
 
 import numpy
 
-from triton_distributed.worker import Operator, RemoteInferenceRequest
+from triton_distributed.runtime import Operator, RemoteInferenceRequest
 
 
 class Identity(Operator):

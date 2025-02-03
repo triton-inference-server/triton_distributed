@@ -16,7 +16,7 @@
 from frontend.fastapi_frontend import FastApiFrontend
 from llm.api_server.triton_distributed_engine import TritonDistributedEngine
 
-from triton_distributed.worker.logger import get_logger
+from triton_distributed.runtime.logger import get_logger
 
 from .parser import parse_args
 

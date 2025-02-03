@@ -16,9 +16,9 @@
 
 from tritonserver import TritonError
 
-from triton_distributed.worker.operator import Operator
-from triton_distributed.worker.remote_operator import RemoteOperator
-from triton_distributed.worker.remote_request import RemoteInferenceRequest
+from triton_distributed.runtime.operator import Operator
+from triton_distributed.runtime.remote_operator import RemoteOperator
+from triton_distributed.runtime.remote_request import RemoteInferenceRequest
 
 
 class MockDisaggregatedServing(Operator):

@@ -24,7 +24,7 @@ from llm.vllm.operators.vllm import (
     VllmOperator,
 )
 
-from triton_distributed.worker import Deployment, OperatorConfig, WorkerConfig
+from triton_distributed.runtime import Deployment, OperatorConfig, WorkerConfig
 
 from .parser import parse_args
 

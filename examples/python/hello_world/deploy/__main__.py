@@ -20,7 +20,7 @@ import sys
 import time
 from pathlib import Path
 
-from triton_distributed.worker import (
+from triton_distributed.runtime import (
     Deployment,
     OperatorConfig,
     TritonCoreOperator,

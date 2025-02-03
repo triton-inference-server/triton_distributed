@@ -17,7 +17,7 @@ import logging
 
 import pytest
 
-from triton_distributed.worker.logger import get_logger
+from triton_distributed.runtime.logger import get_logger
 
 logger = logging.getLogger(__name__)
 

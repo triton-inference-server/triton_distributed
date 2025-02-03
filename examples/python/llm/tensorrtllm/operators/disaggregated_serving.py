@@ -18,7 +18,7 @@ import json
 
 import numpy
 
-from triton_distributed.worker import (
+from triton_distributed.runtime import (
     RemoteInferenceRequest,
     RemoteOperator,
     TritonCoreOperator,

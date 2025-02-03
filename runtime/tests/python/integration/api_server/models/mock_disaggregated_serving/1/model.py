@@ -26,7 +26,7 @@ import ucp
 
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
-from triton_distributed.worker.remote_operator import RemoteOperator
+from triton_distributed.runtime.remote_operator import RemoteOperator
 
 
 class TritonPythonModel:

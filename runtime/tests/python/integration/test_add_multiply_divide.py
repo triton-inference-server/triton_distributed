@@ -25,12 +25,12 @@ from cupy_backends.cuda.api.runtime import CUDARuntimeError
 
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
-from triton_distributed.worker.deployment import Deployment
-from triton_distributed.worker.logger import get_logger
-from triton_distributed.worker.operator import OperatorConfig
-from triton_distributed.worker.remote_operator import RemoteOperator
-from triton_distributed.worker.triton_core_operator import TritonCoreOperator
-from triton_distributed.worker.worker import WorkerConfig
+from triton_distributed.runtime.deployment import Deployment
+from triton_distributed.runtime.logger import get_logger
+from triton_distributed.runtime.operator import OperatorConfig
+from triton_distributed.runtime.remote_operator import RemoteOperator
+from triton_distributed.runtime.triton_core_operator import TritonCoreOperator
+from triton_distributed.runtime.worker import WorkerConfig
 
 NATS_PORT = 4223
 MODEL_REPOSITORY = (
