@@ -23,18 +23,17 @@ from typing import Optional
 try:
     import tritonserver
     from tritonserver import DataType as TritonDataType
+    from tritonserver import InvalidArgumentError
     from tritonserver import MemoryBuffer as TritonMemoryBuffer
     from tritonserver import MemoryType as TritonMemoryType
     from tritonserver import Server as TritonCore
     from tritonserver import Tensor as TritonTensor
+    from tritonserver._api._response import InferenceResponse
 except ImportError as e:
     raise ImportError("Triton Core is not installed") from e
 
 from google.protobuf import json_format, text_format
 from tritonclient.grpc import model_config_pb2
-from tritonserver import InvalidArgumentError
-from tritonserver import Server as TritonCore
-from tritonserver._api._response import InferenceResponse
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
