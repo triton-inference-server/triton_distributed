@@ -2,7 +2,7 @@ import argparse
 import json
 import logging
 from dataclasses import field
-from typing import AsyncGenerator, List, Optional
+from typing import Any, AsyncGenerator, List, Optional
 
 import numpy as np
 
@@ -23,7 +23,6 @@ class VllmOperator(Operator):
         self,
         name: str,
         version: int,
-        triton_core,
         request_plane: RequestPlane,
         data_plane: DataPlane,
         parameters: Optional[dict[str, str | int | bool | bytes]] = field(
@@ -31,6 +30,7 @@ class VllmOperator(Operator):
         ),
         repository: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
+        triton_core: Optional[Any] = None,
     ):
         self.name = name
         self.version = version

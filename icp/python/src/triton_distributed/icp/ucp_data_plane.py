@@ -25,10 +25,8 @@ from urllib.parse import urlsplit
 
 import cupy
 import numpy
-import tritonserver
 import ucp
 from cupy_backends.cuda.api.runtime import CUDARuntimeError
-from tritonserver import InvalidArgumentError, MemoryBuffer, MemoryType, Tensor
 
 from triton_distributed.icp.data_plane import (
     DataPlane,
@@ -48,7 +46,11 @@ from triton_distributed.icp.data_plane import (
     set_icp_tensor_size,
     set_icp_tensor_uri,
 )
+from triton_distributed.icp.data_type import DataType
+from triton_distributed.icp.memory_buffer import MemoryBuffer
+from triton_distributed.icp.memory_type import MemoryType
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
+from triton_distributed.icp.tensor import Tensor
 
 LOGGER = logging.getLogger(__name__)
 
@@ -175,20 +177,18 @@ class _UcpDataPlane(DataPlane):
                 if tensor_id in self._tensor_store:
                     tensor = self._tensor_store[tensor_id]
                     array_module = numpy
-                    if tensor.memory_type == tritonserver.MemoryType.CPU:
+                    if tensor.memory_type == MemoryType.CPU:
                         array_module = numpy
                         device_manager = contextlib.nullcontext()
-                    elif tensor.memory_type == tritonserver.MemoryType.GPU:
+                    elif tensor.memory_type == MemoryType.GPU:
                         array_module = cupy
                         device_manager = cupy.cuda.Device(
                             tensor.memory_buffer.memory_type_id
                         )
                     else:
-                        raise InvalidArgumentError(
-                            f"Invalid Memory Type {tensor.memory_type}"
-                        )
+                        raise ValueError(f"Invalid Memory Type {tensor.memory_type}")
                     with device_manager:
-                        if tensor.data_type == tritonserver.DataType.BYTES:
+                        if tensor.data_type == DataType.BYTES:
                             array = tensor.memory_buffer.owner
                         else:
                             array = array_module.from_dlpack(tensor)
@@ -343,7 +343,7 @@ class _UcpDataPlane(DataPlane):
         if requested_memory_type is not None:
             memory_type = requested_memory_type
 
-        if memory_type == tritonserver.MemoryType.GPU and self._cuda_is_available:
+        if memory_type == MemoryType.GPU and self._cuda_is_available:
             array_module = cupy
             if requested_memory_type_id is not None:
                 device_manager = cupy.cuda.Device(requested_memory_type_id)

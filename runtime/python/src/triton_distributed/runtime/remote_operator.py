@@ -19,8 +19,6 @@ import asyncio
 import uuid
 from typing import Optional
 
-from tritonserver import InvalidArgumentError
-
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.runtime.remote_request import RemoteInferenceRequest
@@ -89,16 +87,14 @@ class RemoteOperator:
             inference_request.model_name = self.name
             inference_request.model_version = self.version
             if inference_request.data_plane != self.data_plane:
-                raise InvalidArgumentError(
+                raise ValueError(
                     "Data plane mismatch between remote request and remote operator: \n\n Operator: {self.data_plane} \n\n Request: {inference_request.data_plane}"
                 )
 
         if (inference_request.response_queue is not None) and (
             not isinstance(inference_request.response_queue, asyncio.Queue)
         ):
-            raise InvalidArgumentError(
-                "asyncio.Queue must be used for async response iterator"
-            )
+            raise ValueError("asyncio.Queue must be used for async response iterator")
         response_iterator = AsyncRemoteResponseIterator(
             self._data_plane,
             inference_request,

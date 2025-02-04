@@ -28,12 +28,12 @@ class Identity(Operator):
         self,
         name,
         version,
-        triton_core,
         request_plane,
         data_plane,
         params,
         repository,
         logger,
+        triton_core,
     ):
         self._triton_core = triton_core
         self._request_plane = request_plane

@@ -13,13 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Abstract Class for interacting with the Triton Inference Serving Platform Inter-Component Protocol Control Plane"""
+"""Abstract Class for interacting with the Triton Distributed Inter-Component Protocol Control Plane"""
 
 import abc
 import uuid
 from typing import AsyncIterator, Awaitable, Callable, Optional
-
-from tritonserver import TritonError
 
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 
@@ -31,6 +29,10 @@ ICP_RESPONSE_TO_URI = "icp_response_to_uri"
 ICP_REQUEST_TO_URI = "icp_request_to_uri"
 ICP_REQUEST_CANCELLED = "icp_request_cancelled"
 ICP_ERROR = "icp_response_error"
+
+
+class RequestPlaneError(Exception):
+    pass
 
 
 def get_icp_request_id(
@@ -47,13 +49,15 @@ def set_icp_request_id(
     message.parameters[ICP_REQUEST_ID].string_param = str(value)
 
 
-def get_icp_response_error(message: ModelInferResponse) -> TritonError | None:
+def get_icp_response_error(message: ModelInferResponse) -> RequestPlaneError | None:
     if ICP_ERROR not in message.parameters:
         return None
-    return TritonError(message.parameters[ICP_ERROR].string_param)
+    return RequestPlaneError(message.parameters[ICP_ERROR].string_param)
 
 
-def set_icp_response_error(message: ModelInferResponse, value: TritonError) -> None:
+def set_icp_response_error(
+    message: ModelInferResponse, value: RequestPlaneError
+) -> None:
     message.parameters[ICP_ERROR].string_param = str(value)
 
 
