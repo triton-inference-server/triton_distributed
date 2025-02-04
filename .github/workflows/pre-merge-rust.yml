@@ -19,14 +19,14 @@ on:
   # Always run this workflow when commits are pushed to main.
   push:
     branches:
-      - main
+    - main
 
   # Run this workflow on pull requests targeting main but only if files in runtime/rust change.
   pull_request:
     branches:
-      - main
+    - main
     paths:
-      - 'runtime/rust/**'
+    - 'runtime/rust/**'
 
 jobs:
   pre-merge-rust:
