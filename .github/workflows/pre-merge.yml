@@ -99,22 +99,27 @@ jobs:
       run: |
         sudo apt-get update -y
         sudo apt-get install -y protobuf-compiler
-    - name: Cache Rust build artifacts
-      uses: Swatinem/rust-cache@v2
+    - name: Cache Cargo Registry
+      uses: actions/cache@v3
       with:
-        workspaces: runtime/rust
-    - name: Set up Rust toolchain
-      uses: actions-rs/toolchain@v1
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    - name: Cache Cargo Target Directory
+      uses: actions/cache@v3
       with:
-        profile: minimal
-        toolchain: stable
-        components: rustfmt, clippy
-    - name: Run Pre-Merge Checks
+        path: runtime/rust/target
+        key: ${{ runner.os }}-cargo-target-${{ hashFiles('**/Cargo.lock') }}
+    - name: Set up Rust Toolchain Components
+      run: rustup component add rustfmt clippy
+    - name: Run Cargo Check
       working-directory: runtime/rust
-      run: |
-        cargo check --locked
-        cargo fmt -- --check
-        cargo clippy --no-deps --all-targets -- -D warnings
+      run: cargo check --locked
+    - name: Verify Code Formatting
+      working-directory: runtime/rust
+      run: cargo fmt -- --check
+    - name: Run Clippy Checks
+      working-directory: runtime/rust
+      run: cargo clippy --no-deps --all-targets -- -D warnings
     - name: Run Unit Tests
       working-directory: runtime/rust
-      run: cargo test --all-targets
+      run: cargo test --locked --all-targets
