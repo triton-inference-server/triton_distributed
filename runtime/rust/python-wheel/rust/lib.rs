@@ -380,6 +380,7 @@ impl AsyncResponseStream {
 
                         if annotated {
                             let object = Annotated { inner: pyobj };
+                            #[allow(deprecated)]
                             let object = Python::with_gil(|py| object.into_py(py));
                             return Ok(object);
                         } else {
