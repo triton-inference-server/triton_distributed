@@ -137,6 +137,29 @@ RUN rm -rf /etc/nginx/sites-enabled/default
 RUN apt-get install nvtop -y
 RUN apt-get install tmux -y
 
+# [FIXME] change naming to 'triton-distributed'
+# Install Rust and build nova-distributed wheel
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN . "$HOME/.cargo/env"
+
+# Rust 'triton-distributed' library dependency
+# [WIP] 'protobuf-compiler' safe? We already have a version of it somewhere
+RUN apt-get update && apt-get install -y libssl-dev pkg-config libhwloc-dev hwloc libudev-dev clang libclang-dev protobuf-compiler
+
+# [FIXME] build Rust library and bindings once the code is ready,
+# for now, the pre-built artifacts are used
+# cargo build --release
+# RUN git clone --single-branch --branch gluo/pyrouter ${GITLAB_DIR} nova-distributed
+# RUN pip install maturin[patchelf]
+# RUN cd nova-distributed/python-wheels/nova-distributed && maturin build
+# KV publisher C library
+# RUN cd nova-distributed/rust/libnova_llm/ && cargo build --release
+RUN pip install /workspace/triton-distributed/binding_package/wheels/nova_distributed*.whl
+
+# 'etcd' is runtime dependency
+RUN wget https://github.com/etcd-io/etcd/releases/download/v3.5.18/etcd-v3.5.18-linux-amd64.tar.gz && tar -xzf etcd-v3.5.18-linux-amd64.tar.gz
+RUN cp ./etcd-v3.5.18-linux-amd64/etcd* /usr/local/bin/.
+
 ##########################################################
 # Tokenizers                                             #
 ##########################################################
