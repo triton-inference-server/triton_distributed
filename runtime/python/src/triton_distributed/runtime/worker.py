@@ -182,12 +182,12 @@ class Worker:
                 operator = class_(
                     operator_config.name,
                     operator_config.version,
-                    self._triton_core,
                     self._request_plane,
                     self._data_plane,
                     operator_config.parameters,
                     operator_config.repository,
                     operator_logger,
+                    self._triton_core,
                 )
             except Exception as e:
                 logger.exception(

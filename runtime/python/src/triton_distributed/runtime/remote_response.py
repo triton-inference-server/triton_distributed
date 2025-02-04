@@ -27,6 +27,11 @@ from triton_distributed.icp.protos.icp_pb2 import ModelInferResponse
 if TYPE_CHECKING:
     from triton_distributed.runtime.remote_request import RemoteInferenceRequest
 
+try:
+    from tritonserver import Tensor as TritonTensor
+except ImportError as e:
+    TritonTensor = type(None)
+
 import uuid
 
 from triton_distributed.icp.request_plane import (
@@ -107,7 +112,7 @@ class AsyncRemoteResponseIterator:
 
         responses = server.model("test").async_infer(inputs={"fp16_input":numpy.array([[1]],dtype=numpy.float16)})
         async for response in responses:
-            print(nummpy.from_dlpack(response.outputs["fp16_output"]))
+            print(numpy.from_dlpack(response.outputs["fp16_output"]))
 
 
         """
@@ -251,7 +256,9 @@ class RemoteInferenceResponse:
     ):
         for name, value in self.outputs.items():
             if not isinstance(value, RemoteTensor):
-                if not isinstance(value, Tensor):
+                if not isinstance(value, Tensor) and not isinstance(
+                    value, TritonTensor
+                ):
                     tensor = Tensor._from_object(value)
                 else:
                     tensor = value

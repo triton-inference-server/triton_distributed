@@ -23,6 +23,10 @@ from typing import Optional
 try:
     import tritonserver
     from tritonserver import Server as TritonCore
+    from tritonserver import Tensor as TritonTensor
+    from tritonserver import DataType as TritonDataType
+    from tritonserver import MemoryBuffer as TritonMemoryBuffer
+    from tritonserver import MemoryType as TritonMemoryType
 except ImportError as e:
     raise ImportError("Triton Core is not installed") from e
 
@@ -33,12 +37,12 @@ from tritonserver import Server as TritonCore
 from tritonserver._api._response import InferenceResponse
 
 from triton_distributed.icp.data_plane import DataPlane
+from triton_distributed.icp.tensor import Tensor
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.runtime.logger import get_logger
 from triton_distributed.runtime.operator import Operator
 from triton_distributed.runtime.remote_request import RemoteInferenceRequest
 from triton_distributed.runtime.remote_response import RemoteInferenceResponse
-
 
 
 class TritonCoreOperator(Operator):
@@ -103,6 +107,20 @@ class TritonCoreOperator(Operator):
         self._local_model = self._triton_core.load(self._name, model_config)
 
     @staticmethod
+    def _to_triton_tensor(tensor: Tensor):
+        return TritonTensor(
+            TritonDataType(tensor.data_type),
+            tensor.shape,
+            TritonMemoryBuffer(
+                tensor.memory_buffer.data_ptr,
+                TritonMemoryType(tensor.memory_buffer.memory_type),
+                tensor.memory_buffer.memory_type_id,
+                tensor.memory_buffer.size,
+                tensor.memory_buffer.owner,
+            ),
+        )
+
+    @staticmethod
     def _remote_request_to_local_request(
         request: RemoteInferenceRequest, model: tritonserver.Model
     ):
@@ -126,7 +144,9 @@ class TritonCoreOperator(Operator):
         request: RemoteInferenceRequest, local_request: tritonserver.InferenceRequest
     ):
         for input_name, remote_tensor in request.inputs.items():
-            local_request.inputs[input_name] = remote_tensor.local_tensor
+            local_request.inputs[input_name] = TritonCoreOperator._to_triton_tensor(
+                remote_tensor.local_tensor
+            )
 
     @staticmethod
     def _set_local_request_parameters(
