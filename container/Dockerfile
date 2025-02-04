@@ -156,6 +156,8 @@ RUN /workspace/icp/protos/gen_python.sh
 
 # Install python packages
 ARG PYTHON_PACKAGE_VERSION
+# SETUPTOOLS_SCM_PRETEND_VERSION allows dynamically setting the package versions during build/install.
+# This allows having versioned packages during development between releases, such as commit IDs.
 RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
 RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/runtime/python
 
