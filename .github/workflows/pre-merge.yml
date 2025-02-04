@@ -104,11 +104,6 @@ jobs:
       with:
         path: ~/.cargo/registry
         key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-    - name: Cache Cargo Target Directory
-      uses: actions/cache@v3
-      with:
-        path: runtime/rust/target
-        key: ${{ runner.os }}-cargo-target-${{ hashFiles('**/Cargo.lock') }}
     - name: Set up Rust Toolchain Components
       run: rustup component add rustfmt clippy
     - name: Run Cargo Check
