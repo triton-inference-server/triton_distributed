@@ -157,10 +157,6 @@ ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/python/src:/workspace/runtime/pytho
 # Enable system UCX
 ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
 
-# dummy command for ci rebuild
-# will remove
-RUN echo "" > /dev/null
-
 # Command and Entrypoint
 CMD []
 ENTRYPOINT ["/opt/nvidia/nvidia_entrypoint.sh"]
