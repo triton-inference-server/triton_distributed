@@ -25,6 +25,7 @@ import numpy
 from triton_distributed.icp.data_type import DATA_TYPE_TO_NUMPY_DTYPE, DataType
 from triton_distributed.icp.memory_buffer import MemoryBuffer
 from triton_distributed.icp.memory_type import MemoryType
+from triton_distributed.icp.memory_type import string_to_memory_type
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 from triton_distributed.icp.tensor import Tensor
 
@@ -108,7 +109,7 @@ def get_icp_memory_type(
 ) -> MemoryType | None:
     if ICP_MEMORY_TYPE not in message.parameters:
         return None
-    return MemoryType(message.parameters[ICP_MEMORY_TYPE].string_param)
+    return string_to_memory_type(message.parameters[ICP_MEMORY_TYPE].string_param)
 
 
 def set_icp_memory_type_id(

@@ -54,6 +54,14 @@ DataType = IntEnum(
     start=0,
 )
 
+def string_to_data_type(data_type_string:str)->DataType:
+    try:
+        return DataType[data_type_string]
+    except KeyError:
+        raise ValueError(
+            f"Unsupported Data Type String. Can't convert {data_type_string} to DataType"
+        ) from None
+
 
 NUMPY_TO_DATA_TYPE: dict[type, DataType] = CustomKeyErrorDict(
     "Numpy dtype",

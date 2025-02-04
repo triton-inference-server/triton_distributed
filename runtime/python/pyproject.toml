@@ -3,15 +3,15 @@ requires = ["setuptools>=65.0", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "triton_distributed.worker"
+name = "triton_distributed.runtime"
 dynamic = ["version"]
 dependencies = ["triton_distributed.icp >= 0"]
 
 [tool.setuptools_scm]
-version_file = "src/python/triton_distributed/worker/_version.py"
+version_file = "src/triton_distributed/worker/_version.py"
 root = ".."
 
 [tool.setuptools.packages.find]
-where = ["src/python"]
-include = ["triton_distributed.worker*"]
+where = ["src"]
+include = ["triton_distributed.runtime*"]
 namespaces= true

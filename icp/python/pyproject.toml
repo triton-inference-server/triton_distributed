@@ -7,10 +7,10 @@ name = "triton_distributed.icp"
 dynamic = ["version"]
 
 [tool.setuptools_scm]
-version_file = "src/python/triton_distributed/icp/_version.py"
-root = ".."
+version_file = "src/triton_distributed/icp/_version.py"
+root = "../.."
 
 [tool.setuptools.packages.find]
-where = ["src/python"]
+where = ["src"]
 include = ["triton_distributed.icp*"]
 namespaces= true
