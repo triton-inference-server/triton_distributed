@@ -105,7 +105,7 @@ function default_local_srcdir {
 }
 
 function default_verbosity {
-  $value = 'MINIMAL'
+  $value = 'NORMAL'
   write-debug "<default_verbosity> -> '${value}'."
   return $value
 }
@@ -235,7 +235,6 @@ function is_installed([string] $command) {
   write-debug "<is_installed> -> ${out}."
   return $out
 }
-
 
 function is_tty {
   return -not(([System.Console]::IsOutputRedirected) -or ([System.Console]::IsErrorRedirected))
@@ -443,8 +442,7 @@ function write-error([string] $value) {
 
 function write-failed([string] $value) {
   if (is_tty) {
-    write-normal '  Test:' -no_newline
-    write-normal ' [Failed]' $global:colors.test.failed -no_newline
+    write-normal '  [Failed]' $global:colors.test.failed -no_newline
     write-normal " ${value}"
   }
   else {
@@ -497,8 +495,7 @@ function write-normal {
 
 function write-passed([string] $value) {
   if (is_tty) {
-    write-detailed '  Test:' -no_newline
-    write-detailed ' [Passed]' $global:colors.test.passed -no_newline
+    write-detailed '  [Passed]' $global:colors.test.passed -no_newline
     write-detailed " ${value}"
   }
   else {

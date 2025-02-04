@@ -18,10 +18,10 @@ run-name: NVIDIA Lab Validation (pull) of (${{ github.repository }}/${{ github.r
 on:
   push:
     branches:
-      - 'main'
-      - 'r*'
+    - 'main'
+    - 'r*'
     paths-ignore:
-      - deploy/Kubernetes
+    - deploy/Kubernetes/**
 
 jobs:
   mirror_repo:
