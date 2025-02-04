@@ -103,7 +103,7 @@ class TritonCoreOperator(Operator):
             model_config = {"config": parameter_config}
         else:
             model_config = None
-        self._local_model = self._triton_core.load(self._name, model_config)
+        self._triton_core_model = self._triton_core.load(self._name, model_config)
 
     @staticmethod
     def _triton_tensor(tensor: Tensor) -> TritonTensor:
@@ -184,7 +184,7 @@ class TritonCoreOperator(Operator):
             self._logger.debug("\n\nReceived request: \n\n%s\n\n", request)
             try:
                 triton_core_request = TritonCoreOperator._triton_core_request(
-                    request, self._local_model
+                    request, self._triton_core_model
                 )
             except Exception as e:
                 message = f"Can't resolve tensors for request, ignoring request,{e}"
@@ -202,7 +202,7 @@ class TritonCoreOperator(Operator):
             request_id_map[request_id] = (request.response_sender(), original_id)
 
             triton_core_request.response_queue = response_queue
-            self._local_model.async_infer(triton_core_request)
+            self._triton_core_model.async_infer(triton_core_request)
 
         while request_id_map:
             triton_core_response = await response_queue.get()
