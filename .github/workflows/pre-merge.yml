@@ -95,14 +95,26 @@ jobs:
       contents: read
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Rust dependencies
+    - name: Set up system dependencies
       run: |
-        sudo apt update
-        sudo apt install -y protobuf-compiler
-        rustup component add rustfmt clippy
-    - name: Run Rust pre-merge checks
+        sudo apt-get update -y
+        sudo apt-get install -y protobuf-compiler
+    - name: Cache Rust build artifacts
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: runtime/rust
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        components: rustfmt, clippy
+    - name: Run Pre-Merge Checks
+      working-directory: runtime/rust
       run: |
-        cd runtime/rust
         cargo check --locked
         cargo fmt -- --check
-        cargo clippy --no-deps --all-targets -- -Dwarnings
+        cargo clippy --no-deps --all-targets -- -D warnings
+    - name: Run Unit Tests
+      working-directory: runtime/rust
+      run: cargo test --all-targets
