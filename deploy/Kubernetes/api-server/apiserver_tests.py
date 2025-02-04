@@ -23,16 +23,10 @@ import pytest
 @pytest.mark.parametrize(
     "chart, test",
     [
-        ("trtllm", "basic"),
-        ("trtllm", "basic_error"),
-        ("trtllm", "volume_mounts"),
-        ("trtllm", "bad_volume_mounts"),
-        ("trtllm", "host_cache"),
-        ("trtllm", "non-host_cache"),
-        ("vllm", "basic"),
-        ("vllm", "basic_error"),
-        ("trtllm", "volume_mounts"),
-        ("trtllm", "bad_volume_mounts"),
+        ("OpenAI", "basic"),
+        ("OpenAI", "basic_error"),
+        ("OpenAI", "kubernetes_correct"),
+        ("OpenAI", "kubernetes_invalid"),
     ],
 )
 def test_chart(chart, test):
@@ -45,7 +39,7 @@ def test_chart(chart, test):
         repository_root_path,
         "deploy",
         "Kubernetes",
-        "worker",
+        "api-server",
         "tests",
         chart,
         "test-chart.ps1",
@@ -58,9 +52,10 @@ def test_chart(chart, test):
         "pwsh",
         "-c",
         test_chart_path,
+        "test",
         "--test",
         test,
-        "--verbose",
+        "-v:detailed",
     ]
 
     assert subprocess.run(cmd_args).returncode == 0

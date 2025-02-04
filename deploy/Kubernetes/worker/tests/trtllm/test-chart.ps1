@@ -28,10 +28,21 @@ $tests = @(
           'helm.sh/chart: "triton-distributed_worker-trtllm"[\n\r]{1,2}'
           'app.kubernetes.io/instance: test[\n\r]{1,2}'
           'app.kubernetes.io/name: faux-triton[\n\r]{1,2}'
-          '- TRITON_MODEL_REPOSITORY: "/var/run/models"[\n\r]{1,2}'
-          '- TRITON_MODEL_GENERATION_PATH: "/var/run/trtllm"[\n\r]{1,2}'
           'image: some_false-container_name:with_a-tag[\n\r]{1,2}'
           'ephemeral-storage: 98Gi[\n\r]{1,2}'
+          @{
+            indent = 8
+            lines = @(
+              'env:'
+              '- TRITON_COMPONENT_NAME: "faux-triton"'
+              '- TRITON_REQUEST_PLANE_KIND: "nats-io"'
+              '- TRITON_REQUEST_PLANE_NAME: "triton-distributed_request-plane"'
+              '- TRITON_REQUEST_PLANE_PORT: "30222"'
+              '- TRITON_MODEL_REPOSITORY: "/var/run/models"'
+              '- TRITON_MODEL_GENERATION_PATH: "/var/run/trtllm"'
+              '- TRITON_MODEL_GENERATION_QUOTA: "96Gi"'
+            )
+          }
         )
       options = @()
       values = @('basic_values.yaml')
@@ -41,7 +52,7 @@ $tests = @(
       expected = 1
       matches = @(
           '- triton: componentName is required[\n\r]{1,2}'
-          'image: name is required'
+          '- image: name is required[\n\r]{1,2}'
         )
       options = @()
       values = @()
@@ -50,10 +61,37 @@ $tests = @(
       name = 'volume_mounts'
       expected = 0
       matches = @(
-          '- name: mount_w_path[\n\r ]+persistentVolumeClaim:[\n\r ]+claimName: w_path_pvc[\n\r]{1,2}'
-          '- name: mount_wo_path[\n\r ]+persistentVolumeClaim:[\n\r ]+claimName: wo_path_pvc[\n\r]{1,2}'
-          '- mountPath: \/var\/run\/models\/subpath[\n\r ]+name: mount_w_path[\r\n]{1,2}'
-          '- mountPath: \/var\/run\/models[\n\r ]+name: mount_wo_path[\n\r]{1,2}'
+          @{
+            indent = 6
+            lines = @(
+              'volumes:'
+              '- name: mount_w_path'
+              '  persistentVolumeClaim:'
+              '    claimName: w_path_pvc'
+              '- name: mount_wo_path'
+              '  persistentVolumeClaim:'
+              '    claimName: wo_path_pvc'
+              '- name: model-host-cache'
+              '  emptyDir:'
+              '    sizeLimit: 96Gi'
+              '- name: shared-memory'
+              '  emptyDir:'
+              '    medium: Memory'
+              '    sizeLimit: 512Mi'
+            )
+          }
+          @{
+            indent = 8
+            lines = @(
+              'volumeMounts:'
+              '- mountPath: /var/run/models/subpath'
+              '  name: mount_w_path'
+              '- mountPath: /var/run/models'
+              '  name: mount_wo_path'
+              '- mountPath: /dev/shm'
+              '  name: shared-memory'
+            )
+          }
         )
       options = @()
       values = @(

@@ -374,8 +374,9 @@ function test_helm_chart([object] $config) {
 
             # Create a single, large regex from all child elements w/ end of line matches between.
             $alt = ''
+            $prefix = "\s{$($match.indent)}"
             foreach ($line in $match.lines) {
-              $alt = "${alt}${line}\s*[\n\r]{1,2}"
+              $alt = "${alt}${prefix}${line}\s*[\n\r]{1,2}"
             }
             $regex = $alt
           }
