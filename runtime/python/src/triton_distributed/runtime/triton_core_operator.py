@@ -124,20 +124,20 @@ class TritonCoreOperator(Operator):
     def _triton_core_request(
         request: RemoteInferenceRequest, model: tritonserver.Model
     ) -> tritonserver.InferenceRequest:
-        local_request = model.create_request()
+        triton_core_request = model.create_request()
         if request.request_id is not None:
-            local_request.request_id = request.request_id
+            triton_core_request.request_id = request.request_id
         if request.priority is not None:
-            local_request.priority = request.priority
+            triton_core_request.priority = request.priority
         if request.timeout is not None:
-            local_request.timeout = request.timeout
+            triton_core_request.timeout = request.timeout
 
         if request.correlation_id is not None:
-            local_request.correlation_id = request.correlation_id
-        TritonCoreOperator._set_local_request_inputs(request, local_request)
-        TritonCoreOperator._set_local_request_parameters(request, local_request)
+            triton_core_request.correlation_id = request.correlation_id
+        TritonCoreOperator._set_inputs(request, triton_core_request)
+        TritonCoreOperator._set_parameters(request, triton_core_request)
 
-        return local_request
+        return triton_core_request
 
     @staticmethod
     def _set_inputs(
