@@ -1,0 +1,41 @@
+[package]
+name = "nova_distributed_py3"
+version = "0.1.1"
+edition = "2021"
+
+[lib]
+path = "rust/lib.rs"
+name = "_core"
+# "cdylib" is necessary to produce a shared library for Python to import from.
+crate-type = ["cdylib"]
+
+
+[dependencies]
+triton-distributed = { path = "../" }
+
+futures = "0.3"
+once_cell = "1"
+serde = "1"
+serde_json = "1.0.138"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0"
+tracing = "0"
+
+# "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
+# "abi3-py39" tells pyo3 (and maturin) to build using the stable ABI with minimum Python version 3.9
+pyo3 = { version = "0.23.4", default-features = false, features = [
+  "macros",
+  "experimental-async",
+  "experimental-inspect",
+  "extension-module",
+  "py-clone",
+] }
+
+pyo3-async-runtimes = { version = "0.23.0", default-features = false, features = [
+  "attributes",
+  "testing",
+  "tokio-runtime",
+  "unstable-streams",
+] }
+
+pythonize = "0.23"
