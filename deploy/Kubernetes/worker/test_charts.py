@@ -48,7 +48,7 @@ def test_chart(chart, test):
         "worker",
         "tests",
         chart,
-        "test-chart.ps1",
+        "run.ps1",
     )
 
     print()
