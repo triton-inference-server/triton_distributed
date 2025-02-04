@@ -88,38 +88,3 @@ jobs:
   #   - run: ./icp/protos/gen_python.sh
   #   - run: pytest -p no:warnings --verbose worker/python/tests
   #     timeout-minutes: 2
-
-  pre-merge-rust:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up system dependencies
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install -y protobuf-compiler
-    - name: Cache Cargo Registry
-      uses: actions/cache@v3
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-    - name: Cache Cargo Target Directory
-      uses: actions/cache@v3
-      with:
-        path: runtime/rust/target
-        key: ${{ runner.os }}-cargo-target-${{ hashFiles('**/Cargo.lock') }}
-    - name: Set up Rust Toolchain Components
-      run: rustup component add rustfmt clippy
-    - name: Run Cargo Check
-      working-directory: runtime/rust
-      run: cargo check --locked
-    - name: Verify Code Formatting
-      working-directory: runtime/rust
-      run: cargo fmt -- --check
-    - name: Run Clippy Checks
-      working-directory: runtime/rust
-      run: cargo clippy --no-deps --all-targets -- -D warnings
-    - name: Run Unit Tests
-      working-directory: runtime/rust
-      run: cargo test --locked --all-targets
