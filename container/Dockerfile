@@ -157,7 +157,7 @@ RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_V
 RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/runtime/python
 
 # Sets pythonpath for python modules
-ENV PYTHONPATH="${PYTHONPATH}:/workspace/examples:/opt/tritonserver/python/openai/openai_frontend"
+ENV PYTHONPATH="${PYTHONPATH}:/workspace/examples/python:/opt/tritonserver/python/openai/openai_frontend"
 
 # Enable system UCX
 ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true

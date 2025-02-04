@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 try:
     from tritonserver import Tensor as TritonTensor
 except ImportError as e:
-    TritonTensor = type(None)
+    TritonTensor = type(None) # type: ignore [misc, assignment]
 
 import uuid
 
