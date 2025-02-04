@@ -107,7 +107,7 @@ class TritonCoreOperator(Operator):
         self._local_model = self._triton_core.load(self._name, model_config)
 
     @staticmethod
-    def _to_triton_tensor(tensor: Tensor):
+    def _triton_tensor(tensor: Tensor) -> TritonTensor:
         return TritonTensor(
             TritonDataType(tensor.data_type),
             tensor.shape,
@@ -121,9 +121,9 @@ class TritonCoreOperator(Operator):
         )
 
     @staticmethod
-    def _remote_request_to_local_request(
+    def _triton_core_request(
         request: RemoteInferenceRequest, model: tritonserver.Model
-    ):
+    ) -> tritonserver.InferenceRequest:
         local_request = model.create_request()
         if request.request_id is not None:
             local_request.request_id = request.request_id
@@ -140,42 +140,42 @@ class TritonCoreOperator(Operator):
         return local_request
 
     @staticmethod
-    def _set_local_request_inputs(
+    def _set_inputs(
         request: RemoteInferenceRequest, local_request: tritonserver.InferenceRequest
     ):
         for input_name, remote_tensor in request.inputs.items():
-            local_request.inputs[input_name] = TritonCoreOperator._to_triton_tensor(
+            local_request.inputs[input_name] = TritonCoreOperator._triton_tensor(
                 remote_tensor.local_tensor
             )
 
     @staticmethod
-    def _set_local_request_parameters(
+    def _set_parameters(
         request: RemoteInferenceRequest, local_request: tritonserver.InferenceRequest
     ):
         for parameter_name, parameter_value in request.parameters.items():
             local_request.parameters[parameter_name] = parameter_value
 
     @staticmethod
-    def _local_response_to_remote_response(
-        local_response: InferenceResponse, store_outputs_in_response: bool = False
-    ):
+    def _remote_response(
+        triton_core_response: InferenceResponse, store_outputs_in_response: bool = False
+    ) -> RemoteInferenceResponse:
         result = RemoteInferenceResponse(
-            local_response.model.name,
-            local_response.model.version,
+            triton_core_response.model.name,
+            triton_core_response.model.version,
             None,
-            local_response.request_id,
-            final=local_response.final,
+            triton_core_response.request_id,
+            final=triton_core_response.final,
         )
 
-        for tensor_name, tensor_value in local_response.outputs.items():
+        for tensor_name, tensor_value in triton_core_response.outputs.items():
             result.outputs[tensor_name] = tensor_value
             if store_outputs_in_response:
                 result.store_outputs_in_response.add(tensor_name)
 
-        for parameter_name, parameter_value in local_response.parameters.items():
+        for parameter_name, parameter_value in triton_core_response.parameters.items():
             result.parameters[parameter_name] = parameter_value
 
-        result.error = local_response.error
+        result.error = triton_core_response.error
         return result
 
     async def execute(self, requests: list[RemoteInferenceRequest]) -> None:
@@ -184,7 +184,7 @@ class TritonCoreOperator(Operator):
         for request in requests:
             self._logger.debug("\n\nReceived request: \n\n%s\n\n", request)
             try:
-                local_request = TritonCoreOperator._remote_request_to_local_request(
+                triton_core_request = TritonCoreOperator._triton_core_request(
                     request, self._local_model
                 )
             except Exception as e:
@@ -197,25 +197,27 @@ class TritonCoreOperator(Operator):
 
             request_id = str(uuid.uuid1())
             original_id = None
-            if local_request.request_id is not None:
-                original_id = local_request.request_id
-            local_request.request_id = request_id
+            if triton_core_request.request_id is not None:
+                original_id = triton_core_request.request_id
+            triton_core_request.request_id = request_id
             request_id_map[request_id] = (request.response_sender(), original_id)
 
-            local_request.response_queue = response_queue
-            self._local_model.async_infer(local_request)
+            triton_core_request.response_queue = response_queue
+            self._local_model.async_infer(triton_core_request)
 
         while request_id_map:
-            local_response = await response_queue.get()
+            triton_core_response = await response_queue.get()
 
-            remote_response = TritonCoreOperator._local_response_to_remote_response(
-                local_response, self._store_outputs_in_response
+            remote_response = TritonCoreOperator._remote_response(
+                triton_core_response, self._store_outputs_in_response
             )
 
-            response_sender, original_id = request_id_map[local_response.request_id]
+            response_sender, original_id = request_id_map[
+                triton_core_response.request_id
+            ]
             remote_response.request_id = original_id
 
-            if local_response.final:
-                del request_id_map[local_response.request_id]
+            if triton_core_response.final:
+                del request_id_map[triton_core_response.request_id]
             self._logger.debug("\n\nSending response\n\n%s\n\n", remote_response)
             await response_sender.send(remote_response)
