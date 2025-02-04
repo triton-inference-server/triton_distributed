@@ -22,7 +22,7 @@ from typing import Optional, Sequence
 import cupy
 import numpy
 
-from triton_distributed.icp.data_type import DATA_TYPE_TO_NUMPY_DTYPE, DataType
+from triton_distributed.icp.data_type import DATA_TYPE_TO_NUMPY_DTYPE, DataType, string_to_data_type
 from triton_distributed.icp.memory_buffer import MemoryBuffer
 from triton_distributed.icp.memory_type import MemoryType
 from triton_distributed.icp.memory_type import string_to_memory_type
@@ -64,7 +64,7 @@ def set_icp_data_type(
 def get_icp_data_type(
     message: ModelInferRequest.InferInputTensor | ModelInferResponse.InferOutputTensor,
 ) -> DataType:
-    return DataType(message.datatype)
+    return string_to_data_type(message.datatype)
 
 
 def set_icp_tensor_uri(
