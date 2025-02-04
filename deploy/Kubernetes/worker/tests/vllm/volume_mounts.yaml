@@ -1,0 +1,7 @@
+modelRepository:
+  volumeMounts:
+  - name: mount_w_path
+    path: subpath
+    persistentVolumeClaim: w_path_pvc
+  - name: mount_wo_path
+    persistentVolumeClaim: wo_path_pvc

@@ -18,20 +18,19 @@ set-strictmode -version latest
 . "$(& git rev-parse --show-toplevel)/deploy/Kubernetes/_build/helm-test.ps1"
 
 $componentName = 'worker'
-$componentType = 'trtllm'
+$componentType = 'vllm'
 
 $tests = @(
     @{
       name = 'basic'
       expected = 0
       matches = @(
-          'helm.sh/chart: "triton-distributed_worker-trtllm"[\n\r]{1,2}'
+          'helm.sh/chart: "triton-distributed_worker-vllm"[\n\r]{1,2}'
           'app.kubernetes.io/instance: test[\n\r]{1,2}'
           'app.kubernetes.io/name: faux-triton[\n\r]{1,2}'
           '- TRITON_MODEL_REPOSITORY: "/var/run/models"[\n\r]{1,2}'
-          '- TRITON_MODEL_GENERATION_PATH: "/var/run/trtllm"[\n\r]{1,2}'
           'image: some_false-container_name:with_a-tag[\n\r]{1,2}'
-          'ephemeral-storage: 98Gi[\n\r]{1,2}'
+          'ephemeral-storage: 1Gi[\n\r]{1,2}'
         )
       options = @()
       values = @('basic_values.yaml')
@@ -71,34 +70,6 @@ $tests = @(
       values = @(
           'basic_values.yaml'
           'bad_volume_mounts.yaml'
-        )
-    }
-    @{
-      name = 'host_cache'
-      expected = 0
-      matches = @(
-          'ephemeral-storage: 2Gi[\n\r]{1,2}'
-          '- name: model-host-cache[\n\r ]+hostPath:[\n\r ]+path: /triton/trtllm-cache[\n\r ]+type: DirectoryOrCreate[\n\r]{1,2}'
-          '- TRITON_MODEL_GENERATION_QUOTA: "200Gi"[\n\r]{1,2}'
-        )
-      options = @()
-      values = @(
-          'basic_values.yaml'
-          'host_cache.yaml'
-        )
-    }
-    @{
-      name = 'non-host_cache'
-      expected = 0
-      matches = @(
-          'ephemeral-storage: 202Gi[\n\r]{1,2}'
-          '- name: model-host-cache[\n\r ]+emptyDir:[\n\r ]+sizeLimit: 200Gi[\n\r]{1,2}'
-          '- TRITON_MODEL_GENERATION_QUOTA: "200Gi"[\n\r]{1,2}'
-        )
-      options = @()
-      values = @(
-          'basic_values.yaml'
-          'non_host_cache.yaml'
         )
     }
   )

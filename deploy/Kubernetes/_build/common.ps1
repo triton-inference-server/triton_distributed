@@ -246,10 +246,11 @@ function is_verbosity_valid([string] $value) {
 
 function normalize_path([string] $path) {
   write-debug "<normalize-path> path: '${path}'."
-  $out = $path
-  if ([System.IO.Path]::IsPathRooted($path)) {
-    $out = [System.IO.Path]::GetFullPath($path)
-  }
+  # $out = $path
+  # if (-not [System.IO.Path]::IsPathRooted($path)) {
+  #   $out = [System.IO.Path]::GetFullPath($path)
+  # }
+  $out = resolve-path "${path}"
   write-debug "<normalize-path> '${path}' -> '${out}'."
   return $out
 }
