@@ -38,7 +38,7 @@ import ctypes
 
 from triton_distributed.icp._custom_key_error_dict import CustomKeyErrorDict
 from triton_distributed.icp.data_type import DataType
-from triton_distributed.icp.memory_type import MemoryType
+from triton_distributed.icp.memory_type import MemoryType, string_to_memory_type
 
 try:
     import cupy
@@ -60,6 +60,8 @@ ctypes.pythonapi.PyCapsule_New.argtypes = [
 ctypes.pythonapi.PyCapsule_GetPointer.restype = ctypes.c_void_p
 ctypes.pythonapi.PyCapsule_GetPointer.argtypes = [ctypes.py_object, ctypes.c_char_p]
 
+from typing import Union
+
 c_str_dltensor = b"dltensor"
 
 
@@ -80,9 +82,9 @@ class DLDeviceType(ctypes.c_int):
     kDLHexagon = 16
 
 
-DeviceOrMemoryType = (
-    tuple[MemoryType, int] | MemoryType | tuple[DLDeviceType, int] | str
-)
+DeviceOrMemoryType = Union[
+    tuple[MemoryType, int], MemoryType, tuple[DLDeviceType, int], str
+]
 
 
 class DLDevice(ctypes.Structure):
@@ -137,7 +139,7 @@ def _raise_error(msg):
     """
     Raise error with the provided message
     """
-    raise Exception(msg=msg) from None
+    raise Exception(msg) from None
 
 
 # Use as managed context in DLPack that doesn't hold ownership of the
@@ -160,7 +162,7 @@ class DataViewContext:
 
 @ctypes.CFUNCTYPE(None, ctypes.c_void_p)
 def managed_tensor_deleter(handle: ctypes.c_void_p) -> None:
-    dl_managed_tensor = DLManagedTensor.from_address(handle)
+    dl_managed_tensor = DLManagedTensor.from_address(handle)  # type: ignore
     py_obj_ptr = ctypes.cast(
         dl_managed_tensor.manager_ctx, ctypes.POINTER(ctypes.py_object)
     )
@@ -183,15 +185,15 @@ def pycapsule_deleter(handle: ctypes.c_void_p) -> None:
 
 def is_contiguous_data(
     ndim: ctypes.c_int,
-    shape: ctypes.POINTER(ctypes.c_int64),
-    stride: ctypes.POINTER(ctypes.c_int64),
+    shape: ctypes.POINTER(ctypes.c_int64),  # type: ignore
+    stride: ctypes.POINTER(ctypes.c_int64),  # type: ignore
 ):
     # If 'stride' doesn't capture valid value
     if (stride is None) or (not bool(stride)):
         return True
     calculated_stride = 1
     # iterate stride in reverse order [ndim-1, -1)
-    for i in reversed(range(ndim)):
+    for i in reversed(range(ndim)):  # type: ignore
         if stride[i] != calculated_stride:
             return False
         calculated_stride *= shape[i]
@@ -199,10 +201,10 @@ def is_contiguous_data(
 
 
 def get_byte_size(
-    dtype: DLDataType, ndim: ctypes.c_int, shape: ctypes.POINTER(ctypes.c_int64)
+    dtype: DLDataType, ndim: ctypes.c_int, shape: ctypes.POINTER(ctypes.c_int64)  # type: ignore
 ):
     element_byte_size = dtype.bits * dtype.lanes // 8  # Assume 8 bits in a byte
-    for i in range(ndim):
+    for i in range(ndim):  # type: ignore
         element_byte_size *= shape[i]
     return element_byte_size
 
@@ -351,7 +353,7 @@ def parse_device_or_memory_type(
         memory_str_tuple = device_or_memory_type.split(":")
         if len(memory_str_tuple) > 2:
             raise ValueError(f"Invalid memory type string {device_or_memory_type}")
-        memory_type = MemoryType(memory_str_tuple[0].upper())
+        memory_type = string_to_memory_type(memory_str_tuple[0].upper())
         if len(memory_str_tuple) == 2:
             try:
                 memory_type_id = int(memory_str_tuple[1])

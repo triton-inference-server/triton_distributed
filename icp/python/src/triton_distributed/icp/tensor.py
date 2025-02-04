@@ -534,7 +534,7 @@ class Tensor:
     def _serialize_numpy_bytes_array(array: numpy.ndarray) -> numpy.ndarray:
         result = []
         for array_item in numpy.nditer(array, flags=["refs_ok"], order="C"):
-            item = array_item.item()
+            item = array_item.item() # type: ignore
             if not isinstance(item, bytes):
                 item = str(item).encode("utf-8")
             result.append(struct.pack("@I", len(item)))
@@ -645,7 +645,7 @@ class _ManagerCtx:
         #
         # To avoid relying on the behavior of id() we use the casting mechanism
 
-        return ctypes.POINTER(ctypes.c_void_p)(py_obj)[0]
+        return ctypes.POINTER(ctypes.c_void_p)(py_obj)[0] # type: ignore
 
     @staticmethod
     def release(reference: ctypes.c_void_p) -> None:
