@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 
 try:
     from tritonserver import Tensor as TritonTensor
-except ImportError as e:
-    TritonTensor = type(None) # type: ignore [misc, assignment]
+except ImportError:
+    TritonTensor = type(None)  # type: ignore [misc, assignment]
 
 import uuid
 
@@ -42,7 +42,6 @@ from triton_distributed.icp.request_plane import (
     set_icp_final_response,
     set_icp_response_error,
 )
-
 from triton_distributed.icp.tensor import Tensor
 from triton_distributed.runtime.logger import get_logger
 from triton_distributed.runtime.remote_tensor import RemoteTensor

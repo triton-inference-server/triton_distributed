@@ -22,10 +22,13 @@ from typing import Optional, Sequence
 import cupy
 import numpy
 
-from triton_distributed.icp.data_type import DATA_TYPE_TO_NUMPY_DTYPE, DataType, string_to_data_type
+from triton_distributed.icp.data_type import (
+    DATA_TYPE_TO_NUMPY_DTYPE,
+    DataType,
+    string_to_data_type,
+)
 from triton_distributed.icp.memory_buffer import MemoryBuffer
-from triton_distributed.icp.memory_type import MemoryType
-from triton_distributed.icp.memory_type import string_to_memory_type
+from triton_distributed.icp.memory_type import MemoryType, string_to_memory_type
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 from triton_distributed.icp.tensor import Tensor
 

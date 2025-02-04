@@ -34,7 +34,7 @@ try:
 except ImportError:
     TRITON_CORE_AVAILABLE = False
     TritonCoreOperator = type(None)
-    TritonCore = type(None) # type: ignore[misc,assignment]
+    TritonCore = type(None)  # type: ignore[misc,assignment]
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane

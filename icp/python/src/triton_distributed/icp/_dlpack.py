@@ -35,6 +35,7 @@
 ################################################################################
 
 import ctypes
+from typing import Union
 
 from triton_distributed.icp._custom_key_error_dict import CustomKeyErrorDict
 from triton_distributed.icp.data_type import DataType
@@ -60,7 +61,6 @@ ctypes.pythonapi.PyCapsule_New.argtypes = [
 ctypes.pythonapi.PyCapsule_GetPointer.restype = ctypes.c_void_p
 ctypes.pythonapi.PyCapsule_GetPointer.argtypes = [ctypes.py_object, ctypes.c_char_p]
 
-from typing import Union
 
 c_str_dltensor = b"dltensor"
 

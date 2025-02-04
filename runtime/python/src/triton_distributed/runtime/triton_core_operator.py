@@ -22,11 +22,11 @@ from typing import Optional
 
 try:
     import tritonserver
-    from tritonserver import Server as TritonCore
-    from tritonserver import Tensor as TritonTensor
     from tritonserver import DataType as TritonDataType
     from tritonserver import MemoryBuffer as TritonMemoryBuffer
     from tritonserver import MemoryType as TritonMemoryType
+    from tritonserver import Server as TritonCore
+    from tritonserver import Tensor as TritonTensor
 except ImportError as e:
     raise ImportError("Triton Core is not installed") from e
 
@@ -37,8 +37,8 @@ from tritonserver import Server as TritonCore
 from tritonserver._api._response import InferenceResponse
 
 from triton_distributed.icp.data_plane import DataPlane
-from triton_distributed.icp.tensor import Tensor
 from triton_distributed.icp.request_plane import RequestPlane
+from triton_distributed.icp.tensor import Tensor
 from triton_distributed.runtime.logger import get_logger
 from triton_distributed.runtime.operator import Operator
 from triton_distributed.runtime.remote_request import RemoteInferenceRequest

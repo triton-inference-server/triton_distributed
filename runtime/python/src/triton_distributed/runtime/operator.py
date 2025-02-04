@@ -21,10 +21,11 @@ from typing import Any, Optional, Type
 
 try:
     from tritonserver import Server as TritonCore
+
     TRITON_CORE_AVAILABLE = True
 except ImportError:
     TRITON_CORE_AVAILABLE = False
-    TritonCore = type(None) # type: ignore[misc,assignment]
+    TritonCore = type(None)  # type: ignore[misc,assignment]
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane

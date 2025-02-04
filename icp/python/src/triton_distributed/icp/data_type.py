@@ -54,7 +54,8 @@ DataType = IntEnum(
     start=0,
 )
 
-def string_to_data_type(data_type_string:str)->DataType:
+
+def string_to_data_type(data_type_string: str) -> DataType:
     try:
         return DataType[data_type_string]
     except KeyError:

@@ -31,7 +31,7 @@ latest_tag=$(git describe --tags --abbrev=0 $(git rev-list --tags --max-count=1 
 # Use tag if available, otherwise use latest_tag.dev.commit_id
 VERSION=v${current_tag:-$latest_tag.dev.$commit_id}
 
-# Use tag if available, 
+# Use tag if available,
 PYTHON_PACKAGE_VERSION=${current_tag:-$latest_tag.dev+$commit_id}
 
 # Frameworks

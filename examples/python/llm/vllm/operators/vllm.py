@@ -2,7 +2,7 @@ import argparse
 import json
 import logging
 from dataclasses import field
-from typing import AsyncGenerator, List, Optional, Any
+from typing import Any, AsyncGenerator, List, Optional
 
 import numpy as np
 
