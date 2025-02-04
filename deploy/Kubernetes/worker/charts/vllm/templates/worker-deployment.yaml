@@ -218,15 +218,15 @@ spec:
         - --verbose
 {{- end }}
         env:
-        - TRITON_COMPONENT_NAME: {{ $component_name }}
+        - TRITON_COMPONENT_NAME: {{ $component_name | quote }}
 {{- if gt $parallel_world 1 }}
-        - TRITON_LLM_PP: {{ $parallel_pipeline }}
-        - TRITON_LLM_TP: {{ $parallel_tensor }}
+        - TRITON_LLM_PP: {{ $parallel_pipeline | quote }}
+        - TRITON_LLM_TP: {{ $parallel_tensor | quote }}
 {{- end }}
-        - TRITON_request_plane_kind: {{ $request_plane_kind }}
-        - TRITON_request_plane_name: {{ $request_plane_name }}
-        - TRITON_request_plane_port: {{ $request_plane_port }}
-        - TRITON_MODEL_REPOSITORY: {{ $model_repo_path }}
+        - TRITON_request_plane_kind: {{ $request_plane_kind | quote }}
+        - TRITON_request_plane_name: {{ $request_plane_name | quote }}
+        - TRITON_request_plane_port: {{ $request_plane_port | quote }}
+        - TRITON_MODEL_REPOSITORY: {{ $model_repo_path | quote }}
 {{- if ne $port_data 9346 }}
         - TRITON_PORT_DATA: {{ $port_data }}
 {{- end }}

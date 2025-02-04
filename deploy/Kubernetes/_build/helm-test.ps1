@@ -133,14 +133,14 @@ function test_helm_chart([object] $config) {
     $pass_count = 0
 
     foreach ($test in $config.tests) {
-      $helm_command = 'helm template test -f ./values.yaml'
+      $helm_command = "helm template test -f $(resolve-path './values.yaml' -relative)"
       write-debug "<test_helm_chart> helm_command = '${helm_command}'."
 
       # First add all values files to the command.
       if (($null -ne $test.values) -and ($test.values.count -gt 0)) {
         foreach ($value in $test.values) {
           write-debug "<test_helm-chart> value = '${value}'."
-          $helm_command = "${helm_command} -f ${tests_path}/${value}"
+          $helm_command = "${helm_command} -f $(resolve-path "${tests_path}/${value}" -relative)"
         }
         write-debug "<test_helm_chart> helm_command = '${helm_command}'."
       }
@@ -188,6 +188,7 @@ function test_helm_chart([object] $config) {
       else {
         $fail_count += 1
         write-failed "$($config.component)/$($config.name)/$($test.name)"
+        write-low "  command: ${helm_command}"
       }
     }
   }
