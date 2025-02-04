@@ -1,0 +1,4 @@
+modelRepository:
+  volumeMounts:
+  - name: mount_w_path
+    path: subpath

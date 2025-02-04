@@ -1,0 +1,5 @@
+modelRepository:
+  modelGeneration:
+    hostCache:
+      enabled: true
+    sizeLimit: 200Gi

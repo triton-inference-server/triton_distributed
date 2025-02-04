@@ -1,0 +1,5 @@
+image:
+  name: "some_false-container_name:with_a-tag"
+
+triton:
+  componentName: faux-triton
