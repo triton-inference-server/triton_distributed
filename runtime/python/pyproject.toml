@@ -8,8 +8,8 @@ dynamic = ["version"]
 dependencies = ["triton_distributed.icp >= 0"]
 
 [tool.setuptools_scm]
-version_file = "src/triton_distributed/worker/_version.py"
-root = ".."
+version_file = "src/triton_distributed/runtime/_version.py"
+root = "../.."
 
 [tool.setuptools.packages.find]
 where = ["src"]

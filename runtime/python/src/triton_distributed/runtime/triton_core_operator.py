@@ -20,7 +20,12 @@ import os
 import uuid
 from typing import Optional
 
-import tritonserver
+try:
+    import tritonserver
+    from tritonserver import Server as TritonCore
+except ImportError as e:
+    raise ImportError("Triton Core is not installed") from e
+
 from google.protobuf import json_format, text_format
 from tritonclient.grpc import model_config_pb2
 from tritonserver import InvalidArgumentError
@@ -35,6 +40,7 @@ from triton_distributed.runtime.remote_request import RemoteInferenceRequest
 from triton_distributed.runtime.remote_response import RemoteInferenceResponse
 
 
+
 class TritonCoreOperator(Operator):
     def __init__(
         self,
@@ -45,7 +51,7 @@ class TritonCoreOperator(Operator):
         parameters: dict,
         repository: Optional[str] = None,
         logger: logging.Logger = get_logger(__name__),
-        triton_core: TritonCore = None,
+        triton_core: Optional[TritonCore] = None,
     ):
         self._repository = repository
         self._name = name
@@ -59,11 +65,14 @@ class TritonCoreOperator(Operator):
             "store_outputs_in_response", False
         )
 
+        if self._triton_core is None:
+            raise ValueError("Triton Core required for TritonCoreOperator")
+
         if not self._repository:
             self._repository = "."
 
         if repository:
-            triton_core.register_model_repository(repository)
+            self._triton_core.register_model_repository(repository)
 
         parameter_config = self._parameters.get("config", None)
 
