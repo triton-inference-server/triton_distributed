@@ -151,6 +151,11 @@ COPY . /workspace
 
 RUN /workspace/icp/protos/gen_python.sh
 
+# Install python packages
+ARG PYTHON_PACKAGE_VERSION
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/runtime/python
+
 # Sets pythonpath for python modules
 ENV PYTHONPATH="${PYTHONPATH}:/workspace/examples:/opt/tritonserver/python/openai/openai_frontend"
 

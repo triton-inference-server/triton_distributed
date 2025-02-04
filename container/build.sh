@@ -22,12 +22,17 @@ PLATFORM=linux/amd64
 # Get short commit hash
 commit_id=$(git rev-parse --short HEAD)
 
-# Attempt to get current tag
-current_tag=$(git describe --tags --exact-match 2>/dev/null) || true
+# if COMMIT_ID matches a TAG use that
+current_tag=$(git describe --tags --exact-match 2>/dev/null | sed 's/^v//') || true
 
-# Use tag if available, otherwise use commit hash
-VERSION=${current_tag:-$commit_id}
+# Get latest TAG and add COMMIT_ID for dev
+latest_tag=$(git describe --tags --abbrev=0 $(git rev-list --tags --max-count=1 main) | sed 's/^v//') || true
 
+# Use tag if available, otherwise use latest_tag.dev.commit_id
+VERSION=v${current_tag:-$latest_tag.dev.$commit_id}
+
+# Use tag if available, 
+PYTHON_PACKAGE_VERSION=${current_tag:-$latest_tag.dev+$commit_id}
 
 # Frameworks
 #
@@ -244,7 +249,7 @@ get_options "$@"
 
 # BUILD DEV IMAGE
 
-BUILD_ARGS+=" --build-arg BASE_IMAGE=$BASE_IMAGE --build-arg BASE_IMAGE_TAG=$BASE_IMAGE_TAG --build-arg FRAMEWORK=$FRAMEWORK --build-arg ${FRAMEWORK}_FRAMEWORK=1"
+BUILD_ARGS+=" --build-arg BASE_IMAGE=$BASE_IMAGE --build-arg BASE_IMAGE_TAG=$BASE_IMAGE_TAG --build-arg FRAMEWORK=$FRAMEWORK --build-arg ${FRAMEWORK}_FRAMEWORK=1 --build-arg VERSION=$VERSION --build-arg PYTHON_PACKAGE_VERSION=$PYTHON_PACKAGE_VERSION"
 
 if [ ! -z ${GITHUB_TOKEN} ]; then
     BUILD_ARGS+=" --build-arg GITHUB_TOKEN=${GITHUB_TOKEN} "
