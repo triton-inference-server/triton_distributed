@@ -53,46 +53,51 @@ $tests = @(
       expected = 0
       matches = @(
         @{
+          indent = 2
           lines = @(
-            '\s{2}annotations:'
-            '\s{4}helm.sh/chart: "triton-distributed_api-server-openai"'
-            '\s{4}triton-distributed: "test\.1\.0\.0"'
-            '\s{4}random_thing: just-a-value'
-            '\s{4}thing_random: another-item'
+            'annotations:'
+            '  helm.sh/chart: "triton-distributed_api-server-openai"'
+            '  triton-distributed: "test\.1\.0\.0"'
+            '  random_thing: just-a-value'
+            '  thing_random: another-item'
           )
         }
         @{
+          indent = 2
           lines = @(
-            '\s{2}labels:'
-            '\s{4}app: test'
-            '\s{4}app\.kubernetes\.io/component: api-server'
-            '\s{4}app\.kubernetes\.io/instance: test'
-            '\s{4}app\.kubernetes\.io/name: triton-distributed_api-server'
-            '\s{4}app\.kubernetes\.io/part-of: test_harness'
+            'labels:'
+            '  app: test'
+            '  app\.kubernetes\.io/component: api-server'
+            '  app\.kubernetes\.io/instance: test'
+            '  app\.kubernetes\.io/name: triton-distributed_api-server'
+            '  app\.kubernetes\.io/part-of: test_harness'
           )
         }
         @{
+          indent = 6
           lines = @(
-            '\s{6}tolerations:'
-            '\s{6}- effect: NoSchedule'
-            '\s{8}key: faux-taint'
-            '\s{8}operator: Exists'
+            'tolerations:'
+            '- effect: NoSchedule'
+            '  key: faux-taint'
+            '  operator: Exists'
           )
         }
         @{
+          indent = 8
           lines = @(
-            '\s{8}ports:'
-            '\s{8}- containerPort: 8000'
-            '\s{10}name: health'
-            '\s{8}- containerPort: 9345'
-            '\s{10}name: request'
-            '\s{8}- containerPort: 443'
-            '\s{10}name: api'
-            '\s{8}- containerPort: 9347'
-            '\s{10}name: metrics'
+            'ports:'
+            '- containerPort: 8000'
+            '  name: health'
+            '- containerPort: 9345'
+            '  name: request'
+            '- containerPort: 443'
+            '  name: api'
+            '- containerPort: 9347'
+            '  name: metrics'
           )
         }
         @{
+          indent = 0
           lines = @(
             'kind: Service'
             'apiVersion: v1'
@@ -102,6 +107,7 @@ $tests = @(
           )
         }
         @{
+          indent = 0
           lines = @(
             'apiVersion: apps/v1'
             'kind: Deployment'

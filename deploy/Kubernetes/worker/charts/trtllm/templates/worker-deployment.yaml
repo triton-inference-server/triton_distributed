@@ -229,20 +229,7 @@ spec:
             - matchExpressions:
               - key: nvidia.com/gpu
                 operator: Exists
-{{-   with $.Values.triton }}
-{{-     with .resources }}
-{{-       with .gpu }}
-{{-         with .product }}
-{{-           if len . }}
-              - key: nvidia.com/gpu.product
-                operator: In
-                values:
-{{            toYaml . | indent 16 }}
-{{-           end }}
-{{-         end }}
-{{-       end }}
-{{-     end }}
-{{-   end }}
+{{-   include "triton.tolerations" }}
 {{- end }}
       containers:
       - name: triton
