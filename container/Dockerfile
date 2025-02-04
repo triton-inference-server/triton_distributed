@@ -155,7 +155,7 @@ RUN cd runtime/rust && cargo build --release --locked && cargo doc --no-deps
 RUN /workspace/icp/protos/gen_python.sh
 
 # Sets pythonpath for python modules
-ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/src/python:/workspace/runtime/src/python:/workspace/examples/python:/opt/tritonserver/python/openai/openai_frontend"
+ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/python/src:/workspace/runtime/python/src:/workspace/examples/python:/opt/tritonserver/python/openai/openai_frontend"
 
 # Enable system UCX
 ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true

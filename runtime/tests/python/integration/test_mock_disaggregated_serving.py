@@ -284,7 +284,6 @@ def run_kserve(num_requests):
     "(not os.path.exists('/usr/local/bin/nats-server'))",
     reason="NATS.io not present",
 )
-@pytest.mark.xfail
 def test_mock_disaggregated_serving_kserve(request, nats_server, workers, api_server):
     # Using a separate process to use data plane across multiple tests.
     p = Process(target=run_kserve, args=(1,))
