@@ -19,6 +19,8 @@
 # FIXME: Address type checking with divergent interfaces for Ucp/Nccl data planes
 # type: ignore
 
+import os
+import socket
 import typing
 
 if typing.TYPE_CHECKING:
@@ -26,6 +28,7 @@ if typing.TYPE_CHECKING:
     from vllm.attention.backends.abstract import AttentionMetadata  # type: ignore
 
 import hashlib
+import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
@@ -40,6 +43,7 @@ from vllm.distributed.parallel_state import get_store, get_tp_group  # type: ign
 from vllm.logger import init_logger
 
 logger = init_logger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 _kv_cache_handler = None
@@ -59,12 +63,19 @@ class KVCacheHandler:
 
         self._data_plane_backend = envs.VLLM_DATA_PLANE_BACKEND
         if self._data_plane_backend == "nccl":
-            self._data_plane = VllmNcclDataPlane()
+            if envs.VLLM_WORKER_ID >= envs.VLLM_CONTEXT_WORKERS:
+                # bind to actual host but advertise a service
+                self._data_plane = VllmNcclDataPlane(
+                    bind_hostname=socket.gethostname(),
+                    advertise_hostname=os.getenv("VLLM_DATA_PLANE_HOSTNAME", ""),
+                )
+            else:
+                self._data_plane = VllmNcclDataPlane()
             self._store = get_store()
             logger.info("Store set up")
             self._store.set(
                 f"worker_{envs.VLLM_WORKER_ID}_rank_{get_tp_group().local_rank}",
-                f"{self._data_plane._hostname}:{self._data_plane._port}",
+                f"{self._data_plane._advertise_hostname}:{self._data_plane._port}",
             )
         elif self._data_plane_backend == "ucx":
             self._data_plane = VllmUcpDataPlane(keep_endpoints_open=True)
@@ -315,6 +326,7 @@ class KVCacheHandler:
         target_addr = self._store.get(
             f"worker_{generate_worker_id}_rank_{target_local_rank}"
         ).decode()
+        logger.debug(f"Target addr: {target_addr}")
         self._data_plane.put_output_tensor(
             keys,
             rank=target_rank,
