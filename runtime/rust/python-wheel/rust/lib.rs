@@ -398,7 +398,6 @@ impl AsyncResponseStream {
 }
 
 #[pyclass]
-#[derive(Clone)]
 struct Annotated {
     inner: RsAnnotated<PyObject>,
 }
