@@ -1,7 +1,7 @@
 import asyncio
-import uvloop
 
-from nova_distributed import nova_worker, DistributedRuntime
+import uvloop
+from nova_distributed import DistributedRuntime, nova_worker
 
 uvloop.install()
 
@@ -22,7 +22,7 @@ async def worker(runtime: DistributedRuntime):
     )
 
     # hello world showed us the client has a .generate, which uses the default load balancer
-    # however, you can explicity opt-in to client side load balancing by using the `round_robin`
+    # however, you can explicitly opt-in to client side load balancing by using the `round_robin`
     # or `random` methods on client. note - there is a direct method as well, but that is for a
     # router example
     async for char in await foo.round_robin("hello world"):

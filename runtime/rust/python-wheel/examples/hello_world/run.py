@@ -1,12 +1,11 @@
 import asyncio
 import random
 import string
+
 import uvloop
-
 from client import init as client_init
+from nova_distributed import DistributedRuntime, nova_worker
 from server import init as server_init
-
-from nova_distributed import nova_worker, DistributedRuntime
 
 
 def random_string(length=10):

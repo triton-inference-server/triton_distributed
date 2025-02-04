@@ -127,7 +127,7 @@ where
         // any error thrown in the stream will be caught and complete the processing task
         // errors are captured by a task that is watching the processing task
         // the error will be emitted as an annotated error
-        let processsor = tokio::spawn(async move {
+        let processor = tokio::spawn(async move {
             log::trace!("processing stream from python async generator: {}", id);
             let mut stream = stream;
 
@@ -155,7 +155,7 @@ where
         });
 
         tokio::spawn(async move {
-            match processsor.await {
+            match processor.await {
                 Ok(Ok(_)) => {}
                 Ok(Err(err)) => {
                     log::error!("error processing python async generator: {}", err);

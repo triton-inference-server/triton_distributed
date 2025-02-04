@@ -1,7 +1,7 @@
 import asyncio
-import uvloop
 
-from nova_distributed import nova_worker, nova_endpoint, DistributedRuntime
+import uvloop
+from nova_distributed import DistributedRuntime, nova_endpoint, nova_worker
 from protocol import Request, Response
 
 uvloop.install()
