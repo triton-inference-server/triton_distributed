@@ -5,6 +5,7 @@ from nova_distributed import nova_worker, DistributedRuntime
 
 uvloop.install()
 
+
 class RequestHandler:
     async def generate(self, request):
         request = f"{request}-back"
@@ -16,7 +17,7 @@ class RequestHandler:
 async def worker(runtime: DistributedRuntime):
     component = runtime.namespace("examples/pipeline").component("backend")
     await component.create_service()
-    
+
     endpoint = component.endpoint("generate")
     await endpoint.serve_endpoint(RequestHandler().generate)
 

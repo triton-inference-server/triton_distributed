@@ -26,4 +26,5 @@ async def worker(runtime: DistributedRuntime):
     async for char in stream:
         print(char)
 
+
 asyncio.run(worker())

@@ -3,10 +3,12 @@ import uvloop
 
 from nova_distributed import nova_worker, DistributedRuntime
 
+
 class RequestHandler:
     """
     Request handler for the generate endpoint
     """
+
     async def generate(self, request):
         print(f"Received request: {request}")
         for char in request:
@@ -16,6 +18,7 @@ class RequestHandler:
 @nova_worker()
 async def worker(runtime: DistributedRuntime):
     await init(runtime, "nova-init")
+
 
 async def init(runtime: DistributedRuntime, ns: str):
     """

@@ -30,15 +30,18 @@ def nova_worker():
             # finally:
             #     print("Decorator: Cleaning up runtime resources")
             #     # Perform cleanup actions here
+
         return wrapper
+
     return decorator
 
 
 def nova_endpoint(
-    request_model: Type[BaseModel],
-    response_model: Type[BaseModel]
+    request_model: Type[BaseModel], response_model: Type[BaseModel]
 ) -> Callable:
-    def decorator(func: Callable[..., AsyncGenerator[Any, None]]) -> Callable[..., AsyncGenerator[Any, None]]:
+    def decorator(
+        func: Callable[..., AsyncGenerator[Any, None]]
+    ) -> Callable[..., AsyncGenerator[Any, None]]:
         @wraps(func)
         async def wrapper(*args, **kwargs) -> AsyncGenerator[Any, None]:
             # Validate the request
@@ -59,4 +62,5 @@ def nova_endpoint(
                     raise ValueError(f"Invalid response: {e}")
 
         return wrapper
+
     return decorator

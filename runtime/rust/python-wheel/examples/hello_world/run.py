@@ -8,9 +8,11 @@ from server import init as server_init
 
 from nova_distributed import nova_worker, DistributedRuntime
 
+
 def random_string(length=10):
     chars = string.ascii_letters + string.digits  # a-z, A-Z, 0-9
-    return ''.join(random.choices(chars, k=length))
+    return "".join(random.choices(chars, k=length))
+
 
 @nova_worker()
 async def worker(runtime: DistributedRuntime):
@@ -19,6 +21,7 @@ async def worker(runtime: DistributedRuntime):
     await client_init(runtime, ns)
     runtime.shutdown()
     await task
+
 
 if __name__ == "__main__":
     uvloop.install()

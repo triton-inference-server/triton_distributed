@@ -11,6 +11,7 @@ class RequestHandler:
     """
     Request handler for the generate endpoint
     """
+
     @nova_endpoint(Request, Response)
     async def generate(self, request):
         for char in request.data:
@@ -25,7 +26,7 @@ async def worker(runtime: DistributedRuntime):
     """
     component = runtime.namespace("nova-init").component("backend")
     await component.create_service()
-    
+
     endpoint = component.endpoint("generate")
     await endpoint.serve_endpoint(RequestHandler().generate)
 

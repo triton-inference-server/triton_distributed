@@ -4,15 +4,16 @@ class JsonLike:
     """
     Any PyObject which can be serialized to JSON
     """
+
     ...
 
 RequestHandler = Callable[[JsonLike], AsyncGenerator[JsonLike, None]]
-
 
 class DistributedRuntime:
     """
     The runtime object for a distributed NOVA applications
     """
+
     ...
 
     def namespace(self, name: str, path: str) -> Namespace:
@@ -25,6 +26,7 @@ class Namespace:
     """
     A namespace is a collection of components
     """
+
     ...
 
     def component(self, name: str) -> Component:
@@ -37,6 +39,7 @@ class Component:
     """
     A component is a collection of endpoints
     """
+
     ...
 
     def create_service(self) -> None:
@@ -55,11 +58,12 @@ class Endpoint:
     """
     An Endpoint is a single API endpoint
     """
+
     ...
 
     async def serve_endpoint(self, handler: RequestHandler) -> None:
         """
-        Serve an endpoint discoverable by all connected clients at 
+        Serve an endpoint discoverable by all connected clients at
         `{{ namespace }}/components/{{ component_name }}/endpoints/{{ endpoint_name }}`
         """
         ...
@@ -74,6 +78,7 @@ class Client:
     """
     A client capable of calling served instances of an endpoint
     """
+
     ...
 
     async def random(self, request: JsonLike) -> AsyncIterator[JsonLike]:

@@ -3,9 +3,11 @@ import uvloop
 
 from nova_distributed import nova_worker, DistributedRuntime
 
+
 @nova_worker()
 async def worker(runtime: DistributedRuntime):
     await init(runtime, "nova-init")
+
 
 async def init(runtime: DistributedRuntime, ns: str):
     """
@@ -32,7 +34,7 @@ async def init(runtime: DistributedRuntime, ns: str):
         error_count += 1
         pass
     finally:
-        assert(error_count == 1)
+        assert error_count == 1
 
     stream = await client.generate("hello earth", annotated=False)
 
@@ -40,9 +42,6 @@ async def init(runtime: DistributedRuntime, ns: str):
         print(char)
 
 
-       
-
 if __name__ == "__main__":
     uvloop.install()
     asyncio.run(worker())
-
