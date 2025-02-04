@@ -54,13 +54,7 @@
         "annotations": {
           "description": "Optional set of annotations to be applied to create Kubernetes objects.",
           "oneOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/kubernetes_label"
-              },
-              "minItems": 0,
-              "type": "array"
-            },
+            { "type": "object" },
             { "type": "null" }
           ]
         },
@@ -188,13 +182,7 @@
         "labels": {
           "description": "Optional set of labels to be applied to created Kubernetes objects. These labels can be used for association with a preexisting service object.",
           "oneOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/kubernetes_label"
-              },
-              "minItems": 0,
-              "type": "array"
-            },
+            { "type": "object" },
             { "type": "null" }
           ]
         },
@@ -209,7 +197,22 @@
           "description": "Tolerations applied to every pod deployed as part of this deployment.",
           "oneOf": [
             {
-              "items": { "type": "object" },
+              "items": {
+                "properties": {
+                  "effect": {
+                    "pattern": "^NoExecute|NoSchedule|PreferNoSchedule$",
+                    "type": "string"
+                  },
+                  "key": {
+                    "$ref": "#/$defs/kubernetes_label"
+                  },
+                  "operator": {
+                    "pattern": "^Exists|Equals$",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
               "minItems": 0,
               "type": "array"
             },

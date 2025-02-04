@@ -371,6 +371,14 @@ function to_local_path([string] $path) {
   return $out
 }
 
+function typeof($object) {
+  if ($null -eq $object) {
+    return 'null'
+  }
+
+  return $object.gettype().name
+}
+
 function usage_exit([string] $message) {
   write-error "usage: $message"
   exit 254

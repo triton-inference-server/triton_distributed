@@ -1,0 +1,19 @@
+kubernetes:
+  annotations:
+  - should: not
+    be: "an array"
+    of: objects
+  checks:
+    liveness:
+      enabled: false
+    readiness:
+      enabled: false
+  labels:
+  - should: not
+    be: "an array"
+    of: objects
+  partOf: test_harness
+  tolerations:
+  - effect: invalid
+    key: 19 # should be a string
+    operator: invalid

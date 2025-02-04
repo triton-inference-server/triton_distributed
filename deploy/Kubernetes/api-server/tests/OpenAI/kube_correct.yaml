@@ -1,0 +1,16 @@
+kubernetes:
+  annotations:
+    random_thing: just-a-value
+    thing_random: another-item
+  checks:
+    liveness:
+      enabled: false
+    readiness:
+      enabled: false
+  labels:
+    custom-label: custom-value
+  partOf: test_harness
+  tolerations:
+  - effect: NoSchedule
+    key: faux-taint
+    operator: Exists

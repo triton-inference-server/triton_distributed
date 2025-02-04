@@ -1,0 +1,7 @@
+image:
+  name: triton-distributed_image-name
+
+triton:
+  componentName: triton-distributed_api-server
+  service:
+    name: triton_api-server
