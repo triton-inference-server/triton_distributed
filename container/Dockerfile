@@ -155,7 +155,7 @@ RUN cd runtime/rust && cargo build --release --locked && cargo doc --no-deps
 RUN /workspace/icp/protos/gen_python.sh
 
 # Install python packages
-ARG PYTHON_PACKAGE_VERSION
+ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown
 
 # SETUPTOOLS_SCM_PRETEND_VERSION allows dynamically setting the package versions during build/install.
 # This allows having versioned packages during development between releases, such as commit IDs.
