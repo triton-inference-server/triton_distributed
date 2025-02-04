@@ -25,7 +25,9 @@ USER root
 
 # TODO: separate dev from runtime dependendcies
 
-RUN apt-get update; apt-get install -y gdb
+RUN apt-get update; apt-get install -y gdb protobuf-compiler
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install OpenAI-compatible frontend and its dependencies from triton server
 # repository. These are used to have a consistent interface, schema, and FastAPI
@@ -149,6 +151,7 @@ WORKDIR /workspace
 #TODO Exclude container directory
 COPY . /workspace
 
+RUN cd runtime/rust && cargo build --release --locked && cargo doc --no-deps
 RUN /workspace/icp/protos/gen_python.sh
 
 # Sets pythonpath for python modules
