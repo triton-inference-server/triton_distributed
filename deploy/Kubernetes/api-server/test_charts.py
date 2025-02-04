@@ -42,7 +42,7 @@ def test_chart(chart, test):
         "api-server",
         "tests",
         chart,
-        "test-chart.ps1",
+        "run.ps1",
     )
 
     print()

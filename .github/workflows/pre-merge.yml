@@ -87,10 +87,13 @@ jobs:
       # Allowlist both variants of the mounted source directory.
     - run: git config --global --add safe.directory /__w/triton_distributed/triton_distributed
     - run: git config --global --add safe.directory /workspace
-    - run: pwsh /workspace/deploy/Kubernetes/worker/tests/trtllm/test-chart.ps1 test -v:detailed --print
+    - run: pwsh /workspace/deploy/Kubernetes/api-server/tests/OpenAI/run.ps1 test -v:detailed --print
       timeout-minutes: 2
       working-directory: /workspace
-    - run: pwsh /workspace/deploy/Kubernetes/worker/tests/vllm/test-chart.ps1 test -v:detailed --print
+    - run: pwsh /workspace/deploy/Kubernetes/worker/tests/trtllm/run.ps1 test -v:detailed --print
+      timeout-minutes: 2
+      working-directory: /workspace
+    - run: pwsh /workspace/deploy/Kubernetes/worker/tests/vllm/run.ps1 test -v:detailed --print
       timeout-minutes: 2
       working-directory: /workspace
 
