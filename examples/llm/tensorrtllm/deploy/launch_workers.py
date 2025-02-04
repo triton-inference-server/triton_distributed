@@ -109,6 +109,8 @@ def _launch_workers(args):
     # it can be started separately beforehand.
     if args.initialize_request_plane:
         _launch_nats_server(args)
+        # [FIXME] not really related to request plane
+        _launch_etcd(args)
 
     # Launch TRT-LLM models via mpiexec in the same MPI WORLD
     _launch_mpi_workers(args)
@@ -238,6 +240,32 @@ def _disaggregated_serving_cmd(args, starting_gpu):
 
     return command
 
+def _kv_aware_routing_cmd(args, starting_gpu):
+    # NOTE: This worker gets the args --worker-name because it will
+    # receive the API-serving facing requests, and internally handle
+    # the disaggregation. So this worker name should match the one
+    # registered to the API Server.
+    command = [
+        # FIXME: Does this model need a GPU assigned to it?
+        # "-x",
+        # f"CUDA_VISIBLE_DEVICES={starting_gpu}",
+        "python3",
+        "-m",
+        "llm.tensorrtllm.deploy",
+        "--worker-type",
+        "kv-aware-routing",
+        "--metrics-port",
+        "50002",
+        "--model",
+        args.model,
+        "--worker-name",
+        args.worker_name,
+        "--request-plane-uri",
+        f"{os.getenv('HOSTNAME')}:{args.nats_port}",
+    ]
+
+    return command
+
 
 def _launch_nats_server(args, clear_store=True):
     # FIXME: Use NatsServer object defined in icp package
@@ -252,6 +280,18 @@ def _launch_nats_server(args, clear_store=True):
         str(args.nats_port),
         "--store_dir",
         store_dir,
+    ]
+
+    print(" ".join(command))
+    if args.dry_run:
+        return
+
+    env = os.environ.copy()
+    return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
+
+def _launch_etcd(args):
+    command = [
+        "/usr/local/bin/etcd",
     ]
 
     print(" ".join(command))

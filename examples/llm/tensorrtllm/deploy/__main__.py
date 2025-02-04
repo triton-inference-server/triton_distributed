@@ -18,7 +18,7 @@ import sys
 import time
 from pathlib import Path
 
-from llm.tensorrtllm.operators.disaggregated_serving import DisaggregatedServingOperator
+from llm.tensorrtllm.operators.disaggregated_serving import DisaggregatedServingOperator, KvAwareRoutingOperator
 from llm.tensorrtllm.scripts.gpu_info import get_gpu_product_name
 
 from triton_distributed.worker import (
@@ -61,6 +61,16 @@ def _create_disaggregated_serving_op(name, args, max_inflight_requests):
         repository=model_repository,
     )
 
+def _create_kv_aware_routing_op(name, args, max_inflight_requests):
+    model_repository = str(
+        Path(args.operator_repository) / "triton_core_models"
+    )  # stores our simple pre/post processing
+    return OperatorConfig(
+        name=name,
+        implementation=KvAwareRoutingOperator,
+        max_inflight_requests=int(max_inflight_requests),
+        repository=model_repository,
+    )
 
 def _create_triton_core_op(
     name,
@@ -159,6 +169,21 @@ def main(args):
             request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
         )
         worker_configs.append(prefill_decode)
+    elif args.worker_type == "kw-aware-routing":
+        router_op = _create_kv_aware_routing_op(
+            name=args.model,
+            max_inflight_requests=1000,
+            args=args,
+        )
+
+        router = WorkerConfig(
+            operators=[router_op],
+            name=args.worker_name,
+            log_level=args.log_level,
+            metrics_port=args.metrics_port,
+            request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
+        )
+        worker_configs.append(router)
 
     print("Starting Worker")
     for worker_config in worker_configs:
