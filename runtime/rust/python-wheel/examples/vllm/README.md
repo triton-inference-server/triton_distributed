@@ -17,14 +17,14 @@ uv pip install setuptools vllm==0.7.0
 In the first shell, run the server:
 
 ```
-python monolith_worker.py --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B --max-model-len 100
+python3 monolith_worker.py --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B --max-model-len 100 --enforce-eager
 ```
 
 
 In the second shell, run the client:
 
 ```
-python client.py
+python3 client.py
 ```
 
 ## Run the disaggregated example
@@ -32,10 +32,11 @@ python client.py
 In the first shell, run the prefill worker:
 
 ```
-python prefill_worker.py \
-    --model facebook/opt-125m \
+CUDA_VISIBLE_DEVICES=0 python3 prefill_worker.py \
+    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
-    --gpu-memory-utilization 0.4 \
+    --gpu-memory-utilization 0.8 \
+    --enforce-eager \
     --kv-transfer-config \
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2}'
 ```
@@ -43,10 +44,11 @@ python prefill_worker.py \
 In the second shell, run the decode worker:
 
 ```
-python decode_worker.py \
-    --model facebook/opt-125m \
+CUDA_VISIBLE_DEVICES=1 python3 decode_worker.py \
+    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
-    --gpu-memory-utilization 0.4 \
+    --gpu-memory-utilization 0.8 \
+    --enforce-eager \
     --kv-transfer-config \
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2}'
 ```
@@ -54,5 +56,5 @@ python decode_worker.py \
 In the third shell, run the client:
 
 ```
-python client.py
+python3 client.py
 ```

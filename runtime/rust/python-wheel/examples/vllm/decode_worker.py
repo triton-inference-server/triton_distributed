@@ -8,7 +8,7 @@ from vllm.utils import FlexibleArgumentParser
 from vllm.logger import logger as vllm_logger
 
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker, Client
-from protocol import Request, Response
+from protocol import Request, Response, PrefillRequest
 
 class VllmDecodeEngine:
     """
@@ -25,12 +25,19 @@ class VllmDecodeEngine:
         sampling_params = vllm.SamplingParams(**request.sampling_params)
         request_id = str(uuid.uuid4())
 
-        prefill_generator = await self.prefill.generate(request.prompt, sampling_params, request_id)
-        prefill_response = await prefill_generator.next()
-        vllm_logger.info(f"Prefill response: {prefill_response}")
+        prefill_sampling_params = {**request.sampling_params}
+        prefill_sampling_params["max_tokens"] = 1
+        prefill_request = PrefillRequest(prompt=request.prompt, sampling_params=prefill_sampling_params, request_id=request_id)
+        prefill_generator = await self.prefill.generate(prefill_request.model_dump_json())
+        prefill_response = [resp async for resp in prefill_generator]
+        assert len(prefill_response) == 1, "Prefill response should be a single boolean"
+        prefill_response = prefill_response[0]
+        print(prefill_response, prefill_response.data(), type(prefill_response.data()))
+        assert prefill_response.data() is True, "Prefill should have been successful"
+        vllm_logger.debug(f"Prefill response: {prefill_response}")
 
         async for response in self.engine.generate(request.prompt, sampling_params, request_id):
-            vllm_logger.info(f"Generated response: {response}")
+            vllm_logger.debug(f"Generated response: {response}")
             yield response.outputs[0].text
 
 

@@ -20,11 +20,11 @@ class VllmEngine:
         
     @triton_endpoint(Request, Response)
     async def generate(self, request):
-        vllm_logger.info(f"Received request: {request}")
+        vllm_logger.debug(f"Received request: {request}")
         sampling_params = vllm.SamplingParams(**request.sampling_params)
         request_id = str(uuid.uuid4())
         async for response in self.engine.generate(request.prompt, sampling_params, request_id):
-            vllm_logger.info(f"Generated response: {response}")
+            vllm_logger.debug(f"Generated response: {response}")
             yield response.outputs[0].text
 
 
