@@ -120,6 +120,11 @@ jobs:
     - name: Run Clippy Checks
       working-directory: runtime/rust
       run: cargo clippy --no-deps --all-targets -- -D warnings
+    - name: Run cargo-deny Check
+      working-directory: runtime/rust
+      run: |
+        cargo install cargo-deny && \
+        cargo-deny check
     - name: Run Unit Tests
       working-directory: runtime/rust
       run: cargo test --locked --all-targets
