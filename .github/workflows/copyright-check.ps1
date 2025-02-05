@@ -88,7 +88,7 @@ $global:copyright_matchers = @(
     vertical_spacer = ''
   }
   @{
-    files = @('.proto')
+    files = @('.proto', '.rs')
     found_missing = $false
     matches = @(
       '// SPDX-FileCopyrightText: Copyright (c) ' + $date_key + ' NVIDIA CORPORATION & AFFILIATES. All rights reserved.'
@@ -103,7 +103,7 @@ $global:copyright_matchers = @(
       '// See the License for the specific language governing permissions and'
       '// limitations under the License.'
     )
-    name = 'proto'
+    name = 'c-like'
     regex = $null
     vertical_spacer = '//'
   }
@@ -118,11 +118,11 @@ $global:copyright_results = @{
 
 # === end common.ps1 extensions ===
 
-$ignored_files = @('.clang-format', '.gitattributes', '.gitignore', '.gitkeep', '.patch', 'LICENSE')
+$ignored_files = @('.clang-format', '.gitattributes', '.gitignore', '.gitkeep', '.patch', 'Cargo.lock', 'LICENSE', 'uv.lock')
 write-debug "<copyright-check> ignored_files = ['$($ignored_files -join "','")']."
 $ignored_paths = @('.github', '.mypy_cache', '.pytest_cache')
 write-debug "<copyright-check> ignored_paths = ['$($ignored_paths -join "','")']."
-$ignored_types = @('.bat', '.gif', '.ico', '.ipynb', '.jpg', '.jpeg', '.png', '.pyc', '.rst', '.zip')
+$ignored_types = @('.bat', '.gif', '.ico', '.ipynb', '.jpg', '.jpeg', '.patch', '.png', '.pyc', '.pyi', '.rst', '.zip')
 write-debug "<copyright-check> ignored_types = ['$($ignored_types -join "', '")']."
 $ignored_folders = @('.git', '__pycache__')
 
@@ -382,6 +382,15 @@ if ($global:copyright_results.failed_header.count -gt 0) {
   }
 }
 
+
 if (($global:copyright_results.failed_date.count -gt 0) -or ($global:copyright_results.failed_header.count -gt 0)) {
+  write-high 'Files out of compliance:'
+  # Final, end of output list of errors.
+  foreach ($path in $global:copyright_results.failed_header) {
+    write-error " [FAIL] invalid/missing header: ${path}"
+  }
+  foreach ($path in $global:copyright_results.failed_date) {
+    write-error " [FAIL] incorrect date: ${path}"
+  }
   exit(-1)
 }
