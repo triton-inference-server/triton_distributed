@@ -1,7 +1,8 @@
 import asyncio
 
 import uvloop
-from nova_distributed import DistributedRuntime, nova_worker
+
+from triton_distributed import DistributedRuntime, triton_worker
 
 uvloop.install()
 
@@ -16,7 +17,7 @@ class RequestHandler:
             yield output.get("data")
 
 
-@nova_worker()
+@triton_worker()
 async def worker(runtime: DistributedRuntime):
     # client to backend
     backend = (

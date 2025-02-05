@@ -1,5 +1,5 @@
 [project]
-name = "nova-distributed"
+name = "triton-distributed"
 version = "0.1.1"
 description = "Distributed LLM Framework"
 # readme = "README.md"
@@ -13,11 +13,11 @@ dependencies = [
 ]
 
 # [project.scripts]
-# nova-distributed = "nova_distributed:main"
+# triton-distributed = "triton_distributed:main"
 
 [tool.maturin]
-module-name = "nova_distributed._core"
-python-packages = ["nova_distributed"]
+module-name = "triton_distributed._core"
+python-packages = ["triton_distributed"]
 python-source = "python"
 
 [build-system]

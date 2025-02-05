@@ -2,11 +2,12 @@ import asyncio
 from functools import wraps
 from typing import Any, AsyncGenerator, Callable, Type
 
-from nova_distributed._core import DistributedRuntime
 from pydantic import BaseModel, ValidationError
 
+from triton_distributed._core import DistributedRuntime
 
-def nova_worker():
+
+def triton_worker():
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -35,7 +36,7 @@ def nova_worker():
     return decorator
 
 
-def nova_endpoint(
+def triton_endpoint(
     request_model: Type[BaseModel], response_model: Type[BaseModel]
 ) -> Callable:
     def decorator(

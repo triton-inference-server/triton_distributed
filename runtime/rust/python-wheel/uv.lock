@@ -11,7 +11,7 @@ wheels = [
 ]
 
 [[package]]
-name = "nova-distributed"
+name = "triton-distributed"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

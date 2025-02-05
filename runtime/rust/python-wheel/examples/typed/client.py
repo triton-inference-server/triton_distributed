@@ -1,16 +1,19 @@
 import asyncio
 
-from nova_distributed import DistributedRuntime, nova_worker
 from protocol import Request
 
+from triton_distributed import DistributedRuntime, triton_worker
 
-@nova_worker()
+
+@triton_worker()
 async def worker(runtime: DistributedRuntime):
     """
     Instantiate a `backend` client and call the `generate` endpoint
     """
     # get endpoint
-    endpoint = runtime.namespace("nova-init").component("backend").endpoint("generate")
+    endpoint = (
+        runtime.namespace("triton-init").component("backend").endpoint("generate")
+    )
 
     # create client
     client = await endpoint.client()

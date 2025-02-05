@@ -1408,23 +1408,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nova_distributed_py3"
-version = "0.1.1"
-dependencies = [
- "futures",
- "once_cell",
- "pyo3",
- "pyo3-async-runtimes",
- "pythonize",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tracing",
- "triton-distributed",
-]
-
-[[package]]
 name = "nuid"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2645,6 +2628,23 @@ dependencies = [
  "uuid",
  "validator",
  "xxhash-rust",
+]
+
+[[package]]
+name = "triton_distributed_py3"
+version = "0.1.1"
+dependencies = [
+ "futures",
+ "once_cell",
+ "pyo3",
+ "pyo3-async-runtimes",
+ "pythonize",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "triton-distributed",
 ]
 
 [[package]]

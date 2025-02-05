@@ -1,7 +1,8 @@
 import asyncio
 
 import uvloop
-from nova_distributed import DistributedRuntime, nova_worker
+
+from triton_distributed import DistributedRuntime, triton_worker
 
 
 class RequestHandler:
@@ -15,9 +16,9 @@ class RequestHandler:
             yield char
 
 
-@nova_worker()
+@triton_worker()
 async def worker(runtime: DistributedRuntime):
-    await init(runtime, "nova-init")
+    await init(runtime, "triton-init")
 
 
 async def init(runtime: DistributedRuntime, ns: str):

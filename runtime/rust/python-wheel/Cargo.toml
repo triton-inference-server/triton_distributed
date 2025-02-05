@@ -1,5 +1,5 @@
 [package]
-name = "nova_distributed_py3"
+name = "triton_distributed_py3"
 version = "0.1.1"
 edition = "2021"
 
