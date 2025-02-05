@@ -1,6 +1,6 @@
 import argparse
 
-from triton_distributed.worker.worker import DEFAULT_REQUESTS_URI
+from triton_distributed.runtime.worker import DEFAULT_REQUESTS_URI
 
 
 # FIXME: Remove unused args if any
