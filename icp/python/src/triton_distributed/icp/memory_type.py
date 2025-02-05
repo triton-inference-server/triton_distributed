@@ -1,4 +1,3 @@
-#! /bin/bash
 # SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -14,11 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PROTO_SRC=$(dirname "$(realpath $0)")
-SOURCE_ROOT="$(realpath "${PROTO_SRC}/..")"
-PROTO_OUT=$SOURCE_ROOT/python/src/triton_distributed/icp/protos
+from enum import IntEnum
 
-mkdir -p $PROTO_OUT
+MemoryType = IntEnum("MemoryType", names=("CPU", "CPU_PINNED", "GPU"), start=0)
 
-python3 -m grpc_tools.protoc -I$PROTO_SRC --python_out=$PROTO_OUT --pyi_out=$PROTO_OUT icp.proto \
-  && ls $PROTO_OUT
+
+def string_to_memory_type(memory_type_string: str) -> MemoryType:
+    try:
+        return MemoryType[memory_type_string]
+    except KeyError:
+        raise ValueError(
+            f"Unsupported Memory Type String. Can't convert {memory_type_string} to MemoryType"
+        ) from None

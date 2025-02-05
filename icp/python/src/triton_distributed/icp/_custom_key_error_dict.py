@@ -1,4 +1,3 @@
-#! /bin/bash
 # SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -14,11 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PROTO_SRC=$(dirname "$(realpath $0)")
-SOURCE_ROOT="$(realpath "${PROTO_SRC}/..")"
-PROTO_OUT=$SOURCE_ROOT/python/src/triton_distributed/icp/protos
+from typing import Type
 
-mkdir -p $PROTO_OUT
 
-python3 -m grpc_tools.protoc -I$PROTO_SRC --python_out=$PROTO_OUT --pyi_out=$PROTO_OUT icp.proto \
-  && ls $PROTO_OUT
+class CustomKeyErrorDict(dict):
+    def __init__(
+        self,
+        from_name: str,
+        to_name: str,
+        *args,
+        exception: Type[Exception] = ValueError,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self._to_name = to_name
+        self._from_name = from_name
+        self._exception = exception
+
+    def __getitem__(self, key):
+        try:
+            return super().__getitem__(key)
+        except KeyError:
+            raise self._exception(
+                f"Unsupported {self._from_name}. Can't convert {key} to {self._to_name}"
+            ) from None

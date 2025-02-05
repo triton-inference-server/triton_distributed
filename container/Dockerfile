@@ -25,7 +25,9 @@ USER root
 
 # TODO: separate dev from runtime dependendcies
 
-RUN apt-get update; apt-get install -y gdb
+RUN apt-get update; apt-get install -y gdb protobuf-compiler
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install OpenAI-compatible frontend and its dependencies from triton server
 # repository. These are used to have a consistent interface, schema, and FastAPI
@@ -149,10 +151,23 @@ WORKDIR /workspace
 #TODO Exclude container directory
 COPY . /workspace
 
+RUN cd runtime/rust && cargo build --release --locked && cargo doc --no-deps
 RUN /workspace/icp/protos/gen_python.sh
 
+# Install python packages
+ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown
+
+# SETUPTOOLS_SCM_PRETEND_VERSION allows dynamically setting the package versions during build/install.
+# This allows having versioned packages during development between releases, such as commit IDs.
+#
+# Normally SCM version is taken directly from .git but this is not available in the Dockerfile
+# and so we pass in via a buildarg
+
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/runtime/python
+
 # Sets pythonpath for python modules
-ENV PYTHONPATH="${PYTHONPATH}:/workspace/icp/src/python:/workspace/worker/src/python:/workspace/examples:/opt/tritonserver/python/openai/openai_frontend"
+ENV PYTHONPATH="${PYTHONPATH}:/workspace/examples/python:/opt/tritonserver/python/openai/openai_frontend"
 
 # Enable system UCX
 ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
