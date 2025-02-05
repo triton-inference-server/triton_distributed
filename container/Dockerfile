@@ -151,7 +151,7 @@ apt install -y libssl-dev pkg-config libhwloc-dev hwloc libudev-dev clang libcla
 # RUN cd nova-distributed/python-wheels/nova-distributed && maturin build
 # KV publisher C library
 # RUN cd nova-distributed/rust/libnova_llm/ && cargo build --release
-RUN pip install /PATH/TO/nova_distributed*.whl
+RUN pip install nova-distributed/python-wheels/nova-distributed/target/wheels/nova_distributed*.whl
 
 # 'etcd' is runtime dependency
 RUN wget https://github.com/etcd-io/etcd/releases/download/v3.5.18/etcd-v3.5.18-linux-amd64.tar.gz && tar -xzf etcd-v3.5.18-linux-amd64.tar.gz
