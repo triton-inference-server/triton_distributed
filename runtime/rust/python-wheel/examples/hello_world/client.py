@@ -1,8 +1,7 @@
 import asyncio
 
 import uvloop
-
-from triton_distributed import DistributedRuntime, triton_worker
+from triton_distributed_rs import DistributedRuntime, triton_worker
 
 
 @triton_worker()
