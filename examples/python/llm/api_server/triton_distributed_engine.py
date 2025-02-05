@@ -18,7 +18,10 @@ from typing import AsyncIterator
 from engine.engine import LLMEngine
 from llm.api_server.chat_tensorrtllm import ChatHandlerTensorrtLLM
 from llm.api_server.chat_vllm import ChatHandlerVllm
-from llm.api_server.remote_model_connector import RemoteModelConnector
+from llm.api_server.remote_model_connector import (  # noqa: F401 DEFAULT_REQUESTS_URI is part of public API
+    DEFAULT_REQUESTS_URI,
+    RemoteModelConnector,
+)
 from schemas.openai import (
     CreateChatCompletionRequest,
     CreateChatCompletionResponse,

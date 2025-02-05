@@ -15,7 +15,7 @@
 
 import argparse
 
-from llm.api_server.triton_distributed_engine import DEFAULT_CONNECTOR_URI
+from llm.api_server.triton_distributed_engine import DEFAULT_REQUESTS_URI
 
 
 def parse_args():
@@ -45,7 +45,7 @@ def parse_args():
         "--request-plane-uri",
         type=str,
         required=False,
-        default=DEFAULT_CONNECTOR_URI,
+        default=DEFAULT_REQUESTS_URI,
         help="URL of request plane",
     )
 

@@ -15,7 +15,10 @@
 
 from typing import Optional
 
-from triton_distributed.icp.nats_request_plane import NatsRequestPlane
+from triton_distributed.icp.nats_request_plane import (  # noqa: F401 DEFAULT_REQUESTS_URI is part of public API
+    DEFAULT_REQUESTS_URI,
+    NatsRequestPlane,
+)
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
 
 # UCP data plane causes deadlocks when used more than once, so we use a singleton
