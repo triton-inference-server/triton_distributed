@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Class for receiving inference responses to Triton Inference Server Models"""
+"""Class for receiving inference responses to Triton Distributed Operators"""
 
 from __future__ import annotations
 
@@ -27,18 +27,22 @@ from triton_distributed.icp.protos.icp_pb2 import ModelInferResponse
 if TYPE_CHECKING:
     from triton_distributed.runtime.remote_request import RemoteInferenceRequest
 
+try:
+    from tritonserver import Tensor as TritonTensor
+except ImportError:
+    TritonTensor = type(None)  # type: ignore [misc, assignment]
+
 import uuid
 
-from tritonserver import InternalError, Tensor, TritonError
-from tritonserver._api._response import InferenceResponse
-
 from triton_distributed.icp.request_plane import (
+    RequestPlaneError,
     get_icp_component_id,
     get_icp_final_response,
     get_icp_response_error,
     set_icp_final_response,
     set_icp_response_error,
 )
+from triton_distributed.icp.tensor import Tensor
 from triton_distributed.runtime.logger import get_logger
 from triton_distributed.runtime.remote_tensor import RemoteTensor
 
@@ -107,7 +111,7 @@ class AsyncRemoteResponseIterator:
 
         responses = server.model("test").async_infer(inputs={"fp16_input":numpy.array([[1]],dtype=numpy.float16)})
         async for response in responses:
-            print(nummpy.from_dlpack(response.outputs["fp16_output"]))
+            print(numpy.from_dlpack(response.outputs["fp16_output"]))
 
 
         """
@@ -165,7 +169,7 @@ class AsyncRemoteResponseIterator:
     def _response_handler(self, response: ModelInferResponse):
         try:
             if self._request is None:
-                raise InternalError("Response received after final response flag")
+                raise ValueError("Response received after final response flag")
 
             final = False
 
@@ -203,8 +207,6 @@ class RemoteInferenceResponse:
     reported and a flag to indicate if the response is the final one
     for a request.
 
-    See c:func:`TRITONSERVER_InferenceResponse` for more details
-
     Parameters
     ----------
     model : Model
@@ -215,7 +217,7 @@ class RemoteInferenceResponse:
         Additional parameters associated with the response.
     outputs : dict [str, Tensor], default {}
         Output tensors for the inference.
-    error : Optional[TritonError], default None
+    error : Optional[RequestPlaneError], default None
         Error (if any) that occurred in the processing of the request.
     classification_label : Optional[str], default None
         Classification label associated with the inference. Not currently supported.
@@ -231,7 +233,7 @@ class RemoteInferenceResponse:
     parameters: dict[str, str | int | bool] = field(default_factory=dict)
     outputs: dict[str, RemoteTensor | Tensor] = field(default_factory=dict)
     store_outputs_in_response: set[str] = field(default_factory=set)
-    error: Optional[TritonError] = None
+    error: Optional[RequestPlaneError] = None
     classification_label: Optional[str] = None
     final: bool = False
 
@@ -253,7 +255,9 @@ class RemoteInferenceResponse:
     ):
         for name, value in self.outputs.items():
             if not isinstance(value, RemoteTensor):
-                if not isinstance(value, Tensor):
+                if not isinstance(value, Tensor) and not isinstance(
+                    value, TritonTensor
+                ):
                     tensor = Tensor._from_object(value)
                 else:
                     tensor = value
@@ -293,29 +297,6 @@ class RemoteInferenceResponse:
         self._set_model_infer_response_parameters(remote_response)
         self._set_model_infer_response_outputs(remote_response, data_plane)
         return remote_response
-
-    @staticmethod
-    def from_local_response(
-        local_response: InferenceResponse, store_outputs_in_response: bool = False
-    ):
-        result = RemoteInferenceResponse(
-            local_response.model.name,
-            local_response.model.version,
-            None,
-            local_response.request_id,
-            final=local_response.final,
-        )
-
-        for tensor_name, tensor_value in local_response.outputs.items():
-            result.outputs[tensor_name] = tensor_value
-            if store_outputs_in_response:
-                result.store_outputs_in_response.add(tensor_name)
-
-        for parameter_name, parameter_value in local_response.parameters.items():
-            result.parameters[parameter_name] = parameter_value
-
-        result.error = local_response.error
-        return result
 
     @staticmethod
     def from_model_infer_response(

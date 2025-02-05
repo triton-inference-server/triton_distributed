@@ -24,10 +24,11 @@ import numpy
 import pytest
 import ucp
 from cupy_backends.cuda.api.runtime import CUDARuntimeError
-from tritonserver import DataType, MemoryType, Tensor
-from tritonserver._api._datautils import TRITON_TO_NUMPY_DTYPE
 
 from triton_distributed.icp.data_plane import DataPlaneError
+from triton_distributed.icp.data_type import DATA_TYPE_TO_NUMPY_DTYPE, DataType
+from triton_distributed.icp.memory_type import MemoryType
+from triton_distributed.icp.tensor import Tensor
 from triton_distributed.icp.ucp_data_plane import (
     UcpDataPlane,
     get_icp_tensor_uri,
@@ -283,7 +284,7 @@ def test_requested_memory_type(memory_type, memory_type_id, request):
 
 
 def _get_random_tensor(data_type: DataType, size: Sequence[int]):
-    dtype = TRITON_TO_NUMPY_DTYPE[data_type]
+    dtype = DATA_TYPE_TO_NUMPY_DTYPE[data_type]
     value = numpy.random.rand(*size)
     return value.astype(dtype)
 
