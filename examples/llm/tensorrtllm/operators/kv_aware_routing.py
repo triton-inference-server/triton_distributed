@@ -38,7 +38,10 @@ class KvAwareRoutingOperator(TritonCoreOperator):
         repository,
         logger,
     ):
-        self._router = None
+        loop = asyncio.get_running_loop()
+        self._runtime = DistributedRuntime(loop)
+        backend = self._runtime.namespace("router").component("generate")
+        self._router = KvRouter(self._runtime, backend)
         self._generate = RemoteOperator("generate", request_plane, data_plane)
 
         self._repository = repository
@@ -48,20 +51,8 @@ class KvAwareRoutingOperator(TritonCoreOperator):
         self._postprocess_model = self._triton_core.load("simple_postprocessing")
         self._logger = logger
         self._store_outputs_in_response = True
-        print("KvAwareRoutingOperator initialized")
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
-        print("KvAwareRoutingOperator execute")
-        if self._router is None:
-            # inflight initialization because router setup requires event loop
-            # which is only obtainable from async (coroutine).
-            # This is okay because the router will be hit first and there
-            # shouldn't be interested events before first call to this function. 
-            loop = asyncio.get_running_loop()
-            runtime = DistributedRuntime(loop)
-            backend = runtime.namespace("router").component("generate")
-            self._router = KvRouter(runtime, backend)
-        print("Initialized router")
         self._logger.debug("Executing KvAwareRouting Request")
         background_tasks = []
         for request in requests:

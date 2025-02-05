@@ -62,7 +62,10 @@ class TritonCoreOperator(Operator):
         if repository:
             triton_core.register_model_repository(repository)
 
-        parameter_config = self._parameters.get("config", None)
+        parameter_config = self._parameters.get("config", {})
+        if "parameters" not in parameter_config:
+            parameter_config["parameters"] = {}
+        parameter_config["parameters"]["component_id"] = {"string_value": f"{self._request_plane.component_id}"}
 
         model_config = None
 
