@@ -4,6 +4,7 @@ This project uses the following third-party libraries. Each library is open-sour
 
 ## anyhow - 1.0.95
 
+- **Repository URL**: https://github.com/dtolnay/anyhow
 - **License URL**: https://raw.githubusercontent.com/dtolnay/anyhow/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -35,6 +36,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## assert_matches - 1.5.0
 
+- **Repository URL**: https://github.com/murarth/assert_matches
 - **License URL**: https://raw.githubusercontent.com/murarth/assert_matches/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -68,6 +70,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## async-nats - 0.38.0
 
+- **Repository URL**: https://github.com/nats-io/nats.rs
 - **License URL**: https://raw.githubusercontent.com/nats-io/nats.rs/refs/heads/main/LICENSE
 ### License Text:
 
@@ -277,6 +280,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## async-once-cell - 0.5.4
 
+- **Repository URL**: https://github.com/danieldg/async-once-cell
 - **License URL**: https://raw.githubusercontent.com/danieldg/async-once-cell/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -304,6 +308,7 @@ SOFTWARE.
 ```
 ## async-stream - 0.3.6
 
+- **Repository URL**: https://github.com/tokio-rs/async-stream
 - **License URL**: https://raw.githubusercontent.com/tokio-rs/async-stream/refs/heads/master/LICENSE
 ### License Text:
 
@@ -363,6 +368,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## async-trait - 0.1.86
 
+- **Repository URL**: https://github.com/dtolnay/async-trait
 - **License URL**: https://raw.githubusercontent.com/dtolnay/async-trait/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -394,6 +400,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## blake3 - 1.5.5
 
+- **Repository URL**: https://github.com/BLAKE3-team/BLAKE3
 - **License URL**: https://github.com/BLAKE3-team/BLAKE3/raw/refs/heads/master/LICENSE_A2
 ### License Text:
 
@@ -604,6 +611,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## bytes - 1.10.0
 
+- **Repository URL**: https://github.com/tokio-rs/bytes
 - **License URL**: https://raw.githubusercontent.com/tokio-rs/bytes/refs/heads/master/LICENSE
 ### License Text:
 
@@ -637,6 +645,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## derive-getters - 0.5.0
 
+- **Repository URL**: https://git.sr.ht/~kvsari/derive-getters
 - **License URL**: https://git.sr.ht/~kvsari/derive-getters/blob/master/LICENSE
 ### License Text:
 
@@ -666,6 +675,7 @@ SOFTWARE.
 ```
 ## derive_builder - 0.20.2
 
+- **Repository URL**: https://github.com/colin-kiegel/rust-derive-builder
 - **License URL**: https://raw.githubusercontent.com/colin-kiegel/rust-derive-builder/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -695,6 +705,7 @@ SOFTWARE.
 ```
 ## educe - 0.6.0
 
+- **Repository URL**: https://github.com/magiclen/educe
 - **License URL**: https://raw.githubusercontent.com/magiclen/educe/refs/heads/master/LICENSE
 ### License Text:
 
@@ -724,6 +735,7 @@ SOFTWARE.
 ```
 ## either - 1.13.0
 
+- **Repository URL**: https://github.com/rayon-rs/either
 - **License URL**: https://raw.githubusercontent.com/rayon-rs/either/refs/heads/main/LICENSE-MIT
 ### License Text:
 
@@ -757,6 +769,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## etcd-client - 0.14.1
 
+- **Repository URL**: https://github.com/etcdv3/etcd-client
 - **License URL**: https://raw.githubusercontent.com/etcdv3/etcd-client/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -790,6 +803,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## figment - 0.10.19
 
+- **Repository URL**: https://github.com/SergioBenitez/Figment
 - **License URL**: https://raw.githubusercontent.com/SergioBenitez/Figment/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -817,6 +831,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 ## futures - 0.3.31
 
+- **Repository URL**: https://github.com/rust-lang/futures-rs
 - **License URL**: https://raw.githubusercontent.com/rust-lang/futures-rs/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -851,6 +866,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## local-ip-address - 0.6.3
 
+- **Repository URL**: https://github.com/EstebanBorai/local-ip-address
 - **License URL**: https://raw.githubusercontent.com/EstebanBorai/local-ip-address/refs/heads/main/LICENSE-MIT
 ### License Text:
 
@@ -884,6 +900,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## nid - 3.0.0
 
+- **Repository URL**: https://github.com/ciffelia/nid
 - **License URL**: https://raw.githubusercontent.com/ciffelia/nid/refs/heads/main/LICENSE-MIT
 ### License Text:
 
@@ -913,6 +930,7 @@ SOFTWARE.
 ```
 ## nix - 0.29.0
 
+- **Repository URL**: https://github.com/nix-rust/nix
 - **License URL**: https://raw.githubusercontent.com/nix-rust/nix/refs/heads/master/LICENSE
 ### License Text:
 
@@ -942,6 +960,7 @@ THE SOFTWARE.
 ```
 ## nuid - 0.5.0
 
+- **Repository URL**: https://github.com/casualjim/rs-nuid
 - **License URL**: https://raw.githubusercontent.com/casualjim/rs-nuid/refs/heads/master/LICENSE
 ### License Text:
 
@@ -1138,6 +1157,7 @@ THE SOFTWARE.
 ```
 ## once_cell - 1.20.2
 
+- **Repository URL**: https://github.com/matklad/once_cell
 - **License URL**: https://raw.githubusercontent.com/matklad/once_cell/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -1169,6 +1189,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## prometheus - 0.13.4
 
+- **Repository URL**: https://github.com/tikv/rust-prometheus
 - **License URL**: https://raw.githubusercontent.com/tikv/rust-prometheus/refs/heads/master/LICENSE
 ### License Text:
 
@@ -1378,6 +1399,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## rand - 0.8.5
 
+- **Repository URL**: https://github.com/rust-random/rand
 - **License URL**: https://raw.githubusercontent.com/rust-random/rand/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -1412,6 +1434,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## regex - 1.11.1
 
+- **Repository URL**: https://github.com/rust-lang/regex
 - **License URL**: https://raw.githubusercontent.com/rust-lang/regex/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -1445,6 +1468,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## serde - 1.0.217
 
+- **Repository URL**: https://github.com/serde-rs/serde
 - **License URL**: https://raw.githubusercontent.com/serde-rs/serde/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -1476,6 +1500,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## serde_json - 1.0.138
 
+- **Repository URL**: https://github.com/serde-rs/json
 - **License URL**: https://raw.githubusercontent.com/serde-rs/json/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -1507,6 +1532,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## thiserror - 1.0.69
 
+- **Repository URL**: https://github.com/dtolnay/thiserror
 - **License URL**: https://raw.githubusercontent.com/dtolnay/thiserror/refs/heads/master/LICENSE-MIT
 ### License Text:
 
@@ -1538,6 +1564,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## tokio - 1.43.0
 
+- **Repository URL**: https://github.com/tokio-rs/tokio
 - **License URL**: https://raw.githubusercontent.com/tokio-rs/tokio/refs/heads/master/LICENSE
 ### License Text:
 
@@ -1567,6 +1594,7 @@ SOFTWARE.
 ```
 ## tokio-stream - 0.1.17
 
+- **Repository URL**: https://github.com/tokio-rs/tokio
 - **License URL**: https://raw.githubusercontent.com/tokio-rs/tokio/refs/heads/master/LICENSE
 ### License Text:
 
@@ -1596,6 +1624,7 @@ SOFTWARE.
 ```
 ## tokio-util - 0.7.13
 
+- **Repository URL**: https://github.com/tokio-rs/tokio
 - **License URL**: https://raw.githubusercontent.com/tokio-rs/tokio/refs/heads/master/LICENSE
 ### License Text:
 
@@ -1625,6 +1654,7 @@ SOFTWARE.
 ```
 ## tracing - 0.1.41
 
+- **Repository URL**: https://github.com/tokio-rs/tracing
 - **License URL**: https://raw.githubusercontent.com/tokio-rs/tracing/refs/heads/master/LICENSE
 ### License Text:
 
@@ -1658,6 +1688,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## uuid - 1.12.1
 
+- **Repository URL**: https://github.com/uuid-rs/uuid
 - **License URL**: https://raw.githubusercontent.com/uuid-rs/uuid/refs/heads/main/LICENSE-MIT
 ### License Text:
 
@@ -1692,6 +1723,7 @@ DEALINGS IN THE SOFTWARE.
 ```
 ## validator - 0.20.0
 
+- **Repository URL**: https://github.com/Keats/validator
 - **License URL**: https://raw.githubusercontent.com/Keats/validator/refs/heads/master/LICENSE
 ### License Text:
 
@@ -1722,6 +1754,7 @@ SOFTWARE.
 ```
 ## xxhash-rust - 0.8.15
 
+- **Repository URL**: https://github.com/DoumanAsh/xxhash-rust
 - **License URL**: https://raw.githubusercontent.com/DoumanAsh/xxhash-rust/refs/heads/master/LICENSE
 ### License Text:
 
