@@ -33,31 +33,7 @@ maturin develop --uv
 
 ## Pre-requisite
 
-### Docker Compose
-
-The simplest way to deploy the pre-requisite services is using
-[docker-compose](https://docs.docker.com/compose/install/linux/),
-defined in the project's root [docker-compose.yml](docker-compose.yml).
-
-```
-docker-compose up -d
-```
-
-
-This will deploy a [NATS.io](https://nats.io/) server and an [etcd](https://etcd.io/)
-server used to communicate between and discover components at runtime.
-
-
-### Local
-
-To deploy the pre-requisite services locally instead of using `docker-compose`
-above, you can manually launch each:
-
-- [NATS.io](https://docs.nats.io/running-a-nats-service/introduction/installation) server with [Jetstream](https://docs.nats.io/nats-concepts/jetstream)
-    - example: `nats-server -js --trace`
-- `etcd` server
-    - follow instructions in [etcd installation](https://etcd.io/docs/v3.5/install/) to start an `etcd-server` locally
-
+See [README.md](../README.md).
 
 ## Hello World Example
 
