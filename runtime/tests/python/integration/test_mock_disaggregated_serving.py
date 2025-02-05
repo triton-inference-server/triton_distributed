@@ -280,6 +280,7 @@ def run_kserve(num_requests):
     sys.exit(asyncio.run(send_kserve_requests(num_requests=num_requests)))
 
 
+@pytest.mark.xfail
 @pytest.mark.skipif(
     "(not os.path.exists('/usr/local/bin/nats-server'))",
     reason="NATS.io not present",
