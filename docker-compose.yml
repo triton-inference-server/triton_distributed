@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  nats-server:
+    image: nats
+    command: [ "-js", "--trace" ]
+    ports:
+      - 4222:4222
+      - 6222:6222
+      - 8222:8222
+
+  etcd-server:
+    image: bitnami/etcd
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+    ports:
+      - 2379:2379
+      - 2380:2380
