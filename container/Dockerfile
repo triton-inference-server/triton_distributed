@@ -69,11 +69,12 @@ RUN pip install "git+https://github.com/triton-inference-server/perf_analyzer.gi
 
 # Backend & Framework Specific Installation
 ARG FRAMEWORK="STANDARD"
-ARG TENSORRTLLM_BACKEND_COMMIT=
+ARG TENSORRTLLM_BACKEND_REPO_TAG=
+ARG TENSORRTLLM_BACKEND_REBUILD=
 ENV FRAMEWORK=${FRAMEWORK}
 RUN --mount=type=bind,source=./container/deps/requirements.tensorrtllm.txt,target=/tmp/requirements.txt \
     --mount=type=bind,source=./container/deps/clone_tensorrtllm.sh,target=/tmp/clone_tensorrtllm.sh \
-    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-commit ${TENSORRTLLM_BACKEND_COMMIT} ; fi
+    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-repo-tag ${TENSORRTLLM_BACKEND_REPO_TAG} --tensorrtllm-backend-rebuild ${TENSORRTLLM_BACKEND_REBUILD} ; fi
 
 RUN --mount=type=bind,source=./container/deps/requirements.vllm.txt,target=/tmp/requirements.txt \
     if [[ "$FRAMEWORK" == "VLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt ; fi
@@ -98,7 +99,7 @@ RUN --mount=type=bind,source=./container/deps/requirements.standard.txt,target=/
 ARG TENSORRTLLM_FRAMEWORK
 ENV FRAMEWORK_LD_LIBRARY_PATH=${TENSORRTLLM_FRAMEWORK:+/opt/tritonserver/backends/tensorrtllm/}
 ENV LD_LIBRARY_PATH=${FRAMEWORK_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
-ENV TENSORRTLLM_BACKEND_COMMIT=$TENSORRTLLM_BACKEND_COMMIT
+ENV TENSORRTLLM_BACKEND_REPO_TAG=$TENSORRTLLM_BACKEND_REPO_TAG
 ENV TRTLLM_USE_MPI_KVCACHE=${TENSORRTLLM_FRAMEWORK:+"1"}
 
 # TODO set VLLM Version
