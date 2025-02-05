@@ -286,7 +286,7 @@ def run_kserve(num_requests):
 # )
 # @pytest.mark.xfail
 # The test corrupts the whole suite. Please enable it again when the test is fixed.
-@pytest.mark.skipif(False)
+@pytest.mark.skipif(True)
 def test_mock_disaggregated_serving_kserve(request, nats_server, workers, api_server):
     # Using a separate process to use data plane across multiple tests.
     p = Process(target=run_kserve, args=(1,))
