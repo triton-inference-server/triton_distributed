@@ -24,8 +24,13 @@ from triton_distributed.runtime.remote_request import (
 from triton_distributed.runtime.remote_response import (
     RemoteInferenceResponse as RemoteInferenceResponse,
 )
-from triton_distributed.runtime.triton_core_operator import (
-    TritonCoreOperator as TritonCoreOperator,
-)
+
+try:
+    from triton_distributed.runtime.triton_core_operator import (
+        TritonCoreOperator as TritonCoreOperator,
+    )
+except ImportError:
+    pass
+
 from triton_distributed.runtime.worker import Worker as Worker
 from triton_distributed.runtime.worker import WorkerConfig as WorkerConfig

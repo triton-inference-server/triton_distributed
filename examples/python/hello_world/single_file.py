@@ -41,12 +41,12 @@ class EncodeDecodeOperator(Operator):
         self,
         name,
         version,
-        triton_core,
         request_plane,
         data_plane,
         parameters,
         repository,
         logger,
+        triton_core,
     ):
         self._encoder = RemoteOperator("encoder", request_plane, data_plane)
         self._decoder = RemoteOperator("decoder", request_plane, data_plane)

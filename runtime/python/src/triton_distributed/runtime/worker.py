@@ -24,7 +24,17 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional, Type
 
-import tritonserver
+try:
+    from tritonserver import ModelControlMode as ModelControlMode
+    from tritonserver import Server as TritonCore
+
+    from triton_distributed.runtime.triton_core_operator import TritonCoreOperator
+
+    TRITON_CORE_AVAILABLE = True
+except ImportError:
+    TRITON_CORE_AVAILABLE = False
+    TritonCoreOperator = type(None)
+    TritonCore = type(None)  # type: ignore[misc,assignment]
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
@@ -36,7 +46,6 @@ from triton_distributed.runtime.remote_request import (
     RemoteInferenceRequest,
     RemoteResponseSender,
 )
-from triton_distributed.runtime.triton_core_operator import TritonCoreOperator
 
 if TYPE_CHECKING:
     import uvicorn
@@ -89,7 +98,7 @@ class Worker:
         self._metrics_port = config.metrics_port
         self._metrics_server: Optional[uvicorn.Server] = None
         self._component_id = self._request_plane.component_id
-        self._triton_core: Optional[tritonserver.Server] = None
+        self._triton_core: Optional[TritonCore] = None
         self._log_file: Optional[pathlib.Path] = None
         if self._log_dir:
             path = pathlib.Path(self._log_dir)
@@ -148,6 +157,10 @@ class Worker:
                     class_ == TritonCoreOperator
                     or issubclass(class_, TritonCoreOperator)
                 ) and not self._triton_core:
+                    if not TRITON_CORE_AVAILABLE:
+                        raise ValueError(
+                            "Please install Triton Core to use a Triton Core Operator"
+                        )
                     if not self._consolidate_logs and self._log_file:
                         log_file = pathlib.Path(self._log_file)
                         stem = log_file.stem
@@ -157,24 +170,24 @@ class Worker:
                         )
                     else:
                         triton_log_path = str(self._log_file)
-                    self._triton_core = tritonserver.Server(
+                    self._triton_core = TritonCore(
                         model_repository=".",
                         log_error=True,
                         log_verbose=self._log_level,
                         strict_model_config=False,
-                        model_control_mode=tritonserver.ModelControlMode.EXPLICIT,
+                        model_control_mode=ModelControlMode.EXPLICIT,
                         log_file=triton_log_path,
                     ).start(wait_until_ready=True)
 
                 operator = class_(
                     operator_config.name,
                     operator_config.version,
-                    self._triton_core,
                     self._request_plane,
                     self._data_plane,
                     operator_config.parameters,
                     operator_config.repository,
                     operator_logger,
+                    self._triton_core,
                 )
             except Exception as e:
                 logger.exception(

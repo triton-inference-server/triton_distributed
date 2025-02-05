@@ -25,7 +25,6 @@ from typing import Dict, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import nats
-from tritonserver import InvalidArgumentError
 
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 from triton_distributed.icp.request_plane import (
@@ -225,7 +224,7 @@ class NatsRequestPlane(RequestPlane):
         Optional[nats.js.JetStreamContext.PullSubscription],
     ]:
         if self._jet_stream is None:
-            raise InvalidArgumentError(
+            raise ValueError(
                 "Failed to get model stream: NATS Jetstream not connected!"
             )
 
@@ -357,19 +356,15 @@ class NatsRequestPlane(RequestPlane):
         responses: AsyncIterator[ModelInferResponse] | ModelInferResponse,
     ):
         if self._jet_stream is None:
-            raise InvalidArgumentError(
-                "Failed to post response: NATS Jetstream not connected!"
-            )
+            raise ValueError("Failed to post response: NATS Jetstream not connected!")
 
         request_id = get_icp_request_id(request)
         if request_id is None:
-            raise InvalidArgumentError("ICP request must have request id")
+            raise ValueError("ICP request must have request id")
 
         response_to_uri = get_icp_response_to_uri(request)
         if not response_to_uri:
-            raise InvalidArgumentError(
-                "Attempting to send a response when non requested"
-            )
+            raise ValueError("Attempting to send a response when non requested")
 
         parsed = urlsplit(response_to_uri)
         response_stream = parsed.path.replace("/", "")
@@ -400,12 +395,10 @@ class NatsRequestPlane(RequestPlane):
         ] = None,
     ) -> AsyncIterator[ModelInferResponse]:
         if self._jet_stream is None:
-            raise InvalidArgumentError(
-                "Failed to post request: NATS Jetstream not connected!"
-            )
+            raise ValueError("Failed to post request: NATS Jetstream not connected!")
 
         if response_iterator and response_handler:
-            raise InvalidArgumentError(
+            raise ValueError(
                 "Can only specify either response handler or response iterator"
             )
 
