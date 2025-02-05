@@ -47,7 +47,7 @@ class RemoteConnector:
 
     def __init__(
         self,
-        nats_url: str,
+        request_plane_uri: str,
         data_plane_host: Optional[str] = None,
         data_plane_port: int = 0,
         keep_dataplane_endpoints_open: bool = False,
@@ -55,13 +55,13 @@ class RemoteConnector:
         """Initialize RemoteConnector.
 
         Args:
-            nats_url (str): URL of NATS server.
+            request_plane_uri (str): URL of NATS server.
         """
         global _g_singletonic_data_plane
         global _g_actual_port
         global _g_actual_host
-        self._nats_url = nats_url
-        self._request_plane = NatsRequestPlane(nats_url)
+        self._request_plane_uri = request_plane_uri
+        self._request_plane = NatsRequestPlane(request_plane_uri)
         if _g_singletonic_data_plane is None:
             if _g_actual_host is not None:
                 data_plane_host = _g_actual_host

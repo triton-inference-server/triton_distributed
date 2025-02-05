@@ -16,6 +16,8 @@
 import argparse
 from pathlib import Path
 
+from triton_distributed.worker.worker import DEFAULT_REQUESTS_URI
+
 
 def parse_args(args=None):
     example_dir = Path(__file__).parent.absolute().parent.absolute()
@@ -55,7 +57,7 @@ def parse_args(args=None):
     parser.add_argument(
         "--request-plane-uri",
         type=str,
-        default="nats://localhost:4223",
+        default=DEFAULT_REQUESTS_URI,
         help="URI of request plane",
     )
 

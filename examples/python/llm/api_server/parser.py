@@ -15,6 +15,8 @@
 
 import argparse
 
+from llm.api_server.triton_distributed_engine import DEFAULT_CONNECTOR_URI
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -43,7 +45,7 @@ def parse_args():
         "--request-plane-uri",
         type=str,
         required=False,
-        default="nats://localhost:4223",
+        default=DEFAULT_CONNECTOR_URI,
         help="URL of request plane",
     )
 

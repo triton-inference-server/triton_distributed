@@ -37,9 +37,8 @@ from triton_distributed.runtime.deployment import Deployment
 from triton_distributed.runtime.logger import get_logger
 from triton_distributed.runtime.operator import OperatorConfig
 from triton_distributed.runtime.remote_operator import RemoteOperator
-from triton_distributed.runtime.worker import WorkerConfig
+from triton_distributed.runtime.worker import DEFAULT_REQUESTS_URI, WorkerConfig
 
-NATS_PORT = 4223
 MODEL_REPOSITORY = (
     "/workspace/runtime/tests/python/integration/operators/triton_core_models"
 )
@@ -84,7 +83,7 @@ def workers(log_dir, request, number_workers=1):
                 data_plane=UcpDataPlane,
                 request_plane_args=(
                     [],
-                    {"request_plane_uri": f"nats://localhost:{NATS_PORT}"},
+                    {"request_plane_uri": DEFAULT_REQUESTS_URI},
                 ),
                 log_level=TRITON_LOG_LEVEL,
                 log_dir=str(worker_log_dir),
@@ -128,7 +127,7 @@ def run(
         data_plane_tracker._data_plane = UcpDataPlane()
         data_plane_tracker._data_plane.connect()
 
-    request_plane = NatsRequestPlane(f"nats://localhost:{NATS_PORT}")
+    request_plane = NatsRequestPlane(DEFAULT_REQUESTS_URI)
     asyncio.get_event_loop().run_until_complete(request_plane.connect())
 
     identity_operator = RemoteOperator(
