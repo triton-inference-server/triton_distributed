@@ -14,7 +14,7 @@ async def worker(runtime: DistributedRuntime, prompt: str):
     """
     # get endpoint
     endpoint = (
-        runtime.namespace("triton-init").component("backend").endpoint("generate")
+        runtime.namespace("triton-init").component("vllm").endpoint("generate")
     )
 
     # create client
