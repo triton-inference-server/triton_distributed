@@ -20,10 +20,9 @@ from multiprocessing import Process, Queue
 
 import pytest
 
-from triton_distributed.icp.nats_request_plane import NatsRequestPlane
+from triton_distributed.icp.nats_request_plane import NatsRequestPlane, NatsServer
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 from triton_distributed.icp.request_plane import (
-    NatsServer,
     get_icp_component_id,
     set_icp_final_response,
 )
