@@ -259,4 +259,20 @@ python3 /workspace/examples/llm/tensorrtllm/deploy/launch_workers.py \
   --request-plane-uri ${HOSTNAME}:4222 &
 ```
 
-Why is Roger Federer the greatest tennis player of all time? Roger Federer is widely regarded as one of the greatest tennis players of all time, and many consider him the greatest.
+```bash
+curl ${HOSTNAME}:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "llama-3.1-8b-instruct",
+    "messages": [
+      {"role": "user", "content": "Why is Roger Federer the greatest tennis player of all time? Roger Federer is widely regarded as one of the greatest tennis players of all time, and many consider him the greatest."}
+    ],
+    "temperature": 0,
+    "top_p": 0.95,
+    "max_tokens": 25,
+    "stream": true,
+    "n": 1,
+    "frequency_penalty": 0.0,
+    "stop": []
+  }'
+```

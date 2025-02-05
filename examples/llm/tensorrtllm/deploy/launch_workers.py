@@ -67,6 +67,9 @@ def _launch_mpi_workers(args):
             command.extend(_context_cmd(args, starting_gpu))
             command.append(":")
 
+        # [FIXME] the starting gpu is not count correctly,
+        # i.e. if context_worker_count is 1, generate is 4,
+        # starting GPUs are 1, 5, 9, 13, but should be 1, 2, 3, 4
         for index in range(args.generate_worker_count):
             starting_gpu = index * aggregate_gpus + args.context_worker_count
             command.extend(_generate_cmd(args, starting_gpu, index))
