@@ -39,7 +39,7 @@ class KvAwareRoutingOperator(TritonCoreOperator):
         logger,
     ):
         self._router = None
-        self._aggregate = RemoteOperator("aggregate", request_plane, data_plane)
+        self._generate = RemoteOperator("generate", request_plane, data_plane)
 
         self._repository = repository
         self._triton_core = triton_core
@@ -48,8 +48,10 @@ class KvAwareRoutingOperator(TritonCoreOperator):
         self._postprocess_model = self._triton_core.load("simple_postprocessing")
         self._logger = logger
         self._store_outputs_in_response = True
+        print("KvAwareRoutingOperator initialized")
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
+        print("KvAwareRoutingOperator execute")
         if self._router is None:
             # inflight initialization because router setup requires event loop
             # which is only obtainable from async (coroutine).
@@ -57,9 +59,9 @@ class KvAwareRoutingOperator(TritonCoreOperator):
             # shouldn't be interested events before first call to this function. 
             loop = asyncio.get_running_loop()
             runtime = DistributedRuntime(loop)
-            backend = runtime.namespace("router").component("foo")
+            backend = runtime.namespace("router").component("generate")
             self._router = KvRouter(runtime, backend)
-
+        print("Initialized router")
         self._logger.debug("Executing KvAwareRouting Request")
         background_tasks = []
         for request in requests:
@@ -110,18 +112,19 @@ class KvAwareRoutingOperator(TritonCoreOperator):
                 [[sampling_params["max_tokens"]]], dtype=numpy.int32
             )
 
-        streaming = request.parameters.get("streaming", False)
         input_ids, input_lengths = await self._preprocess(query)
         self._logger.debug(input_ids, input_lengths)
+        print(input_ids)
 
         # [FIXME] not rate limiting due to metric polling is not supported
         # KV aware routing
         lora_id = 0
         try:
-            self._aggregate.component_id = await router.schedule(input_ids[0], lora_id)
+            self._generate.component_id = await self._router.schedule(input_ids[0], lora_id)
         except Exception as e:
-            if "No worker found" in e.message:
-                self._aggregate.component_id = None
+            print(str(e))
+            if "No worker found" in str(e):
+                self._generate.component_id = None
             else:
                 self._logger.exception(f"Error during selecting worker: {e}")
 
@@ -132,7 +135,7 @@ class KvAwareRoutingOperator(TritonCoreOperator):
         llm_inputs["input_lengths"] = input_lengths
         llm_inputs["request_output_len"] = request_output_len
 
-        async for llm_response in await self._aggregate.async_infer(
+        async for llm_response in await self._generate.async_infer(
             inputs=llm_inputs,
         ):
             self._logger.debug(f"llm response completed: {llm_response}")

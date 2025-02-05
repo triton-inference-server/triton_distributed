@@ -45,7 +45,7 @@ for sig in signals:
 def _launch_mpi_workers(args):
     if (
         args.context_worker_count == 1
-        or args.generate_worker_count == 1
+        or args.generate_worker_count >= 1
         or args.aggregate_worker_count == 1
     ):
         command = [
@@ -69,7 +69,7 @@ def _launch_mpi_workers(args):
 
         for index in range(args.generate_worker_count):
             starting_gpu = index * aggregate_gpus + args.context_worker_count
-            command.extend(_generate_cmd(args, starting_gpu))
+            command.extend(_generate_cmd(args, starting_gpu, index))
             command.append(":")
 
         for index in range(args.aggregate_worker_count):
@@ -103,6 +103,20 @@ def _launch_disagg_model(args):
 
     return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
 
+def _launch_kv_aware_model(args):
+    if not args.kv_aware_routing:
+        return
+
+    starting_gpu = 0
+    env = os.environ.copy()
+    command = _kv_aware_routing_cmd(args, starting_gpu)
+    print(" ".join(command))
+
+    if args.dry_run:
+        return
+
+    return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
+
 
 def _launch_workers(args):
     # Launch nats-server if requested by user for convenience, otherwise
@@ -115,9 +129,14 @@ def _launch_workers(args):
     # Launch TRT-LLM models via mpiexec in the same MPI WORLD
     _launch_mpi_workers(args)
 
+    # [FIXME] below should be "one of" or merged together
     # Launch disaggregated serving "workflow" model to interface
     # client-facing requests with Triton Distributed deployment.
     _launch_disagg_model(args)
+
+    # Launch KV aware routing "workflow" model to interface
+    # client-facing requests with Triton Distributed deployment.
+    _launch_kv_aware_model(args)
 
 
 def _context_cmd(args, starting_gpu):
@@ -152,7 +171,7 @@ def _context_cmd(args, starting_gpu):
     return command
 
 
-def _generate_cmd(args, starting_gpu):
+def _generate_cmd(args, starting_gpu, index):
     # Hard-coded worker name for internal communication
     # see tensorrtllm.deploy script
     worker_name = "generate"
@@ -175,7 +194,7 @@ def _generate_cmd(args, starting_gpu):
         "--gpu-device-id",
         f"{starting_gpu}",
         "--metrics-port",
-        "50001",
+        str(50001 + index * 10),
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
     ]

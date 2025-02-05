@@ -243,3 +243,20 @@ Zhang. Distserve: Disaggregating prefill and decoding for goodput-optimized larg
 model serving. *arXiv:2401.09670v3 [cs.DC]*, 2024.
 
 For more details on Triton Distributed, see the [Hello World example](../../hello_world/) and [Triton Inference Server documentation](https://github.com/triton-inference-server/server).
+
+# KV Aware Routing with TensorRT-LLM
+
+This example also showcase smart routing based on worker KV usage, in aggregated scenario.
+To start a KV aware deployment with 2 decode workers:
+
+```bash
+export MODEL_NAME="llama-3.1-8b-instruct"
+python3 /workspace/examples/llm/tensorrtllm/deploy/launch_workers.py \
+  --generate-worker-count 2 \
+  --model ${MODEL_NAME} \
+  --initialize-request-plane \
+  --kv-aware-routing \
+  --request-plane-uri ${HOSTNAME}:4222 &
+```
+
+Why is Roger Federer the greatest tennis player of all time? Roger Federer is widely regarded as one of the greatest tennis players of all time, and many consider him the greatest.
