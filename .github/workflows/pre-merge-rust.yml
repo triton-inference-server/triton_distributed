@@ -62,6 +62,12 @@ jobs:
     - name: Run Clippy Checks
       working-directory: runtime/rust
       run: cargo clippy --no-deps --all-targets -- -D warnings
+    - name: Install and Run cargo-deny
+      working-directory: runtime/rust
+      run: |
+        cargo-deny --version || cargo install cargo-deny
+        cargo-deny check --hide-inclusion-graph licenses
+      timeout-minutes: 5
     - name: Run Unit Tests
       working-directory: runtime/rust
       run: cargo test --locked --all-targets
