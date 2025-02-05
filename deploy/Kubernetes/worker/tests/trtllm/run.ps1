@@ -25,11 +25,11 @@ $tests = @(
       name = 'basic'
       expected = 0
       matches = @(
-          'helm.sh/chart: "triton-distributed_worker-trtllm"[\n\r]{1,2}'
-          'app.kubernetes.io/instance: test[\n\r]{1,2}'
-          'app.kubernetes.io/name: faux-triton[\n\r]{1,2}'
-          'image: some_false-container_name:with_a-tag[\n\r]{1,2}'
-          'ephemeral-storage: 98Gi[\n\r]{1,2}'
+          '\bhelm\.sh/chart: "triton-distributed_worker-trtllm"[\n\r]{1,2}'
+          '\bapp\.kubernetes.io/instance: test[\n\r]{1,2}'
+          '\bapp\.kubernetes.io/name: faux-triton[\n\r]{1,2}'
+          '\bimage: some_false-container_name:with_a-tag[\n\r]{1,2}'
+          '\bephemeral-storage: 98Gi[\n\r]{1,2}'
           @{
             indent = 8
             lines = @(
@@ -51,6 +51,8 @@ $tests = @(
       name = 'basic_error'
       expected = 1
       matches = @(
+          '\bError: values don''t meet the specifications of the schema\(s\) in the following chart\(s\):'
+          '\btriton-distributed_worker-trtllm:'
           '- triton: componentName is required[\n\r]{1,2}'
           '- image: name is required[\n\r]{1,2}'
         )
