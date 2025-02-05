@@ -14,56 +14,70 @@
 # limitations under the License.
 
 import os
+import shutil
 import subprocess
 import sys
 
 import pytest
 
 
-@pytest.mark.parametrize(
-    "chart, test",
-    [
-        ("trtllm", "basic"),
-        ("trtllm", "basic_error"),
-        ("trtllm", "volume_mounts"),
-        ("trtllm", "bad_volume_mounts"),
-        ("trtllm", "host_cache"),
-        ("trtllm", "non-host_cache"),
-        ("vllm", "basic"),
-        ("vllm", "basic_error"),
-        ("trtllm", "volume_mounts"),
-        ("trtllm", "bad_volume_mounts"),
-    ],
-)
-def test_chart(chart, test):
+def find_repository_root():
+    """Uses Git to find the repository's root path.
+
+    Returns:
+        str: Root path of the repository.
+    """
+    if shutil.which("git") is None:
+        pytest.skip('Required executable "git" not found.')
+
     cmd_args = ["git", "rev-parse", "--show-toplevel"]
 
     repository_root_path = subprocess.check_output(cmd_args).decode("utf-8")
     repository_root_path = repository_root_path.strip()
 
+    return repository_root_path
+
+
+@pytest.mark.parametrize(
+    "component, chart",
+    [
+        ("api-server", "OpenAI"),
+        ("worker", "trtllm"),
+        ("worker", "vllm"),
+    ],
+)
+def test_helm_chart(component, chart):
+    """Executes the Helm chart test harness for specific tests.
+
+    Args:
+        component str: Folder under Kubernetes/ to find tests.
+        chart str: Folder under tests/ to execute.
+    """
+    if shutil.which("pwsh") is None:
+        pytest.skip('Required executable "pwsh" not found.')
+
     test_chart_path = os.path.join(
-        repository_root_path,
+        find_repository_root(),
         "deploy",
         "Kubernetes",
-        "worker",
+        component,
         "tests",
         chart,
         "run.ps1",
     )
 
     print()
-    print(f"Run {test_chart_path}")
+    print(f"Executing {test_chart_path}")
 
     cmd_args = [
         "pwsh",
         "-c",
         test_chart_path,
-        "--test",
-        test,
-        "--verbose",
+        "test",
+        "-v:detailed",
     ]
 
-    assert subprocess.run(cmd_args).returncode == 0
+    assert 0 == subprocess.run(cmd_args).returncode
 
 
 if __name__ == "__main__":

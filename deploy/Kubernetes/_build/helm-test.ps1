@@ -173,7 +173,7 @@ function initialize_test([string] $component_kind, [string] $component_name, [st
 
       $test_filter += $test_name
     }
-    elseif (('--verbose' -ieq $arg) -or ('-v' -ieq $arg)) {
+    elseif (('--verbosity' -ieq $arg) -or ('-v' -ieq $arg)) {
       if ($null -eq $arg2)
       {
         if ($i + 1 -ge $params.count) {
@@ -313,6 +313,8 @@ function test_helm_chart([object] $config) {
     return $true
   }
 
+  $timer = [system.diagnostics.stopwatch]::startnew()
+
   $chart_path = to_local_path "deploy/Kubernetes/$($config.component)/charts/$($config.name)"
   $tests_path = to_local_path "deploy/Kubernetes/$($config.component)/tests/$($config.name)"
 
@@ -321,9 +323,13 @@ function test_helm_chart([object] $config) {
   try {
     $fail_count = 0
     $pass_count = 0
-    $test_count = 0
+    $total_fail_checks = 0
+    $total_pass_checks = 0
 
     foreach ($test in $config.tests) {
+      $fail_checks = 0
+      $pass_checks = 0
+
       $helm_command = "helm template test -f $(resolve-path './values.yaml' -relative)"
       write-debug "<test_helm_chart> helm_command = '${helm_command}'."
 
@@ -393,9 +399,17 @@ function test_helm_chart([object] $config) {
           }
 
           $is_pass = $is_pass -and $is_match
-          $test_count += 1
+          if ($is_match) {
+            $pass_checks += 1
+          }
+          else {
+            $fail_checks += 1
+          }
         }
       }
+
+      $total_fail_checks += $fail_checks
+      $total_pass_checks += $pass_checks
 
       if (get_print_template) {
         write-normal "Helm Template Output" $global:colors.high
@@ -404,11 +418,11 @@ function test_helm_chart([object] $config) {
 
       if ($is_pass) {
         $pass_count += 1
-        write-passed "$($config.component)/$($config.name)/$($test.name)"
+        write-passed "$($config.component)/$($config.name)/$($test.name) (passed ${pass_checks} of $($fail_checks + $pass_checks) checks)"
       }
       else {
         $fail_count += 1
-        write-failed "$($config.component)/$($config.name)/$($test.name)"
+        write-failed "$($config.component)/$($config.name)/$($test.name) (failed ${fail_checks} of $($fail_checks + $pass_checks) checks)"
         write-low "  command: ${helm_command}"
       }
     }
@@ -421,13 +435,17 @@ function test_helm_chart([object] $config) {
 
   pop-location
 
+  $timer.stop()
+
   if ($fail_count -gt 0) {
-    write-minimal "Failed: ${fail_count}, Passed: ${pass_count}, Checks: ${test_count}, Total: $($config.tests.count)" 'Red'
+    write-minimal "Failed: ${fail_count} [${total_fail_checks}], Passed: ${pass_count} ($total_pass_checks), Tests: $($config.tests.count) [$($total_fail_checks + $total_pass_checks)]" $global:colors.test.failed -no_newline
+    write-minimal " ($($timer.elapsed.totalseconds.tostring('0.000')) seconds)" $global:colors.low
     return $false
   }
   else
   {
-    write-minimal "Passed: ${pass_count}, Checks: ${test_count}, Total: $($config.tests.count)" 'Green'
+    write-minimal "Passed: ${pass_count} [${total_pass_checks}], Tests: $($config.tests.count) [$($total_fail_checks + $total_pass_checks)]" $global:colors.test.passed -no_newline
+    write-minimal " ($($timer.elapsed.totalseconds.tostring('0.000')) seconds)" $global:colors.low
     return $true
   }
 
