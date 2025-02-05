@@ -76,6 +76,18 @@ class EncodeDecodeOperator(Operator):
                     del decoded_response
 
 
+async def call(nats_server_url):
+    request_plane = NatsRequestPlane(nats_server_url)
+    data_plane = UcpDataPlane()
+    await request_plane.connect()
+    data_plane.connect()
+
+    remote_operator: RemoteOperator = RemoteOperator(
+        "encoder_decoder", request_plane, data_plane
+    )
+    await remote_operator.call("hello")
+
+
 async def send_requests(nats_server_url, request_count=10):
     request_plane = NatsRequestPlane(nats_server_url)
     data_plane = UcpDataPlane()
@@ -205,7 +217,9 @@ async def main():
 
     print("Sending Requests")
 
-    await send_requests(deployment.request_plane_server.url)
+    await call(deployment.request_plane_server.url)
+
+    #    await send_requests(deployment.request_plane_server.url)
 
     print("Stopping Workers")
 

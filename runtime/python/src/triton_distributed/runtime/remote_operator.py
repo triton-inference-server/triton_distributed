@@ -19,6 +19,8 @@ import asyncio
 import uuid
 from typing import Optional
 
+import msgspec
+
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.runtime.remote_request import RemoteInferenceRequest
@@ -67,6 +69,27 @@ class RemoteOperator:
             _model_infer_request=None,
             **kwargs,
         )
+
+    async def call(self, *args, **kwargs):
+        print(args, kwargs)
+
+        inference_request = RemoteInferenceRequest(
+            model_name=self.name,
+            model_version=self.version,
+            data_plane=self.data_plane,
+            _request_plane=None,
+            _model_infer_request=None,
+        )
+
+        print(inference_request)
+
+        inference_request.inputs["input_args"] = [msgspec.msgpack.encode(args)]
+        inference_request.inputs["input_kwargs"] = [msgspec.msgpack.encode(kwargs)]
+
+        async for response in await self.async_infer(
+            inference_request=inference_request, raise_on_error=False
+        ):
+            print(response)
 
     async def async_infer(
         self,
