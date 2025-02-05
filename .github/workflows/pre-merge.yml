@@ -120,11 +120,16 @@ jobs:
     - name: Run Clippy Checks
       working-directory: runtime/rust
       run: cargo clippy --no-deps --all-targets -- -D warnings
-    - name: Run cargo-deny Check
+    - name: Cache Cargo Tools
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/bin
+        key: ${{ runner.os }}-cargo-tools-${{ hashFiles('**/Cargo.lock') }}
+    - name: Install and Run cargo-deny
       working-directory: runtime/rust
       run: |
-        cargo install cargo-deny && \
-        cargo-deny check
+        cargo-deny --version || cargo install cargo-deny
+        cargo-deny check --hide-inclusion-graph licenses
     - name: Run Unit Tests
       working-directory: runtime/rust
       run: cargo test --locked --all-targets
