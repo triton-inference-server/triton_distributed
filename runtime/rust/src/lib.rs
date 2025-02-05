@@ -41,6 +41,7 @@ pub mod worker;
 
 pub mod distributed;
 
+pub use futures::stream;
 pub use tokio_util::sync::CancellationToken;
 pub use worker::Worker;
 

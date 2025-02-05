@@ -1,6 +1,8 @@
-Building and using `triton_distributed` python bindings
+# Triton Distributed Python Bindings
 
-## Dev Setup
+Python bindings for the Triton distributed runtime system, enabling distributed computing capabilities for machine learning workloads.
+
+## 🚀 Quick Start
 
 1. Install `uv`: https://docs.astral.sh/uv/#getting-started
 ```
@@ -14,8 +16,7 @@ For example on an Ubuntu/Debian system:
 apt install protobuf-compiler
 ```
 
-# Set up virtual environment
-
+3. Setup a virtualenv
 ```
 cd python-wheels/triton-distributed
 uv venv
@@ -23,9 +24,9 @@ source .venv/bin/activate
 uv pip install maturin
 ```
 
-# Build and install triton_distributed wheel
+4. Build and install triton_distributed wheel
 ```
-maturin develop
+maturin develop --uv
 ```
 
 # Run Examples
