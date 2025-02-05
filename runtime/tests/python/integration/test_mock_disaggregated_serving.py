@@ -280,11 +280,11 @@ def run_kserve(num_requests):
     sys.exit(asyncio.run(send_kserve_requests(num_requests=num_requests)))
 
 
-@pytest.mark.xfail
 @pytest.mark.skipif(
     "(not os.path.exists('/usr/local/bin/nats-server'))",
     reason="NATS.io not present",
 )
+@pytest.mark.xfail
 def test_mock_disaggregated_serving_kserve(request, nats_server, workers, api_server):
     # Using a separate process to use data plane across multiple tests.
     p = Process(target=run_kserve, args=(1,))
