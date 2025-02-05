@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import asyncio
+import shutil
 import time
 import uuid
 from multiprocessing import Process, Queue
@@ -41,7 +42,10 @@ def is_port_in_use(port: int) -> bool:
 
 @pytest.fixture
 def nats_server(request):
-    yield NatsServer()
+    nats_server = NatsServer(store_dir="/tmp/nats", clear_store=True)
+    yield nats_server
+    nats_server.__del__()  # It actually closes resourced without waiting for the garbage collector
+    shutil.rmtree("/tmp/nats", ignore_errors=True)
 
 
 class ResponseHandler:

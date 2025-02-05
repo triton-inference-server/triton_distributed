@@ -88,11 +88,11 @@ class AsyncModelInferResponseIterator:
         raise NotImplementedError()
 
 
-def is_port_in_use(port: int) -> bool:
+def is_port_in_use(port: int, host: str = DEFAULT_REQUESTS_HOST) -> bool:
     import socket
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(("localhost", port)) == 0
+        return s.connect_ex((host, port)) == 0
 
 
 class NatsServer:
@@ -128,9 +128,9 @@ class NatsServer:
             return
 
         # Raise more intuitive error to developer if port is already in-use.
-        if is_port_in_use(port):
+        if is_port_in_use(port, host):
             raise RuntimeError(
-                f"ERROR: NATS Port {port} already in use. Is a nats-server already running?"
+                f"ERROR: NATS Port {port} for device {host} already in use. Is a nats-server already running?"
             )
 
         if clear_store:
