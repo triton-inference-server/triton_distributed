@@ -3,7 +3,9 @@ name = "triton-distributed"
 version = "0.1.1"
 edition = "2021"
 authors = ["NVIDIA"]
+license = "Apache-2.0"
 homepage = "https://github.com/triton-inference-server/triton_distributed"
+repository = "https://github.com/triton-inference-server/triton_distributed"
 
 [dependencies]
 # workspace - when we expand to multiple crates; put these in the workspace
