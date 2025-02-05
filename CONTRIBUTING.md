@@ -63,6 +63,8 @@ proposed change so that the Triton team can provide feedback.
 
   - Avoid committing commented-out code.
 
+  - Internal CI tests will be executed only after a repository maintainer has explicitly approved your pull request.
+
   - Wherever possible, each PR should address a single concern. If
     there are several otherwise-unrelated things that should be fixed
     to reach a desired endpoint, it is perfectly fine to open several
