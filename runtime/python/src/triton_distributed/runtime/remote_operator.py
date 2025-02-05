@@ -82,14 +82,17 @@ class RemoteOperator:
         )
 
         print(inference_request)
-
-        inference_request.inputs["input_args"] = [msgspec.msgpack.encode(args)]
-        inference_request.inputs["input_kwargs"] = [msgspec.msgpack.encode(kwargs)]
+        print(msgspec.msgpack.encode(args))
+        inference_request.inputs["args"] = [msgspec.msgpack.encode(args)]
+        inference_request.inputs["kwargs"] = [msgspec.msgpack.encode(kwargs)]
 
         async for response in await self.async_infer(
             inference_request=inference_request, raise_on_error=False
         ):
-            print(response)
+            if "result" in response.outputs:
+                yield msgspec.msgpack.decode(response.outputs["result"])
+            else:
+                yield None
 
     async def async_infer(
         self,
