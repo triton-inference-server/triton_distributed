@@ -1,10 +1,9 @@
 import asyncio
+
 import uvloop
-
-from vllm.utils import FlexibleArgumentParser
-
 from protocol import Request
 from triton_distributed_rs import DistributedRuntime, triton_worker
+from vllm.utils import FlexibleArgumentParser
 
 
 @triton_worker()
@@ -13,9 +12,7 @@ async def worker(runtime: DistributedRuntime, prompt: str):
     Instantiate a `backend` client and call the `generate` endpoint
     """
     # get endpoint
-    endpoint = (
-        runtime.namespace("triton-init").component("vllm").endpoint("generate")
-    )
+    endpoint = runtime.namespace("triton-init").component("vllm").endpoint("generate")
 
     # create client
     client = await endpoint.client()
@@ -24,7 +21,12 @@ async def worker(runtime: DistributedRuntime, prompt: str):
     print(client.endpoint_ids())
 
     # issue request
-    stream = await client.generate(Request(prompt="what is the capital of france?", sampling_params={"temperature": 0.5}).model_dump_json())
+    stream = await client.generate(
+        Request(
+            prompt="what is the capital of france?",
+            sampling_params={"temperature": 0.5},
+        ).model_dump_json()
+    )
 
     # process response
     async for resp in stream:

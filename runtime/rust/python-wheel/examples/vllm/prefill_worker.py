@@ -1,28 +1,32 @@
 import asyncio
-import uuid
 
 import uvloop
 import vllm
-from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.utils import FlexibleArgumentParser
-from vllm.logger import logger as vllm_logger
-
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from protocol import PrefillRequest, PrefillResponse
+from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.logger import logger as vllm_logger
+from vllm.utils import FlexibleArgumentParser
+
 
 class VllmPrefillEngine:
     """
     Request handler for the generate endpoint
     """
+
     def __init__(self, engine_args: AsyncEngineArgs):
-        assert engine_args.kv_transfer_config.is_kv_producer, "Prefill worker must be a KV producer"
+        assert (
+            engine_args.kv_transfer_config.is_kv_producer
+        ), "Prefill worker must be a KV producer"
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        
+
     @triton_endpoint(PrefillRequest, PrefillResponse)
     async def generate(self, request):
         vllm_logger.info(f"Received prefill request: {request}")
         sampling_params = vllm.SamplingParams(**request.sampling_params)
-        async for response in self.engine.generate(request.prompt, sampling_params, request.request_id):
+        async for response in self.engine.generate(
+            request.prompt, sampling_params, request.request_id
+        ):
             vllm_logger.debug(f"Generated response: {response}")
             yield True
 

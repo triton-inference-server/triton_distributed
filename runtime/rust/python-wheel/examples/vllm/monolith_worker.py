@@ -4,26 +4,28 @@ import uuid
 import uvloop
 import vllm
 from protocol import Request, Response
-from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.utils import FlexibleArgumentParser
-from vllm.logger import logger as vllm_logger
-
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.logger import logger as vllm_logger
+from vllm.utils import FlexibleArgumentParser
 
 
 class VllmEngine:
     """
     Request handler for the generate endpoint
     """
+
     def __init__(self, engine_args: AsyncEngineArgs):
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        
+
     @triton_endpoint(Request, Response)
     async def generate(self, request):
         vllm_logger.debug(f"Received request: {request}")
         sampling_params = vllm.SamplingParams(**request.sampling_params)
         request_id = str(uuid.uuid4())
-        async for response in self.engine.generate(request.prompt, sampling_params, request_id):
+        async for response in self.engine.generate(
+            request.prompt, sampling_params, request_id
+        ):
             vllm_logger.debug(f"Generated response: {response}")
             yield response.outputs[0].text
 
