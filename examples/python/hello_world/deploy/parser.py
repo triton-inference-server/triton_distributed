@@ -16,7 +16,7 @@
 import argparse
 from pathlib import Path
 
-from triton_distributed.worker.worker import DEFAULT_REQUESTS_URI
+from triton_distributed.runtime.worker import DEFAULT_REQUESTS_URI
 
 
 def parse_args(args=None):
