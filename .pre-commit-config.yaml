@@ -56,6 +56,7 @@ repos:
     exclude: .devcontainer
   - id: check-toml
   - id: check-yaml
+    exclude: ^deploy/Kubernetes/[^/]+/(charts|tests)/[^/]+/templates/
   - id: check-shebang-scripts-are-executable
   - id: end-of-file-fixer
     types_or: [c, c++, cuda, proto, textproto, java, python]
