@@ -42,7 +42,7 @@ def is_port_in_use(port: int) -> bool:
 
 @pytest.fixture
 def nats_server(request):
-    nats_server = NatsServer(store_dir="/tmp/nats", clear_store=True)
+    nats_server = NatsServer(store_dir="/tmp/nats", clear_store=True, debug=True)
     yield nats_server
     nats_server.__del__()  # It actually closes resourced without waiting for the garbage collector
     shutil.rmtree("/tmp/nats", ignore_errors=True)

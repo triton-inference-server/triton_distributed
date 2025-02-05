@@ -158,8 +158,8 @@ class NatsServer:
     def __del__(self):
         if self._process:
             self._process.terminate()
-            self._process.kill()
             self._process.wait()
+            self._process.kill()
 
 
 class NatsRequestPlane(RequestPlane):
