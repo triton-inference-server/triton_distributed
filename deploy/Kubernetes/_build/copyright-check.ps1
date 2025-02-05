@@ -19,81 +19,93 @@ set-strictmode -version latest
 
 # == begin common.ps1 extensions ==
 
+$date_key = '%%DATE%%'
+$date_regex = '(?>(?>\d{4})-)?(?<year>\d{4})'
+
 $global:copyright_matchers = @(
   @{
     files = @('.containerfile', '.dockerignore', '.pbtxt', '.ps1', '.py', '.sh', '.toml', '.tpl', '.txt', '.yaml', '.yml', 'Dockerfile')
+    found_missing = $false
     matches = @(
-      '# SPDX-FileCopyrightText: Copyright \(c\) (?>(?>\d{4})-)?(?<year>\d{4}) NVIDIA CORPORATION & AFFILIATES\. All rights reserved\.'
-      '# SPDX-License-Identifier: Apache-2\.0'
-      '#'
-      '# Licensed under the Apache License, Version 2\.0 \(the "License"\);'
-      '# you may not use this file except in compliance with the License\.'
+      '# SPDX-FileCopyrightText: Copyright (c) ' + $date_key + ' NVIDIA CORPORATION & AFFILIATES. All rights reserved.'
+      '# SPDX-License-Identifier: Apache-2.0'
+      '# Licensed under the Apache License, Version 2.0 (the "License");'
+      '# you may not use this file except in compliance with the License.'
       '# You may obtain a copy of the License at'
-      '#'
-      '# http://www\.apache\.org/licenses/LICENSE-2\.0'
-      '#'
+      '# http://www.apache.org/licenses/LICENSE-2.0'
       '# Unless required by applicable law or agreed to in writing, software'
       '# distributed under the License is distributed on an "AS IS" BASIS,'
       '# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.'
       '# See the License for the specific language governing permissions and'
-      '# limitations under the License\.'
+      '# limitations under the License.'
     )
     name = 'basic'
+    regex = $null
+    vertical_spacer = '#'
   }
   @{
     files = @('.json')
+    found_missing = $false
     matches = @(
-      '\s{0,2}"copyright": ['
-      '\s{0,2}  "# SPDX-FileCopyrightText: Copyright \(c\) (?>(?>\d{4})-)?(?<year>\d{4}) NVIDIA CORPORATION & AFFILIATES\. All rights reserved\.",'
-      '\s{0,2}  "# SPDX-License-Identifier: Apache-2\.0",'
-      '\s{0,2}  "# Licensed under the Apache License, Version 2\.0 \(the \\"License\\"\);",'
-      '\s{0,2}  "# you may not use this file except in compliance with the License\.",'
-      '\s{0,2}  "# You may obtain a copy of the License at",'
-      '\s{0,2}  "# http://www\.apache\.org/licenses/LICENSE-2\.0",'
-      '\s{0,2}  "# Unless required by applicable law or agreed to in writing, software",'
-      '\s{0,2}  "# distributed under the License is distributed on an \\"AS IS\\" BASIS,",'
-      '\s{0,2}  "# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",'
-      '\s{0,2}  "# See the License for the specific language governing permissions and",'
-      '\s{0,2}  "# limitations under the License\."'
-      '\s{0,2}],'
+      '"copyright": ['
+      '  "SPDX-FileCopyrightText: Copyright (c) ' + $date_key + ' NVIDIA CORPORATION & AFFILIATES. All rights reserved.",'
+      '  "SPDX-License-Identifier: Apache-2.0",'
+      '  "Licensed under the Apache License, Version 2.0 (the \"License\");",'
+      '  "you may not use this file except in compliance with the License.",'
+      '  "You may obtain a copy of the License at",'
+      '  "http://www.apache.org/licenses/LICENSE-2.0",'
+      '  "Unless required by applicable law or agreed to in writing, software",'
+      '  "distributed under the License is distributed on an \"AS IS\" BASIS,",'
+      '  "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",'
+      '  "See the License for the specific language governing permissions and",'
+      '  "limitations under the License."'
+      '],'
     )
     name = 'json'
+    regex = $null
+    vertical_spacer = $null
   }
   @{
     files = @('.md')
+    found_missing = $false
     matches = @(
       '<!--'
-      'SPDX-FileCopyrightText: Copyright \(c\) (?>(?>\d{4})-)?(?<year>\d{4}) NVIDIA CORPORATION & AFFILIATES\. All rights reserved\.'
-      'SPDX-License-Identifier: Apache-2\.0'
-      'Licensed under the Apache License, Version 2\.0 \(the "License"\);'
-      'you may not use this file except in compliance with the License\.'
+      'SPDX-FileCopyrightText: Copyright (c) ' + $date_key + ' NVIDIA CORPORATION & AFFILIATES. All rights reserved.'
+      'SPDX-License-Identifier: Apache-2.0'
+      'Licensed under the Apache License, Version 2.0 (the "License");'
+      'you may not use this file except in compliance with the License.'
       'You may obtain a copy of the License at'
-      'http://www\.apache\.org/licenses/LICENSE-2\.0'
+      'http://www.apache.org/licenses/LICENSE-2.0'
       'Unless required by applicable law or agreed to in writing, software'
       'distributed under the License is distributed on an "AS IS" BASIS,'
       'WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.'
       'See the License for the specific language governing permissions and'
-      'limitations under the License\.'
+      'limitations under the License.'
       '-->'
     )
     name = 'markdown'
+    regex = $null
+    vertical_spacer = ''
   }
   @{
     files = @('.proto')
+    found_missing = $false
     matches = @(
-      '// SPDX-FileCopyrightText: Copyright \(c\) (?>(?>\d{4})-)?(?<year>\d{4}) NVIDIA CORPORATION &'
-      '// AFFILIATES\. All rights reserved. SPDX-License-Identifier: Apache-2\.0'
-      '// Licensed under the Apache License, Version 2\.0 \(the "License"\);'
-      '// you may not use this file except in compliance with the License\.'
+      '// SPDX-FileCopyrightText: Copyright (c) ' + $date_key + ' NVIDIA CORPORATION & AFFILIATES. All rights reserved.'
+      '// SPDX-License-Identifier: Apache-2.0'
+      '// Licensed under the Apache License, Version 2.0 (the "License");'
+      '// you may not use this file except in compliance with the License.'
       '// You may obtain a copy of the License at'
-      '// http://www\.apache\.org/licenses/LICENSE-2\.0'
+      '// http://www.apache.org/licenses/LICENSE-2.0'
       '// Unless required by applicable law or agreed to in writing, software'
       '// distributed under the License is distributed on an "AS IS" BASIS,'
       '// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.'
       '// See the License for the specific language governing permissions and'
-      '// limitations under the License\.'
+      '// limitations under the License.'
     )
     name = 'proto'
+    regex = $null
+    vertical_spacer = '//'
   }
 )
 $global:copyright_results = @{
@@ -160,6 +172,28 @@ function is_ignored([string] $path) {
     return $false
 }
 
+function build_regex([object] $matcher) {
+  write-debug "<copyright-check/build_regex> matcher.name: $($matcher.name)."
+
+  $regex = ''
+  foreach ($match in $matcher.matches) {
+    $match = $match -replace '([\(\)\[\]\.\+\*\\])', '\$1'
+    $match = $match -replace '\s+', '\s+'
+    # Given the amount of inconsistency between using http and https, we'll just regex it away.
+    $match = $match -replace 'https?://', 'https?://'
+    # Replace the date matcher placeholder w/ the actual regex we'll need.
+    $match = $match -replace $date_key, $date_regex
+
+    $regex = "${regex}${match}[\n\r\s]+"
+    if ($null -ne $matcher.vertical_spacer) {
+      $regex = "${regex}(?>$($matcher.vertical_spacer)[\n\r\s]+)*"
+    }
+  }
+
+  write-debug "<copyright-check/build_regex> -> '${regex}'."
+  return $regex
+}
+
 function check_header([string] $path, [object] $matcher) {
   write-debug "<copyright-check/check_header> path: ""${path}""."
   write-debug "<copyright-check/check_header> matcher: ""$($matcher.name)""."
@@ -171,10 +205,10 @@ function check_header([string] $path, [object] $matcher) {
 
   write-debug "<copyright-check/check_header> last_modified: ${last_modified}."
 
-  $regex = ''
-  foreach ($item in $matcher.matches) {
-    $regex = "${regex}${item}[\n\r\s]+"
+  if ($null -eq $matcher.regex) {
+    $matcher.regex = $(build_regex $matcher)
   }
+  $regex = $matcher.regex
 
   write-debug "<copyright-check/check_header> regex: ""${regex}""."
 
@@ -200,6 +234,7 @@ function check_header([string] $path, [object] $matcher) {
   else {
     $global:copyright_results.failed_header += $file
     write-error "  [FAIL] Invalid/Missing Header: ${file}"
+    $matcher.found_missing = $true
   }
 }
 
@@ -247,67 +282,81 @@ foreach ($file in $(git ls-tree -r --name-only HEAD)) {
   check_file $file
 }
 
-write-debug "<copyright-check> Generating check report."
-
-$check_results = "<copyright-verification>`n"
-
-if ($global:copyright_results.failed_header.count -gt 0) {
-  $check_results += "  <failed reason=""Invalid or Missing Header"">`n"
-
-  foreach ($file in $global:copyright_results.failed_header) {
-    $check_results += "    <file>${file}</file>`n"
+function generate_report() {
+  $reports_path = $env:NVBUILD_REPORTS_PATH
+  if ($null -eq $reports_path) {
+    return
   }
 
-  $check_results += "  </failed>`n"
-}
-
-if ($global:copyright_results.failed_date.count -gt 0) {
-  $check_results += "  <failed reason=""Incorrect Date"">`n"
-
-  foreach ($file in $global:copyright_results.failed_date) {
-    $check_results += "    <file>${file}</file>`n"
+  if (-not (test-path $reports_path -pathtype 'Container')) {
+    if (test-path $reports_path -pathtype 'Leaf') {
+      return
+    }
+    new-item $reports_path -itemtype 'Directory' | out-null
   }
 
-  $check_results += "  </failed>`n"
-}
+  write-debug "<copyright-check/generate_report> Generating check report."
 
-if ($global:copyright_results.unsupported.count -gt 0) {
-  $check_results += "  <skipped reason=""Unsupported File Type"">`n"
+  $check_results = "<copyright-verification>`n"
 
-  foreach ($file in $global:copyright_results.unsupported) {
-    $check_results += "    <file>${file}</file>`n"
+  if ($global:copyright_results.failed_header.count -gt 0) {
+    $check_results += "  <failed reason=""Invalid or Missing Header"">`n"
+
+    foreach ($file in $global:copyright_results.failed_header) {
+      $check_results += "    <file>${file}</file>`n"
+    }
+
+    $check_results += "  </failed>`n"
   }
 
-  $check_results += "  </skipped>`n"
-}
+  if ($global:copyright_results.failed_date.count -gt 0) {
+    $check_results += "  <failed reason=""Incorrect Date"">`n"
 
-if ($global:copyright_results.passed.count -gt 0) {
-  $check_results += "  <passed>`n"
+    foreach ($file in $global:copyright_results.failed_date) {
+      $check_results += "    <file>${file}</file>`n"
+    }
 
-  foreach ($file in $global:copyright_results.passed) {
-    $check_results += "    <file>${file}</file>`n"
+    $check_results += "  </failed>`n"
   }
 
-  $check_results += "  </passed>`n"
-}
+  if ($global:copyright_results.unsupported.count -gt 0) {
+    $check_results += "  <skipped reason=""Unsupported File Type"">`n"
 
-if ($global:copyright_results.skipped.count -gt 0) {
-  $check_results += "  <skipped reason=""Ignored by Path"">`n"
+    foreach ($file in $global:copyright_results.unsupported) {
+      $check_results += "    <file>${file}</file>`n"
+    }
 
-  foreach ($file in $global:copyright_results.skipped) {
-    $check_results += "    <file>${file}</file>`n"
+    $check_results += "  </skipped>`n"
   }
 
-  $check_results += "  </skipped>`n"
+  if ($global:copyright_results.passed.count -gt 0) {
+    $check_results += "  <passed>`n"
+
+    foreach ($file in $global:copyright_results.passed) {
+      $check_results += "    <file>${file}</file>`n"
+    }
+
+    $check_results += "  </passed>`n"
+  }
+
+  if ($global:copyright_results.skipped.count -gt 0) {
+    $check_results += "  <skipped reason=""Ignored by Path"">`n"
+
+    foreach ($file in $global:copyright_results.skipped) {
+      $check_results += "    <file>${file}</file>`n"
+    }
+
+    $check_results += "  </skipped>`n"
+  }
+
+  $check_results += "</copyright-verification>`n"
+  $output_path = "${reports_path}/copyright-check.xml"
+
+  write_content $check_results $output_path -overwrite
+
+  write-minimal ''
+  write-minimal "Copyright check report -> ${output_path}"
 }
-
-$check_results += "</copyright-verification>`n"
-$output_path = "$(get_repository_root)/copyright-check.xml"
-
-write_content $check_results $output_path -overwrite
-
-write-minimal ''
-write-minimal "Copyright check report -> ${output_path}"
 
 write-normal ''
 write-high "Pass: $($global:copyright_results.passed.count), Fail: $($global:copyright_results.failed_date.count + $global:copyright_results.failed_header.count)" -no_newline
@@ -318,6 +367,20 @@ if ($global:copyright_results.unsupported.count -gt 0) {
   write-high ", Unsupported: $($global:copyright_results.unsupported.count)" -no_newline
 }
 write-high ''
+
+if ($global:copyright_results.failed_header.count -gt 0) {
+  write-low ''
+  write-low 'Copyright checkers detected missing or invalid copyright headers:'
+  write-low ''
+  foreach ($matcher in $global:copyright_matchers) {
+    if ($matcher.found_missing) {
+      write-low "  name: $($matcher.name)"
+      write-low "  files: $($matcher.files -join ", ")"
+      write-low "  pattern:`n    $($matcher.regex)"
+      write-low ''
+    }
+  }
+}
 
 if (($global:copyright_results.failed_date.count -gt 0) -or ($global:copyright_results.failed_header.count -gt 0)) {
   exit(-1)
