@@ -53,7 +53,7 @@ above, you can manually launch each:
 When developing or running examples, any process or user that shared your core-services (`etcd` and `nats.io`) will
 be operating within your distributed runtime.
 
-The current examples use a hard-coded `namespace`. We will address the `namespace` collisions in this 
+The current examples use a hard-coded `namespace`. We will address the `namespace` collisions in this
 [issue](https://github.com/triton-inference-server/triton_distributed/issues/114).
 
 All examples require the `etcd` and `nats.io` pre-requisites to be running and available.
@@ -95,5 +95,5 @@ Annotated { data: Some("d"), id: None, event: None, comment: None }
 
 See the [README.md](./python-wheel/README.md) for details
 
-The Python and Rust `hello_world` client and server examples are interchangable, 
+The Python and Rust `hello_world` client and server examples are interchangeable,
 so you can start the Python `server.py` and talk to it from the Rust `client`.
