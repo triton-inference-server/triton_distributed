@@ -166,6 +166,9 @@ ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown
 RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
 RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/runtime/python
 
+# Install python bindings and api for rust runtime
+RUN pip3 install --upgrade runtime/rust/python-wheel
+
 # Sets pythonpath for python modules
 ENV PYTHONPATH="${PYTHONPATH}:/workspace/examples/python:/opt/tritonserver/python/openai/openai_frontend"
 

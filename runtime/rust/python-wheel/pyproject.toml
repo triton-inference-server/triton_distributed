@@ -1,5 +1,5 @@
 [project]
-name = "triton-distributed"
+name = "triton-distributed-rs"
 version = "0.1.1"
 description = "Distributed LLM Framework"
 # readme = "README.md"
@@ -16,8 +16,8 @@ dependencies = [
 # triton-distributed = "triton_distributed:main"
 
 [tool.maturin]
-module-name = "triton_distributed._core"
-python-packages = ["triton_distributed"]
+module-name = "triton_distributed_rs._core"
+python-packages = ["triton_distributed_rs"]
 python-source = "python"
 
 [build-system]
