@@ -2,6 +2,10 @@
 name = "triton_distributed_py3"
 version = "0.1.1"
 edition = "2021"
+authors = ["NVIDIA"]
+license = "Apache-2.0"
+homepage = "https://github.com/triton-inference-server/triton_distributed"
+repository = "https://github.com/triton-inference-server/triton_distributed"
 
 [lib]
 path = "rust/lib.rs"
