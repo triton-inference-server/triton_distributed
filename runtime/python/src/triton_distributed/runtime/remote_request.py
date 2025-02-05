@@ -24,12 +24,10 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-import tritonserver
-from tritonserver import InferenceRequest, InvalidArgumentError, Tensor
-
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest
 from triton_distributed.icp.request_plane import RequestPlane, get_icp_component_id
+from triton_distributed.icp.tensor import Tensor
 from triton_distributed.runtime.remote_response import RemoteInferenceResponse
 from triton_distributed.runtime.remote_tensor import RemoteTensor
 
@@ -50,16 +48,6 @@ class RemoteInferenceRequest:
     store_inputs_in_request: set[str] = field(default_factory=set)
     parameters: dict[str, str | int | bool | float] = field(default_factory=dict)
     response_queue: Optional[queue.SimpleQueue | asyncio.Queue] = None
-
-    def _set_local_request_inputs(self, local_request: tritonserver.InferenceRequest):
-        for input_name, remote_tensor in self.inputs.items():
-            local_request.inputs[input_name] = remote_tensor.local_tensor
-
-    def _set_local_request_parameters(
-        self, local_request: tritonserver.InferenceRequest
-    ):
-        for parameter_name, parameter_value in self.parameters.items():
-            local_request.parameters[parameter_name] = parameter_value
 
     def _set_model_infer_request_inputs(
         self,
@@ -127,7 +115,7 @@ class RemoteInferenceRequest:
 
     def response_sender(self):
         if self._request_plane is None or self._model_infer_request is None:
-            raise InvalidArgumentError(
+            raise ValueError(
                 "Response only valid for requests received from request plane"
             )
         return RemoteResponseSender(
@@ -160,23 +148,6 @@ class RemoteInferenceRequest:
         RemoteInferenceRequest._set_inputs_from_model_infer_request(result, request)
         RemoteInferenceRequest._set_parameters_from_model_infer_request(result, request)
         return result
-
-    def to_local_request(self, model: tritonserver.Model) -> InferenceRequest:
-        local_request = model.create_request()
-
-        if self.request_id is not None:
-            local_request.request_id = self.request_id
-        if self.priority is not None:
-            local_request.priority = self.priority
-        if self.timeout is not None:
-            local_request.timeout = self.timeout
-
-        if self.correlation_id is not None:
-            local_request.correlation_id = self.correlation_id
-        self._set_local_request_inputs(local_request)
-        self._set_local_request_parameters(local_request)
-
-        return local_request
 
     def to_model_infer_request(self) -> ModelInferRequest:
         remote_request = ModelInferRequest()

@@ -20,13 +20,8 @@ from typing import Optional, Sequence
 
 import cupy
 from cupy_backends.cuda.api.runtime import CUDARuntimeError
-from tritonserver import DataType, InvalidArgumentError, MemoryType, Tensor
 
-# TODO
-# Export from tritonserver
-from tritonserver._api._dlpack import DLDeviceType
-from tritonserver._api._tensor import DeviceOrMemoryType
-
+from triton_distributed.icp._dlpack import DeviceOrMemoryType, DLDeviceType
 from triton_distributed.icp.data_plane import (
     DataPlane,
     get_icp_data_type,
@@ -34,7 +29,10 @@ from triton_distributed.icp.data_plane import (
     get_icp_shape,
     get_icp_tensor_size,
 )
+from triton_distributed.icp.data_type import DataType
+from triton_distributed.icp.memory_type import MemoryType
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
+from triton_distributed.icp.tensor import Tensor
 
 # Run cupy's cuda.is_available once to
 # avoid the exception hitting runtime code.
@@ -74,7 +72,7 @@ class RemoteTensor:
         if not self._local_tensor:
             self._local_tensor = self.data_plane.get_tensor(self.remote_tensor)
             if self._local_tensor is None:
-                raise InvalidArgumentError("Not able to resolve Tensor locally")
+                raise ValueError("Not able to resolve Tensor locally")
         return self._local_tensor
 
     @property
