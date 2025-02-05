@@ -15,7 +15,9 @@
 
 on:
   pull_request:
-
+    paths-ignore:
+      - 'README.md'
+      - '.github/**'
 jobs:
   mirror_repo:
     environment: GITLAB
