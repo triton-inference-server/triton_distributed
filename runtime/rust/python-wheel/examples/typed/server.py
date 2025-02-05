@@ -2,8 +2,7 @@ import asyncio
 
 import uvloop
 from protocol import Request, Response
-
-from triton_distributed import DistributedRuntime, triton_endpoint, triton_worker
+from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 
 uvloop.install()
 

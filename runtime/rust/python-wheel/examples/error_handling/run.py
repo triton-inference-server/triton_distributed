@@ -5,8 +5,7 @@ import string
 import uvloop
 from client import init as client_init
 from server import init as server_init
-
-from triton_distributed import DistributedRuntime, triton_worker
+from triton_distributed_rs import DistributedRuntime, triton_worker
 
 
 def random_string(length=10):
