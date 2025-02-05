@@ -27,7 +27,10 @@ from llm.api_server.connector import (
 from llm.api_server.remote_connector import RemoteConnector
 from tritonserver import DataType
 
-from triton_distributed.runtime.remote_operator import RemoteOperator
+from triton_distributed.runtime.remote_operator import (  # noqa: F401 DEFAULT_REQUESTS_URI is part of public API
+    DEFAULT_REQUESTS_URI,
+    RemoteOperator,
+)
 
 
 class RemoteModelConnector(BaseTriton3Connector):
