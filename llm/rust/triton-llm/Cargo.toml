@@ -14,20 +14,29 @@ triton-distributed = { workspace = true }
 # workspace
 anyhow = { workspace = true }
 async-stream = { workspace = true }
+async-trait = { workspace = true }
 bytes = { workspace = true }
 derive_builder = {workspace = true }
 futures =  { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
+tracing = { workspace = true }
 validator = { workspace = true }
 uuid = { workspace = true }
 
-# crates.io
-chrono = { version = "0" }
+# protcols
+chrono = { version = "0.4" }
 serde_json = { version = "1" }
 regex = "1"
 unicode-segmentation = "1.12"
+
+# http-service
+axum = "0.8"
+prometheus = { version = "0.13" }
+
 
 [dev-dependencies]
 futures = { workspace = true }
