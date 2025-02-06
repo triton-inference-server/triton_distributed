@@ -16,6 +16,7 @@
 
 import asyncio
 import uuid
+from parser import parse_vllm_args
 
 import uvloop
 import vllm
@@ -23,7 +24,6 @@ from protocol import PrefillRequest, Request, Response
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
-from vllm.utils import FlexibleArgumentParser
 
 
 class VllmDecodeEngine:
@@ -88,7 +88,5 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
 if __name__ == "__main__":
     uvloop.install()
-    parser = FlexibleArgumentParser()
-    parser = AsyncEngineArgs.add_cli_args(parser)
-    engine_args = AsyncEngineArgs.from_cli_args(parser.parse_args())
+    engine_args = parse_vllm_args()
     asyncio.run(worker(engine_args))
