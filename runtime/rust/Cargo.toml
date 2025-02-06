@@ -15,7 +15,7 @@
 
 [package]
 name = "triton-distributed"
-description = "Core components of a distributed inference framework"
+description = "Distributed GenAI Inference Framework"
 readme = "README.md"
 version = "0.2.0"
 edition = "2021"
@@ -23,6 +23,7 @@ authors = ["NVIDIA"]
 license = "Apache-2.0"
 homepage = "https://github.com/triton-inference-server/triton_distributed"
 repository = "https://github.com/triton-inference-server/triton_distributed"
+keywords = ["llm", "genai", "inference", "nvidia", "distributed", "triton"]
 
 [dependencies]
 # workspace - when we expand to multiple crates; put these in the workspace
