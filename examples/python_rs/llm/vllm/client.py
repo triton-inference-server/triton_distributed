@@ -23,7 +23,9 @@ from vllm.utils import FlexibleArgumentParser
 
 
 @triton_worker()
-async def worker(runtime: DistributedRuntime, prompt: str):
+async def worker(
+    runtime: DistributedRuntime, prompt: str, max_tokens: int, temperature: float
+):
     """
     Instantiate a `backend` client and call the `generate` endpoint
     """
@@ -39,8 +41,8 @@ async def worker(runtime: DistributedRuntime, prompt: str):
     # issue request
     stream = await client.generate(
         Request(
-            prompt="what is the capital of france?",
-            sampling_params={"temperature": 0.5},
+            prompt=prompt,
+            sampling_params={"temperature": temperature, "max_tokens": max_tokens},
         ).model_dump_json()
     )
 
@@ -54,6 +56,9 @@ if __name__ == "__main__":
 
     parser = FlexibleArgumentParser()
     parser.add_argument("--prompt", type=str, default="what is the capital of france?")
+    parser.add_argument("--max-tokens", type=int, default=10)
+    parser.add_argument("--temperature", type=float, default=0.5)
+
     args = parser.parse_args()
 
-    asyncio.run(worker(args.prompt))
+    asyncio.run(worker(args.prompt, args.max_tokens, args.temperature))
