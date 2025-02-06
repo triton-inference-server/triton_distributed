@@ -21,7 +21,7 @@ This example demonstrates how to use Triton Distributed to serve large language 
 
 ## Prerequisites
 
-1. Follow the setup instructions in the Python bindings [README](/runtime/rust/python-wheel/examples/README.md) to prepare your environment
+1. Follow the setup instructions in the Python bindings [README](/runtime/rust/python-wheel/README.md) to prepare your environment
 2. Install vLLM:
 ```bash
 uv pip install vllm==0.7.0
