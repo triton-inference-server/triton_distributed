@@ -15,7 +15,7 @@
 
 set-strictmode -version latest
 
-. "$(& git rev-parse --show-toplevel)/deploy/Kubernetes/_build/common.ps1"
+. "$(& git rev-parse --show-toplevel)/.github/workflows/common.ps1"
 
 # == begin common.ps1 extensions ==
 
