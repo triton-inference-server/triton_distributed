@@ -1,4 +1,5 @@
-// Copyright 2024-2025 NVIDIA CORPORATION & AFFILIATES
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
 // use this file except in compliance with the License. You may obtain a copy of
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use super::{SamplingOptions, StopConditions};
 use crate::protocols::TokenIdType;
 
-/// [`PreprocessedRequest`] is the internal representation of an LLM request. The [`nim-llm-preprocessor`]
+/// [`PreprocessedRequest`] is the internal representation of an LLM request. The [`triton-llm-preprocessor`]
 /// crate is responsible for converting request from the public APIs to this internal representation.
 #[derive(Serialize, Deserialize, Debug, Clone, Builder)]
 pub struct PreprocessedRequest {
