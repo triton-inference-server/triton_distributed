@@ -24,7 +24,7 @@ pub enum ServiceHttpError {
 }
 
 /// Implementation of the Completion Engines served by the HTTP service should
-/// map thier custom errors to to this error type if they wish to return error
+/// map their custom errors to to this error type if they wish to return error
 /// codes besides 500.
 #[derive(Debug, Error)]
 #[error("HTTP Error {code}: {message}")]

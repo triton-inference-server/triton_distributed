@@ -280,7 +280,7 @@ impl ChatCompletionRequestBuilder {
     ///     .expect("Failed to build ChatCompletionRequest");
     /// ```
     pub fn build(&self) -> anyhow::Result<ChatCompletionRequest> {
-        // Calls the build_private, validates the result, then perfoms addition
+        // Calls the build_private, validates the result, then performs addition
         // post build validation where we are looking a mutually exclusive fields
         // and ensuring that there are not mutually exclusive collisions.
         let request = self

@@ -21,7 +21,7 @@
 //!
 //! The `StreamingCompletionResponse` objects are the outputs of the LLM Engine; however, we
 //! need some additional information to propagate intermediate results for improved observability.
-//! The metadata is transfered via the other arms of the `StreamingResponse` enum.
+//! The metadata is transferred via the other arms of the `StreamingResponse` enum.
 //!
 
 use anyhow::Result;
@@ -172,7 +172,7 @@ pub struct ChatContext {
     pub context: Vec<ChatTurn>,
 }
 
-/// TensorRT LLM server-side stop conditions. These options allow for the server to evalute
+/// TensorRT LLM server-side stop conditions. These options allow for the server to evaluate
 /// the generated sequence and stop generation if the sequence meets a stop condition.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct StopConditions {
@@ -389,7 +389,7 @@ pub enum StreamingResponse {
 //              we use the internal one on the server side to avoid the cost of cloning the Stats
 //              object; however, client side, we should always fully materialize the Stats object.
 //
-// TODO(ryan) - update this object to use an enum where we have the current defintion be the
+// TODO(ryan) - update this object to use an enum where we have the current definition be the
 //              StepResponse arm; then we will add the following arms:
 //              - Initialize(Prologue)
 //              - Step()
@@ -409,7 +409,7 @@ pub struct Prologue {
 
 /// This is the final message that will be emitted by a Engine Response Stream when it
 /// finishes without error. In some cases, the engine may emit an error which will indicate
-/// the end of the steam. Another case in which an Finalize(Epilogue) will not be emiited is
+/// the end of the steam. Another case in which an Finalize(Epilogue) will not be emitted is
 /// if the response handler has stalled and too many responses
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Epilogue {}

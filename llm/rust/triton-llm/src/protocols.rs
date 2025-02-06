@@ -15,7 +15,7 @@
 //! # Triton LLM Protocols
 //!
 //! This module contains the protocols, i.e. messages formats, used to exchange requests and responses
-//! both publically via the HTTP API and internally between Triton components.
+//! both publicly via the HTTP API and internally between Triton components.
 //!
 
 use futures::{Stream, StreamExt};

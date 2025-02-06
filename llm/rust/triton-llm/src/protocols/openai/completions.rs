@@ -250,7 +250,7 @@ impl CompletionRequestBuilder {
     ///     .expect("Failed to build CompletionRequest");
     /// ```
     pub fn build(&self) -> anyhow::Result<CompletionRequest> {
-        // Calls the build_internal, validates the result, then perfoms addition
+        // Calls the build_internal, validates the result, then performs addition
         // post build validation. This is where we might handle any mutually exclusive fields
         // and ensure there are no collisions.
         let request = self
