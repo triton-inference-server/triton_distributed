@@ -249,28 +249,37 @@ async def send_kserve_requests(num_requests):
     inputs.append(grpcclient.InferInput("request_output_len", [1], "INT32"))
 
     user_data = UserData()
-    with grpcclient.InferenceServerClient("localhost:8001") as client:
-        client.start_stream(
-            callback=partial(callback, user_data),
-        )
-        for i, input_dict in enumerate(inputs_dict):
-            inputs[0].set_data_from_numpy(input_dict["query"])
-            inputs[1].set_data_from_numpy(input_dict["request_output_len"])
-
-            client.async_stream_infer(
-                model_name="mock_disaggregated_serving", inputs=inputs
+    retry_start_time = time.time()
+    try:
+        with grpcclient.InferenceServerClient("localhost:8001") as client:
+            client.start_stream(
+                callback=partial(callback, user_data),
             )
+            for i, input_dict in enumerate(inputs_dict):
+                inputs[0].set_data_from_numpy(input_dict["query"])
+                inputs[1].set_data_from_numpy(input_dict["request_output_len"])
 
-        recv_count = 0
-        while recv_count < 10:
-            data_item = user_data._completed_requests.get()
-            recv_count += 1
-            if isinstance(data_item, InferenceServerException):
-                raise data_item
-            else:
-                result = data_item.as_numpy("output")
-                print("test \n")
-                print(result)
+                client.async_stream_infer(
+                    model_name="mock_disaggregated_serving", inputs=inputs
+                )
+
+            recv_count = 0
+            while recv_count < 10:
+                data_item = user_data._completed_requests.get()
+                recv_count += 1
+                if isinstance(data_item, InferenceServerException):
+                    raise data_item
+                else:
+                    result = data_item.as_numpy("output")
+                    print("test \n")
+                    print(result)
+    except Exception as e:
+        print("Failed collecting responses:" + repr(e))
+        if retry_start_time + 120 < time.time():
+            raise e
+        else:
+            print("Retrying in 15 seconds")
+            asyncio.sleep(15)
 
     # Wait for the tensor clean-up
     time.sleep(5)
