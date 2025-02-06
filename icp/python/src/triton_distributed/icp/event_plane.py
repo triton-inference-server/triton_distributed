@@ -90,7 +90,15 @@ class EventMetadata:
         return metadata
 
     def to_raw(self) -> bytes:
-        json_string = json.dumps(self.__dict__, indent=4)
+        serialized = {}
+        for key, value in self.__dict__.items():
+            if isinstance(value, uuid.UUID):
+                serialized[key] = str(value)
+            elif isinstance(value, datetime):
+                serialized[key] = value.isoformat()
+            else:
+                serialized[key] = value
+        json_string = json.dumps(serialized, indent=4)
         return json_string.encode("utf-8")
 
 
