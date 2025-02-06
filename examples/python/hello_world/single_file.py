@@ -19,7 +19,6 @@ import sys
 from pathlib import Path
 
 import cupy
-import msgspec
 import numpy
 from tqdm import tqdm
 from tritonserver import MemoryType
@@ -35,41 +34,6 @@ from triton_distributed.runtime import (
     TritonCoreOperator,
     WorkerConfig,
 )
-
-
-class EchoOperator(Operator):
-    def __init__(
-        self,
-        name,
-        version,
-        request_plane,
-        data_plane,
-        parameters,
-        repository,
-        logger,
-        triton_core,
-    ):
-        self._logger = logger
-
-    async def call(self, prompt: str):
-        print(prompt)
-        return prompt
-
-    async def execute(self, requests: list[RemoteInferenceRequest]):
-        for request in requests:
-            self._logger.info("got request!")
-            print(request.inputs["args"])
-            print(request.inputs["args"].to_bytes_array()[0])
-            args = msgspec.msgpack.decode(
-                request.inputs["args"].to_bytes_array()[0], type=list
-            )
-            kwargs = msgspec.msgpack.decode(
-                request.inputs["kwargs"].to_bytes_array()[0], type=dict
-            )
-            result = await self.call(*args, **kwargs)
-            await request.response_sender().send(
-                outputs={"result": msgspec.msgpack.encode(result)}, final=True
-            )
 
 
 class EncodeDecodeOperator(Operator):
@@ -110,17 +74,6 @@ class EncodeDecodeOperator(Operator):
                         outputs={"output": decoded_response.outputs["output"]},
                     )
                     del decoded_response
-
-
-async def call(nats_server_url):
-    request_plane = NatsRequestPlane(nats_server_url)
-    data_plane = UcpDataPlane()
-    await request_plane.connect()
-    data_plane.connect()
-
-    remote_operator: RemoteOperator = RemoteOperator("echo", request_plane, data_plane)
-    async for response in remote_operator.call("hello"):
-        print(response)
 
 
 async def send_requests(nats_server_url, request_count=10):
@@ -220,17 +173,6 @@ async def main():
         name="encoder",
     )
 
-    echo_op = OperatorConfig(
-        name="echo",
-        implementation=EchoOperator,
-        max_inflight_requests=100,
-    )
-
-    echo = WorkerConfig(
-        operators=[echo_op],
-        name="echo",
-    )
-
     decoder = WorkerConfig(
         operators=[decoder_op],
         name="decoder",
@@ -250,7 +192,6 @@ async def main():
 
     deployment = Deployment(
         [
-            (echo, num_instances),
             (encoder, num_instances),
             (decoder, num_instances),
             (encoder_decoder, num_instances),
@@ -264,9 +205,7 @@ async def main():
 
     print("Sending Requests")
 
-    await call(deployment.request_plane_server.url)
-
-    #    await send_requests(deployment.request_plane_server.url)
+    await send_requests(deployment.request_plane_server.url)
 
     print("Stopping Workers")
 
