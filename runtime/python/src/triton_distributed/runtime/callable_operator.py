@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any, AsyncIterator, Callable, get_type_hints
+
 import msgspec
 
 from triton_distributed.runtime import Operator, RemoteInferenceRequest
@@ -21,7 +23,7 @@ from triton_distributed.runtime import Operator, RemoteInferenceRequest
 class CallableOperator(Operator):
     def __init__(
         self,
-        callable_,
+        callable_object: Callable[..., AsyncIterator | Any],
         *,
         name,
         version,
@@ -33,11 +35,15 @@ class CallableOperator(Operator):
         triton_core,
     ):
         self._logger = logger
-        self._callable
+        return_type = get_type_hints(callable_object).get("return")
+        if return_type and issubclass(return_type, AsyncIterator):
+            self._callable = callable_object
+        else:
+            self._single_response_callable = callable_object
+            self._callable = self._generator
 
-    async def call(self, prompt: str):
-        print(prompt)
-        return prompt
+    async def _generator(self, *args, **kwargs):
+        yield self._single_response_callable(*args, **kwargs)
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
         for request in requests:
@@ -50,7 +56,7 @@ class CallableOperator(Operator):
             kwargs = msgspec.msgpack.decode(
                 request.inputs["kwargs"].to_bytes_array()[0], type=dict
             )
-            result = await self.call(*args, **kwargs)
-            await request.response_sender().send(
-                outputs={"result": msgspec.msgpack.encode(result)}, final=True
-            )
+            async for result in self._callable(*args, **kwargs):
+                await request.response_sender().send(
+                    outputs={"result": msgspec.msgpack.encode(result)}, final=True
+                )
