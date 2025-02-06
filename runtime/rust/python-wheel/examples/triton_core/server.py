@@ -15,6 +15,7 @@
 
 
 import asyncio
+import os
 from typing import Any, AsyncIterator, Dict, List
 
 import uvloop
@@ -28,16 +29,20 @@ from tritonserver._api._response import InferenceResponse
 # FIXME: Can this be more generic to arbitrary Triton models?
 class RequestHandler:
     """
-    Request handler for the generate endpoint that uses TritonCoreOperator
+    Request handler for the generate endpoint that uses TritonCore
     to process text generation requests.
     """
 
-    def __init__(self, model_name: str = "mock_llm", repository: str = "./models"):
+    def __init__(
+        self,
+        model_name: str = "mock_llm",
+        model_repository: str = os.path.join(os.path.dirname(__file__), "models"),
+    ):
         self.model_name: str = model_name
 
         # Initialize TritonCore
         self._triton_core = TritonCore(
-            model_repository=repository,
+            model_repository=model_repository,
             log_info=True,
             log_error=True,
             model_control_mode=ModelControlMode.EXPLICIT,
@@ -77,7 +82,7 @@ class RequestHandler:
                 f"Model {self.model_name} does not have an output named {self._expected_output_name}"
             )
 
-    async def generate(self, request: str):
+    async def generate(self, request: str) -> AsyncIterator[str]:
         # FIXME: Iron out request type/schema
         if not isinstance(request, str):
             raise ValueError("Request must be a string")
