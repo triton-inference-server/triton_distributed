@@ -26,6 +26,7 @@ from triton_distributed.icp.nats_event_plane import (
     NatsEventPlane,
 )
 
+from icp.tests.python.event_plane.utils import nats_server
 
 @pytest.mark.asyncio
 class TestEventPlaneFunctional:

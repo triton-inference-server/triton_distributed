@@ -20,12 +20,15 @@ import time
 from typing import List
 
 import pytest
-from python.event_plane.publisher_subscriber_utils import (
+from icp.tests.python.event_plane.publisher_subscriber_utils import (
     check_recieved_events,
     gather_published_events,
     run_publishers,
     run_subscribers,
 )
+
+from icp.tests.python.event_plane.utils import nats_server
+
 
 
 @pytest.mark.asyncio

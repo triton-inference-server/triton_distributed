@@ -22,7 +22,7 @@ from contextlib import asynccontextmanager
 
 import pytest_asyncio
 
-from triton_distributed.icp import NatsEventPlane
+from triton_distributed.icp.nats_event_plane import NatsEventPlane
 
 
 @pytest_asyncio.fixture(loop_scope="session")
