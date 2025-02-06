@@ -43,53 +43,51 @@ for sig in signals:
 
 
 def _launch_mpi_workers(args):
-    if (
-        args.context_worker_count == 1
-        or args.generate_worker_count >= 1
-        or args.aggregate_worker_count == 1
-    ):
-        command = [
-            "mpiexec",
-            "--allow-run-as-root",
-            "--oversubscribe",
-            "--display-map",
-            "--verbose",
-        ]
+    command = [
+        "mpiexec",
+        "--allow-run-as-root",
+        "--oversubscribe",
+        "--display-map",
+        "--verbose",
+    ]
 
-        if args.log_dir:
-            WORKER_LOG_DIR = str(Path(args.log_dir) / "workers")
-            command += ["--output-filename", WORKER_LOG_DIR]
+    if args.log_dir:
+        WORKER_LOG_DIR = str(Path(args.log_dir) / "workers")
+        command += ["--output-filename", WORKER_LOG_DIR]
 
-        aggregate_gpus = args.context_worker_count + args.generate_worker_count
+    aggregate_gpus = 0
 
-        for index in range(args.context_worker_count):
-            starting_gpu = index * aggregate_gpus
-            command.extend(_context_cmd(args, starting_gpu))
-            command.append(":")
+    # [TODO] below placements assume model to be TP/PP 1
+    gpu_count_per_context_worker = 1
+    gpu_count_per_generate_worker = 1
+    gpu_count_per_aggreate_worker = 1
 
-        # [FIXME] the starting gpu is not count correctly,
-        # i.e. if context_worker_count is 1, generate is 4,
-        # starting GPUs are 1, 5, 9, 13, but should be 1, 2, 3, 4
-        for index in range(args.generate_worker_count):
-            starting_gpu = index * aggregate_gpus + args.context_worker_count
-            command.extend(_generate_cmd(args, starting_gpu, index))
-            command.append(":")
+    for index in range(args.context_worker_count):
+        starting_gpu = aggregate_gpus
+        command.extend(_context_cmd(args, index, starting_gpu))
+        command.append(":")
+        aggregate_gpus += gpu_count_per_context_worker
 
-        for index in range(args.aggregate_worker_count):
-            starting_gpu = index * aggregate_gpus + args.context_worker_count
-            command.extend(_aggregate_cmd(args, starting_gpu))
-            command.append(":")
+    for index in range(args.generate_worker_count):
+        starting_gpu = aggregate_gpus
+        command.extend(_generate_cmd(args, index, starting_gpu))
+        command.append(":")
+        aggregate_gpus += gpu_count_per_generate_worker
 
-        command = command[0:-1]
-        print(" ".join(command))
+    for index in range(args.aggregate_worker_count):
+        starting_gpu = aggregate_gpus
+        command.extend(_aggregate_cmd(args, index, starting_gpu))
+        command.append(":")
+        aggregate_gpus += gpu_count_per_aggreate_worker
 
-        if args.dry_run:
-            return
+    command = command[0:-1]
+    print(" ".join(command))
 
-        env = os.environ.copy()
-        return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
-    else:
-        raise ValueError("Only supporting 1 worker each for now")
+    if args.dry_run:
+        return
+
+    env = os.environ.copy()
+    return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
 
 
 def _launch_disagg_model(args):
@@ -142,7 +140,7 @@ def _launch_workers(args):
     _launch_kv_aware_model(args)
 
 
-def _context_cmd(args, starting_gpu):
+def _context_cmd(args, index, starting_gpu):
     # Hard-coded worker name for internal communication,
     # see tensorrtllm.deploy script
     worker_name = "context"
@@ -165,7 +163,7 @@ def _context_cmd(args, starting_gpu):
         "--gpu-device-id",
         f"{starting_gpu}",
         "--metrics-port",
-        "50000",
+        str(50100 + index),
         "--initialize-request-plane",
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
@@ -174,7 +172,7 @@ def _context_cmd(args, starting_gpu):
     return command
 
 
-def _generate_cmd(args, starting_gpu, index):
+def _generate_cmd(args, index, starting_gpu):
     # Hard-coded worker name for internal communication
     # see tensorrtllm.deploy script
     worker_name = "generate"
@@ -197,7 +195,7 @@ def _generate_cmd(args, starting_gpu, index):
         "--gpu-device-id",
         f"{starting_gpu}",
         "--metrics-port",
-        str(50001 + index * 10),
+        str(50200 + index),
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
     ]
@@ -205,7 +203,7 @@ def _generate_cmd(args, starting_gpu, index):
     return command
 
 
-def _aggregate_cmd(args, starting_gpu):
+def _aggregate_cmd(args, index, starting_gpu):
     # Hard-coded worker name for internal communication
     # see tensorrtllm.deploy script
     worker_name = "aggregate"
@@ -228,7 +226,7 @@ def _aggregate_cmd(args, starting_gpu):
         "--gpu-device-id",
         f"{starting_gpu}",
         "--metrics-port",
-        "50001",
+        str(50300 + index),
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
     ]
