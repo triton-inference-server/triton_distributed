@@ -22,7 +22,7 @@ This example demonstrates how to use the Triton Distributed to serve the vLLM en
 
 ## Pre-requisite
 
-Please refer to the [README](../../README.md) for the pre-requisite and virtual environment setup.
+Please refer to the [README](/runtime/rust/python-wheel/examples/README.md) for the pre-requisite and virtual environment setup.
 
 ### vLLM installation
 
