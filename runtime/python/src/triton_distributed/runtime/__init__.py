@@ -12,6 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from triton_distributed.runtime.callable_operator import (
+    CallableOperator as CallableOperator,
+)
 from triton_distributed.runtime.deployment import Deployment as Deployment
 from triton_distributed.runtime.logger import get_logger as get_logger
 from triton_distributed.runtime.logger import get_logger_config as get_logger_config

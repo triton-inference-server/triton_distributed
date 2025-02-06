@@ -17,7 +17,7 @@
 
 import asyncio
 import uuid
-from typing import Optional
+from typing import Optional, TypeVar
 
 import msgspec
 
@@ -70,9 +70,13 @@ class RemoteOperator:
             **kwargs,
         )
 
-    async def call(self, *args, **kwargs):
-        print(args, kwargs)
-
+    async def call(
+        self,
+        *args,
+        return_type: Optional[TypeVar] = None,
+        raise_on_error=True,
+        **kwargs,
+    ):
         inference_request = RemoteInferenceRequest(
             model_name=self.name,
             model_version=self.version,
@@ -81,17 +85,17 @@ class RemoteOperator:
             _model_infer_request=None,
         )
 
-        print(inference_request)
-        print(msgspec.msgpack.encode(args))
         inference_request.inputs["args"] = [msgspec.msgpack.encode(args)]
         inference_request.inputs["kwargs"] = [msgspec.msgpack.encode(kwargs)]
 
         async for response in await self.async_infer(
-            inference_request=inference_request, raise_on_error=False
+            inference_request=inference_request, raise_on_error=raise_on_error
         ):
             if "result" in response.outputs:
-                yield msgspec.msgpack.decode(response.outputs["result"])
-            else:
+                yield msgspec.msgpack.decode(
+                    response.outputs["result"].to_bytes_array()[0], type=return_type
+                )
+            elif not response.final:
                 yield None
 
     async def async_infer(

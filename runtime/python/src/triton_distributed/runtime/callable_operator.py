@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, AsyncIterator, Callable, get_type_hints
+from typing import get_type_hints
 
 import msgspec
 
@@ -23,8 +23,8 @@ from triton_distributed.runtime import Operator, RemoteInferenceRequest
 class CallableOperator(Operator):
     def __init__(
         self,
-        callable_object: Callable[..., AsyncIterator | Any],
-        *,
+        #        callable_object: Callable[..., AsyncIterator | Any],
+        #        *,
         name,
         version,
         request_plane,
@@ -35,28 +35,27 @@ class CallableOperator(Operator):
         triton_core,
     ):
         self._logger = logger
-        return_type = get_type_hints(callable_object).get("return")
-        if return_type and issubclass(return_type, AsyncIterator):
-            self._callable = callable_object
-        else:
-            self._single_response_callable = callable_object
-            self._callable = self._generator
-
-    async def _generator(self, *args, **kwargs):
-        yield self._single_response_callable(*args, **kwargs)
+        callable_object = parameters["callable_object"]
+        self._callable = callable_object
+        input_types = get_type_hints(self._callable)
+        del input_types["return"]
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
         for request in requests:
             self._logger.info("got request!")
-            print(request.inputs["args"])
-            print(request.inputs["args"].to_bytes_array()[0])
+
+            response_sender = request.response_sender()
+
             args = msgspec.msgpack.decode(
                 request.inputs["args"].to_bytes_array()[0], type=list
             )
             kwargs = msgspec.msgpack.decode(
                 request.inputs["kwargs"].to_bytes_array()[0], type=dict
             )
+            print(args, kwargs)
             async for result in self._callable(*args, **kwargs):
-                await request.response_sender().send(
-                    outputs={"result": msgspec.msgpack.encode(result)}, final=True
+                await response_sender.send(
+                    outputs={"result": [msgspec.msgpack.encode(result)]}
                 )
+
+            await response_sender.send(final=True)
