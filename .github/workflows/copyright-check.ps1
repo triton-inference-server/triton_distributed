@@ -15,12 +15,14 @@
 
 set-strictmode -version latest
 
-. "$(& git rev-parse --show-toplevel)/deploy/Kubernetes/_build/common.ps1"
+. "$(& git rev-parse --show-toplevel)/.github/workflows/common.ps1"
 
 # == begin common.ps1 extensions ==
 
 $date_key = '%%DATE%%'
 $date_regex = '(?>(?>\d{4})-)?(?<year>\d{4})'
+
+$timer = [System.Diagnostics.Stopwatch]::StartNew()
 
 $global:copyright_matchers = @(
   @{
@@ -357,8 +359,10 @@ function generate_report() {
   write-minimal ''
   write-minimal "Copyright check report -> ${output_path}"
 }
-
 write-normal ''
+
+$timer.Stop()
+
 write-high "Pass: $($global:copyright_results.passed.count), Fail: $($global:copyright_results.failed_date.count + $global:copyright_results.failed_header.count)" -no_newline
 if ($global:copyright_results.skipped.count -gt 0) {
   write-high ", Skipped: $($global:copyright_results.skipped.count)" -no_newline
@@ -366,7 +370,8 @@ if ($global:copyright_results.skipped.count -gt 0) {
 if ($global:copyright_results.unsupported.count -gt 0) {
   write-high ", Unsupported: $($global:copyright_results.unsupported.count)" -no_newline
 }
-write-high ''
+write-minimal " ($($timer.Elapsed.TotalSeconds.ToString("0.000")) seconds)" $global:colors.low -no_newline
+write-minimal ''
 
 if ($global:copyright_results.failed_header.count -gt 0) {
   write-low ''
