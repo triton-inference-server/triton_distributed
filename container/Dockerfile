@@ -141,7 +141,7 @@ RUN . "$HOME/.cargo/env"
 
 # Rust 'triton-distributed' library dependency
 # [WIP] 'protobuf-compiler' safe? We already have a version of it somewhere
-apt install -y libssl-dev pkg-config libhwloc-dev hwloc libudev-dev clang libclang-dev protobuf-compiler
+RUN apt-get update && apt-get install -y libssl-dev pkg-config libhwloc-dev hwloc libudev-dev clang libclang-dev protobuf-compiler
 
 # [FIXME] build Rust library and bindings once the code is ready,
 # for now, the pre-built artifacts are used
@@ -151,7 +151,7 @@ apt install -y libssl-dev pkg-config libhwloc-dev hwloc libudev-dev clang libcla
 # RUN cd nova-distributed/python-wheels/nova-distributed && maturin build
 # KV publisher C library
 # RUN cd nova-distributed/rust/libnova_llm/ && cargo build --release
-RUN pip install nova-distributed/python-wheels/nova-distributed/target/wheels/nova_distributed*.whl
+RUN pip install /workspace/triton-distributed/binding_package/wheels/nova_distributed*.whl
 
 # 'etcd' is runtime dependency
 RUN wget https://github.com/etcd-io/etcd/releases/download/v3.5.18/etcd-v3.5.18-linux-amd64.tar.gz && tar -xzf etcd-v3.5.18-linux-amd64.tar.gz
