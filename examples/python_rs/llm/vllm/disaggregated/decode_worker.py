@@ -16,29 +16,49 @@
 
 import asyncio
 import uuid
-from parser import parse_vllm_args
 
 import uvloop
 import vllm
-from protocol import Request, Response
+from common.parser import parse_vllm_args
+from common.protocol import PrefillRequest, Request, Response
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 
 
-class VllmEngine:
+class VllmDecodeEngine:
     """
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs):
+    def __init__(self, engine_args: AsyncEngineArgs, prefill):
+        assert (
+            engine_args.kv_transfer_config.is_kv_consumer
+        ), "Decode worker must be a KV consumer"
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
+        self.prefill = prefill
 
     @triton_endpoint(Request, Response)
     async def generate(self, request):
-        vllm_logger.debug(f"Received request: {request}")
+        vllm_logger.info(f"Received request: {request}")
         sampling_params = vllm.SamplingParams(**request.sampling_params)
         request_id = str(uuid.uuid4())
+
+        prefill_sampling_params = {**request.sampling_params}
+        prefill_sampling_params["max_tokens"] = 1
+        prefill_request = PrefillRequest(
+            prompt=request.prompt,
+            sampling_params=prefill_sampling_params,
+            request_id=request_id,
+        )
+        prefill_generator = await self.prefill.generate(
+            prefill_request.model_dump_json()
+        )
+        prefill_response = [resp async for resp in prefill_generator]
+        assert len(prefill_response) == 1, "Prefill response should be a single boolean"
+        prefill_response = prefill_response[0]
+        vllm_logger.debug(f"Prefill response: {prefill_response}")
+
         async for response in self.engine.generate(
             request.prompt, sampling_params, request_id
         ):
@@ -55,8 +75,15 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
 
+    prefill = (
+        await runtime.namespace("triton-init")
+        .component("prefill")
+        .endpoint("generate")
+        .client()
+    )
+
     endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(VllmEngine(engine_args).generate)
+    await endpoint.serve_endpoint(VllmDecodeEngine(engine_args, prefill).generate)
 
 
 if __name__ == "__main__":

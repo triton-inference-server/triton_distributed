@@ -35,7 +35,7 @@ Run the server and client components in separate terminal sessions:
 
 **Terminal 1 - Server:**
 ```bash
-python3 monolith_worker.py \
+python3 -m monolith.worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
     --enforce-eager
@@ -43,7 +43,7 @@ python3 monolith_worker.py \
 
 **Terminal 2 - Client:**
 ```bash
-python3 client.py \
+python3 -m common.client \
     --prompt "what is the capital of france?" \
     --max-tokens 10 \
     --temperature 0.5
@@ -70,7 +70,7 @@ This deployment option splits the model serving across prefill and decode worker
 
 **Terminal 1 - Prefill Worker:**
 ```bash
-CUDA_VISIBLE_DEVICES=0 python3 prefill_worker.py \
+CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
     --gpu-memory-utilization 0.8 \
@@ -81,7 +81,7 @@ CUDA_VISIBLE_DEVICES=0 python3 prefill_worker.py \
 
 **Terminal 2 - Decode Worker:**
 ```bash
-CUDA_VISIBLE_DEVICES=1 python3 decode_worker.py \
+CUDA_VISIBLE_DEVICES=1 python3 -m disaggregated.decode_worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
     --gpu-memory-utilization 0.8 \
@@ -92,7 +92,7 @@ CUDA_VISIBLE_DEVICES=1 python3 decode_worker.py \
 
 **Terminal 3 - Client:**
 ```bash
-python3 client.py \
+python3 -m common.client \
     --prompt "what is the capital of france?" \
     --max-tokens 10 \
     --temperature 0.5
