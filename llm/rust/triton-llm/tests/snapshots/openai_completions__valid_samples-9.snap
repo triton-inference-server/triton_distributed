@@ -1,0 +1,10 @@
+---
+source: rust/protocols/tests/openai_completions.rs
+description: "should have prompt, model, and stream fields"
+expression: sample.request
+---
+{
+  "model": "gpt-3.5-turbo",
+  "prompt": "What is the meaning of life?",
+  "stream": true
+}

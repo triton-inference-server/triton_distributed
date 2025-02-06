@@ -1,0 +1,13 @@
+---
+source: rust/protocols/tests/openai_completions.rs
+description: "should have prompt, model, and logit_bias fields with the logits_bias having two key/value pairs"
+expression: sample.request
+---
+{
+  "model": "gpt-3.5-turbo",
+  "prompt": "What is the meaning of life?",
+  "logit_bias": {
+    "1337": -100,
+    "42": 100
+  }
+}

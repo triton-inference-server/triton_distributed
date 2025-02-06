@@ -1,0 +1,36 @@
+[package]
+name = "triton-llm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+
+[dependencies]
+
+# repo
+triton-distributed = { workspace = true }
+
+# workspace
+anyhow = { workspace = true }
+async-stream = { workspace = true }
+bytes = { workspace = true }
+derive_builder = {workspace = true }
+futures =  { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio-util = { workspace = true }
+validator = { workspace = true }
+uuid = { workspace = true }
+
+# crates.io
+chrono = { version = "0" }
+serde_json = { version = "1" }
+regex = "1"
+unicode-segmentation = "1.12"
+
+[dev-dependencies]
+futures = { workspace = true }
+insta = { version = "1.41", features = ["glob", "json", "redactions"]}
+proptest = "1.5.0"
+tokio = { workspace = true }
