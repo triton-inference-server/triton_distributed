@@ -15,7 +15,9 @@
 
 [package]
 name = "triton-distributed"
-version = "0.1.1"
+description = "Core components of a distributed inference framework"
+readme = "README.md"
+version = "0.2.0"
 edition = "2021"
 authors = ["NVIDIA"]
 license = "Apache-2.0"
