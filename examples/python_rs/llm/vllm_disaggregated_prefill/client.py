@@ -17,10 +17,9 @@
 import asyncio
 
 import uvloop
+from protocol import Request
 from triton_distributed_rs import DistributedRuntime, triton_worker
 from vllm.utils import FlexibleArgumentParser
-
-from .protocol import Request
 
 
 @triton_worker()
