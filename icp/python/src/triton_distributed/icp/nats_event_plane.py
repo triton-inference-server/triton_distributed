@@ -16,11 +16,16 @@ import asyncio
 import os
 import uuid
 from datetime import datetime
-from typing import AsyncIterator, Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Optional
 
 import nats
 
-from triton_distributed.icp.event_plane import EventMetadata, EventTopic
+from triton_distributed.icp import EventMetadata, EventTopic
+from triton_distributed.icp.event_plane import (
+    Event,
+    EventSubscription,
+    _serialize_metadata,
+)
 
 DEFAULT_EVENTS_PORT = int(os.getenv("DEFAULT_EVENTS_PORT", 4222))
 DEFAULT_EVENTS_HOST = os.getenv("DEFAULT_EVENTS_HOST", "localhost")
@@ -29,16 +34,15 @@ DEFAULT_EVENTS_URI = os.getenv(
 )
 
 
-class EventSubscription(AsyncIterator):
-    def __init(self, nc_sub: Optional[nats.Subscription]):
+class NatsEventSubscription(EventSubscription):
+    def __init(self, nc_sub: nats.Subscription):
         self._nc_sub = nc_sub
 
     async def __anext__(self):
-        if self._nc_sub is None:
-            raise StopAsyncIteration
         msg = await self._nc_sub.next_msg()
-        metadata, event = self._extract_metadata_and_payload(msg.data)
-        return event, metadata
+        metadata, event_payload = self._extract_metadata_and_payload(msg.data)
+        event = Event(event_payload, metadata)
+        return event
 
     def __aiter__(self):
         return self
@@ -73,12 +77,12 @@ class NatsEventPlane:
         await self._nc.connect(self._server_uri)
 
     async def publish(
-        self, event: bytes, event_type: str, event_topic: Optional[EventTopic]
-    ) -> EventMetadata:
+        self, payload: bytes, event_type: str, event_topic: Optional[EventTopic]
+    ) -> Event:
         """Publish an event to the NATS server.
 
         Args:
-            event: Event payload.
+            payload: Event payload.
             event_type: Type of the event.
             event_topic: EventTopic of the event.
         """
@@ -90,15 +94,17 @@ class NatsEventPlane:
             component_id=self._component_id,
         )
 
-        metadata_serialized = event_metadata._serialize_metadata()
+        metadata_serialized = _serialize_metadata(event_metadata)
         metadata_size = len(metadata_serialized).to_bytes(4, byteorder="big")
 
         # Concatenate metadata size, metadata, and event payload
-        message = metadata_size + metadata_serialized + event
+        message = metadata_size + metadata_serialized + payload
 
         subject = self._compose_publish_subject(event_metadata)
         await self._nc.publish(subject, message)
-        return event_metadata
+
+        event_with_metadata = Event(payload, metadata_serialized, event_metadata)
+        return event_with_metadata
 
     async def subscribe(
         self,
@@ -106,7 +112,7 @@ class NatsEventPlane:
         event_topic: Optional[EventTopic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
-    ):
+    ) -> EventSubscription:
         """Subscribe to events on the NATS server.
 
         Args:
@@ -117,24 +123,22 @@ class NatsEventPlane:
         """
 
         async def _message_handler(msg):
-            metadata, event = self._extract_metadata_and_payload(msg.data)
+            metadata, event_payload = self._extract_metadata_and_payload(msg.data)
+            event = Event(event_payload, metadata)
 
             async def wrapper():
-                await callback(event, metadata)  # Ensure it's a proper coroutine
+                await callback(event)  # Ensure it's a proper coroutine
 
             if self._run_callback_in_parallel:
                 asyncio.create_task(wrapper())  # Run in parallel
             else:
-                await callback(event, metadata)  # Await normally
+                await callback(event)  # Await normally
 
         subject = self._compose_subscribe_subject(event_topic, event_type, component_id)
 
-        if callback is None:
-            sub = await self._nc.subscribe(subject)
-            event_sub = EventSubscription(sub)
-        else:
-            await self._nc.subscribe(subject, cb=_message_handler)
-            event_sub = EventSubscription(None)
+        _cb = _message_handler if callback else None
+        sub = await self._nc.subscribe(subject, cb=_cb)
+        event_sub = NatsEventSubscription(sub)
 
         return event_sub
 

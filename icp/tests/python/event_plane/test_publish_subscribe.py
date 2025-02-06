@@ -26,7 +26,6 @@ from triton_distributed.icp.nats_event_plane import (
     NatsEventPlane,
 )
 
-from icp.tests.python.event_plane.utils import nats_server
 
 @pytest.mark.asyncio
 class TestEventPlaneFunctional:
@@ -36,10 +35,9 @@ class TestEventPlaneFunctional:
 
         received_events: List[EventMetadata] = []
 
-        async def callback(_payload, event_metadata):
-            metadata = EventMetadata._deserialize_metadata(event_metadata)
-            received_events.append(metadata)
-            print(metadata)
+        async def callback(event):
+            received_events.append(event)
+            print(event)
 
         event_topic = EventTopic("test.event_topic")
         event_type = "test_event"
@@ -62,13 +60,13 @@ class TestEventPlaneFunctional:
         results_2: List[EventMetadata] = []
         results_3: List[EventMetadata] = []
 
-        async def callback_1(event, _metadata):
+        async def callback_1(event):
             results_1.append(event)
 
-        async def callback_2(event, _metadata):
+        async def callback_2(event):
             results_2.append(event)
 
-        async def callback_3(event, _metadata):
+        async def callback_3(event):
             results_3.append(event)
 
         event_topic = EventTopic(["test"])

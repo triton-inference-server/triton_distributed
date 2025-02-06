@@ -35,9 +35,9 @@ async def single_publisher_subscriber_example():
     await plane.connect()
     received_events = []
 
-    async def callback(event, metadata):
-        print(metadata)
-        received_events.append(metadata)
+    async def callback(event):
+        print(event)
+        received_events.append(event)
 
     event_topic = EventTopic(["test", "event_topic"])
     event_type = "test_event"

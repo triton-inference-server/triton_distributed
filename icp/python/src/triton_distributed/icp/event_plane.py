@@ -18,7 +18,7 @@ import re
 import uuid
 from abc import abstractmethod
 from datetime import datetime
-from typing import Any, AsyncIterator, Awaitable, Callable, List, Optional, Tuple, Union
+from typing import Any, AsyncIterator, Awaitable, Callable, List, Optional, Union
 
 EVENT_TOPIC_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
@@ -73,35 +73,36 @@ class EventMetadata:
     component_id: uuid.UUID
     event_topic: Optional[EventTopic] = None
 
-    @classmethod
-    def _deserialize_metadata(cls, event_metadata_serialized: bytes):
-        event_metadata_dict = json.loads(event_metadata_serialized.decode("utf-8"))
-        metadata = EventMetadata(
-            **{
-                **event_metadata_dict,
-                "event_topic": EventTopic(**event_metadata_dict["event_topic"])
-                if event_metadata_dict["event_topic"]
-                else None,
-                "event_id": uuid.UUID(event_metadata_dict["event_id"]),
-                "component_id": uuid.UUID(event_metadata_dict["component_id"]),
-                "timestamp": datetime.fromisoformat(event_metadata_dict["timestamp"]),
-            }
-        )
-        return metadata
 
-    def _serialize_metadata(self) -> bytes:
-        serialized = {}
-        for key, value in self.__dict__.items():
-            if isinstance(value, uuid.UUID):
-                serialized[key] = str(value)
-            elif isinstance(value, datetime):
-                serialized[key] = value.isoformat()
-            elif isinstance(value, EventTopic):
-                serialized[key] = list(value.event_topic.split("."))
-            else:
-                serialized[key] = value
-        json_string = json.dumps(serialized, indent=4)
-        return json_string.encode("utf-8")
+def _deserialize_metadata(event_metadata_serialized: bytes):
+    event_metadata_dict = json.loads(event_metadata_serialized.decode("utf-8"))
+    metadata = EventMetadata(
+        **{
+            **event_metadata_dict,
+            "event_topic": EventTopic(**event_metadata_dict["event_topic"])
+            if event_metadata_dict["event_topic"]
+            else None,
+            "event_id": uuid.UUID(event_metadata_dict["event_id"]),
+            "component_id": uuid.UUID(event_metadata_dict["component_id"]),
+            "timestamp": datetime.fromisoformat(event_metadata_dict["timestamp"]),
+        }
+    )
+    return metadata
+
+
+def _serialize_metadata(event_metadata: EventMetadata) -> bytes:
+    serialized = {}
+    for key, value in event_metadata.__dict__.items():
+        if isinstance(value, uuid.UUID):
+            serialized[key] = str(value)
+        elif isinstance(value, datetime):
+            serialized[key] = value.isoformat()
+        elif isinstance(value, EventTopic):
+            serialized[key] = list(value.event_topic.split("."))
+        else:
+            serialized[key] = value
+    json_string = json.dumps(serialized, indent=4)
+    return json_string.encode("utf-8")
 
 
 class Event:
@@ -109,9 +110,12 @@ class Event:
 
     def __init__(
         self,
-        event: bytes,
+        payload: bytes,
         event_metadata_serialize: bytes,
         event_metadata: Optional[EventMetadata] = None,
+        metadata_deserialize: Optional[
+            Callable[[bytes], EventMetadata]
+        ] = _deserialize_metadata,
     ):
         """Initialize the event.
 
@@ -119,14 +123,17 @@ class Event:
             event_metadata (EventMetadata): Event metadata
             event (bytes): Event payload
         """
-        self._event = event
+        self._payload = payload
         self._event_metadata_serialize = event_metadata_serialize
         self._event_metadata = event_metadata
+        self._metadata_deserialize = metadata_deserialize
 
     @property
     def _metadata(self):
         if not self._event_metadata:
-            self._event_metadata = EventMetadata._deserialize_metadata(
+            if not self._metadata_deserialize:
+                raise ValueError("No metadata deserialization function provided.")
+            self._event_metadata = self._metadata_deserialize(
                 self._event_metadata_serialize
             )
         return self._event_metadata
@@ -150,6 +157,24 @@ class Event:
     @property
     def event_topic(self) -> Optional[EventTopic]:
         return self._metadata.event_topic
+
+    @property
+    def payload(self) -> bytes:
+        return self._payload
+
+
+class EventSubscription(AsyncIterator[Event]):
+    @abstractmethod
+    async def __anext__(self) -> Event:
+        pass
+
+    @abstractmethod
+    def __aiter__(self):
+        return self
+
+    @abstractmethod
+    def unsubscribe(self):
+        pass
 
 
 class EventPlane:
@@ -183,28 +208,11 @@ class EventPlane:
         event_topic: Optional[EventTopic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
-    ):
+    ) -> EventSubscription:
         """Subscribe to events on the event plane.
 
         Args:
             callback (Callable[[bytes, bytes], Awaitable[None]]): Callback function to be called when an event is received
-            event_topic (Optional[EventTopic]): Event event_topic
-            event_type (Optional[str]): Event type
-            component_id (Optional[uuid.UUID]): Component ID
-        """
-        pass
-
-    @abstractmethod
-    def subscribe_iter(
-        self,
-        event_topic: Optional[EventTopic] = None,
-        event_type: Optional[str] = None,
-        component_id: Optional[uuid.UUID] = None,
-    ) -> AsyncIterator[Tuple[bytes, bytes]]:
-        """
-        Subscribe to events on the event plane and return an async iterator.
-
-        Args:
             event_topic (Optional[EventTopic]): Event event_topic
             event_type (Optional[str]): Event type
             component_id (Optional[uuid.UUID]): Component ID
