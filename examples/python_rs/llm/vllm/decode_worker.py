@@ -57,8 +57,6 @@ class VllmDecodeEngine:
         prefill_response = [resp async for resp in prefill_generator]
         assert len(prefill_response) == 1, "Prefill response should be a single boolean"
         prefill_response = prefill_response[0]
-        print(prefill_response, prefill_response.data(), type(prefill_response.data()))
-        assert prefill_response.data() is True, "Prefill should have been successful"
         vllm_logger.debug(f"Prefill response: {prefill_response}")
 
         async for response in self.engine.generate(
