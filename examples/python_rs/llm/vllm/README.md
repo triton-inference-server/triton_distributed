@@ -15,41 +15,61 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+# vLLM Integration with Triton Distributed
 
-# vLLM Example
+This example demonstrates how to use Triton Distributed to serve large language models with the vLLM engine, enabling efficient model serving with both monolithic and disaggregated deployment options.
 
-This example demonstrates how to use the Triton Distributed to serve the vLLM engine.
+## Prerequisites
 
-## Pre-requisite
-
-Please refer to the [README](/runtime/rust/python-wheel/examples/README.md) for the pre-requisite and virtual environment setup.
-
-### vLLM installation
-
-```
-uv pip install setuptools vllm==0.7.0
+1. Follow the setup instructions in the Python bindings [README](/runtime/rust/python-wheel/examples/README.md) to prepare your environment
+2. Install vLLM:
+```bash
+uv pip install vllm==0.7.0
 ```
 
-## Run the monolith example
+## Deployment Options
 
-In the first shell, run the server:
+### 1. Monolithic Deployment
 
+Run the server and client components in separate terminal sessions:
+
+**Terminal 1 - Server:**
+```bash
+python3 monolith_worker.py \
+    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --max-model-len 100 \
+    --enforce-eager
 ```
-python3 monolith_worker.py --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B --max-model-len 100 --enforce-eager
+
+**Terminal 2 - Client:**
+```bash
+python3 client.py \
+    --prompt "what is the capital of france?" \
+    --max-tokens 10 \
+    --temperature 0.5
+```
+
+The output should look similar to:
+```
+Annotated(data=' Well', event=None, comment=[], id=None)
+Annotated(data=' Well,', event=None, comment=[], id=None)
+Annotated(data=' Well, France', event=None, comment=[], id=None)
+Annotated(data=' Well, France is', event=None, comment=[], id=None)
+Annotated(data=' Well, France is a', event=None, comment=[], id=None)
+Annotated(data=' Well, France is a country', event=None, comment=[], id=None)
+Annotated(data=' Well, France is a country located', event=None, comment=[], id=None)
+Annotated(data=' Well, France is a country located in', event=None, comment=[], id=None)
+Annotated(data=' Well, France is a country located in Western', event=None, comment=[], id=None)
+Annotated(data=' Well, France is a country located in Western Europe', event=None, comment=[], id=None)
 ```
 
 
-In the second shell, run the client:
+### 2. Disaggregated Deployment
 
-```
-python3 client.py
-```
+This deployment option splits the model serving across prefill and decode workers, enabling more efficient resource utilization.
 
-## Run the disaggregated example
-
-In the first shell, run the prefill worker:
-
-```
+**Terminal 1 - Prefill Worker:**
+```bash
 CUDA_VISIBLE_DEVICES=0 python3 prefill_worker.py \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
@@ -59,9 +79,8 @@ CUDA_VISIBLE_DEVICES=0 python3 prefill_worker.py \
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2}'
 ```
 
-In the second shell, run the decode worker:
-
-```
+**Terminal 2 - Decode Worker:**
+```bash
 CUDA_VISIBLE_DEVICES=1 python3 decode_worker.py \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
@@ -71,8 +90,12 @@ CUDA_VISIBLE_DEVICES=1 python3 decode_worker.py \
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2}'
 ```
 
-In the third shell, run the client:
+**Terminal 3 - Client:**
+```bash
+python3 client.py \
+    --prompt "what is the capital of france?" \
+    --max-tokens 10 \
+    --temperature 0.5
+```
 
-```
-python3 client.py
-```
+The disaggregated deployment utilizes separate GPUs for prefill and decode operations, allowing for optimized resource allocation and improved performance. For more details on the disaggregated deployment, please refer to the [vLLM documentation](https://docs.vllm.ai/en/latest/features/disagg_prefill.html).
