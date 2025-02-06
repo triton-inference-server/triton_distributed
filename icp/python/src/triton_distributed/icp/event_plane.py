@@ -96,6 +96,8 @@ class EventMetadata:
                 serialized[key] = str(value)
             elif isinstance(value, datetime):
                 serialized[key] = value.isoformat()
+            elif isinstance(value, EventTopic):
+                serialized[key] = list(value.evnet_topic.split("."))
             else:
                 serialized[key] = value
         json_string = json.dumps(serialized, indent=4)
