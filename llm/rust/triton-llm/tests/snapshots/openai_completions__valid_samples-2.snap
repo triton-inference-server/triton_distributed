@@ -1,5 +1,5 @@
 ---
-source: rust/protocols/tests/openai_completions.rs
+source: triton-llm/tests/openai_completions.rs
 description: "should have prompt, model, and max_tokens fields"
 expression: sample.request
 ---

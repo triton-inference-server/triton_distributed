@@ -1,5 +1,5 @@
 ---
-source: rust/protocols/tests/openai_completions.rs
+source: triton-llm/tests/openai_completions.rs
 expression: request
 ---
 {
