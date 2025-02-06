@@ -17,7 +17,8 @@ from typing import get_type_hints
 
 import msgspec
 
-from triton_distributed.runtime import Operator, RemoteInferenceRequest
+from triton_distributed.runtime.operator import Operator
+from triton_distributed.runtime.remote_request import RemoteInferenceRequest
 
 
 class CallableOperator(Operator):
@@ -37,8 +38,11 @@ class CallableOperator(Operator):
         self._logger = logger
         callable_object = parameters["callable_object"]
         self._callable = callable_object
-        input_types = get_type_hints(self._callable)
-        del input_types["return"]
+        self._input_types = get_type_hints(self._callable)
+        del self._input_types["return"]
+        if len(self._input_types) != 1:
+            raise ValueError("Callable supports single typed object")
+        self._input_type = list(self._input_types.items())[0][1]
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
         for request in requests:
@@ -46,14 +50,14 @@ class CallableOperator(Operator):
 
             response_sender = request.response_sender()
 
-            args = msgspec.msgpack.decode(
-                request.inputs["args"].to_bytes_array()[0], type=list
+            arg = msgspec.msgpack.decode(
+                request.inputs["arg"].to_bytes_array()[0], type=self._input_type
             )
-            kwargs = msgspec.msgpack.decode(
-                request.inputs["kwargs"].to_bytes_array()[0], type=dict
-            )
-            print(args, kwargs)
-            async for result in self._callable(*args, **kwargs):
+            #            kwargs = msgspec.msgpack.decode(
+            #                request.inputs["kwargs"].to_bytes_array()[0], type=dict
+            #           )
+
+            async for result in self._callable(arg):
                 await response_sender.send(
                     outputs={"result": [msgspec.msgpack.encode(result)]}
                 )

@@ -72,10 +72,9 @@ class RemoteOperator:
 
     async def call(
         self,
-        *args,
+        arg,
         return_type: Optional[TypeVar] = None,
         raise_on_error=True,
-        **kwargs,
     ):
         inference_request = RemoteInferenceRequest(
             model_name=self.name,
@@ -85,8 +84,7 @@ class RemoteOperator:
             _model_infer_request=None,
         )
 
-        inference_request.inputs["args"] = [msgspec.msgpack.encode(args)]
-        inference_request.inputs["kwargs"] = [msgspec.msgpack.encode(kwargs)]
+        inference_request.inputs["arg"] = [msgspec.msgpack.encode(arg)]
 
         async for response in await self.async_infer(
             inference_request=inference_request, raise_on_error=raise_on_error
