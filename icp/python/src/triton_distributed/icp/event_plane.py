@@ -74,7 +74,7 @@ class EventMetadata:
     event_topic: Optional[EventTopic] = None
 
     @classmethod
-    def from_raw(cls, event_metadata_serialized: bytes):
+    def _deserialize_metadata(cls, event_metadata_serialized: bytes):
         event_metadata_dict = json.loads(event_metadata_serialized.decode("utf-8"))
         metadata = EventMetadata(
             **{
@@ -89,7 +89,7 @@ class EventMetadata:
         )
         return metadata
 
-    def to_raw(self) -> bytes:
+    def _serialize_metadata(self) -> bytes:
         serialized = {}
         for key, value in self.__dict__.items():
             if isinstance(value, uuid.UUID):
@@ -102,6 +102,54 @@ class EventMetadata:
                 serialized[key] = value
         json_string = json.dumps(serialized, indent=4)
         return json_string.encode("utf-8")
+
+
+class Event:
+    """Event class for representing events."""
+
+    def __init__(
+        self,
+        event: bytes,
+        event_metadata_serialize: bytes,
+        event_metadata: Optional[EventMetadata] = None,
+    ):
+        """Initialize the event.
+
+        Args:
+            event_metadata (EventMetadata): Event metadata
+            event (bytes): Event payload
+        """
+        self._event = event
+        self._event_metadata_serialize = event_metadata_serialize
+        self._event_metadata = event_metadata
+
+    @property
+    def _metadata(self):
+        if not self._event_metadata:
+            self._event_metadata = EventMetadata._deserialize_metadata(
+                self._event_metadata_serialize
+            )
+        return self._event_metadata
+
+    @property
+    def event_id(self) -> uuid.UUID:
+        return self._metadata.event_id
+
+    @property
+    def event_type(self) -> str:
+        return self._metadata.event_type
+
+    @property
+    def timestamp(self) -> datetime:
+        return self._metadata.timestamp
+
+    @property
+    def component_id(self) -> uuid.UUID:
+        return self._metadata.component_id
+
+    @property
+    def event_topic(self) -> Optional[EventTopic]:
+        return self._metadata.event_topic
 
 
 class EventPlane:

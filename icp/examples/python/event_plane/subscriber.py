@@ -31,7 +31,7 @@ async def main(subscriber_id, event_topic, event_type, component_id):
     event_plane = NatsEventPlane(server_url, uuid.uuid4())
 
     async def callback(event, metadata_wr: bytes):
-        metadata = EventMetadata.from_raw(metadata_wr)
+        metadata = EventMetadata._deserialize_metadata(metadata_wr)
         print(
             f"Subscriber {subscriber_id} received event: {metadata.event_id} event payload: {event.decode()}"
         )

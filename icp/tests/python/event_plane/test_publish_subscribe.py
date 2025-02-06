@@ -37,7 +37,7 @@ class TestEventPlaneFunctional:
         received_events: List[EventMetadata] = []
 
         async def callback(_payload, event_metadata):
-            metadata = EventMetadata.from_raw(event_metadata)
+            metadata = EventMetadata._deserialize_metadata(event_metadata)
             received_events.append(metadata)
             print(metadata)
 
