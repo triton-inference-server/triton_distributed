@@ -20,7 +20,11 @@ from typing import List
 
 import pytest
 
-from triton_distributed.icp import EventMetadata, EventTopic, NatsEventPlane
+from triton_distributed.icp.nats_event_plane import (
+    EventMetadata,
+    EventTopic,
+    NatsEventPlane,
+)
 
 
 @pytest.mark.asyncio

@@ -55,7 +55,7 @@ class EventTopic:
                 "Invalid event_topic string. Only alphanumeric characters, underscores, and hyphens are allowed."
             )
         event_topic = ".".join(event_topic)
-        super().__init__(event_topic=event_topic)
+        self.event_topic = event_topic
 
     def __str__(self):
         return self.event_topic

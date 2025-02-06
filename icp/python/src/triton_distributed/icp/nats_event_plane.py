@@ -19,7 +19,7 @@ from typing import AsyncIterator, Awaitable, Callable, Optional, Tuple
 
 import nats
 
-from triton_distributed.icp import EventMetadata, EventTopic
+from triton_distributed.icp.event_plane import EventMetadata, EventTopic
 
 
 class NatsEventPlane:
