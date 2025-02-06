@@ -15,6 +15,8 @@
 
 import argparse
 
+from triton_distributed.icp.nats_event_plane import DEFAULT_EVENTS_PORT
+
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser(description="Event Plane Example")
@@ -22,7 +24,7 @@ def parse_args(args=None):
     parser.add_argument(
         "--nats-port",
         type=int,
-        default=4223,
+        default=DEFAULT_EVENTS_PORT,
         help="Nats server port",
     )
 

@@ -22,7 +22,12 @@ from contextlib import asynccontextmanager
 
 import pytest_asyncio
 
-from triton_distributed.icp.nats_event_plane import NatsEventPlane
+from triton_distributed.icp.nats_event_plane import (
+    DEFAULT_EVENTS_HOST,
+    DEFAULT_EVENTS_PORT,
+    DEFAULT_EVENTS_URI,
+    NatsEventPlane,
+)
 
 
 @pytest_asyncio.fixture(loop_scope="session")
@@ -31,7 +36,7 @@ async def nats_server():
     try:
         # Start NATS server
         process = subprocess.Popen(
-            ["nats-server", "-p", "4222"],
+            ["nats-server", "-p", DEFAULT_EVENTS_PORT, "-addr", DEFAULT_EVENTS_HOST],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -47,7 +52,7 @@ async def nats_server():
 async def event_plane_context():
     # with nats_server_context() as server:
     print(f"Print loop plane context: {id(asyncio.get_running_loop())}")
-    server_url = "nats://localhost:4222"
+    server_url = DEFAULT_EVENTS_URI
     component_id = uuid.uuid4()
     plane = NatsEventPlane(server_url, component_id)
     await plane.connect()
@@ -58,7 +63,7 @@ async def event_plane_context():
 @pytest_asyncio.fixture(loop_scope="function")
 async def event_plane():
     print(f"Print loop plane: {id(asyncio.get_running_loop())}")
-    server_url = "nats://localhost:4222"
+    server_url = DEFAULT_EVENTS_URI
     component_id = uuid.uuid4()
     plane = NatsEventPlane(server_url, component_id)
     await plane.connect()

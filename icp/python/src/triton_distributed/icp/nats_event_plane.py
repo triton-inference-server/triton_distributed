@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
+import os
 import uuid
 from datetime import datetime
 from typing import AsyncIterator, Awaitable, Callable, Optional, Tuple
@@ -20,6 +21,12 @@ from typing import AsyncIterator, Awaitable, Callable, Optional, Tuple
 import nats
 
 from triton_distributed.icp.event_plane import EventMetadata, EventTopic
+
+DEFAULT_EVENTS_PORT = int(os.getenv("DEFAULT_EVENTS_PORT", 4222))
+DEFAULT_EVENTS_HOST = os.getenv("DEFAULT_EVENTS_HOST", "localhost")
+DEFAULT_EVENTS_URI = os.getenv(
+    "DEFAULT_EVENTS_URI", f"nats://{DEFAULT_EVENTS_HOST}:{DEFAULT_EVENTS_PORT}"
+)
 
 
 class NatsEventPlane:

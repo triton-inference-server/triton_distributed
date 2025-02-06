@@ -19,6 +19,7 @@ import asyncio
 import uuid
 
 from triton_distributed.icp.nats_event_plane import (
+    DEFAULT_EVENTS_URI,
     EventMetadata,
     EventTopic,
     NatsEventPlane,
@@ -26,7 +27,7 @@ from triton_distributed.icp.nats_event_plane import (
 
 
 async def main(subscriber_id, event_topic, event_type, component_id):
-    server_url = "nats://localhost:4222"
+    server_url = DEFAULT_EVENTS_URI
     event_plane = NatsEventPlane(server_url, uuid.uuid4())
 
     async def callback(event, metadata_wr: bytes):
