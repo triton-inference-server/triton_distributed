@@ -23,7 +23,7 @@ A basic example that demonstrates how to use the Event Plane API to create an ev
 
 ### 1) Initialize NATS server and create an event plane
 ```python
-    server_url = "nats://localhost:4223"
+    server_url = "nats://localhost:4222"
     component_id = uuid.uuid4()
     plane = NatsEventPlane(server_url, component_id)
     await plane.connect()

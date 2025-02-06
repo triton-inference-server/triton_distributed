@@ -29,7 +29,7 @@ async def single_publisher_subscriber_example():
     # event_plane_instance = await anext(event_plane)
 
     server_url = DEFAULT_EVENTS_URI
-    component_id = uuid.uuid4()
+    component_id = str(uuid.uuid4())
     plane = NatsEventPlane(server_url, component_id)
 
     await plane.connect()
