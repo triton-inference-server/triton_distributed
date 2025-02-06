@@ -238,10 +238,6 @@ impl DeploymentState {
             .cloned()
             .ok_or(ServiceHttpError::ModelNotFound(model.to_string()))
     }
-
-    fn chat_completion_engine_names(&self) -> Vec<String> {
-        self.chat_completion_engines.lock().unwrap().list()
-    }
 }
 
 /// Documentation for a route
