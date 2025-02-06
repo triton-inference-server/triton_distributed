@@ -1,0 +1,14 @@
+- model_name: mistralai/mistral-7b-instruct-v0.3
+  file_path: completion.streaming.1
+  query: What is deep learning?
+  query_type: CompletionsStreaming
+
+- model_name: mistralai/mistral-7b-instruct-v0.3t
+  file_path: completion.streaming.2
+  query: Write a limerick about the wonders of GPU computing.
+  query_type: CompletionsStreaming
+
+- model_name: mistralai/mistral-7b-instruct-v0.3
+  file_path: completion.streaming.3
+  query: Tell me about Dumbledore.
+  query_type: CompletionsStreaming

@@ -1,0 +1,15 @@
+
+- model_name: meta/llama-3.1-8b-instruct
+  file_path: completion.streaming.1
+  query: What is deep learning?
+  query_type: CompletionsStreaming
+
+- model_name: meta/llama-3.1-8b-instruct
+  file_path: completion.streaming.2
+  query: Write a limerick about the wonders of GPU computing.
+  query_type: CompletionsStreaming
+
+- model_name: meta/llama-3.1-8b-instruct
+  file_path: completion.streaming.3
+  query: Tell me about Dumbledore.
+  query_type: CompletionsStreaming

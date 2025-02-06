@@ -1,0 +1,59 @@
+- model_name: meta-llama/llama-3.1-8b-instruct
+  file_path: meta/llama-3.1-8b-instruct/chat_completions/chat-completion.streaming.1
+  query: What is deep learning?
+  query_type: ChatCompletionsStreaming
+
+- model_name: meta-llama/llama-3.1-8b-instruct
+  file_path: meta/llama-3.1-8b-instruct/chat_completions/chat-completion.streaming.2
+  query: Write a limerick about the wonders of GPU computing.
+  query_type: ChatCompletionsStreaming
+
+- model_name: meta-llama/llama-3.1-8b-instruct
+  file_path: meta/llama-3.1-8b-instruct/chat_completions/chat-completion.streaming.3
+  query: Tell me about Dumbledore.
+  query_type: ChatCompletionsStreaming
+
+- model_name: mistralai/mixtral-8x22b-instruct-v0.1
+  file_path: mistralai/mixtral-8x22b-instruct-v0.1/chat_completions/chat-completion.streaming.1
+  query: What is deep learning?
+  query_type: ChatCompletionsStreaming
+
+- model_name: mistralai/mixtral-8x22b-instruct-v0.1
+  file_path: mistralai/mixtral-8x22b-instruct-v0.1/chat_completions/chat-completion.streaming.2
+  query: Write a limerick about the wonders of GPU computing.
+  query_type: ChatCompletionsStreaming
+
+- model_name: mistralai/mixtral-8x22b-instruct-v0.1
+  file_path: mistralai/mixtral-8x22b-instruct-v0.1/chat_completions/chat-completion.streaming.3
+  query: Tell me about Dumbledore.
+  query_type: ChatCompletionsStreaming
+
+- model_name: meta-llama/llama-3.1-8b-instruct
+  file_path: meta/llama-3.1-8b-instruct/completions/completion.streaming.1
+  query: Explain what is deep learning?
+  query_type: CompletionsStreaming
+
+- model_name: meta-llama/llama-3.1-8b-instruct
+  file_path: meta/llama-3.1-8b-instruct/completions/completion.streaming.2
+  query: Please write a limerick about the wonders of GPU computing.
+  query_type: CompletionsStreaming
+
+- model_name: meta-llama/llama-3.1-8b-instruct
+  file_path: meta/llama-3.1-8b-instruct/completions/completion.streaming.3
+  query: Tell me something about Dumbledore.
+  query_type: CompletionsStreaming
+
+- model_name: mistralai/mistral-7b-instruct-v0.3
+  file_path: mistralai/mistral-7b-instruct-v0.3/completions/completion.streaming.1
+  query: What is deep learning?
+  query_type: CompletionsStreaming
+
+- model_name: mistralai/mistral-7b-instruct-v0.3t
+  file_path: mistralai/mistral-7b-instruct-v0.3/completions/completion.streaming.2
+  query: Write a limerick about the wonders of GPU computing.
+  query_type: CompletionsStreaming
+
+- model_name: mistralai/mistral-7b-instruct-v0.3
+  file_path: mistralai/mistral-7b-instruct-v0.3/completions/completion.streaming.3
+  query: Tell me about Dumbledore.
+  query_type: CompletionsStreaming
