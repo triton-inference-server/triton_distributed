@@ -16,8 +16,8 @@ class RequestHandler:
     to process text generation requests.
     """
 
-    def __init__(self, name: str = "mock_llm", repository: str = "./models"):
-        self.name: str = name
+    def __init__(self, model_name: str = "mock_llm", repository: str = "./models"):
+        self.model_name: str = model_name
 
         # Initialize TritonCore
         self._triton_core = TritonCore(
@@ -28,16 +28,17 @@ class RequestHandler:
         ).start(wait_until_ready=True)
 
         # Load only the requested model
-        self._triton_core.load(name)
+        self._triton_core.load(self.model_name)
 
         # Get a handle to the requested model for re-use
-        self._model = self._triton_core.model(name)
+        self._model = self._triton_core.model(self.model_name)
 
         # Validate the model has the expected inputs and outputs
         self._validate_model_config()
 
-        print(f"Model {self.name} ready to generate")
+        print(f"Model {self.model_name} ready to generate")
 
+    # FIXME: Can this be more generic to arbitrary Triton models?
     def _validate_model_config(self):
         self._model_metadata = self._model.metadata()
         self._inputs = self._model_metadata["inputs"]
@@ -49,7 +50,7 @@ class RequestHandler:
             input["name"] == self._expected_input_name for input in self._inputs
         ):
             raise ValueError(
-                f"Model {self.name} does not have an input named {self._expected_input_name}"
+                f"Model {self.model_name} does not have an input named {self._expected_input_name}"
             )
 
         self._expected_output_name: str = "text_output"
@@ -57,7 +58,7 @@ class RequestHandler:
             output["name"] == self._expected_output_name for output in self._outputs
         ):
             raise ValueError(
-                f"Model {self.name} does not have an output named {self._expected_output_name}"
+                f"Model {self.model_name} does not have an output named {self._expected_output_name}"
             )
 
     async def generate(self, request: str):
