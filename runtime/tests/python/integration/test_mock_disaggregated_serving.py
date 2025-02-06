@@ -279,7 +279,7 @@ async def send_kserve_requests(num_requests):
             raise e
         else:
             print("Retrying in 15 seconds")
-            asyncio.sleep(15)
+            await asyncio.sleep(15)
 
     # Wait for the tensor clean-up
     time.sleep(5)
