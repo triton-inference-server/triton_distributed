@@ -12,11 +12,23 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-//! # Triton LLM
-//!
-//! The `triton-llm` crate is a Rust library that provides a set of traits and types for building
-//! distributed LLM inference solutions.
+use thiserror::Error;
 
-pub mod http;
-pub mod protocols;
-pub mod types;
+#[derive(Debug, Error)]
+pub enum ServiceHttpError {
+    #[error("Model not found: {0}")]
+    ModelNotFound(String),
+
+    #[error("Model already exists: {0}")]
+    ModelAlreadyExists(String),
+}
+
+/// Implementation of the Completion Engines served by the HTTP service should
+/// map thier custom errors to to this error type if they wish to return error
+/// codes besides 500.
+#[derive(Debug, Error)]
+#[error("HTTP Error {code}: {message}")]
+pub struct HttpError {
+    pub code: u16,
+    pub message: String,
+}
