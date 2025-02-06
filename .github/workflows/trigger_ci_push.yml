@@ -16,24 +16,26 @@
 on:
   push:
     branches:
-      - 'main'
-      - 'r*'
+    - 'main'
+    - 'r*'
+    paths-ignore:
+    - deploy/Kubernetes/**
 jobs:
   mirror_repo:
     environment: GITLAB
     runs-on: self-hosted
     steps:
-      - name: Check out the repository to the runner
-        uses: actions/checkout@v4
-      - name: Sync Mirror Repository
-        run: ./.github/workflows/mirror_repo.sh ${{ secrets.TOKEN }} ${{ secrets.MIRROR_URL }}
+    - name: Check out the repository to the runner
+      uses: actions/checkout@v4
+    - name: Sync Mirror Repository
+      run: ./.github/workflows/mirror_repo.sh ${{ secrets.TOKEN }} ${{ secrets.MIRROR_URL }}
 
   trigger-ci:
     environment: GITLAB
     needs: mirror_repo
     runs-on: self-hosted
     steps:
-      - name: Trigger Pipeline
-        run: |
-          #!/bin/bash
-          curl --fail-with-body --request POST --form token=${{ secrets.PIPELINE_TOKEN }} -F ref=${GITHUB_REF} "${{ secrets.PIPELINE_URL }}"
+    - name: Trigger Pipeline
+      run: |
+        #!/bin/bash
+        curl --fail-with-body --request POST --form token=${{ secrets.PIPELINE_TOKEN }} -F ref=${GITHUB_REF} "${{ secrets.PIPELINE_URL }}"
