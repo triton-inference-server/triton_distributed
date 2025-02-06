@@ -18,7 +18,11 @@ import argparse
 import asyncio
 import uuid
 
-from triton_distributed.icp import EventMetadata, EventTopic, NatsEventPlane
+from triton_distributed.icp.nats_event_plane import (
+    EventMetadata,
+    EventTopic,
+    NatsEventPlane,
+)
 
 
 async def main(subscriber_id, event_topic, event_type, component_id):

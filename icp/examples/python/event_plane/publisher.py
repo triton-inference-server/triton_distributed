@@ -18,7 +18,7 @@ import argparse
 import asyncio
 import uuid
 
-from triton_distributed.icp import EventTopic, NatsEventPlane
+from triton_distributed.icp.nats_event_plane import EventTopic, NatsEventPlane
 
 
 async def main(component_id, event_type, publisher_id, event_count):

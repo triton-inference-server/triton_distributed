@@ -17,7 +17,7 @@
 import asyncio
 import uuid
 
-from triton_distributed.icp import EventTopic, NatsEventPlane
+from triton_distributed.icp.nats_event_plane import EventTopic, NatsEventPlane
 
 
 async def single_publisher_subscriber_example():
