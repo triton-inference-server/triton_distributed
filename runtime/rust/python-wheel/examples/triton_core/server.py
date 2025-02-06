@@ -104,9 +104,9 @@ class RequestHandler:
                 print(f"Received response: {response}")
                 text_output: str = ""
 
-                text_output_tensor: Tensor = response.outputs.get("text_output")
+                text_output_tensor: Tensor | None = response.outputs.get("text_output")
                 if text_output_tensor:
-                    text_output: str = text_output_tensor.to_string_array()[0]
+                    text_output = text_output_tensor.to_string_array()[0]
 
                 if response.error:
                     raise response.error
