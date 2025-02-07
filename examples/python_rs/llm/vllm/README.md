@@ -115,3 +115,27 @@ python3 -m common.client \
 
 The disaggregated deployment utilizes separate GPUs for prefill and decode operations, allowing for optimized resource allocation and improved performance. For more details on the disaggregated deployment, please refer to the [vLLM documentation](https://docs.vllm.ai/en/latest/features/disagg_prefill.html).
 
+
+
+### 3. Multi-Node Deployment
+
+The vLLM workers can be deployed across multiple nodes by configuring the NATS and etcd connection endpoints through environment variables. This enables distributed inference across a cluster.
+
+Set the following environment variables on each node before running the workers:
+
+```bash
+export NATS_SERVER="nats://<nats-server-host>:<nats-server-port>"
+export ETCD_ENDPOINTS="http://<etcd-server-host1>:<etcd-server-port>,http://<etcd-server-host2>:<etcd-server-port>",...
+```
+
+For disaggregated deployment, you will also need to pass the `kv_ip` and `kv_port` to the workers in the `kv_transfer_config` argument:
+
+```bash
+...
+    --kv-transfer-config \
+    '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":<rank>,"kv_parallel_size":2,"kv_ip":<master_node_ip>,"kv_port":<kv_port>}'
+```
+
+
+
+
