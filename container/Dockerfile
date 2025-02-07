@@ -25,8 +25,10 @@ USER root
 
 # TODO: separate dev from runtime dependendcies
 
+# Rust build/dev dependencies
 RUN apt-get update; apt-get install -y gdb protobuf-compiler
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+RUN pip install maturin
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install OpenAI-compatible frontend and its dependencies from triton server
@@ -151,7 +153,12 @@ WORKDIR /workspace
 #TODO Exclude container directory
 COPY . /workspace
 
-RUN cd runtime/rust && cargo build --release --locked && cargo doc --no-deps
+RUN cd runtime/rust && \
+    cargo build --release --locked && cargo doc --no-deps && \
+    cd python-wheel && \
+       maturin build && \
+       pip install target/wheels/triton_distributed_rs-*cp312*.whl
+
 RUN /workspace/icp/protos/gen_python.sh
 
 # Install python packages
