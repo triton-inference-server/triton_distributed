@@ -13,13 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+name: NVIDIA Test Lab (push) Validation
+
 on:
   push:
     branches:
     - 'main'
-    - 'r*'
     paths-ignore:
-    - deploy/Kubernetes/**
+    - 'deploy/Kubernetes/**'
+
 jobs:
   mirror_repo:
     environment: GITLAB
