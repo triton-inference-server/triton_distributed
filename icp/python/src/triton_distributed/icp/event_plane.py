@@ -77,10 +77,12 @@ class EventMetadata:
 
 def _deserialize_metadata(event_metadata_serialized: bytes):
     event_metadata_dict = msgspec.json.decode(event_metadata_serialized)
+    topic_meta = event_metadata_dict["event_topic"]
+    topic_list = topic_meta["event_topic"].split(".")
     metadata = EventMetadata(
         **{
             **event_metadata_dict,
-            "event_topic": EventTopic(**event_metadata_dict["event_topic"])
+            "event_topic": EventTopic(topic_list)
             if event_metadata_dict["event_topic"]
             else None,
             "event_id": uuid.UUID(event_metadata_dict["event_id"]),
@@ -102,7 +104,7 @@ def _serialize_metadata(event_metadata: EventMetadata) -> bytes:
         else:
             raise NotImplementedError(f"Type {type(obj)} is not serializable.")
 
-    json_string = msgspec.json.encode(event_metadata, hook)
+    json_string = msgspec.json.encode(event_metadata, enc_hook=hook)
     return json_string
 
 
