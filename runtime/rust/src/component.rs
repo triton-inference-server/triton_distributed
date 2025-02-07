@@ -129,6 +129,14 @@ impl Component {
         Slug::from_string(self.etcd_path())
     }
 
+    pub fn service_name(&self) -> String {
+        self.slug().to_string()
+    }
+
+    pub fn event_subject(&self, name: impl AsRef<str>) -> String {
+        format!("{}.events.{}", self.slug(), name.as_ref())
+    }
+
     pub fn endpoint(&self, endpoint: impl Into<String>) -> Endpoint {
         Endpoint {
             component: self.clone(),

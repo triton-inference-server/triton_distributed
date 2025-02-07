@@ -34,8 +34,7 @@ pub struct ServiceClient {
 }
 
 impl ServiceClient {
-    #[allow(dead_code)]
-    pub(crate) fn new(nats_client: nats::Client) -> Self {
+    pub fn new(nats_client: nats::Client) -> Self {
         ServiceClient { nats_client }
     }
 }
@@ -85,9 +84,13 @@ impl ServiceClient {
         Ok(response)
     }
 
-    pub async fn collect_services(&self, service_name: &str) -> Result<ServiceSet> {
+    pub async fn collect_services(
+        &self,
+        service_name: &str,
+        duration: Duration,
+    ) -> Result<ServiceSet> {
         let mut sub = self.nats_client.service_subscriber(service_name).await?;
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
+        let deadline = tokio::time::Instant::now() + duration;
 
         let services: Vec<Result<ServiceInfo>> = try_stream! {
             while let Ok(Some(message)) = tokio::time::timeout_at(deadline, sub.next()).await {
