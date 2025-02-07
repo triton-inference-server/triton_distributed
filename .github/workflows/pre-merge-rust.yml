@@ -27,8 +27,6 @@ on:
     - main
     paths:
     - 'runtime/rust/**'
-    paths-ignore:
-    - deploy/Kubernetes/**
 
 jobs:
   pre-merge-rust:
