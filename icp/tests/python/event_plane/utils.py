@@ -36,7 +36,13 @@ async def nats_server():
     try:
         # Start NATS server
         process = subprocess.Popen(
-            ["nats-server", "-p", DEFAULT_EVENTS_PORT, "-addr", DEFAULT_EVENTS_HOST],
+            [
+                "nats-server",
+                "-p",
+                str(DEFAULT_EVENTS_PORT),
+                "-addr",
+                DEFAULT_EVENTS_HOST,
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
