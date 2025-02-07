@@ -36,9 +36,11 @@ DEFAULT_EVENTS_URI = os.getenv(
 
 class NatsEventSubscription(EventSubscription):
     def __init(self, nc_sub: nats.aio.subscription.Subscription):
-        self._nc_sub = nc_sub
+        self._nc_sub: Optional[nats.aio.subscription.Subscription] = nc_sub
 
     async def __anext__(self):
+        if self._nc_sub is None:
+            raise StopAsyncIteration
         msg = await self._nc_sub.next_msg()
         metadata, event_payload = self._extract_metadata_and_payload(msg.data)
         event = Event(event_payload, metadata)
@@ -47,8 +49,10 @@ class NatsEventSubscription(EventSubscription):
     def __aiter__(self):
         return self
 
-    def unsubscribe(self):
-        self._nc_sub.unsubscribe()
+    async def unsubscribe(self):
+        if self._nc_sub is None:
+            return
+        await self._nc_sub.unsubscribe()
         self._nc_sub = None
 
 
@@ -108,7 +112,7 @@ class NatsEventPlane:
 
     async def subscribe(
         self,
-        callback: Callable[[bytes, bytes], Awaitable[None]],
+        callback: Optional[Callable[[Event], Awaitable[None]]],
         event_topic: Optional[EventTopic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
@@ -127,16 +131,19 @@ class NatsEventPlane:
             event = Event(event_payload, metadata)
 
             async def wrapper():
-                await callback(event)  # Ensure it's a proper coroutine
+                if callback is not None:
+                    await callback(event)  # Ensure it's a proper coroutine
 
             if self._run_callback_in_parallel:
-                asyncio.create_task(wrapper())  # Run in parallel
+                if callback is not None:
+                    asyncio.create_task(wrapper())  # Run in parallel
             else:
-                await callback(event)  # Await normally
+                if callback is not None:
+                    await callback(event)  # Await normally
 
         subject = self._compose_subscribe_subject(event_topic, event_type, component_id)
 
-        _cb = _message_handler if callback else None
+        _cb = _message_handler if callback is not None else None
         sub = await self._nc.subscribe(subject, cb=_cb)
         event_sub = NatsEventSubscription(sub)
 

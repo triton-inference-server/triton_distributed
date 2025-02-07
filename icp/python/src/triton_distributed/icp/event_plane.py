@@ -91,7 +91,7 @@ def _deserialize_metadata(event_metadata_serialized: bytes):
 
 
 def _serialize_metadata(event_metadata: EventMetadata) -> bytes:
-    serialized = {}
+    serialized: dict[str, Any] = {}
     for key, value in event_metadata.__dict__.items():
         if isinstance(value, uuid.UUID):
             serialized[key] = str(value)
