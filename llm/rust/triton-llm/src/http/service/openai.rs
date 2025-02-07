@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License"); you may not
-// use this file except in compliance with the License. You may obtain a copy of
-// the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
 // http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations under
-// the License.
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 use axum::{
     extract::State,
@@ -43,7 +43,6 @@ use super::{
 use crate::protocols::openai::{
     chat_completions::ChatCompletionResponse, completions::CompletionResponse,
 };
-// use nim_llm_common::ServiceStage;
 use crate::types::{
     openai::{chat_completions::ChatCompletionRequest, completions::CompletionRequest},
     Annotated,
@@ -69,7 +68,6 @@ impl ErrorResponse {
 
     /// Service Unavailable
     /// This is returned when the service is live, but not ready.
-    /// See the [`nim_llm_common::Service`] for more details.
     pub fn _service_unavailable() -> (StatusCode, Json<ErrorResponse>) {
         (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -93,7 +91,7 @@ impl ErrorResponse {
         )
     }
 
-    /// The OAI endpoints call an [`nim_llm_async_engine::AsyncEngine`] which are specialized to return
+    /// The OAI endpoints call an [`triton_distributed::engine::AsyncEngine`] which are specialized to return
     /// an [`anyhow::Error`]. This method will convert the [`anyhow::Error`] into an [`HttpError`].
     /// If successful, it will return the [`HttpError`] as an [`ErrorResponse::internal_server_error`]
     /// with the details of the error.
