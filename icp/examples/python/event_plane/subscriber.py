@@ -60,22 +60,22 @@ async def main(subscriber_id, event_topic, event_type, component_id):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Event subscriber script")
     parser.add_argument(
-        "--subscriber_id", type=int, required=True, help="Subscriber ID"
+        "--subscriber-id", type=int, required=True, help="Subscriber ID"
     )
     parser.add_argument(
-        "--event_topic",
+        "--event-topic",
         type=str,
         default=None,
         help="Event EventTopic to subscribe to (comma-separated for multiple levels)",
     )
     parser.add_argument(
-        "--event_type",
+        "--event-type",
         type=str,
         default=None,
         help="Event type to filter (default: None for all types)",
     )
     parser.add_argument(
-        "--component_id",
+        "--component-id",
         type=uuid.UUID,
         default=None,
         help="Component ID (UUID) for the subscriber",
