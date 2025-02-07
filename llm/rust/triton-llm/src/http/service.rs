@@ -65,11 +65,6 @@ impl Default for ModelManager {
 }
 
 impl ModelManager {
-    // pub fn new(observer: ServiceObserver) -> Self {
-    //     let state = Arc::new(DeploymentState::new(observer));
-    //     Self { state }
-    // }
-
     pub fn new() -> Self {
         let state = Arc::new(DeploymentState::new());
         Self { state }
@@ -192,22 +187,12 @@ impl<E> ModelEngines<E> {
 /// The DeploymentState is a global state that is shared across all the workers
 /// this provides set of known clients to Engines
 pub struct DeploymentState {
-    // service_observer: ServiceObserver,
     completion_engines: Arc<Mutex<ModelEngines<OpenAICompletionsStreamingEngine>>>,
     chat_completion_engines: Arc<Mutex<ModelEngines<OpenAIChatCompletionsStreamingEngine>>>,
     metrics: Arc<Metrics>,
 }
 
 impl DeploymentState {
-    // fn new(service_observer: ServiceObserver) -> Self {
-    //     Self {
-    //         // service_observer,
-    //         completion_engines: Arc::new(Mutex::new(ModelEngines::default())),
-    //         chat_completion_engines: Arc::new(Mutex::new(ModelEngines::default())),
-    //         metrics: Arc::new(Metrics::default()),
-    //     }
-    // }
-
     fn new() -> Self {
         Self {
             completion_engines: Arc::new(Mutex::new(ModelEngines::default())),

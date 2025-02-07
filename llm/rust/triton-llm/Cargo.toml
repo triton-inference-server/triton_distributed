@@ -54,7 +54,6 @@ prometheus = { version = "0.13" }
 
 
 [dev-dependencies]
-futures = { workspace = true }
 insta = { version = "1.41", features = ["glob", "json", "redactions"]}
 proptest = "1.5.0"
-tokio = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
