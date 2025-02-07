@@ -157,7 +157,6 @@ where
                 };
 
                 if tx.send(response).await.is_err() {
-                    log::error!("generator response channel was dropped: {}", id);
                     return Err(error!("generator response channel was dropped"));
                 }
 
@@ -174,20 +173,18 @@ where
                 Ok(Ok(_)) => {}
                 Ok(Err(err)) => {
                     log::error!("error processing python async generator: {}", err);
-                    tx_error
-                        .send(Annotated::from_error(err.to_string()))
-                        .await
-                        .unwrap();
+                    if let Err(err) = tx_error.send(Annotated::from_error(err.to_string())).await {
+                        log::error!("error sending annotated error to channel: {}", err);
+                    }
                 }
                 Err(err) => {
                     log::error!(
                         "error on tokio task for processing python async generator stream: {}",
                         err
                     );
-                    tx_error
-                        .send(Annotated::from_error(err.to_string()))
-                        .await
-                        .unwrap();
+                    if let Err(err) = tx_error.send(Annotated::from_error(err.to_string())).await {
+                        log::error!("error sending annotated error to channel: {}", err);
+                    }
                 }
             }
         });
