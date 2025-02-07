@@ -424,7 +424,7 @@ async fn test_http_service() {
         response
     );
 
-    // =========== Query /metrics enpoint ===========
+    // =========== Query /metrics endpoint ===========
     let response = client
         .get("http://localhost:8989/metrics")
         .send()
