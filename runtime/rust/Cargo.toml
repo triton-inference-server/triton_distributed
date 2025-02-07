@@ -62,5 +62,9 @@ nix = { version = "0.29", features = ["signal"] }
 nuid = { version = "0.5" }
 rand = { version = "0.8"}
 
+# Local dependencies
+[dependencies.macros]
+path = "libs/macros"
+
 [dev-dependencies]
 assert_matches = "1.5.0"

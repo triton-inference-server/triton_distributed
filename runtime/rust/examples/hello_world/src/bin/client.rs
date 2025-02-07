@@ -15,16 +15,12 @@
 
 use hello_world::DEFAULT_NAMESPACE;
 use triton_distributed::{
-    protocols::annotated::Annotated, stream::StreamExt, DistributedRuntime, Result, Runtime, Worker,
+    self, protocols::annotated::Annotated, stream::StreamExt, DistributedRuntime, Result, Runtime,
 };
 
-fn main() -> Result<()> {
-    env_logger::init();
-    let worker = Worker::from_settings()?;
-    worker.execute(app)
-}
-
+#[triton_distributed::main]
 async fn app(runtime: Runtime) -> Result<()> {
+    env_logger::init();
     let distributed = DistributedRuntime::from_settings(runtime.clone()).await?;
 
     let client = distributed

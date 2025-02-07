@@ -37,6 +37,7 @@ pub mod runtime;
 pub mod service;
 pub mod transports;
 pub mod worker;
+pub use macros::main;
 
 pub mod distributed;
 
