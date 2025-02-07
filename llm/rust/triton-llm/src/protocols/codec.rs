@@ -539,7 +539,7 @@ data: {"message": "Hello"}
     //     "max_tokens": 64,
     //     "stream": true
     //   }'
-    const SAMPLE_NIM_CHAT_DATA: &str = r#"
+    const SAMPLE_CHAT_DATA: &str = r#"
 data: {"id":"chat-e135180178ae4fe6a7a301aa65aaeea5","object":"chat.completion.chunk","created":1727750141,"model":"mistralai/mixtral-8x22b-instruct-v0.1","choices":[{"index":0,"delta":{"role":"assistant","content":null},"logprobs":null,"finish_reason":null}]}
 
 data: {"id":"chat-e135180178ae4fe6a7a301aa65aaeea5","object":"chat.completion.chunk","created":1727750141,"model":"mistralai/mixtral-8x22b-instruct-v0.1","choices":[{"index":0,"delta":{"role":null,"content":"A"},"logprobs":null,"finish_reason":null}]}
@@ -642,10 +642,10 @@ data: [DONE]
     async fn test_openai_chat_stream() {
         use crate::protocols::openai::chat_completions::ChatCompletionResponseDelta;
 
-        // let cursor = Cursor::new(SAMPLE_NIM_CHAT_DATA);
+        // let cursor = Cursor::new(SAMPLE_CHAT_DATA);
         // let mut framed = FramedRead::new(cursor, SseLineCodec::new());
 
-        let mut stream = create_message_stream(SAMPLE_NIM_CHAT_DATA);
+        let mut stream = create_message_stream(SAMPLE_CHAT_DATA);
 
         let mut counter = 0;
 
