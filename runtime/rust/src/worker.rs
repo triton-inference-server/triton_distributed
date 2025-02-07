@@ -16,13 +16,12 @@
 //! The [Worker] class is a convenience wrapper around the construction of the [Runtime]
 //! and execution of the users application.
 //!
-//! In the future, the [Worker] should probably be moved to a procedural macro similar
-//! to the `#[tokio::main]` attribute, where we might annotate an async main function with
-//! #[triton::main] or similar.
-//!
 //! The [Worker::execute] method is designed to be called once from main and will block
 //! the calling thread until the application completes or is canceled. The method initialized
 //! the signal handler used to trap `SIGINT` and `SIGTERM` signals and trigger a graceful shutdown.
+//! 
+//! Alternatively, the [triton_distributed::main] proc-macro can be used, which wraps an async function
+//! in a syncronous call to [Worker::execute].
 //!
 //! On termination, the user application is given a graceful shutdown period of controlled by
 //! the [TRITON_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT] environment variable. If the application does not
