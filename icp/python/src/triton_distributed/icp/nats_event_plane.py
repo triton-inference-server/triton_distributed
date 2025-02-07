@@ -15,7 +15,7 @@
 import asyncio
 import os
 import uuid
-from datetime import datetime
+import datetime
 from typing import Awaitable, Callable, Optional
 
 import nats
@@ -35,7 +35,7 @@ DEFAULT_EVENTS_URI = os.getenv(
 
 
 class NatsEventSubscription(EventSubscription):
-    def __init(self, nc_sub: nats.aio.subscription.Subscription):
+    def __init__(self, nc_sub: nats.aio.subscription.Subscription):
         self._nc_sub: Optional[nats.aio.subscription.Subscription] = nc_sub
 
     async def __anext__(self):
@@ -94,7 +94,7 @@ class NatsEventPlane:
             event_id=uuid.uuid4(),
             event_topic=event_topic,
             event_type=event_type,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.datetime.now(datetime.UTC),
             component_id=self._component_id,
         )
 
