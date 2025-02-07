@@ -13,12 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import dataclasses
-import json
 import re
 import uuid
 from abc import abstractmethod
 from datetime import datetime
 from typing import Any, AsyncIterator, Awaitable, Callable, List, Optional, Union
+
+import msgspec
 
 EVENT_TOPIC_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
@@ -75,7 +76,7 @@ class EventMetadata:
 
 
 def _deserialize_metadata(event_metadata_serialized: bytes):
-    event_metadata_dict = json.loads(event_metadata_serialized.decode("utf-8"))
+    event_metadata_dict = msgspec.json.decode(event_metadata_serialized)
     metadata = EventMetadata(
         **{
             **event_metadata_dict,
@@ -91,18 +92,18 @@ def _deserialize_metadata(event_metadata_serialized: bytes):
 
 
 def _serialize_metadata(event_metadata: EventMetadata) -> bytes:
-    serialized: dict[str, Any] = {}
-    for key, value in event_metadata.__dict__.items():
-        if isinstance(value, uuid.UUID):
-            serialized[key] = str(value)
-        elif isinstance(value, datetime):
-            serialized[key] = value.isoformat()
-        elif isinstance(value, EventTopic):
-            serialized[key] = list(value.event_topic.split("."))
+    def hook(obj):
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, EventTopic):
+            return list(obj.event_topic.split("."))
         else:
-            serialized[key] = value
-    json_string = json.dumps(serialized, indent=4)
-    return json_string.encode("utf-8")
+            raise NotImplementedError(f"Type {type(obj)} is not serializable.")
+
+    json_string = msgspec.json.encode(event_metadata, hook)
+    return json_string
 
 
 class Event:
