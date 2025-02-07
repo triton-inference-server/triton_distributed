@@ -20,7 +20,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["NVIDIA"]
 license = "Apache-2.0"
@@ -40,10 +40,10 @@ bytes = "1"
 derive_builder = "0.20"
 futures = "0.3"
 serde = { version = "1", features = ["derive"] }
-thiserror = { version = "1" }
+thiserror = { version = "2.0.11" }
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1" }
 tokio-util = { version = "0.7", features = ["codec", "net"] }
 tracing = { version = "0.1" }
-validator = { version = "0.19", features = ["derive"] }
+validator = { version = "0.20.0", features = ["derive"] }
 uuid = { version = "1", features = ["v4", "serde"] }
