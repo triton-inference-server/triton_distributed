@@ -35,7 +35,7 @@ DEFAULT_EVENTS_URI = os.getenv(
 
 
 class NatsEventSubscription(EventSubscription):
-    def __init(self, nc_sub: nats.Subscription):
+    def __init(self, nc_sub: nats.aio.subscription.Subscription):
         self._nc_sub = nc_sub
 
     async def __anext__(self):
