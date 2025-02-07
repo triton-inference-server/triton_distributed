@@ -22,10 +22,25 @@ This example demonstrates how to use Triton Distributed to serve large language 
 ## Prerequisites
 
 1. Follow the setup instructions in the Python bindings [README](/runtime/rust/python-wheel/README.md) to prepare your environment
+
 2. Install vLLM:
-```bash
-uv pip install vllm==0.7.0
-```
+    ```bash
+    uv pip install vllm==0.7.2
+    ```
+
+3. Start required services (etcd and NATS):
+
+   Option A: Using [Docker Compose](/runtime/rust/docker-compose.yml) (Recommended)
+   ```bash
+   docker-compose up -d
+   ```
+
+   Option B: Manual Setup
+
+    - [NATS.io](https://docs.nats.io/running-a-nats-service/introduction/installation) server with [Jetstream](https://docs.nats.io/nats-concepts/jetstream)
+        - example: `nats-server -js --trace`
+    - [etcd](https://etcd.io) server
+        - follow instructions in [etcd installation](https://etcd.io/docs/v3.5/install/) to start an `etcd-server` locally
 
 ## Deployment Options
 
@@ -99,3 +114,4 @@ python3 -m common.client \
 ```
 
 The disaggregated deployment utilizes separate GPUs for prefill and decode operations, allowing for optimized resource allocation and improved performance. For more details on the disaggregated deployment, please refer to the [vLLM documentation](https://docs.vllm.ai/en/latest/features/disagg_prefill.html).
+
