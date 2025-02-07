@@ -31,13 +31,16 @@
 use crate::Result;
 
 use async_nats::{client, jetstream, Subscriber};
+use bytes::Bytes;
 use derive_builder::Builder;
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
 use std::path::PathBuf;
+use tokio::time;
 use validator::{Validate, ValidationError};
 
 mod slug;
 pub use slug::Slug;
+use tracing as log;
 
 #[derive(Clone)]
 pub struct Client {
@@ -111,6 +114,35 @@ impl Client {
         // Ok(responses)
 
         Ok(subscription)
+    }
+
+    // todo - deprecate - move to service subscriber
+    pub async fn get_endpoints(
+        &self,
+        service_name: &str,
+        timeout: time::Duration,
+    ) -> Result<Vec<Bytes>, anyhow::Error> {
+        let subject = format!("$SRV.STATS.{}", service_name);
+        let reply_subject = format!("_INBOX.{}", nuid::next());
+        let mut subscription = self.client.subscribe(reply_subject.clone()).await?;
+
+        let deadline = tokio::time::Instant::now() + timeout;
+
+        // Publish the request with the reply-to subject
+        self.client
+            .publish_with_reply(subject, reply_subject, "".into())
+            .await?;
+
+        // Set a timeout to gather responses
+        let mut responses = Vec::new();
+        // let mut response_stream = subscription.take_while(|_| futures::future::ready(true));
+
+        while let Ok(Some(message)) = time::timeout_at(deadline, subscription.next()).await {
+            // log::debug!("get endpoint received message before timeout: {:?}", message);
+            responses.push(message.payload);
+        }
+
+        Ok(responses)
     }
 
     // /// create a new stream

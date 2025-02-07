@@ -33,6 +33,11 @@ pub struct ServiceConfig {
     #[builder(default)]
     description: Option<String>,
 
+    /// Lease
+    #[educe(Debug(ignore))]
+    #[builder(default)]
+    lease: Option<Lease>,
+
     // todo - make optional - if None, then skip making the endpoint
     // and skip making the service-endpoint discoverable.
     /// Endpoint handler
@@ -46,7 +51,11 @@ impl ServiceConfigBuilder {
     pub async fn create(self) -> Result<Component> {
         let version = "0.0.1".to_string();
 
-        let (component, description, stat_handler) = self.build_internal()?.dissolve();
+        // dissolve the config
+        let (component, description, lease, stat_handler) = self.build_internal()?.dissolve();
+
+        // either use a custom lease or use the default lease
+        let lease = lease.unwrap_or(component.drt.primary_lease());
 
         let service_name = component.slug();
         let description = description.unwrap_or(format!(
@@ -93,3 +102,24 @@ impl ServiceConfigBuilder {
         Self::default().component(component)
     }
 }
+
+// // Wrap the optional user callback method in a closure that appends the lease_id to the response
+// fn wrap_callback(
+//     callback: Option<Box<dyn FnMut(String, Stats) -> Value + Send + Sync>>,
+//     lease_id: i64,
+// ) -> Box<dyn FnMut(String, Stats) -> Value + Send + Sync> {
+//     let callback = Arc::new(Mutex::new(callback)); // Wrap in Arc<Mutex> for shared access
+
+//     Box::new(move |subject: String, stats: Stats| -> Value {
+//         let mut callback_lock = callback.lock().unwrap();
+//         if let Some(cb) = callback_lock.as_mut() {
+//             let mut result = cb(subject, stats); // Call the user-defined callback
+//             if let Some(obj) = result.as_object_mut() {
+//                 obj.insert("lease_id".to_string(), json!(lease_id)); // Append lease_id
+//             }
+//             result
+//         } else {
+//             json!({ "error": "callback not set", "lease_id": lease_id }) // Default response
+//         }
+//     })
+// }

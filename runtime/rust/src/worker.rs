@@ -56,6 +56,7 @@ pub const DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_DEBUG: u64 = 5;
 /// Default graceful shutdown timeout in seconds in release mode
 pub const DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_RELEASE: u64 = 30;
 
+#[derive(Debug, Clone)]
 pub struct Worker {
     runtime: Runtime,
 }
