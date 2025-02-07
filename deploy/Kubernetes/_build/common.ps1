@@ -15,7 +15,10 @@
 
 set-strictmode -version latest
 
+$global:DebugPreference = 'SilentlyContinue'
+
 $global:_init_path = "${env:PWD}"
+$global:_is_debug = $null
 $global:_git_branch = $null
 $global:_local = $null
 $global:_local_srcdir = $null
@@ -41,7 +44,7 @@ function cleanup_after {
 }
 
 function configure_debug([bool] $enabled) {
-  write-debug "<configure_debug> enabled = '${enabled}'."
+  write-debug "<configure_debug> enabled: '${enabled}'."
 
   if ($enabled) {
     # Notify user if any environment variables which could affect the build outcome are set prior to the build script running.
@@ -70,11 +73,11 @@ function configure_debug([bool] $enabled) {
 }
 
 function create_directory([string] $path, [switch] $recreate) {
-  write-debug "<create_directory> path = '${path}'."
-  write-debug "<create_directory> recreate = ${recreate}"
+  write-debug "<create_directory> path: '${path}'."
+  write-debug "<create_directory> recreate: ${recreate}"
 
   $path_local = $(to_local_path $path)
-  write-debug "<ensure_directory> path_local = '${path_local}'."
+  write-debug "<ensure_directory> path_local: '${path_local}'."
 
   if (test-path $path_local -pathType Container) {
     if ($recreate) {
@@ -98,6 +101,12 @@ function default_git_branch {
   return $value
 }
 
+function default_is_debug {
+  $value = $false
+  write-debug "<default_is_debug> -> ${value}"
+  return $value
+}
+
 function default_local_srcdir {
   $value = $(& git rev-parse --show-toplevel)
   write-debug "<default_local_srcdir> -> '${value}'."
@@ -113,6 +122,15 @@ function default_verbosity {
 function env_get_git_branch {
   $value = $env:NVBUILD_GIT_BRANCH
   write-debug "<env_get_git_branch> -> '${value}'."
+  return $value
+}
+
+function env_get_is_debug {
+  $value = $null
+  if (($null -ne $env:NVBUILD_DEBUG_TRACE) -and ($env:NVBUILD_DEBUG_TRACE -ne '0')) {
+    $value = $true
+  }
+  write-debug "<env_get_is_debug> -> '${value}'."
   return $value
 }
 
@@ -132,6 +150,18 @@ function env_set_git_branch([string] $value) {
   if ($null -eq $env:NVBUILD_NOSET) {
     write-debug "<env_set_git_branch> value: '${value}'."
     $env:NVBUILD_GIT_BRANCH = $value
+  }
+}
+
+function env_set_is_debug([bool] $value) {
+  if ($null -eq $env:NVBUILD_DEBUG_TRACE) {
+    write-debug "<env_set_is_debug> value: ${value}."
+    if ($value) {
+      $env:NVBUILD_DEBUG_TRACE = 'true'
+    }
+    else {
+      $env:NVBUILD_DEBUG_TRACE = $null
+    }
   }
 }
 
@@ -168,15 +198,25 @@ function get_git_branch {
   return $global:_git_branch
 }
 
+function get_is_debug {
+  if ($null -eq $global:_is_debug) {
+    $value = $(env_get_is_debug)
+    if ($null -eq $value) {
+      $value = $(default_is_debug)
+    }
+    set_is_debug $value
+  }
+  write-debug "<get_is_debug> -> ${global:_is_debug}."
+}
+
 function get_local_srcdir {
   if ($null -eq $global:_local_srcdir) {
     $value = $(env_get_local_srcdir)
-    if ($null -ne $value) {
-      set_local_srcdir $value
+    if ($null -eq $value) {
+      $value = $(default_local_srcdir)
     }
-    else {
-      set_local_srcdir $(default_local_srcdir)
-    }
+    $value = normalize_path $value
+    set_local_srcdir $value
   }
   write-debug "<get_local_srcdir> -> '${global:_local_srcdir}'."
   return $global:_local_srcdir
@@ -205,12 +245,6 @@ function get_verbosity {
   return $global:_verbosity
 }
 
-function is_debug {
-  $value = $($null -ne $env:NVBUILD_DEBUG_TRACE)
-  write-debug "<is_debug> -> ${value}."
-  return $value
-}
-
 function is_empty([string] $value) {
   return [System.String]::IsNullOrWhiteSpace($value)
 }
@@ -230,7 +264,7 @@ function is_git_ignored([string] $path) {
 }
 
 function is_installed([string] $command) {
-  write-debug "<is_installed> command = '${command}'."
+  write-debug "<is_installed> command: '${command}'."
   $out = $null -ne $(get-command "${command}" -errorAction SilentlyContinue)
   write-debug "<is_installed> -> ${out}."
   return $out
@@ -247,17 +281,20 @@ function is_verbosity_valid([string] $value) {
 function normalize_path([string] $path) {
   write-debug "<normalize-path> path: '${path}'."
   # $out = $path
-  # if (-not [System.IO.Path]::IsPathRooted($path)) {
-  #   $out = [System.IO.Path]::GetFullPath($path)
-  # }
-  $out = resolve-path "${path}"
+  if (test-path $path) {
+    $out = "$(resolve-path "${path}")"
+  }
+  if ($IsWindows) {
+    $out = $out -replace '\\', '/'
+    $out = $out -replace '^[A-Z]:', ''
+  }
   write-debug "<normalize-path> '${path}' -> '${out}'."
   return $out
 }
 
 function read_content([string] $path, [switch] $lines, [switch] $bytes) {
   if (is_empty $path -or ($lines -and $bytes)) {
-    write-error 'usage: read_content {path} [(-bytes|-lines)]' -category InvalidArgument
+    write-error 'usage: read_content {path} [(-bytes|-lines)]'
     write-error ' {path} file system path of the file to read contents from.'
     write-error ' -bytes when provided content is returned as an array of bytes. mutually exclusive with -lines.'
     write-error ' -lines when provided content is returned as an array of strings. mutually exclusive with -bytes.'
@@ -298,7 +335,7 @@ function reset_environment {
   if ($overrides.count -gt 0) {
     foreach ($entry in $overrides) {
       $expression = '$env:' + "$($entry.Key)" + ' = $null'
-      invoke-expression "${expression}"
+      invoke-expression "${expression}" -ea 0
 
       if ("$($entry.Key)" -ne 'NVBUILD_NOSET') {
         write-debug "<reset_environment> removed '$($entry.Key)'."
@@ -307,15 +344,15 @@ function reset_environment {
   }
 }
 
-function run([string] $command) {
+function run([string] $command, [switch] $continue_on_error = $false) {
   if ($null -eq $command) {
-    write-error 'usage: run {command}' -category InvalidArgument
+    write-error 'usage: run {command} [-continue_on_error]'
     write-error ' {command} is the command to execute.'
     write-error ' '
     usage_exit 'run {command}'
   }
 
-  write-debug "<run> command = '${command}'."
+  write-debug "<run> command: '${command}'."
 
   if ('MINIMAL' -ne $(get_verbosity)) {
     write-high "${command}"
@@ -324,19 +361,34 @@ function run([string] $command) {
   invoke-expression "${command}" | out-default
   $exit_code = $LASTEXITCODE
 
-  write-debug "<run> exit_code = ${exit_code}."
+  write-debug "<run> exit_code: ${exit_code}."
 
-  if ($exit_code -ne 0) {
-    write-error "fatal: Command ""${command}"" failed, returned ${exit_code}." -category fromStdErr
+  if (-not($continue_on_error) -and ($exit_code -ne 0)) {
+    write-error "fatal: Command ""${command}"" failed, returned ${exit_code}."
     exit $exit_code
   }
+
+  return $exit_code
 }
 
 function set_git_branch([string] $value) {
-  write-debug "<set_git_branch> value = '${value}'."
+  write-debug "<set_git_branch> value: '${value}'."
 
   $global:_git_branch = $value
   env_set_git_branch $value
+}
+
+function set_is_debug([bool] $value) {
+  write-debug "<set_is_debug> value: ${value}."
+
+  $global:_is_debug = $value
+  if ($value) {
+    $global:DebugPreference = 'Continue'
+  }
+  else {
+    $global:DebugPreference = 'SilentlyContinue'
+  }
+  env_set_is_debug $value
 }
 
 function set_local_srcdir([string] $value) {
@@ -364,10 +416,17 @@ function to_local_path([string] $path) {
     return $(get_local_srcdir)
   }
 
+  $lsd = $(get_local_srcdir)
+
   $out = $path.trim()
-  $out = $out.trim('/','\')
-  $out = join-path $(get_local_srcdir) $out
-  $out = $(normalize_path $out)
+  if ($out.startswith($lsd)) {
+    return $out
+  }
+
+  write-debug "join-path ${lsd} -childpath ${out} -resolve"
+  $out = join-path $lsd -childpath $out -resolve
+
+  write-debug "<to_local_path> '${path}' -> '${out}'."
   return $out
 }
 
@@ -388,8 +447,25 @@ function value_or_default([string] $value, [string] $default) {
   if (($null -eq $value) -or ($value.Length -eq 0)) {
     return $default
   }
-
   return $value
+}
+
+function verbosity_is_detailed {
+  $out = $('DETAILED' -eq $(get_verbosity))
+  write-debug "<verbosity_is_detailed> -> ${out}."
+  return $out
+}
+
+function verbosity_is_minimal {
+  $out = $('MINIMAL' -eq $(get_verbosity))
+  write-debug "<verbosity_is_minimal> -> ${out}."
+  return $out
+}
+
+function verbosity_is_normal {
+  $out = $('NORMAL' -eq $(get_verbosity))
+  write-debug "<verbosity_is_normal> -> ${out}."
+  return $out
 }
 
 function write_content([string] $content, [string] $path, [switch] $overwrite) {
@@ -400,8 +476,8 @@ function write_content([string] $content, [string] $path, [switch] $overwrite) {
     usage_exit 'write_content {content} {path}'
   }
 
-  write-debug "<write_content> content = $($content.length) bytes."
-  write-debug "<write_content> path = '${path}'."
+  write-debug "<write_content> content: $($content.length) bytes."
+  write-debug "<write_content> path: '${path}'."
   $path_local = $(to_local_path $path)
   write-debug "<write-content> '${path_local}'."
 
@@ -436,7 +512,7 @@ function __write([string] $value, [string] $color, [bool] $no_newline) {
 
 function write-detailed {
   param([string] $value, [string] $color = $null, [switch] $no_newline)
-  if ('DETAILED' -eq $(get_verbosity)) {
+  if (verbosity_is_detailed) {
     __write $value $color $no_newline
   }
 }
@@ -447,16 +523,6 @@ function write-error([string] $value) {
     no_newline = $false
   }
   write-minimal $value @opts
-}
-
-function write-failed([string] $value) {
-  if (is_tty) {
-    write-normal '  [Failed]' $global:colors.test.failed -no_newline
-    write-normal " ${value}"
-  }
-  else {
-    write-output "  Test: [Failed] ${value}"
-  }
 }
 
 function write-high {
@@ -493,22 +559,12 @@ function write-minimal {
 
 function write-normal {
   param([string] $value, [string] $color = $null, [switch] $no_newline)
-  if ('MINIMAL' -ne $(get_verbosity)) {
+  if (-not (verbosity_is_minimal)) {
     $opts = @{
       color      = $color
       no_newline = $no_newline
     }
     __write $value @opts
-  }
-}
-
-function write-passed([string] $value) {
-  if (is_tty) {
-    write-detailed '  [Passed]' $global:colors.test.passed -no_newline
-    write-detailed " ${value}"
-  }
-  else {
-    write-output "  Test: [Passed] ${value}"
   }
 }
 

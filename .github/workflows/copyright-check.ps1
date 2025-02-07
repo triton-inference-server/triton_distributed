@@ -15,7 +15,7 @@
 
 set-strictmode -version latest
 
-. "$(& git rev-parse --show-toplevel)/.github/workflows/common.ps1"
+. "$(& git rev-parse --show-toplevel)/deploy/Kubernetes/_build/common.ps1"
 
 # == begin common.ps1 extensions ==
 
@@ -272,7 +272,7 @@ $current_year = "$(get-date -format 'yyyy')" -as [int]
 write-debug "<copyright-check> current_year = ${current_year}."
 
 foreach ($file in $(git ls-tree -r --name-only HEAD)) {
-  $file = $file.trim()
+  $file = "${file}".trim()
   write-debug "<copyright-check> file: ""${file}""."
 
   if (is_ignored $file) {
@@ -397,5 +397,5 @@ if (($global:copyright_results.failed_date.count -gt 0) -or ($global:copyright_r
   foreach ($path in $global:copyright_results.failed_date) {
     write-error " [FAIL] incorrect date: ${path}"
   }
-  exit(-1)
+  exit -1
 }
