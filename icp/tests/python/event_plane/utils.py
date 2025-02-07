@@ -24,7 +24,6 @@ import pytest_asyncio
 
 from triton_distributed.icp.nats_event_plane import (
     DEFAULT_EVENTS_HOST,
-    DEFAULT_EVENTS_PORT,
     DEFAULT_EVENTS_URI,
     NatsEventPlane,
 )
@@ -39,7 +38,7 @@ async def nats_server():
             [
                 "nats-server",
                 "-p",
-                str(DEFAULT_EVENTS_PORT),
+                "3333",
                 "-addr",
                 DEFAULT_EVENTS_HOST,
             ],
