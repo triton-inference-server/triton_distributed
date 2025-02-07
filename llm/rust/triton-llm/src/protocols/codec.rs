@@ -719,13 +719,6 @@ data: [DONE]
         let result: Result<Annotated<TestData>, _> = message.try_into();
 
         assert!(result.is_err());
-        // assert_eq!(
-        //     result.unwrap_err(),
-        //     format!(
-        //         "error detected in annotated stream; no explicit error in comments was provided: {:?}",
-        //         message
-        //     )
-        // );
     }
 
     #[test]
@@ -740,9 +733,6 @@ data: [DONE]
         let result: Result<Annotated<TestData>, _> = message.try_into();
 
         assert!(result.is_err());
-        // assert!(result
-        //     .unwrap_err()
-        //     .starts_with("failed to deserialize data"));
     }
 
     #[test]
