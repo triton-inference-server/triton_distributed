@@ -28,6 +28,8 @@ from icp.tests.python.event_plane.publisher_subscriber_utils import (
     run_subscribers,
 )
 
+pytestmark = pytest.mark.pre_merge
+
 
 @pytest.mark.asyncio
 class TestEventPlaneMultiProcess:

@@ -25,6 +25,8 @@ from triton_distributed.icp.nats_event_plane import (
     NatsEventPlane,
 )
 
+pytestmark = pytest.mark.pre_merge
+
 
 class TestEventTopic:
     def test_from_string(self):
