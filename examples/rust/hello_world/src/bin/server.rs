@@ -72,7 +72,7 @@ async fn backend(runtime: DistributedRuntime) -> Result<()> {
         .service_builder()
         .create()
         .await?
-        .endpoint("generate")
+        .endpoint("generate")?
         .endpoint_builder()
         .handler(ingress)
         .start()

@@ -89,7 +89,7 @@ pub struct ComponentEndpointInfo {
 /// a [Service] then adding one or more [Endpoint] to the [Service].
 ///
 /// You can also issue a request to a [Component]'s [Endpoint] by creating a [Client].
-#[derive(Educe, Builder, Clone)]
+#[derive(Educe, Builder, Clone, Validate)]
 #[educe(Debug)]
 #[builder(pattern = "owned")]
 pub struct Component {
@@ -97,14 +97,14 @@ pub struct Component {
     #[educe(Debug(ignore))]
     drt: DistributedRuntime,
 
-    // todo - restrict the namespace to a-z0-9-_A-Z
     /// Name of the component
     #[builder(setter(into))]
+    #[validate(custom(function = "validate_allowed_chars"))]
     name: String,
 
-    // todo - restrict the namespace to a-z0-9-_A-Z
     /// Namespace
     #[builder(setter(into))]
+    #[validate(custom(function = "validate_allowed_chars"))]
     namespace: String,
 }
 
@@ -117,11 +117,16 @@ impl Component {
         Slug::from_string(self.etcd_path())
     }
 
-    pub fn endpoint(&self, endpoint: impl Into<String>) -> Endpoint {
-        Endpoint {
+    pub fn endpoint(&self, endpoint: impl Into<String>) -> Result<Endpoint> {
+        let endpoint = Endpoint {
             component: self.clone(),
             name: endpoint.into(),
-        }
+        };
+
+        endpoint.validate()?;
+
+        Ok(endpoint)
+
     }
 
     /// Get keys from etcd on the slug, splitting the endpoints and only returning the
@@ -151,12 +156,12 @@ impl ComponentBuilder {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Validate)]
 pub struct Endpoint {
     component: Component,
 
-    // todo - restrict alphabet
     /// Endpoint name
+    #[validate(custom(function = "validate_allowed_chars"))]
     name: String,
 }
 
@@ -202,31 +207,41 @@ pub struct Namespace {
     #[educe(Debug(ignore))]
     runtime: DistributedRuntime,
 
-    #[validate()]
+    #[validate(custom(function = "validate_allowed_chars"))]
     name: String,
 }
 
 impl Namespace {
     pub(crate) fn new(runtime: DistributedRuntime, name: String) -> Result<Self> {
-        Ok(NamespaceBuilder::default()
+
+        let namespace = NamespaceBuilder::default()
             .runtime(runtime)
             .name(name)
-            .build()?)
+            .build()?;
+
+        namespace.validate()?;
+
+        Ok(namespace)
     }
 
     /// Create a [`Component`] in the namespace
     pub fn component(&self, name: impl Into<String>) -> Result<Component> {
-        Ok(ComponentBuilder::from_runtime(self.runtime.clone())
-            .name(name)
-            .namespace(self.name.clone())
-            .build()?)
+
+        let component = ComponentBuilder::from_runtime(self.runtime.clone())
+        .name(name)
+        .namespace(self.name.clone())
+        .build()?;
+
+        component.validate()?;
+
+        Ok(component)
     }
 }
 
 // Custom validator function
 fn validate_allowed_chars(input: &str) -> Result<(), ValidationError> {
     // Define the allowed character set using a regex
-    let regex = regex::Regex::new(r"^[a-z0-9-_]+$").unwrap();
+    let regex = regex::Regex::new(r"^[a-z0-9_]+(?:-+[a-z0-9_]+)*$").unwrap();
 
     if regex.is_match(input) {
         Ok(())
@@ -235,105 +250,105 @@ fn validate_allowed_chars(input: &str) -> Result<(), ValidationError> {
     }
 }
 
-// TODO - enable restrictions to the character sets allowed for namespaces,
-// components, and endpoints.
-//
-// Put Validate traits on the struct and use the `validate_allowed_chars` method
-// to validate the fields.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use validator::Validate;
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use validator::Validate;
+    // Mock struct used for testing validation logic.
+    #[derive(Validate)]
+    struct InputData {
+        #[validate(custom(function = "validate_allowed_chars"))]
+        name: String,
+    }
 
-//     #[test]
-//     fn test_valid_names() {
-//         // Valid strings
-//         let valid_inputs = vec![
-//             "abc",        // Lowercase letters
-//             "abc123",     // Letters and numbers
-//             "a-b-c",      // Letters with hyphens
-//             "a_b_c",      // Letters with underscores
-//             "a-b_c-123",  // Mixed valid characters
-//             "a",          // Single character
-//             "a_b",        // Short valid pattern
-//             "123456",     // Only numbers
-//             "a---b_c123", // Repeated hyphens/underscores
-//         ];
+    #[test]
+    fn test_valid_names() {
+        // Valid strings
+        let valid_inputs = vec![
+            "abc",       // Lowercase letters
+            "abc123",    // Letters and numbers
+            "a-b-c",     // Letters with hyphens
+            "a_b_c",     // Letters with underscores
+            "a-b_c-123", // Mixed valid characters
+            "a",         // Single character
+            "a_b",       // Short valid pattern
+            "123456",    // Only numbers
+        ];
 
-//         for input in valid_inputs {
-//             let result = validate_allowed_chars(input);
-//             assert!(result.is_ok(), "Expected '{}' to be valid", input);
-//         }
-//     }
+        for input in valid_inputs {
+            let result = validate_allowed_chars(input);
+            assert!(result.is_ok(), "Expected '{}' to be valid", input);
+        }
+    }
 
-//     #[test]
-//     fn test_invalid_names() {
-//         // Invalid strings
-//         let invalid_inputs = vec![
-//             "abc!",     // Invalid character `!`
-//             "abc@",     // Invalid character `@`
-//             "123$",     // Invalid character `$`
-//             "foo.bar",  // Invalid character `.`
-//             "foo/bar",  // Invalid character `/`
-//             "foo\\bar", // Invalid character `\`
-//             "abc#",     // Invalid character `#`
-//             "abc def",  // Spaces are not allowed
-//             "foo,",     // Invalid character `,`
-//             "",         // Empty string
-//         ];
+    #[test]
+    fn test_invalid_names() {
+        // Invalid strings
+        let invalid_inputs = vec![
+            "abc!",     // Invalid character `!`
+            "abc@",     // Invalid character `@`
+            "123$",     // Invalid character `$`
+            "foo.bar",  // Invalid character `.`
+            "foo/bar",  // Invalid character `/`
+            "foo\\bar", // Invalid character `\`
+            "abc#",     // Invalid character `#`
+            "abc def",  // Spaces are not allowed
+            "foo,",     // Invalid character `,`
+            "",         // Empty string
+        ];
 
-//         for input in invalid_inputs {
-//             let result = validate_allowed_chars(input);
-//             assert!(result.is_err(), "Expected '{}' to be invalid", input);
-//         }
-//     }
+        for input in invalid_inputs {
+            let result = validate_allowed_chars(input);
+            assert!(result.is_err(), "Expected '{}' to be invalid", input);
+        }
+    }
 
-//     // #[test]
-//     // fn test_struct_validation_valid() {
-//     //     // Struct with valid data
-//     //     let valid_data = InputData {
-//     //         name: "valid-name_123".to_string(),
-//     //     };
-//     //     assert!(valid_data.validate().is_ok());
-//     // }
+    #[test]
+    fn test_struct_validation_valid() {
+        // Struct with valid data
+        let valid_data = InputData {
+            name: "valid-name_123".to_string(),
+        };
+        assert!(valid_data.validate().is_ok());
+    }
 
-//     // #[test]
-//     // fn test_struct_validation_invalid() {
-//     //     // Struct with invalid data
-//     //     let invalid_data = InputData {
-//     //         name: "invalid!name".to_string(),
-//     //     };
-//     //     let result = invalid_data.validate();
-//     //     assert!(result.is_err());
+    #[test]
+    fn test_struct_validation_invalid() {
+        // Struct with invalid data
+        let invalid_data = InputData {
+            name: "invalid!name".to_string(),
+        };
+        let result = invalid_data.validate();
+        assert!(result.is_err());
 
-//     //     if let Err(errors) = result {
-//     //         let error_map = errors.field_errors();
-//     //         assert!(error_map.contains_key("name"));
-//     //         let name_errors = &error_map["name"];
-//     //         assert_eq!(name_errors[0].code, "invalid_characters");
-//     //     }
-//     // }
+        if let Err(errors) = result {
+            let error_map = errors.field_errors();
+            assert!(error_map.contains_key("name"));
+            let name_errors = &error_map["name"];
+            assert_eq!(name_errors[0].code, "invalid_characters");
+        }
+    }
 
-//     #[test]
-//     fn test_edge_cases() {
-//         // Edge cases
-//         let edge_inputs = vec![
-//             ("-", true),   // Single hyphen
-//             ("_", true),   // Single underscore
-//             ("a-", true),  // Letter with hyphen
-//             ("-", false),  // Repeated hyphens
-//             ("-a", false), // Hyphen at the beginning
-//             ("a-", false), // Hyphen at the end
-//         ];
+    #[test]
+    fn test_edge_cases() {
+        // Edge cases
+        let edge_inputs = vec![
+            ("-", false),  // Single hyphen
+            ("_", true),   // Single underscore
+            ("a-", false), // Letter with hyphen
+            ("--", false), // Repeated hyphens
+            ("-a", false), // Hyphen at the beginning
+            ("a-", false), // Hyphen at the end
+        ];
 
-//         for (input, expected_validity) in edge_inputs {
-//             let result = validate_allowed_chars(input);
-//             if expected_validity {
-//                 assert!(result.is_ok(), "Expected '{}' to be valid", input);
-//             } else {
-//                 assert!(result.is_err(), "Expected '{}' to be invalid", input);
-//             }
-//         }
-//     }
-// }
+        for (input, expected_validity) in edge_inputs {
+            let result = validate_allowed_chars(input);
+            if expected_validity {
+                assert!(result.is_ok(), "Expected '{}' to be valid", input);
+            } else {
+                assert!(result.is_err(), "Expected '{}' to be invalid", input);
+            }
+        }
+    }
+}
