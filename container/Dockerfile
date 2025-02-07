@@ -154,10 +154,15 @@ WORKDIR /workspace
 COPY . /workspace
 
 RUN cd runtime/rust && \
-    cargo build --release --locked && cargo doc --no-deps && \
-    cd python-wheel && \
-       maturin build && \
-       pip install target/wheels/triton_distributed_rs-*cp312*.whl
+    cargo build --release --locked && cargo doc --no-deps
+
+# Create virtualenv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN mkdir /opt/triton && \
+    uv venv /opt/triton/venv --python 3.12 && \
+    source /opt/triton/venv/bin/activate && \
+    cd runtime/rust/python-wheel && \
+    maturin develop
 
 RUN /workspace/icp/protos/gen_python.sh
 
