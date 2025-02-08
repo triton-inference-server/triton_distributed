@@ -15,7 +15,10 @@
 
 set-strictmode -version latest
 
-. "$(& git rev-parse --show-toplevel)/deploy/Kubernetes/_build/helm-test.ps1"
+if ($null -eq $(get-command 'git' -ea 0)) {
+  throw "Required tool 'git' not found, unable to continue."
+}
+. "$(& git rev-parse --show-toplevel)/deploy/Kubernetes/_build//helm-test.ps1"
 
 $componentName = 'worker'
 $componentType = 'vllm'
@@ -110,14 +113,7 @@ $tests = @(
     }
   )
 
-  $config = initialize_test $componentName $componentType $args $tests
-
-if ($config.is_debug) {
-  $DebugPreference = 'Continue'
-}
-else {
-  $DebugPreference = 'SilentlyContinue'
-}
+$config = initialize_test $componentName $componentType $args $tests
 
 # Being w/ the state of not having passed.
 $is_pass = $false
@@ -127,7 +123,7 @@ try {
   write-debug "is_pass: ${is_pass}."
 }
 catch {
-  if ($is_debug) {
+  if ($(get_is_debug)) {
     throw $_
   }
 
@@ -138,7 +134,7 @@ catch {
 cleanup_after
 
 if (-not $is_pass) {
-  exit(1)
+  exit -1
 }
 
-exit(0)
+exit 0

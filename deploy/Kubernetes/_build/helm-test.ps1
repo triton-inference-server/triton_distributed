@@ -15,6 +15,9 @@
 
 set-strictmode -version latest
 
+if ($null -eq $(get-command 'git' -ea 0)) {
+  throw "Required tool 'git' not found, unable to continue."
+}
 . "$(& git rev-parse --show-toplevel)/deploy/Kubernetes/_build/common.ps1"
 
 # == begin common.ps1 extensions ==
@@ -66,6 +69,26 @@ function set_print_template([bool] $value) {
   env_set_print_template $value
 }
 
+function write-failed([string] $value) {
+  if (is_tty) {
+    write-normal '  [Failed]' $global:colors.test.failed -no_newline
+    write-normal " ${value}"
+  }
+  else {
+    write-output "  Test: [Failed] ${value}"
+  }
+}
+
+function write-passed([string] $value) {
+  if (is_tty) {
+    write-detailed '  [Passed]' $global:colors.test.passed -no_newline
+    write-detailed " ${value}"
+  }
+  else {
+    write-output "  Test: [Passed] ${value}"
+  }
+}
+
 # === end common.ps1 extensions ===
 
 function initialize_test([string] $component_kind, [string] $component_name, [string[]]$params, [object[]] $tests) {
@@ -75,7 +98,6 @@ function initialize_test([string] $component_kind, [string] $component_name, [st
   write-debug "<initialize_test> tests.count: $($tests.count)."
 
   $command = $null
-  $is_debug = $false
   $is_verbosity_specified = $false
   $test_filter = @()
 
@@ -126,7 +148,7 @@ function initialize_test([string] $component_kind, [string] $component_name, [st
     }
 
     if ('--debug' -ieq $arg) {
-      $is_debug = $true
+      set_is_debug $true
     }
     elseif (('--print' -ieq $arg) -or ('-p' -ieq $arg)) {
       if ('TEST' -ne $command) {
@@ -137,7 +159,7 @@ function initialize_test([string] $component_kind, [string] $component_name, [st
       }
       set_print_template($true)
     }
-    elseif (('--test' -ieq $arg) -or ('-t' -ieq $arg))
+    elseif (('--test' -ieq $arg) -or ('-t' -ieq $arg) -or ('-t:' -ieq $arg))
     {
       if ($null -eq $arg2)
       {
@@ -173,7 +195,7 @@ function initialize_test([string] $component_kind, [string] $component_name, [st
 
       $test_filter += $test_name
     }
-    elseif (('--verbosity' -ieq $arg) -or ('-v' -ieq $arg)) {
+    elseif (('--verbosity' -ieq $arg) -or ('-v' -ieq $arg) -or ('-v:' -ieq $arg)) {
       if ($null -eq $arg2)
       {
         if ($i + 1 -ge $params.count) {
@@ -209,14 +231,6 @@ function initialize_test([string] $component_kind, [string] $component_name, [st
     }
   }
 
-  $is_debug = $is_debug -or $(is_debug)
-  if ($is_debug) {
-    $DebugPreference = 'Continue'
-  }
-  else {
-    $DebugPreference = 'SilentlyContinue'
-  }
-
   # When a subset of tests has been requested, filter out the not requested tests.
   if ($test_filter.count -gt 0) {
     write-debug "<initialize_test> selected.count: $($test_filter.count)."
@@ -247,7 +261,6 @@ function initialize_test([string] $component_kind, [string] $component_name, [st
     command = $command
     component = $component_kind
     name = $component_name
-    is_debug = $is_debug
     tests = $tests
   }
 }
@@ -264,7 +277,7 @@ function list_helm_tests([object] $config) {
   write-title "Available tests:"
 
   foreach ($test in $config.tests) {
-    if ('DETAILED' -eq $(get_verbosity)) {
+    if (verbosity_is_detailed) {
       write-high "- $($test.name):"
 
       write-normal '  matches:'
@@ -311,6 +324,10 @@ function test_helm_chart([object] $config) {
   if ('LIST' -eq $config.command) {
     list_helm_tests $config
     return $true
+  }
+
+  if (-not(is_installed 'helm')) {
+    throw "Required tool 'helm' not found, unable to continue."
   }
 
   $timer = [system.diagnostics.stopwatch]::startnew()
