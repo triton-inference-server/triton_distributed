@@ -4,7 +4,9 @@ from typing import AsyncIterator
 from protocol import Id, User
 
 from triton_distributed.icp import NatsServer
-from triton_distributed.runtime import CallableOperator, OperatorConfig, Worker
+from triton_distributed.runtime import CallableOperator
+from triton_distributed.runtime import OperatorConfig as FunctionConfig
+from triton_distributed.runtime import Worker
 
 
 class User:
@@ -29,19 +31,19 @@ class Echo:
 
 
 def worker():
-    echo_op = OperatorConfig(
+    echo = FunctionConfig(
         name="echo",
         implementation=CallableOperator,
         parameters={"callable_object": Echo().echo},
     )
 
-    user_op = OperatorConfig(
+    user = FunctionConfig(
         name="user",
         implementation=CallableOperator,
         parameters={"callable_object": User().user},
     )
 
-    Worker(operators=[echo_op, user_op], log_level=1).start()
+    Worker(operators=[echo, user], log_level=1).start()
 
 
 if __name__ == "__main__":
