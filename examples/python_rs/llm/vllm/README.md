@@ -21,14 +21,7 @@ This example demonstrates how to use Triton Distributed to serve large language 
 
 ## Prerequisites
 
-1. Follow the setup instructions in the Python bindings [README](/runtime/rust/python-wheel/README.md) to prepare your environment
-
-2. Install vLLM:
-    ```bash
-    uv pip install vllm==0.7.2
-    ```
-
-3. Start required services (etcd and NATS):
+Start required services (etcd and NATS):
 
    Option A: Using [Docker Compose](/runtime/rust/docker-compose.yml) (Recommended)
    ```bash
@@ -42,6 +35,26 @@ This example demonstrates how to use Triton Distributed to serve large language 
     - [etcd](https://etcd.io) server
         - follow instructions in [etcd installation](https://etcd.io/docs/v3.5/install/) to start an `etcd-server` locally
 
+
+## Building the Environment
+
+The example is designed to run in a containerized environment using Triton Distributed, vLLM, and associated dependencies. To build the container:
+
+```bash
+# Build image
+./container/build.sh
+```
+
+## Launching the Environment
+```
+# Run image interactively
+./container/run.sh -it
+
+# Add vllm into the python virtual environment
+source /opt/triton/venv/bin/activate
+uv pip install vllm==0.7.2
+```
+
 ## Deployment Options
 
 ### 1. Monolithic Deployment
@@ -50,6 +63,11 @@ Run the server and client components in separate terminal sessions:
 
 **Terminal 1 - Server:**
 ```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
+# Launch worker
+cd /workspace/examples/python_rs/llm/vllm
 python3 -m monolith.worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
@@ -58,6 +76,11 @@ python3 -m monolith.worker \
 
 **Terminal 2 - Client:**
 ```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
+# Run client
+cd /workspace/examples/python_rs/llm/vllm
 python3 -m common.client \
     --prompt "what is the capital of france?" \
     --max-tokens 10 \
@@ -85,6 +108,11 @@ This deployment option splits the model serving across prefill and decode worker
 
 **Terminal 1 - Prefill Worker:**
 ```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
+# Launch prefill worker
+cd /workspace/examples/python_rs/llm/vllm
 CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
@@ -96,6 +124,11 @@ CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
 
 **Terminal 2 - Decode Worker:**
 ```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
+# Launch decode worker
+cd /workspace/examples/python_rs/llm/vllm
 CUDA_VISIBLE_DEVICES=1 python3 -m disaggregated.decode_worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
@@ -107,6 +140,11 @@ CUDA_VISIBLE_DEVICES=1 python3 -m disaggregated.decode_worker \
 
 **Terminal 3 - Client:**
 ```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
+# Run client
+cd /workspace/examples/python_rs/llm/vllm
 python3 -m common.client \
     --prompt "what is the capital of france?" \
     --max-tokens 10 \
