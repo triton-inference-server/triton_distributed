@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TENSORRTLLM_BACKEND_COMMIT=
+TENSORRTLLM_BACKEND_REPO_TAG=
+TENSORRTLLM_BACKEND_REBUILD=
 GIT_TOKEN=
 GIT_REPO=
 
@@ -25,9 +26,17 @@ get_options() {
             show_help
             exit
             ;;
-    --tensorrtllm-backend-commit)
+    --tensorrtllm-backend-repo-tag)
             if [ "$2" ]; then
-                TENSORRTLLM_BACKEND_COMMIT=$2
+                TENSORRTLLM_BACKEND_REPO_TAG=$2
+                shift
+            else
+		missing_requirement $1
+            fi
+            ;;
+    --tensorrtllm-backend-rebuild)
+            if [ "$2" ]; then
+                TENSORRTLLM_BACKEND_REBUILD=$2
                 shift
             else
 		missing_requirement $1
@@ -68,14 +77,16 @@ show_options() {
     echo ""
     echo "Getting TENSORRTLLM Backend Repo"
     echo ""
-    echo "   TENSORRTLLM Backend Commit: '${TENSORRTLLM_BACKEND_COMMIT}'"
+    echo "   Tensorrtllm Backend Repo Tag: '${TENSORRTLLM_BACKEND_REPO_TAG}'"
+    echo "   Tensorrtllm Backend Rebuild: '${TENSORRTLLM_BACKEND_REBUILD}'"
     echo ""
 }
 
 
 show_help() {
     echo "usage: clone_tensorrtllm.sh"
-    echo "  [--tensorrtllm-backend-commit commit]"
+    echo "  [--tensorrtllm-backend-repo-tag commit]"
+    echo "  [--tensorrtllm-backend-rebuild whether to rebuild backend]"
     echo "  [--git-token git-token]"
     echo "  [--git-repo git-repo]"
     exit 0
@@ -106,9 +117,29 @@ show_options
 
 git clone ${GIT_REPO}
 cd tensorrtllm_backend
-git reset --hard ${TENSORRTLLM_BACKEND_COMMIT}
+git checkout -b ${TENSORRTLLM_BACKEND_REPO_TAG}
 git submodule update --init --recursive
 git lfs install
 git lfs pull
+
+if [ -z ${TENSORRTLLM_BACKEND_REBUILD} ]; then
+    # Install cmake
+    apt update -q=2 \
+	    && apt install -y gpg wget \
+        && wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - |  tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null \
+	    && . /etc/os-release \
+	    && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | tee /etc/apt/sources.list.d/kitware.list >/dev/null \
+	    && apt-get update -q=2 \
+	    && apt-get install -y --no-install-recommends cmake=3.28.3* cmake-data=3.28.3* \
+        && cmake --version
+
+    # Build the backend
+    (cd inflight_batcher_llm/src \
+        && cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DUSE_CXX11_ABI=1 .. \
+        && make install \
+        && cp libtriton_tensorrtllm.so /opt/tritonserver/backends/tensorrtllm/ \
+        && cp trtllmExecutorWorker /opt/tritonserver/backends/tensorrtllm/ \
+    )
+fi
 cd ..
 mv tensorrtllm_backend /
