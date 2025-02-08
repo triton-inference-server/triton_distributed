@@ -75,7 +75,7 @@ def api_server(log_dir):
             process = subprocess.Popen(
                 command, stdin=subprocess.DEVNULL, stdout=output_, stderr=output_err
             )
-            time.sleep(5)
+            time.sleep(10)
             yield process
             process.terminate()
             process.wait()

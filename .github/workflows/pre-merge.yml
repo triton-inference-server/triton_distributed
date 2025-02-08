@@ -51,6 +51,27 @@ jobs:
     - uses: pre-commit/action@v3.0.0
       timeout-minutes: 3
 
+  copyright-checks:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/triton-inference-server/triton_distributed/helm-tester:0.1.1
+      options: --tty
+      volumes:
+      - ${{ github.workspace }}:/workspace
+    permissions:
+      contents: read
+      packages: read
+    steps:
+    - uses: actions/checkout@v4
+      # Allowlist both variants of the mounted source directory.
+    - run: git config --global --add safe.directory /__w/triton_distributed/triton_distributed
+    - run: git config --global --add safe.directory /workspace
+    - run: pwsh /workspace/.github/workflows/copyright-check.ps1
+      env:
+        NVBUILD_VERBOSITY: DETAILED
+      timeout-minutes: 2
+      working-directory: /workspace
+
   # providers_validation:
   #   runs-on: ubuntu-latest
   #   container:
@@ -88,38 +109,3 @@ jobs:
   #   - run: ./icp/protos/gen_python.sh
   #   - run: pytest -p no:warnings --verbose worker/python/tests
   #     timeout-minutes: 2
-
-  pre-merge-rust:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up system dependencies
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install -y protobuf-compiler
-    - name: Cache Cargo Registry
-      uses: actions/cache@v3
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-    - name: Cache Cargo Target Directory
-      uses: actions/cache@v3
-      with:
-        path: runtime/rust/target
-        key: ${{ runner.os }}-cargo-target-${{ hashFiles('**/Cargo.lock') }}
-    - name: Set up Rust Toolchain Components
-      run: rustup component add rustfmt clippy
-    - name: Run Cargo Check
-      working-directory: runtime/rust
-      run: cargo check --locked
-    - name: Verify Code Formatting
-      working-directory: runtime/rust
-      run: cargo fmt -- --check
-    - name: Run Clippy Checks
-      working-directory: runtime/rust
-      run: cargo clippy --no-deps --all-targets -- -D warnings
-    - name: Run Unit Tests
-      working-directory: runtime/rust
-      run: cargo test --locked --all-targets
