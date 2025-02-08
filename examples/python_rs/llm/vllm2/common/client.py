@@ -41,7 +41,7 @@ async def main(prompt: str, max_tokens: int, temperature: float):
 
     client = RemoteFunction("vllm_generate", request_plane, data_plane)
 
-    request_count = 10
+    request_count = 50
 
     with tqdm(total=request_count, desc="Sending Requests", unit="request") as pbar:
         for index in range(request_count):

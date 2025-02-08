@@ -17,6 +17,7 @@
 import asyncio
 
 import uvloop
+from tqdm import tqdm
 from triton_distributed_rs import DistributedRuntime, triton_worker
 from vllm.utils import FlexibleArgumentParser
 
@@ -39,17 +40,26 @@ async def worker(
     # list the endpoints
     print(client.endpoint_ids())
 
-    # issue request
-    stream = await client.generate(
-        Request(
-            prompt=prompt,
-            sampling_params={"temperature": temperature, "max_tokens": max_tokens},
-        ).model_dump_json()
-    )
+    request_count = 50
 
-    # process response
-    async for resp in stream:
-        print(resp)
+    with tqdm(total=request_count, desc="Sending Requests", unit="request") as pbar:
+        for index in range(request_count):
+            # issue request
+            stream = await client.generate(
+                Request(
+                    prompt=prompt,
+                    sampling_params={
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                    },
+                ).model_dump_json()
+            )
+
+            # process response
+            async for resp in stream:
+                print(resp)
+
+            pbar.update(1)
 
 
 if __name__ == "__main__":
