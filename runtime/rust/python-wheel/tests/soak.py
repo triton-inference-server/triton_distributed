@@ -24,10 +24,11 @@ from triton_distributed_rs import DistributedRuntime, triton_worker
 #
 # This was a failure case for the distributed runtime. If the Rust Tokio
 # runtime is started with a small number of threads, it will starve the
-# the GIL + asyncio event loop can starve timout the ingress handler.
+# the GIL + asyncio event loop can starve timeout the ingress handler.
 #
 # There may still be some blocking operations in the ingress handler that
 # could still eventually be a problem.
+
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime):
@@ -36,6 +37,7 @@ async def worker(runtime: DistributedRuntime):
     await client_init(runtime, ns)
     runtime.shutdown()
     await task
+
 
 async def client_init(runtime: DistributedRuntime, ns: str):
     """
@@ -66,6 +68,7 @@ async def client_init(runtime: DistributedRuntime, ns: str):
 
     assert error_count == 0, f"expected 0 errors, got {error_count}"
 
+
 async def do_one(client):
     stream = await client.generate("hello world")
     async for char in stream:
@@ -84,6 +87,7 @@ async def server_init(runtime: DistributedRuntime, ns: str):
     print("Started server instance")
     await endpoint.serve_endpoint(RequestHandler().generate)
 
+
 class RequestHandler:
     """
     Request handler for the generate endpoint
@@ -95,11 +99,9 @@ class RequestHandler:
             yield char
 
 
-
 def random_string(length=10):
     chars = string.ascii_letters + string.digits  # a-z, A-Z, 0-9
     return "".join(random.choices(chars, k=length))
-
 
 
 if __name__ == "__main__":
