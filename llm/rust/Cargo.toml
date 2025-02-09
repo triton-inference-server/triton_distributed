@@ -30,7 +30,7 @@ repository = "https://github.com/triton-inference-server/triton_distributed"
 
 [workspace.dependencies]
 # local or crates.io
-triton-distributed = { version = "0.1.1", path = "../../runtime/rust" }
+triton-distributed = { version = "0.2.0", path = "../../runtime/rust" }
 
 # crates.io
 anyhow = { version = "1" }
