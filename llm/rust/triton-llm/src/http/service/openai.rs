@@ -268,13 +268,12 @@ async fn chat_completions(
             .keep_alive(KeepAlive::default())
             .into_response())
     } else {
-        // todo - handle errors
         let response = ChatCompletionResponse::from_annotated_stream(stream.into())
             .await
             .map_err(|e| {
                 tracing::error!(
-                    "Failed to fold chat completions stream for {}: {:?}",
                     request_id,
+                    "Failed to fold chat completions stream for: {:?}",
                     e
                 );
                 ErrorResponse::internal_server_error(&format!(
