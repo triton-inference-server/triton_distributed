@@ -117,14 +117,9 @@ impl DeltaAggregator {
                                     logprobs: choice.logprobs,
                                 });
 
-                        state_choice.text.push_str(
-                            choice
-                                .delta
-                                .content
-                                .clone()
-                                .unwrap_or("".to_string())
-                                .as_str(),
-                        );
+                        if let Some(content) = &choice.delta.content {
+                            state_choice.text.push_str(content);
+                        }
 
                         if let Some(finish_reason) = choice.finish_reason {
                             state_choice.finish_reason = Some(finish_reason);
