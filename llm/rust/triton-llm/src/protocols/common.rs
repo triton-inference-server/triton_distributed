@@ -397,7 +397,7 @@ pub enum StreamingResponse {
 //              - Finalize(Epilogue)
 
 /// This is the first message that will be emitted by an Engine Response Stream
-/// It indicates that the request has been preprocessed it queued for execution on the backend.
+/// It indicates that the request has been preprocessed and queued for execution on the backend.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Prologue {
     /// If the request was preprocessed with a prompt template, this will contain the formatted prompt
