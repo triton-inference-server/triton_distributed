@@ -28,7 +28,8 @@ impl KvRouter {
         runtime.block_on(async {
             let inner =
                 rs::kv_router::KvRouter::from_runtime(drt.inner.clone(), component.inner.clone())
-                    .await.map_err(to_pyerr)?;
+                    .await
+                    .map_err(to_pyerr)?;
             Ok(Self { inner })
         })
     }

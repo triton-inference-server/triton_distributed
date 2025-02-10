@@ -19,7 +19,9 @@ use once_cell::sync::OnceCell;
 use std::ffi::CStr;
 use uuid::Uuid;
 
-use triton_distributed::kv_router::{indexer::compute_block_hash_for_seq, protocols::*, publisher::KvPublisher};
+use triton_distributed::kv_router::{
+    indexer::compute_block_hash_for_seq, protocols::*, publisher::KvPublisher,
+};
 use triton_distributed::{DistributedRuntime, Worker};
 static WK: OnceCell<Worker> = OnceCell::new();
 static DRT: AsyncOnceCell<DistributedRuntime> = AsyncOnceCell::new();
