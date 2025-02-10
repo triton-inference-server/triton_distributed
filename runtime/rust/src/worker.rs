@@ -19,7 +19,7 @@
 //! The [Worker::execute] method is designed to be called once from main and will block
 //! the calling thread until the application completes or is canceled. The method initialized
 //! the signal handler used to trap `SIGINT` and `SIGTERM` signals and trigger a graceful shutdown.
-//! 
+//!
 //! Alternatively, the [triton_distributed::main] proc-macro can be used, which wraps an async function
 //! in a syncronous call to [Worker::execute].
 //!
