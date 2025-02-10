@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::kv_router::{protocols::KvCacheEvent, KV_EVENT_SUBJECT, indexer::RouterEvent};
+use crate::kv_router::{indexer::RouterEvent, protocols::KvCacheEvent, KV_EVENT_SUBJECT};
 use crate::{component::Component, DistributedRuntime, Result};
 use tokio::sync::mpsc;
 use uuid::Uuid;

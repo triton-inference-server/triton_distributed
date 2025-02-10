@@ -13,23 +13,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::{component::Component, DistributedRuntime};
 use anyhow::{Error, Result};
 use futures::stream::{self, StreamExt};
-use crate::{component::Component, DistributedRuntime};
 use std::{sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 use tracing as log;
 
-mod scheduler;
-mod scoring;
 pub mod indexer;
 pub mod protocols;
 pub mod publisher;
+mod scheduler;
+mod scoring;
 
 use crate::kv_router::{
-    scheduler::{Endpoint, KvScheduler, Service, BLOCK_SIZE},
     indexer::{KvIndexer, KvIndexerInterface, RouterEvent},
-    scoring::ProcessedEndpoints
+    scheduler::{Endpoint, KvScheduler, Service, BLOCK_SIZE},
+    scoring::ProcessedEndpoints,
 };
 
 // this shoudl be discovered from teh backend

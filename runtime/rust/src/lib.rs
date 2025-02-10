@@ -31,13 +31,13 @@ pub use config::RuntimeConfig;
 pub mod component;
 pub mod discovery;
 pub mod engine;
+pub mod kv_router;
 pub mod pipeline;
 pub mod protocols;
 pub mod runtime;
 pub mod service;
 pub mod transports;
 pub mod worker;
-pub mod kv_router;
 
 pub mod distributed;
 

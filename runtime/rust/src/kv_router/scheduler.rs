@@ -20,9 +20,9 @@ use tracing as log;
 
 use uuid::Uuid;
 
-use crate::kv_router::scoring::ProcessedEndpoints;
 use crate::kv_router::indexer::OverlapScores;
 pub use crate::kv_router::protocols::ForwardPassMetrics;
+use crate::kv_router::scoring::ProcessedEndpoints;
 
 #[derive(Debug, thiserror::Error)]
 pub enum KvSchedulerError {
