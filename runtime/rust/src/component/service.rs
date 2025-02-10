@@ -33,11 +33,6 @@ pub struct ServiceConfig {
     #[builder(default)]
     description: Option<String>,
 
-    /// Lease
-    #[educe(Debug(ignore))]
-    #[builder(default)]
-    lease: Option<Lease>,
-
     // todo - make optional - if None, then skip making the endpoint
     // and skip making the service-endpoint discoverable.
     /// Endpoint handler
@@ -51,11 +46,7 @@ impl ServiceConfigBuilder {
     pub async fn create(self) -> Result<Component> {
         let version = "0.0.1".to_string();
 
-        // dissolve the config
-        let (component, description, lease, stat_handler) = self.build_internal()?.dissolve();
-
-        // either use a custom lease or use the default lease
-        let lease = lease.unwrap_or(component.drt.primary_lease());
+        let (component, description, stat_handler) = self.build_internal()?.dissolve();
 
         let service_name = component.slug();
         let description = description.unwrap_or(format!(

@@ -29,6 +29,8 @@ use triton_distributed::{
     protocols::annotated::Annotated as RsAnnotated,
 };
 
+mod llm;
+
 mod engine;
 
 type JsonServerStreamingIngress =
@@ -50,6 +52,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Endpoint>()?;
     m.add_class::<Client>()?;
     m.add_class::<AsyncResponseStream>()?;
+    m.add_class::<llm::kv::KvRouter>()?;
 
     engine::add_to_module(m)?;
 
@@ -72,31 +75,35 @@ struct DistributedRuntime {
     event_loop: PyObject,
 }
 
-#[derive(Clone)]
 #[pyclass]
+#[derive(Clone)]
 struct CancellationToken {
     inner: rs::CancellationToken,
 }
 
 #[pyclass]
+#[derive(Clone)]
 struct Namespace {
     inner: rs::component::Namespace,
     event_loop: PyObject,
 }
 
 #[pyclass]
+#[derive(Clone)]
 struct Component {
     inner: rs::component::Component,
     event_loop: PyObject,
 }
 
 #[pyclass]
+#[derive(Clone)]
 struct Endpoint {
     inner: rs::component::Endpoint,
     event_loop: PyObject,
 }
 
 #[pyclass]
+#[derive(Clone)]
 struct Client {
     inner: rs::component::Client<serde_json::Value, serde_json::Value>,
 }
@@ -105,18 +112,18 @@ struct Client {
 impl DistributedRuntime {
     #[new]
     fn new(event_loop: PyObject) -> PyResult<Self> {
-        let rt = rs::Worker::from_settings().map_err(to_pyerr)?;
+        let worker = rs::Worker::from_settings().map_err(to_pyerr)?;
         INIT.get_or_try_init(|| {
-            let primary = rt.tokio_runtime()?;
+            let primary = worker.tokio_runtime()?;
             pyo3_async_runtimes::tokio::init_with_runtime(primary)
                 .map_err(|e| rs::error!("failed to initialize pyo3 static runtime: {:?}", e))?;
             rs::OK(())
         })
         .map_err(to_pyerr)?;
 
-        let runtime = rt.runtime().clone();
+        let runtime = worker.runtime().clone();
 
-        let inner = rt
+        let inner = worker
             .runtime()
             .secondary()
             .block_on(rs::DistributedRuntime::from_settings(runtime))
