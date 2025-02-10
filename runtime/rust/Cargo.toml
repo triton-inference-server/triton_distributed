@@ -25,6 +25,10 @@ homepage = "https://github.com/triton-inference-server/triton_distributed"
 repository = "https://github.com/triton-inference-server/triton_distributed"
 keywords = ["llm", "genai", "inference", "nvidia", "distributed", "triton"]
 
+[features]
+default = []
+integration = []
+
 [dependencies]
 # workspace - when we expand to multiple crates; put these in the workspace
 anyhow = { version = "1" }
@@ -64,3 +68,4 @@ rand = { version = "0.8"}
 
 [dev-dependencies]
 assert_matches = "1.5.0"
+env_logger = "0.11"
