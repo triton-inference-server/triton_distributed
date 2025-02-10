@@ -1,0 +1,12 @@
+---
+source: triton-llm/tests/openai_completions.rs
+description: "should have prompt, model, and stop fields"
+expression: sample.request
+---
+{
+  "model": "gpt-3.5-turbo",
+  "prompt": "What is the meaning of life?",
+  "stop": [
+    "\n"
+  ]
+}
