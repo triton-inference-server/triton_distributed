@@ -117,7 +117,10 @@ impl RuntimeConfig {
 
 impl Default for RuntimeConfig {
     fn default() -> Self {
-        Self::single_threaded()
+        Self {
+            max_worker_threads: 16,
+            max_blocking_threads: 16,
+        }
     }
 }
 
