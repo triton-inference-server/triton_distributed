@@ -16,21 +16,18 @@
 use hello_world::DEFAULT_NAMESPACE;
 use std::sync::Arc;
 use triton_distributed::{
+    self,
     pipeline::{
         async_trait, network::Ingress, AsyncEngine, AsyncEngineContextProvider, Error, ManyOut,
         ResponseStream, SingleIn,
     },
     protocols::annotated::Annotated,
-    stream, DistributedRuntime, Result, Runtime, Worker,
+    stream, DistributedRuntime, Result, Runtime,
 };
 
-fn main() -> Result<()> {
-    env_logger::init();
-    let worker = Worker::from_settings()?;
-    worker.execute(app)
-}
-
+#[triton_distributed::main]
 async fn app(runtime: Runtime) -> Result<()> {
+    env_logger::init();
     let distributed = DistributedRuntime::from_settings(runtime.clone()).await?;
     backend(distributed).await
 }
