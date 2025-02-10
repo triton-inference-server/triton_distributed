@@ -99,15 +99,22 @@ impl Client {
         let token = runtime.primary_token();
         let client =
             etcd_client::Client::connect(config.etcd_url, config.etcd_connect_options).await?;
-        let lease_client = client.lease_client();
 
-        let lease = create_lease(lease_client, 10, token)
-            .await
-            .context("creating primary lease")?;
+        let lease_id = if config.attach_lease {
+            let lease_client = client.lease_client();
+
+            let lease = create_lease(lease_client, 10, token)
+                .await
+                .context("creating primary lease")?;
+
+            lease.id
+        } else {
+            0
+        };
 
         Ok(Client {
             client,
-            primary_lease: lease.id,
+            primary_lease: lease_id,
             runtime,
         })
     }
@@ -260,6 +267,10 @@ pub struct ClientOptions {
 
     #[builder(default)]
     etcd_connect_options: Option<ConnectOptions>,
+
+    /// If true, the client will attach a lease to the primary [`CancellationToken`].
+    #[builder(default = "true")]
+    attach_lease: bool,
 }
 
 impl Default for ClientOptions {
@@ -267,6 +278,7 @@ impl Default for ClientOptions {
         ClientOptions {
             etcd_url: default_servers(),
             etcd_connect_options: None,
+            attach_lease: true,
         }
     }
 }
