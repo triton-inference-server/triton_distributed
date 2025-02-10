@@ -126,7 +126,6 @@ impl Component {
         endpoint.validate()?;
 
         Ok(endpoint)
-
     }
 
     /// Get keys from etcd on the slug, splitting the endpoints and only returning the
@@ -213,7 +212,6 @@ pub struct Namespace {
 
 impl Namespace {
     pub(crate) fn new(runtime: DistributedRuntime, name: String) -> Result<Self> {
-
         let namespace = NamespaceBuilder::default()
             .runtime(runtime)
             .name(name)
@@ -226,11 +224,10 @@ impl Namespace {
 
     /// Create a [`Component`] in the namespace
     pub fn component(&self, name: impl Into<String>) -> Result<Component> {
-
         let component = ComponentBuilder::from_runtime(self.runtime.clone())
-        .name(name)
-        .namespace(self.name.clone())
-        .build()?;
+            .name(name)
+            .namespace(self.name.clone())
+            .build()?;
 
         component.validate()?;
 
