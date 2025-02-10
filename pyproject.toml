@@ -75,9 +75,6 @@ markers = [
   "pre_merge: marks tests to run before merging",
   "nightly: marks tests to run nightly",
   "weekly: marks tests to run weekly",
-  # FIXME: Either default to venv usage or remove it. Virtual environment
-  # currently used for python<->rust bindings.
-  "venv: requires virtual environment to run"
 ]
 
 # Linting/formatting

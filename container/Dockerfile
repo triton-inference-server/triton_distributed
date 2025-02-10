@@ -154,14 +154,16 @@ COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Create virtualenv
+# Install triton_distributed_rs wheel globally in container
+# In future, we may use a virtualenv for everything.
+RUN cd runtime/rust/python-wheel && \
+    maturin build -r && \
+    pip install target/wheels/triton_distributed_rs*cp312*.whl
+
+# Install uv and create virtualenv for general use
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
-    uv venv /opt/triton/venv --python 3.12 && \
-    source /opt/triton/venv/bin/activate && \
-    cd runtime/rust/python-wheel && \
-    maturin build -r && \
-    uv pip install target/wheels/triton_distributed_rs*cp312*.whl
+    uv venv /opt/triton/venv --python 3.12
 
 COPY icp /workspace/icp
 RUN /workspace/icp/protos/gen_python.sh

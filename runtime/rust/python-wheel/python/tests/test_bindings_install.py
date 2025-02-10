@@ -15,8 +15,7 @@
 
 import pytest
 
-# Mark tests that require virtual environment to pass
-pytestmark = pytest.mark.venv
+pytestmark = pytest.mark.pre_merge
 
 
 def test_bindings_install():
