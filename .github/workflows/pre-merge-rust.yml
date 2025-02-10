@@ -48,7 +48,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-tools-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-registry-${{ github.head_ref || github.ref_name }}-${{ hashFiles('**/Cargo.lock') }}
     - name: Set up Rust Toolchain Components
       run: rustup component add rustfmt clippy
     - name: Run Cargo Check
