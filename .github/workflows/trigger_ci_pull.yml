@@ -19,6 +19,8 @@ on:
   pull_request:
     paths-ignore:
     - deploy/Kubernetes/**
+    - 'README.md'
+    - '.github/**'
 
 jobs:
   mirror_repo:
