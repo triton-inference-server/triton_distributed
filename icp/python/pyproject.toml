@@ -24,6 +24,7 @@ dynamic = ["version"]
 [tool.setuptools_scm]
 version_file = "src/triton_distributed/icp/_version.py"
 root = "../.."
+fallback_version="0.0.1.dev+unknown"
 
 [tool.setuptools.packages.find]
 where = ["src"]

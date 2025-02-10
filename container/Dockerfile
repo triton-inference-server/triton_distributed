@@ -164,6 +164,19 @@ RUN mkdir /opt/triton && \
     cd runtime/rust/python-wheel && \
     maturin develop
 
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION}
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION}
+RUN source /opt/triton/venv/bin/activate && \
+    export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} && \
+    export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} && \
+    uv pip install -e /workspace/icp/python && \
+    uv pip install -e /workspace/runtime/python && \
+    find /opt/tritonserver/python -maxdepth 1 -type f -name \
+    "tritonserver-*.whl" | xargs -I {} uv pip install --force-reinstall --upgrade {}[all] && \
+    uv pip install ucx-py-cu12 && \
+    uv pip uninstall pynvml
+
+
 RUN /workspace/icp/protos/gen_python.sh
 
 # Install python packages

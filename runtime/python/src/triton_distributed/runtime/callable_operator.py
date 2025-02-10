@@ -46,7 +46,7 @@ class CallableOperator(Operator):
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
         for request in requests:
-            self._logger.info("got request!")
+            self._logger.debug("got request!")
 
             response_sender = request.response_sender()
 
@@ -59,7 +59,8 @@ class CallableOperator(Operator):
 
             async for result in self._callable(arg):
                 await response_sender.send(
-                    outputs={"result": [msgspec.msgpack.encode(result)]}
+                    outputs={"result": [msgspec.msgpack.encode(result)]},
+                    store_outputs_in_response={"result"},
                 )
 
             await response_sender.send(final=True)

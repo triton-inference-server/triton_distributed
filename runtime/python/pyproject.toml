@@ -25,6 +25,7 @@ dependencies = ["triton_distributed.icp >= 0"]
 [tool.setuptools_scm]
 version_file = "src/triton_distributed/runtime/_version.py"
 root = "../.."
+fallback_version="0.0.1.dev+unknown"
 
 [tool.setuptools.packages.find]
 where = ["src"]

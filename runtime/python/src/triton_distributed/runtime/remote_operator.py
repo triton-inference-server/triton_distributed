@@ -85,7 +85,7 @@ class RemoteOperator:
         )
 
         inference_request.inputs["arg"] = [msgspec.msgpack.encode(arg)]
-
+        inference_request.store_inputs_in_request.add("arg")
         async for response in await self.async_infer(
             inference_request=inference_request, raise_on_error=raise_on_error
         ):
