@@ -17,7 +17,7 @@ use crate::pipeline::{
     network::egress::push::{AddressedPushRouter, AddressedRequest, PushRouter},
     AsyncEngine, Data, ManyOut, SingleIn,
 };
-use rand::Rng;
+use rand::{prelude::Distribution, Rng};
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicU64, Ordering},
@@ -194,10 +194,7 @@ where
             endpoints[offset as usize]
         };
 
-        let subject = self.endpoint.subject_to(endpoint_id);
-        let request = request.map(|req| AddressedRequest::new(req, subject));
-
-        self.router.generate(request).await
+        self.send_request(endpoint_id, request).await
     }
 
     /// Issue a request to a random endpoint
@@ -216,10 +213,50 @@ where
             endpoints[offset as usize]
         };
 
-        let subject = self.endpoint.subject_to(endpoint_id);
-        let request = request.map(|req| AddressedRequest::new(req, subject));
+        self.send_request(endpoint_id, request).await
+    }
 
-        self.router.generate(request).await
+    /// Issue a request to a random endpoint with a weighted selection.
+    /// It's possible that the weights don't reflect the most up-to-date
+    /// list of endpoints. Some endpoints may not have an associated weight,
+    /// or other weights may correspond to an endpoint that no longer exists.
+    /// In these cases, we mask out the probabilities for missing endpoints.
+    /// If no endpoints are found, we fall back to random selection.
+    pub async fn weighted_random(
+        &self,
+        request: SingleIn<T>,
+        weights: &HashMap<i64, f32>,
+    ) -> Result<ManyOut<U>> {
+        let endpoint_id = {
+            let endpoints = self.watch_rx.borrow();
+
+            if endpoints.is_empty() {
+                return Err(error!(
+                    "no endpoints found for endpoint {:?}",
+                    self.endpoint.etcd_path()
+                ));
+            }
+
+            let mut rng = rand::thread_rng();
+
+            let endpoint_weights = endpoints
+                .iter()
+                .map(|id| weights.get(id).unwrap_or(&0.))
+                .collect::<Vec<_>>();
+
+            let total_weight = endpoint_weights.iter().copied().sum::<f32>();
+
+            if total_weight == 0. {
+                // None of the provided endpoints exist. Fall back to random selection.
+                return self.random(request).await;
+            }
+
+            let dist = rand::distributions::WeightedIndex::new(endpoint_weights)?;
+
+            endpoints[dist.sample(&mut rng)]
+        };
+
+        self.send_request(endpoint_id, request).await
     }
 
     /// Issue a request to a specific endpoint
@@ -237,6 +274,10 @@ where
             ));
         }
 
+        self.send_request(endpoint_id, request).await
+    }
+
+    async fn send_request(&self, endpoint_id: i64, request: SingleIn<T>) -> Result<ManyOut<U>> {
         let subject = self.endpoint.subject_to(endpoint_id);
         let request = request.map(|req| AddressedRequest::new(req, subject));
 
