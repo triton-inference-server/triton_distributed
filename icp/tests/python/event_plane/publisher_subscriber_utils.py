@@ -14,10 +14,13 @@
 # limitations under the License.
 
 
+import logging
 import subprocess
 import sys
 import tempfile
 from typing import List, Optional, Set
+
+logger = logging.getLogger(__name__)
 
 
 def check_recieved_events(all_events: Set[str], subscriber_logs: List[str]):

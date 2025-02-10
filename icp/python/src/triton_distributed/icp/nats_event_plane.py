@@ -39,10 +39,10 @@ DEFAULT_CONNECTION_TIMEOUT = int(os.getenv("DEFAULT_CONNECTION_TIMEOUT", 30))
 
 
 class NatsEventSubscription(EventSubscription):
-    def __init__(self, nc_sub: nats.aio.subscription.Subscription, nats):
+    def __init__(self, nc_sub: nats.aio.subscription.Subscription, nats_connection):
         self._nc_sub: Optional[nats.aio.subscription.Subscription] = nc_sub
-        self._nats = nats
-        self._failure_task = asyncio.create_task(nats.wait_for_failure())
+        self._nats = nats_connection
+        self._failure_task = asyncio.create_task(self._nats.wait_for_failure())
 
     async def __anext__(self):
         if self._nc_sub is None:
@@ -53,7 +53,7 @@ class NatsEventSubscription(EventSubscription):
                     "NATS connection failure."
                 ) from self._failure_task.exception()
             else:
-                self._failure_task = asyncio.create_task(nats.wait_for_failure())
+                self._failure_task = asyncio.create_task(self._nats.wait_for_failure())
         next_task = asyncio.create_task(self._nc_sub.next_msg())
         _ = await asyncio.wait(
             [next_task, self._failure_task], return_when=asyncio.FIRST_COMPLETED
@@ -105,12 +105,15 @@ class NatsEventPlane:
         self._nc = nats.NATS()
         self._error = None
         self._connected = False
-        self._failure_event = None
+        self._failure_event: Optional[asyncio.Event] = None
 
     async def wait_for_failure(self):
         """Wait for a failure event."""
-        await self._failure_event.wait()
-        raise RuntimeError("NATS connection failure.") from self._error
+        if self._failure_event is not None:
+            await self._failure_event.wait()
+            raise RuntimeError("NATS connection failure.") from self._error
+        else:
+            raise RuntimeError("NATS connection failure happened before.")
 
     def is_connected(self):
         return self._connected
@@ -129,8 +132,11 @@ class NatsEventPlane:
         #                          )
         async def error_cb(e):
             logger.warning(f"NATS error: {e}")
-            self._failure_event.set()
-            self._error = e
+            if self._failure_event is not None:
+                self._failure_event.set()
+                self._error = e
+            else:
+                logger.warning("NATS connection failure happened before.")
 
         async def reconnected_cb():
             logger.debug("NATS reconnected")
