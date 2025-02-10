@@ -45,6 +45,9 @@ enum ResponseProcessingError {
 
     #[error("deserialize error: {0}")]
     DeserializeError(String),
+
+    #[error("gil offload error: {0}")]
+    OffloadError(String),
 }
 
 // todos:
@@ -137,24 +140,12 @@ where
 
         let stream = Box::pin(stream);
 
-        let process =
-            |item: Result<Py<PyAny>, PyErr>| -> Result<Annotated<Resp>, ResponseProcessingError> {
-                let item =
-                    item.map_err(|e| ResponseProcessingError::PythonException(e.to_string()))?;
-
-                let response = Python::with_gil(|py| depythonize::<Resp>(&item.into_bound(py)))
-                    .map_err(|e| ResponseProcessingError::DeserializeError(e.to_string()))?;
-
-                let response = Annotated::from_data(response);
-
-                Ok(response)
-            };
-
         // process the stream
         // any error thrown in the stream will be caught and complete the processing task
         // errors are captured by a task that is watching the processing task
         // the error will be emitted as an annotated error
         let request_id = id.clone();
+
         tokio::spawn(async move {
             log::debug!(
                 request_id,
@@ -174,7 +165,7 @@ where
 
                 let mut done = false;
 
-                let response = match process(item) {
+                let response = match process_item::<Resp>(item).await {
                     Ok(response) => response,
                     Err(e) => {
                         done = true;
@@ -193,6 +184,11 @@ where
                             ResponseProcessingError::PythonException(e) => {
                                 let msg = format!("a python exception was caught while processing the async generator: {}", e);
                                 log::warn!(request_id, "{}", msg);
+                                msg
+                            }
+                            ResponseProcessingError::OffloadError(e) => {
+                                let msg = format!("critical error: failed to offload the python async generator to a new thread: {}", e);
+                                log::error!(request_id, "{}", msg);
                                 msg
                             }
                         };
@@ -228,4 +224,24 @@ where
 
         Ok(ResponseStream::new(Box::pin(stream), context.context()))
     }
+}
+
+async fn process_item<Resp>(
+    item: Result<Py<PyAny>, PyErr>,
+) -> Result<Annotated<Resp>, ResponseProcessingError>
+where
+    Resp: Data + for<'de> Deserialize<'de>,
+{
+    let item = item.map_err(|e| ResponseProcessingError::PythonException(e.to_string()))?;
+
+    let response = tokio::task::spawn_blocking(move || {
+        Python::with_gil(|py| depythonize::<Resp>(&item.into_bound(py)))
+    })
+    .await
+    .map_err(|e| ResponseProcessingError::OffloadError(e.to_string()))?
+    .map_err(|e| ResponseProcessingError::DeserializeError(e.to_string()))?;
+
+    let response = Annotated::from_data(response);
+
+    Ok(response)
 }
