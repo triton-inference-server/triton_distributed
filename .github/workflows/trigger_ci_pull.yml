@@ -45,9 +45,9 @@ jobs:
             - 'examples/python/llm/vllm/**'
     - name: Trigger Pipeline
       run: |
-        #!/bin/bash
+        #!/bin/bash -e
         declare -A ci_variables
-        if [ "${{ steps.src.outputs.vllm }}" == "true"; then
+        if [ "${{ steps.src.outputs.vllm }}" == "true" ]; then
             ci_variables["RUN_VLLM"]="true"
         fi
         ci_args=""
