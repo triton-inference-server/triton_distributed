@@ -13,11 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! The [Runtime] module is the interface for [crate::component::Component][crate::component::Component]
+//! The [Runtime] module is the interface for [crate::component::Component]
 //! to access shared resources. These include thread pool, memory allocators and other shared resources.
 //!
 //! The [Runtime] holds the primary [`CancellationToken`] which can be used to terminate all attached
-//! [crate::component::Component][crate::component::Component].
+//! [`crate::component::Component`].
 //!
 //! We expect in the future to offer topologically aware thread and memory resources, but for now the
 //! set of resources is limited to the thread pool and cancellation token.
