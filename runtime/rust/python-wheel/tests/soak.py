@@ -52,7 +52,7 @@ async def client_init(runtime: DistributedRuntime, ns: str):
     # wait for an endpoint to be ready
     await client.wait_for_endpoints()
 
-    # issue 1000 concurrent requests
+    # Issue many concurrent requests to put load on the server,
     # the task should issue the request and process the response
     tasks = []
     for i in range(5000):
