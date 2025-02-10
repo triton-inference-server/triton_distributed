@@ -28,7 +28,6 @@ USER root
 # Rust build/dev dependencies
 RUN apt-get update; apt-get install -y gdb protobuf-compiler
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-RUN pip install maturin patchelf
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install OpenAI-compatible frontend and its dependencies from triton server
@@ -154,16 +153,18 @@ COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Install triton_distributed_rs wheel globally in container
-# In future, we may use a virtualenv for everything.
-RUN cd runtime/rust/python-wheel && \
-    maturin build -r && \
-    pip install target/wheels/triton_distributed_rs*cp312*.whl
-
 # Install uv and create virtualenv for general use
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
-    uv venv /opt/triton/venv --python 3.12
+    uv venv /opt/triton/venv --python 3.12 && \
+    source /opt/triton/venv/bin/activate && \
+    cd runtime/rust/python-wheel && \
+    uv build && \
+    uv pip install dist/triton_distributed_rs*cp312*.whl
+
+# Install triton_distributed_rs wheel globally in container
+# In future, we may use a virtualenv for everything.
+RUN pip install runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl
 
 COPY icp /workspace/icp
 RUN /workspace/icp/protos/gen_python.sh
