@@ -162,8 +162,9 @@ RUN mkdir /opt/triton && \
     uv build && \
     uv pip install dist/triton_distributed_rs*cp312*.whl
 
-# Install triton_distributed_rs wheel globally in container
-# In future, we may use a virtualenv for everything.
+# Install triton_distributed_rs wheel globally in container for tests that
+# currently run without virtual environment activated.
+# TODO: In future, we may use a virtualenv for everything and remove this.
 RUN pip install runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl
 
 COPY icp /workspace/icp
