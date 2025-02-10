@@ -22,8 +22,9 @@ use tracing as log;
 
 mod scheduler;
 mod scoring;
-mod indexer;
-mod protocols;
+pub mod indexer;
+pub mod protocols;
+pub mod publisher;
 
 use crate::kv_router::{
     scheduler::{Endpoint, KvScheduler, Service, BLOCK_SIZE},
