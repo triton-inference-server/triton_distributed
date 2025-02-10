@@ -13,13 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[package]
-name = "hello_world"
-version = "0.1.3"
-edition = "2021"
+- model_name: meta/llama-3.1-8b-instruct
+  file_path: completion.streaming.1
+  query: What is deep learning?
+  query_type: CompletionsStreaming
 
-[dependencies]
-triton-distributed = { path = "../../" }
+- model_name: meta/llama-3.1-8b-instruct
+  file_path: completion.streaming.2
+  query: Write a limerick about the wonders of GPU computing.
+  query_type: CompletionsStreaming
 
-# third-party
-env_logger = "0.11.6"
+- model_name: meta/llama-3.1-8b-instruct
+  file_path: completion.streaming.3
+  query: Tell me about Dumbledore.
+  query_type: CompletionsStreaming

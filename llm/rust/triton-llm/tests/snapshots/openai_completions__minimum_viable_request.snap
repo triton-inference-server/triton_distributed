@@ -1,0 +1,8 @@
+---
+source: triton-llm/tests/openai_completions.rs
+expression: request
+---
+{
+  "model": "gpt-3.5-turbo",
+  "prompt": "What is the meaning of life?"
+}
