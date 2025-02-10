@@ -61,13 +61,9 @@ impl ServerOptions {
     }
 }
 
-// todo - rename TcpResponseServer
-// we may need to disambiguate this and a TcpRequestServer
-
 /// A [`TcpStreamServer`] is a TCP service that listens on a port for incoming response connections.
 /// A Response connection is a connection that is established by a client with the intention of sending
-/// specific data back to the server. The key differentiating factor is that a [`ResponseServer`] is
-/// expecting a connection from a client with an established subject.
+/// specific data back to the server.
 pub struct TcpStreamServer {
     local_ip: String,
     local_port: u16,
