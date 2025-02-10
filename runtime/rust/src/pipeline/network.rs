@@ -105,11 +105,7 @@ impl PendingConnections {
 }
 
 /// A [`ResponseService`] implements a services in which a context a specific subject with will
-/// be associated with a stream of responses. The key difference between a [`ResponseService`]
-/// and a [`RequestService`] is that the [`ResponseService`] is the awaits an explicit connection
-/// to be established, where as a [`RequestService`] has no known knowledge about incoming
-/// connections. All [`ResponseService`] connections are expected, all [`RequestService`] connections
-/// are unexpected.
+/// be associated with a stream of responses.
 #[async_trait::async_trait]
 pub trait ResponseService {
     async fn register(&self, options: StreamOptions) -> PendingConnections;

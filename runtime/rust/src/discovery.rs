@@ -44,7 +44,7 @@ impl DiscoveryClient {
     }
 
     /// Create a [`Lease`] with a given time-to-live (TTL).
-    /// This [`Lease`] will be tied to the [`Runtime`], but has its own independent [`crate::CancellationToken`].
+    /// This [`Lease`] will be tied to the [`crate::Runtime`], but has its own independent [`crate::CancellationToken`].
     pub async fn create_lease(&self, ttl: i64) -> Result<Lease> {
         self.etcd_client.create_lease(ttl).await
     }
