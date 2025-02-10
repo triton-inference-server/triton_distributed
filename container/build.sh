@@ -59,8 +59,13 @@ STANDARD_BASE_IMAGE_TAG=${STANDARD_BASE_VERSION}-py3
 TENSORRTLLM_BASE_VERSION=24.12
 TENSORRTLLM_BASE_IMAGE=nvcr.io/nvidia/tritonserver
 TENSORRTLLM_BASE_IMAGE_TAG=${TENSORRTLLM_BASE_VERSION}-trtllm-python-py3
-# IMPORTANT NOTE: Ensure the commit matches the TRTLLM backend version used in the base image above
-TENSORRTLLM_BACKEND_COMMIT=v0.16.0
+# IMPORTANT NOTE: Ensure the repo tag complies with the TRTLLM backend version
+# used in the base image above.
+TENSORRTLLM_BACKEND_REPO_TAG=v0.16.0
+# Set this as 1 to rebuild and replace trtllm backend bits in the container.
+# This will allow building triton distributed container image with custom
+# trt-llm backend repo branch.
+TENSORRTLLM_BACKEND_REBUILD=0
 
 # vllm installation is done later in the Dockerfile so it will overwrite the
 # vllm version installed in the base image.
@@ -91,9 +96,17 @@ get_options() {
 		missing_requirement $1
             fi
             ;;
-        --tensorrtllm-backend-commit)
+        --tensorrtllm-backend-repo-tag)
             if [ "$2" ]; then
                 TRTLLM_BACKEND_COMMIT=$2
+                shift
+            else
+		missing_requirement $1
+            fi
+            ;;
+        --tensorrtllm-backend-rebuild)
+            if [ "$2" ]; then
+                TRTLLM_BACKEND_REBUILD=$2
                 shift
             else
 		missing_requirement $1
@@ -216,7 +229,8 @@ show_image_options() {
     echo "   Base: '${BASE_IMAGE}'"
     echo "   Base_Image_Tag: '${BASE_IMAGE_TAG}'"
     if [[ $FRAMEWORK == "TENSORRTLLM" ]]; then
-	echo "   Tensorrtllm Backend Commit: '${TENSORRTLLM_BACKEND_COMMIT}'"
+	    echo "   Tensorrtllm Backend Repo Tag: '${TENSORRTLLM_BACKEND_REPO_TAG}'"
+        echo "   Tensorrtllm Backend Rebuild: '${TENSORRTLLM_BACKEND_REBUILD}'"
     fi
     echo "   Build Context: '${BUILD_CONTEXT}'"
     echo "   Build Arguments: '${BUILD_ARGS}'"
@@ -230,7 +244,8 @@ show_help() {
     echo "  [--base-imge-tag base image tag]"
     echo "  [--platform platform for docker build"
     echo "  [--framework framework one of ${!FRAMEWORKS[@]}]"
-    echo "  [--tensorrtllm-backend-commit commit or tag]"
+    echo "  [--tensorrtllm-backend-repo-tag commit or tag]"
+    echo "  [--tensorrtllm-backend-rebuild whether or not to rebuild the backend]"
     echo "  [--build-arg additional build args to pass to docker build]"
     echo "  [--tag tag for image]"
     echo "  [--no-cache disable docker build cache]"
@@ -262,8 +277,9 @@ if [ ! -z ${GITLAB_TOKEN} ]; then
     BUILD_ARGS+=" --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} "
 fi
 
-if [[ $FRAMEWORK == "TENSORRTLLM" ]] && [ ! -z ${TENSORRTLLM_BACKEND_COMMIT} ]; then
-    BUILD_ARGS+=" --build-arg TENSORRTLLM_BACKEND_COMMIT=${TENSORRTLLM_BACKEND_COMMIT} "
+if [[ $FRAMEWORK == "TENSORRTLLM" ]] && [ ! -z ${TENSORRTLLM_BACKEND_REPO_TAG} ]; then
+    BUILD_ARGS+=" --build-arg TENSORRTLLM_BACKEND_REPO_TAG=${TENSORRTLLM_BACKEND_REPO_TAG} "
+    BUILD_ARGS+=" --build-arg TENSORRTLLM_BACKEND_REBUILD=${TENSORRTLLM_BACKEND_REBUILD} "
 fi
 
 if [ ! -z ${HF_TOKEN} ]; then

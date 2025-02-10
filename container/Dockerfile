@@ -25,8 +25,10 @@ USER root
 
 # TODO: separate dev from runtime dependendcies
 
+# Rust build/dev dependencies
 RUN apt-get update; apt-get install -y gdb protobuf-compiler
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+RUN pip install maturin
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install OpenAI-compatible frontend and its dependencies from triton server
@@ -69,11 +71,12 @@ RUN pip install "git+https://github.com/triton-inference-server/perf_analyzer.gi
 
 # Backend & Framework Specific Installation
 ARG FRAMEWORK="STANDARD"
-ARG TENSORRTLLM_BACKEND_COMMIT=
+ARG TENSORRTLLM_BACKEND_REPO_TAG=
+ARG TENSORRTLLM_BACKEND_REBUILD=
 ENV FRAMEWORK=${FRAMEWORK}
 RUN --mount=type=bind,source=./container/deps/requirements.tensorrtllm.txt,target=/tmp/requirements.txt \
     --mount=type=bind,source=./container/deps/clone_tensorrtllm.sh,target=/tmp/clone_tensorrtllm.sh \
-    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-commit ${TENSORRTLLM_BACKEND_COMMIT} ; fi
+    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-repo-tag ${TENSORRTLLM_BACKEND_REPO_TAG} --tensorrtllm-backend-rebuild ${TENSORRTLLM_BACKEND_REBUILD} ; fi
 
 RUN --mount=type=bind,source=./container/deps/requirements.vllm.txt,target=/tmp/requirements.txt \
     if [[ "$FRAMEWORK" == "VLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt ; fi
@@ -98,7 +101,7 @@ RUN --mount=type=bind,source=./container/deps/requirements.standard.txt,target=/
 ARG TENSORRTLLM_FRAMEWORK
 ENV FRAMEWORK_LD_LIBRARY_PATH=${TENSORRTLLM_FRAMEWORK:+/opt/tritonserver/backends/tensorrtllm/}
 ENV LD_LIBRARY_PATH=${FRAMEWORK_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
-ENV TENSORRTLLM_BACKEND_COMMIT=$TENSORRTLLM_BACKEND_COMMIT
+ENV TENSORRTLLM_BACKEND_REPO_TAG=$TENSORRTLLM_BACKEND_REPO_TAG
 ENV TRTLLM_USE_MPI_KVCACHE=${TENSORRTLLM_FRAMEWORK:+"1"}
 
 # TODO set VLLM Version
@@ -116,7 +119,6 @@ ENV VLLM_GENERATE_WORKERS=${VLLM_FRAMEWORK:+1}
 ENV VLLM_BASELINE_TP_SIZE=${VLLM_FRAMEWORK:+1}
 ENV VLLM_CONTEXT_TP_SIZE=${VLLM_FRAMEWORK:+1}
 ENV VLLM_GENERATE_TP_SIZE=${VLLM_FRAMEWORK:+1}
-ENV VLLM_LOGGING_LEVEL=${VLLM_FRAMEWORK:+INFO}
 ENV PYTHONUNBUFFERED=1
 
 # Install NATS - pointing toward NATS github instead of binaries.nats.dev due to server instability
@@ -151,7 +153,17 @@ WORKDIR /workspace
 #TODO Exclude container directory
 COPY . /workspace
 
-RUN cd runtime/rust && cargo build --release --locked && cargo doc --no-deps
+RUN cd runtime/rust && \
+    cargo build --release --locked && cargo doc --no-deps
+
+# Create virtualenv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN mkdir /opt/triton && \
+    uv venv /opt/triton/venv --python 3.12 && \
+    source /opt/triton/venv/bin/activate && \
+    cd runtime/rust/python-wheel && \
+    maturin develop
+
 RUN /workspace/icp/protos/gen_python.sh
 
 # Install python packages
