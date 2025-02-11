@@ -174,7 +174,12 @@ RUN source /opt/triton/venv/bin/activate && \
     find /opt/tritonserver/python -maxdepth 1 -type f -name \
     "tritonserver-*.whl" | xargs -I {} uv pip install --force-reinstall --upgrade {}[all] && \
     uv pip install ucx-py-cu12 && \
-    uv pip uninstall pynvml
+    uv pip uninstall pynvml && \
+    uv pip install grpcio-tools==1.66.0 && \
+    uv pip install nats-py && \
+    uv pip install msgspec && \
+    uv pip install zmq && \
+    uv pip install vllm==0.7.2
 
 
 RUN /workspace/icp/protos/gen_python.sh

@@ -56,7 +56,10 @@ def worker():
 
     print("Started server instance")
 
-    Worker(operators=[generate_engine], log_level=1).start()
+    Worker(
+        operators=[generate_engine],
+        log_level=1,
+    ).start()
 
 
 #    await endpoint.serve_endpoint(RequestHandler().generate)
@@ -82,4 +85,5 @@ if __name__ == "__main__":
     request_plane_server = NatsServer(log_dir=None)
     time.sleep(2)
     # uvloop.install()
+
     worker()

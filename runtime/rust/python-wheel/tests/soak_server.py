@@ -55,7 +55,7 @@ async def client_init(runtime: DistributedRuntime, ns: str):
     # issue 1000 concurrent requests
     # the task should issue the request and process the response
     tasks = []
-    for i in range(5000):
+    for i in range(10000):
         tasks.append(asyncio.create_task(do_one(client)))
 
     await asyncio.gather(*tasks)

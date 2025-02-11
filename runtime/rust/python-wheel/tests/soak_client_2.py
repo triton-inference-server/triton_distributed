@@ -14,7 +14,7 @@ async def do_one(client):
         pass
 
 
-async def main(request_count):
+async def main(args):
     """
     Instantiate a `backend` client and call the `generate` endpoint
     """
@@ -31,7 +31,7 @@ async def main(request_count):
     # issue 1000 concurrent requests
     # the task should issue the request and process the response
 
-    request_plane = NatsRequestPlane()
+    request_plane = NatsRequestPlane(use_zmq_response_path=args.use_zmq_response_path)
     await request_plane.connect()
 
     data_plane = UcpDataPlane()
@@ -40,7 +40,7 @@ async def main(request_count):
     client = RemoteFunction("generate", request_plane, data_plane)
 
     tasks = []
-    for i in range(request_count):
+    for i in range(args.request_count):
         tasks.append(asyncio.create_task(do_one(client)))
 
     await asyncio.gather(*tasks)
@@ -59,7 +59,8 @@ async def main(request_count):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--request-count", type=int, default=5000)
+    parser.add_argument("--use-zmq-response-path", action="store_true", default=False)
 
     args = parser.parse_args()
 
-    asyncio.run(main(args.request_count))
+    asyncio.run(main(args))

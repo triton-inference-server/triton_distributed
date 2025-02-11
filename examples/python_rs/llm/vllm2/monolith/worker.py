@@ -65,6 +65,7 @@ def worker(engine_args: AsyncEngineArgs):
         name="vllm_generate",
         implementation=CallableOperator,
         parameters={"callable_object": VllmEngine(engine_args).generate},
+        max_inflight_requests=10000,
     )
 
     Worker(operators=[vllm_engine], log_level=1).start()

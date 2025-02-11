@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
+import socket
 import subprocess
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -25,6 +26,7 @@ from typing import Dict, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import nats
+import zmq.asyncio
 
 from triton_distributed.icp.protos.icp_pb2 import ModelInferRequest, ModelInferResponse
 from triton_distributed.icp.request_plane import (
@@ -140,6 +142,18 @@ class NatsServer:
             self._process.wait()
 
 
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    s.connect(("8.8.8.8", 80))  # Connect to Google DNS server
+
+    local_ip = s.getsockname()[0]
+
+    s.close()
+
+    return local_ip
+
+
 class NatsRequestPlane(RequestPlane):
     @property
     def component_id(self):
@@ -161,12 +175,13 @@ class NatsRequestPlane(RequestPlane):
         self,
         request_plane_uri: str = "nats://localhost:4223",
         component_id: Optional[uuid.UUID] = None,
+        use_zmq_response_path=False,
     ) -> None:
         self._request_plane_uri = request_plane_uri
         self._component_id = component_id if component_id else uuid.uuid1()
 
         self._response_stream_name = f"component-{self._component_id}-response"
-
+        self._use_zmq_response_path = use_zmq_response_path
         split_uri = urlsplit(self._request_plane_uri)._asdict()
         split_uri["path"] = self._response_stream_name
         self._response_uri = str(urlunsplit(split_uri.values()))
@@ -240,6 +255,26 @@ class NatsRequestPlane(RequestPlane):
             (model_stream_name, general_requests, directed_requests),
         )
 
+    async def _zmq_response_loop(self, socket):
+        while True:
+            message = await socket.recv()
+            response = ModelInferResponse()
+            response.ParseFromString(message)
+            request_id = get_icp_request_id(response)
+            if request_id in self._posted_requests:
+                response_queue, handler, async_handler = self._posted_requests[
+                    request_id
+                ]
+                if get_icp_final_response(response):
+                    del self._posted_requests[request_id]
+                if response_queue:
+                    await response_queue.put(response)
+                if async_handler is not None:
+                    await async_handler(response)
+                if handler is not None:
+                    handler(response)
+                # await socket.send(request_id.bytes)
+
     async def _response_callback(self, message):
         await message.ack()
         response = ModelInferResponse()
@@ -260,6 +295,20 @@ class NatsRequestPlane(RequestPlane):
         self._nats_client = await nats.connect(self._request_plane_uri)
         self._jet_stream = self._nats_client.jetstream()
         self._event_loop = asyncio.get_event_loop()
+
+        self._zmq_ctx = zmq.asyncio.Context()
+
+        if self._use_zmq_response_path:
+            self._zmq_socket = self._zmq_ctx.socket(zmq.PULL)
+            self._zmq_socket.bind("tcp://*:*")
+            self._response_uri = (
+                self._zmq_socket.getsockopt_string(zmq.LAST_ENDPOINT)
+                .replace("0.0.0.0", get_local_ip())
+                .replace("tcp", "zmq")
+            )
+            asyncio.create_task(self._zmq_response_loop(self._zmq_socket))
+
+        self._zmq_client_sockets = {}
 
         await self._jet_stream.add_stream(
             name=self._response_stream_name,
@@ -345,6 +394,7 @@ class NatsRequestPlane(RequestPlane):
             raise ValueError("Attempting to send a response when non requested")
 
         parsed = urlsplit(response_to_uri)
+
         response_stream = parsed.path.replace("/", "")
 
         if isinstance(responses, ModelInferResponse):
@@ -356,11 +406,22 @@ class NatsRequestPlane(RequestPlane):
             response.model_version = request.model_version
             response.id = request.id
             set_icp_component_id(response, self._component_id)
-            await self._jet_stream.publish(
-                response_stream,
-                response.SerializeToString(),
-                stream=response_stream,
-            )
+
+            if parsed.scheme == "zmq":
+                zmq_response_uri = response_to_uri.replace("zmq", "tcp")
+                if zmq_response_uri not in self._zmq_client_sockets:
+                    zmq_socket = self._zmq_ctx.socket(zmq.PUSH)
+                    zmq_socket.connect(zmq_response_uri)
+                    self._zmq_client_sockets[zmq_response_uri] = zmq_socket
+                zmq_socket = self._zmq_client_sockets[zmq_response_uri]
+                await zmq_socket.send(response.SerializeToString())
+
+            else:
+                await self._jet_stream.publish(
+                    response_stream,
+                    response.SerializeToString(),
+                    stream=response_stream,
+                )
 
     async def post_request(
         self,
@@ -388,6 +449,16 @@ class NatsRequestPlane(RequestPlane):
             if request_id is None:
                 request_id = uuid.uuid1()
                 set_icp_request_id(request, request_id)
+
+            # self._zmq_ctx = zmq.asyncio.Context()
+            # self._zmq_socket = self._zmq_ctx.socket(zmq.REP)
+            # self._zmq_socket.bind("tcp://*:*")
+            # self._response_uri = (
+            #    self._zmq_socket.getsockopt_string(zmq.LAST_ENDPOINT)
+            #    .replace("0.0.0.0", get_local_ip())
+            #    .replace("tcp", "zmq")
+            # )
+            # asyncio.create_task(self._zmq_response_loop(self._zmq_socket))
 
             set_icp_response_to_uri(request, self._response_uri)
             set_icp_component_id(request, self._component_id)
