@@ -117,7 +117,7 @@ show_options
 
 git clone ${GIT_REPO}
 cd tensorrtllm_backend
-git checkout -b ${TENSORRTLLM_BACKEND_REPO_TAG}
+git checkout ${TENSORRTLLM_BACKEND_REPO_TAG}
 git submodule update --init --recursive
 git lfs install
 git lfs pull
