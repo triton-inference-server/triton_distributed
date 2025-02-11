@@ -67,7 +67,7 @@ pub struct RuntimeConfig {
     /// Maximum number of blocking threads
     /// Blocking threads are used for blocking operations, this value must be greater than 0.
     #[validate(range(min = 1))]
-    #[builder(default = "16")]
+    #[builder(default = "512")]
     #[builder_field_attr(serde(skip_serializing_if = "Option::is_none"))]
     pub max_blocking_threads: usize,
 }
@@ -117,7 +117,10 @@ impl RuntimeConfig {
 
 impl Default for RuntimeConfig {
     fn default() -> Self {
-        Self::single_threaded()
+        Self {
+            max_worker_threads: 16,
+            max_blocking_threads: 16,
+        }
     }
 }
 

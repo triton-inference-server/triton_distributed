@@ -34,8 +34,8 @@ apt install protobuf-compiler
 ```
 
 3. Setup a virtualenv
+
 ```
-cd python-wheels/triton-distributed
 uv venv
 source .venv/bin/activate
 uv pip install maturin

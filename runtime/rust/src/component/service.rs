@@ -71,7 +71,7 @@ impl ServiceConfigBuilder {
                     None => builder,
                 };
 
-                log::debug!("Starting service: {}", service_name);
+                tracing::debug!("Starting service: {}", service_name);
 
                 builder
                     .description(description)
