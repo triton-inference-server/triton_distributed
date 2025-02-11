@@ -132,7 +132,7 @@ if [ ! -z ${TENSORRTLLM_BACKEND_REBUILD} ]; then
 	    && apt-get update -q=2 \
 	    && apt-get install -y --no-install-recommends cmake=3.28.3* cmake-data=3.28.3* \
         && cmake --version
-    
+
     # Install rapidjson
     apt install -y rapidjson-dev
 
