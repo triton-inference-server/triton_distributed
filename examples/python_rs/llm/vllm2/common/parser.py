@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,24 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-fastapi==0.115.6
-ftfy
-grpcio-tools==1.66.0
-httpx
-msgspec
-mypy
-numpy
-opentelemetry-api
-opentelemetry-sdk
-pre-commit
-protobuf==5.27.3
-pydantic==2.7.1
-pyright
-pytest-md-report
-pytest-mypy
-sentencepiece
-transformers
-tritonclient==2.53.0
-# TODO: See whether TRT-LLM installs a different version of UCX. Need to revisit and track this dependency.
-ucx-py-cu12
-uvicorn
+
+from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.utils import FlexibleArgumentParser
+
+
+def parse_vllm_args() -> AsyncEngineArgs:
+    parser = FlexibleArgumentParser()
+    parser = AsyncEngineArgs.add_cli_args(parser)
+    args = parser.parse_args()
+    return AsyncEngineArgs.from_cli_args(args)

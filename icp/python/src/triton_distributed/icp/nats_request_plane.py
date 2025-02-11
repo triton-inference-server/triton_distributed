@@ -159,7 +159,7 @@ class NatsRequestPlane(RequestPlane):
 
     def __init__(
         self,
-        request_plane_uri: str = "nats://localhost:4222",
+        request_plane_uri: str = "nats://localhost:4223",
         component_id: Optional[uuid.UUID] = None,
     ) -> None:
         self._request_plane_uri = request_plane_uri

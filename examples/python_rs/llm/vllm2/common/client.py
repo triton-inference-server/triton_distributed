@@ -16,43 +16,45 @@
 
 import asyncio
 
-import uvloop
 from tqdm import tqdm
-from triton_distributed_rs import DistributedRuntime, triton_worker
+
+# import uvloop
 from vllm.utils import FlexibleArgumentParser
 
-from .protocol import Request
+from triton_distributed.icp import NatsRequestPlane, UcpDataPlane
+
+# from triton_distributed import DistributedRuntime, triton_worker
+from triton_distributed.runtime import RemoteOperator as RemoteFunction
+
+from .protocol import Request, Response
 
 
-@triton_worker()
-async def worker(
-    runtime: DistributedRuntime, prompt: str, max_tokens: int, temperature: float
-):
+async def main(prompt: str, max_tokens: int, temperature: float):
     """
     Instantiate a `backend` client and call the `generate` endpoint
     """
-    # get endpoint
-    endpoint = runtime.namespace("triton-init").component("vllm").endpoint("generate")
+    request_plane = NatsRequestPlane()
+    await request_plane.connect()
 
-    # create client
-    client = await endpoint.client()
+    data_plane = UcpDataPlane()
+    data_plane.connect()
 
-    # list the endpoints
-    print(client.endpoint_ids())
+    client = RemoteFunction("vllm_generate", request_plane, data_plane)
 
     request_count = 50
 
     with tqdm(total=request_count, desc="Sending Requests", unit="request") as pbar:
         for index in range(request_count):
             # issue request
-            stream = await client.generate(
+            stream = client.call(
                 Request(
                     prompt=prompt,
                     sampling_params={
                         "temperature": temperature,
                         "max_tokens": max_tokens,
                     },
-                ).model_dump_json()
+                ),
+                return_type=Response,
             )
 
             # process response
@@ -63,8 +65,6 @@ async def worker(
 
 
 if __name__ == "__main__":
-    uvloop.install()
-
     parser = FlexibleArgumentParser()
     parser.add_argument("--prompt", type=str, default="what is the capital of france?")
     parser.add_argument("--max-tokens", type=int, default=10)
@@ -72,4 +72,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    asyncio.run(worker(args.prompt, args.max_tokens, args.temperature))
+    asyncio.run(main(args.prompt, args.max_tokens, args.temperature))
