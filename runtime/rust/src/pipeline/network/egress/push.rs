@@ -86,7 +86,7 @@ where
     U: Data + for<'de> Deserialize<'de>,
 {
     async fn generate(&self, request: SingleIn<AddressedRequest<T>>) -> Result<ManyOut<U>, Error> {
-        let id = request.context().id().to_string();
+        let request_id = request.context().id().to_string();
         let (addressed_request, context) = request.transfer(());
         let (request, address) = addressed_request.into_parts();
         let engine_ctx = context.context();
@@ -132,8 +132,8 @@ where
         let data = serde_json::to_vec(&request).unwrap();
 
         log::trace!(
-            "[req: {}] packaging two-part message; ctrl: {} bytes, data: {} bytes",
-            id,
+            request_id,
+            "packaging two-part message; ctrl: {} bytes, data: {} bytes",
             ctrl.len(),
             data.len()
         );
@@ -148,7 +148,7 @@ where
 
         // TRANSPORT ABSTRACT REQUIRED - END HERE
 
-        log::trace!("[req: {}] enqueueing two-part message to nats", id);
+        log::trace!(request_id, "enqueueing two-part message to nats");
 
         // we might need to add a timeout on this if there is no subscriber to the subject; however, I think nats
         // will handle this for us
@@ -157,18 +157,25 @@ where
             .request(address.to_string(), buffer)
             .await?;
 
-        log::trace!("[req: {}] awaiting transport handshake", id);
+        log::trace!(request_id, "awaiting transport handshake");
         let response_stream = response_stream_provider
             .await
             .map_err(|_| PipelineError::DetatchedStreamReceiver)?
             .map_err(PipelineError::ConnectionFailed)?;
 
-        let stream = tokio_stream::wrappers::ReceiverStream::new(response_stream.rx);
-
-        let stream = stream.map(|msg| {
-            let resp: U = serde_json::from_slice(&msg).unwrap();
-            resp
-        });
+        let stream = async_stream::stream! {
+            let mut rx = response_stream.rx;
+            while let Some(msg) = rx.recv().await {
+                let resp = serde_json::from_slice::<U>(&msg);
+                match resp {
+                    Ok(resp) => yield resp,
+                    Err(_) => {
+                        log::warn!(request_id, "critical error: deserializing failed -- possible message mismatch");
+                        break;
+                    }
+                }
+            }
+        };
 
         Ok(ResponseStream::new(Box::pin(stream), engine_ctx))
     }
