@@ -23,16 +23,16 @@ on:
     - 'deploy/Kubernetes/**'
     - 'README.md'
     - '.github/**'
-    - ! '.github/workflows/trigger_ci.yml'
-    - ! '.github/workflows/mirror_repo.sh'
+    - '! .github/workflows/trigger_ci.yml'
+    - '! .github/workflows/mirror_repo.sh'
 
   pull_request:
     paths-ignore:
     - 'deploy/Kubernetes/**'
     - 'README.md'
     - '.github/**'
-    - ! '.github/workflows/trigger_ci.yml'
-    - ! '.github/workflows/mirror_repo.sh'
+    - '! .github/workflows/trigger_ci.yml'
+    - '! .github/workflows/mirror_repo.sh'
 
 jobs:
   mirror_repo:
