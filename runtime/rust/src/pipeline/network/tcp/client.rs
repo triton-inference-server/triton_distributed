@@ -18,7 +18,6 @@ use std::sync::Arc;
 use futures::{SinkExt, StreamExt};
 use tokio::{io::AsyncWriteExt, net::TcpStream};
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing as log;
 
 use super::{CallHomeHandshake, ControlMessage, TcpStreamConnectionInfo};
 use crate::engine::AsyncEngineContext;
@@ -161,7 +160,7 @@ impl TcpClient {
         tokio::spawn(async move {
             while let Some(msg) = bytes_rx.recv().await {
                 if let Err(e) = framed_writer.send(msg).await {
-                    log::trace!(
+                    tracing::trace!(
                         "failed to send message to stream; possible disconnect: {:?}",
                         e
                     );
@@ -172,7 +171,7 @@ impl TcpClient {
             }
             drop(alive_rx);
             if let Err(e) = framed_writer.get_mut().shutdown().await {
-                log::trace!("failed to shutdown writer: {:?}", e);
+                tracing::trace!("failed to shutdown writer: {:?}", e);
             }
         });
 

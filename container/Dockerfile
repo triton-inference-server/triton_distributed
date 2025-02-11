@@ -14,7 +14,7 @@
 # limitations under the License.
 
 ARG BASE_IMAGE="nvcr.io/nvidia/tritonserver"
-ARG BASE_IMAGE_TAG="24.12-py3"
+ARG BASE_IMAGE_TAG="25.01-py3"
 ARG VLLM_WHEEL
 
 FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS triton-distributed
@@ -28,18 +28,16 @@ USER root
 # Rust build/dev dependencies
 RUN apt-get update; apt-get install -y gdb protobuf-compiler
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-RUN pip install maturin
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install OpenAI-compatible frontend and its dependencies from triton server
 # repository. These are used to have a consistent interface, schema, and FastAPI
 # app between Triton Core and Triton Distributed implementations.
-# NOTE: Current commit is == r24.12 + enum serialization fix
-ARG SERVER_OPENAI_COMMIT="2ebd762fa6c7b829e7d04bfaf80c8400a09d3767"
+ARG OPENAI_SERVER_TAG="r25.01"
 RUN mkdir -p /opt/tritonserver/python && \
     cd /opt/tritonserver/python && \
     rm -rf openai && \
-    git clone https://github.com/triton-inference-server/server.git && \
+    git clone -b ${OPENAI_SERVER_TAG} --single-branch https://github.com/triton-inference-server/server.git && \
     cd server && \
     git checkout ${SERVER_OPENAI_COMMIT} && \
     cd .. && \
@@ -66,7 +64,7 @@ RUN find /opt/tritonserver/python -maxdepth 1 -type f -name \
     "tritonserver-*.whl" | xargs -I {} pip3 install --force-reinstall --upgrade {}[all]
 
 # GENAI Perf Install
-ARG GENAI_PERF_TAG="r24.12"
+ARG GENAI_PERF_TAG="r25.01"
 RUN pip install "git+https://github.com/triton-inference-server/perf_analyzer.git@${GENAI_PERF_TAG}#subdirectory=genai-perf"
 
 # Backend & Framework Specific Installation
@@ -150,20 +148,25 @@ RUN apt-get install tmux -y
 # Working directory
 WORKDIR /workspace
 
-#TODO Exclude container directory
-COPY . /workspace
-
+COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Create virtualenv
+# Install uv and create virtualenv for general use
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
     cd runtime/rust/python-wheel && \
-    maturin develop
+    uv build && \
+    uv pip install dist/triton_distributed_rs*cp312*.whl
 
+# Install triton_distributed_rs wheel globally in container for tests that
+# currently run without virtual environment activated.
+# TODO: In future, we may use a virtualenv for everything and remove this.
+RUN pip install runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl
+
+COPY icp /workspace/icp
 RUN /workspace/icp/protos/gen_python.sh
 
 # Install python packages
@@ -174,9 +177,12 @@ ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown
 #
 # Normally SCM version is taken directly from .git but this is not available in the Dockerfile
 # and so we pass in via a buildarg
-
 RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
 RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/runtime/python
+
+# Copy everything in after install steps to avoid re-running build/install
+# commands on unrelated changes in other dirs.
+COPY . /workspace
 
 # Sets pythonpath for python modules
 ENV PYTHONPATH="${PYTHONPATH}:/workspace/examples/python:/opt/tritonserver/python/openai/openai_frontend"

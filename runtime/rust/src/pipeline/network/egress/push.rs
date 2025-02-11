@@ -15,7 +15,6 @@
 
 use anyhow::Result;
 use async_nats::client::Client;
-use tracing as log;
 
 use super::*;
 
@@ -131,7 +130,7 @@ where
         let ctrl = serde_json::to_vec(&control_message).unwrap();
         let data = serde_json::to_vec(&request).unwrap();
 
-        log::trace!(
+        tracing::trace!(
             "[req: {}] packaging two-part message; ctrl: {} bytes, data: {} bytes",
             id,
             ctrl.len(),
@@ -148,7 +147,7 @@ where
 
         // TRANSPORT ABSTRACT REQUIRED - END HERE
 
-        log::trace!("[req: {}] enqueueing two-part message to nats", id);
+        tracing::trace!("[req: {}] enqueueing two-part message to nats", id);
 
         // we might need to add a timeout on this if there is no subscriber to the subject; however, I think nats
         // will handle this for us
@@ -157,7 +156,7 @@ where
             .request(address.to_string(), buffer)
             .await?;
 
-        log::trace!("[req: {}] awaiting transport handshake", id);
+        tracing::trace!("[req: {}] awaiting transport handshake", id);
         let response_stream = response_stream_provider
             .await
             .map_err(|_| PipelineError::DetatchedStreamReceiver)?

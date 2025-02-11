@@ -760,7 +760,7 @@ mod tests {
 //     loop {
 //         let req = tokio::select! {
 //             _ = cancellation_token.cancelled() => {
-//                 // log::trace!(worker_id, "Shutting down service {}", self.endpoint.name);
+//                 // tracing::trace!(worker_id, "Shutting down service {}", self.endpoint.name);
 //                 return Ok(());
 //             }
 
@@ -773,7 +773,7 @@ mod tests {
 //         if let Some(req) = req {
 //             let response = "DONE".to_string();
 //             if let Err(e) = req.respond(Ok(response.into())).await {
-//                 log::warn!("Failed to respond to the shutdown request: {:?}", e);
+//                 tracing::warn!("Failed to respond to the shutdown request: {:?}", e);
 //             }
 
 //             controller.set_stage(ServiceStage::ShuttingDown);
