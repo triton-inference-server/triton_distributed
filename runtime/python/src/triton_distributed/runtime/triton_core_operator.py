@@ -95,17 +95,15 @@ class TritonCoreOperator(Operator):
         except Exception:
             pass
 
-        if parameter_config and model_config:
-            model_config.MergeFrom(
-                json_format.Parse(
-                    json.dumps(parameter_config), model_config_pb2.ModelConfig()
-                )
+        
+        parameter_config = json_format.Parse(
+                json.dumps(parameter_config), model_config_pb2.ModelConfig()
             )
-            model_config = {"config": json_format.MessageToJson(model_config)}
-        elif parameter_config:
-            model_config = {"config": parameter_config}
+        if model_config:
+            model_config.MergeFrom(parameter_config)
         else:
-            model_config = None
+            model_config = parameter_config
+        model_config = {"config": json_format.MessageToJson(model_config)}
         self._triton_core_model = self._triton_core.load(self._name, model_config)
 
     @staticmethod
