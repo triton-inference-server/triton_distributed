@@ -16,6 +16,8 @@
 
 import argparse
 import asyncio
+import logging
+import json
 import uuid
 
 from triton_distributed.icp.nats_event_plane import (
@@ -24,20 +26,38 @@ from triton_distributed.icp.nats_event_plane import (
     NatsEventPlane,
 )
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(filename)s: %(levelname)s: %(funcName)s(): %(lineno)d:\t%(message)s",
+)
 
-async def main(component_id, event_type, publisher_id, event_count):
+logger = logging.getLogger(__name__)
+
+async def main(args):
     server_url = DEFAULT_EVENTS_URI
-    event_plane = NatsEventPlane(server_url, component_id)
+    event_plane = NatsEventPlane(server_url, args.component_id)
 
     await event_plane.connect()
 
     try:
-        event_topic = EventTopic(["publisher", str(publisher_id)])
+        event_topic = EventTopic(["publisher", str(args.publisher_id)])
 
-        for i in range(event_count):
-            event = f"Payload from publisher {publisher_id}".encode()
-            await event_plane.publish(event, event_type, event_topic)
-            print(f"Published event from publisher {publisher_id}")
+        for i in range(args.event_count):
+            event = f"Payload from publisher {args.publisher_id} idx {i}".encode()
+            await event_plane.publish(event, 
+                                      args.event_type, 
+                                      event_topic)
+            logger.info(f"Published event from publisher {args.publisher_id}")
+            # Serialize sent events to JSON
+            if args.save_events_path:
+                with open(args.save_events_path, "a+") as json_file:
+                    event_obj = {"event_payload": str(event.decode("utf-8")),
+                            "event_id": str(args.publisher_id), 
+                            "event_topic": str(event_topic),
+                            "event_type": args.event_type,
+                            "component_id": str(args.component_id)}
+                    json_file.write(json.dumps(event_obj))
+                    json_file.write("\n")
             await asyncio.sleep(0.01)
     finally:
         await event_plane.disconnect()
@@ -58,8 +78,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--event-count", type=int, default=10, help="Event count to be published."
     )
+    parser.add_argument(
+        "--save-events-path",
+        type=str,
+        default=None,
+        help="Path to save received events as JSON",
+    )
 
     args = parser.parse_args()
     asyncio.run(
-        main(args.component_id, args.event_type, args.publisher_id, args.event_count)
+        main(args)
     )

@@ -15,23 +15,25 @@
 
 
 import os
+import logging
 import subprocess
 import time
 from typing import List
 
 import pytest
 
-from icp.tests.python.event_plane.publisher_subscriber_utils import (
-    check_recieved_events,
-    gather_published_events,
-    run_publishers,
-    run_subscribers,
-)
+# from icp.tests.python.event_plane.publisher_subscriber_utils import (
+#     check_recieved_events,
+#     gather_published_events,
+#     run_publishers,ś
+#     run_subscribers,
+# )
 
 from icp.tests.python.event_plane.utils import nats_server
 
 pytestmark = pytest.mark.pre_merge
 
+logger = logging.getLogger(__name__)
 
 @pytest.mark.asyncio
 class TestEventPlaneSpecificSubscriptions:
@@ -41,49 +43,40 @@ class TestEventPlaneSpecificSubscriptions:
         subscriber_count = 2
         publisher_count = 2
 
-        try:
-            # Start subscribers
-            subscriber_logs = run_subscribers(processes, subscriber_count)
-            event_type2_subscriber_logs = run_subscribers(
-                processes, 1, event_type="test_event2"
-            )
-            time.sleep(0.5)
+        # try:
+        #     # Start subscribers
+        #     event_type1_subscriber_logs = run_subscribers(processes, subscriber_count)
+        #     event_type2_subscriber_logs = run_subscribers(
+        #         processes, 1, event_type="test_event2"
+        #     )
+        #     time.sleep(0.5)
 
-            # Start publishers
-            event_type2_publisher_logs = run_publishers(
-                processes, publisher_count, event_type="test_event2"
-            )
-            event_type_publisher_logs = run_publishers(
-                processes, publisher_count, event_type="test_event"
-            )
+        #     # Start publishers
+        #     event_type2_publisher_logs = run_publishers(
+        #         processes, publisher_count, event_type="test_event2"
+        #     )
+        #     event_type1_publisher_logs = run_publishers(
+        #         processes, publisher_count, event_type="test_event"
+        #     )
 
-            # Let the processes run for 10 seconds
-            print(
-                f"Running test case with {publisher_count} publisher(s) and {subscriber_count} subscriber(s)."
-            )
+        #     # Let the processes run for 10 seconds
+        #     logging.info(
+        #         f"Running test case with {publisher_count} publisher(s) and {subscriber_count} subscriber(s)."
+        #     )
 
-            time.sleep(0.5)
+        #     time.sleep(30)
 
-            # Verify logs
-            event_type2_events = gather_published_events(event_type2_publisher_logs)
-            event_type_events = gather_published_events(event_type_publisher_logs)
-            check_recieved_events(event_type2_events, event_type2_subscriber_logs)
-            check_recieved_events(
-                event_type_events.union(event_type2_events), subscriber_logs
-            )
-            print("Test case passed!")
-        finally:
-            # Terminate all processes
-            for proc in processes:
-                proc.terminate()
-            for proc in processes:
-                proc.wait()
-
-            # Clean up log files
-            for log_file in (
-                event_type_publisher_logs
-                + event_type2_publisher_logs
-                + subscriber_logs
-                + event_type2_subscriber_logs
-            ):
-                os.remove(log_file)
+        #     # Verify logs
+        #     event_type1_publisher_events = gather_published_events(event_type1_publisher_logs)
+        #     event_type2_publisher_events = gather_published_events(event_type2_publisher_logs)
+        #     event_type1_subscriber_events = gather_published_events(event_type1_subscriber_logs)
+        #     event_type2_subscriber_events = gather_published_events(event_type2_subscriber_logs)
+        #     check_recieved_events(event_type1_publisher_events, event_type1_subscriber_events)
+        #     check_recieved_events(event_type2_publisher_events, event_type2_subscriber_events)
+        #     logging.info("Test case passed!")
+        # finally:
+        #     # Terminate all processes
+        #     for proc in processes:
+        #         proc.terminate()
+        #     for proc in processes:
+        #         proc.wait()

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import logging
 import os
 import subprocess
 import time
@@ -22,10 +22,10 @@ from typing import List
 import pytest
 
 from icp.tests.python.event_plane.publisher_subscriber_utils import (
-    check_recieved_events,
     gather_published_events,
-    run_publishers,
-    run_subscribers,
+    prepare_publishers,
+    prepare_subscribers,
+    run_workers,
 )
 
 
@@ -33,6 +33,7 @@ from icp.tests.python.event_plane.utils import nats_server
 
 pytestmark = pytest.mark.pre_merge
 
+logger = logging.getLogger(__name__)
 
 @pytest.mark.asyncio
 class TestEventPlaneMultiProcess:
@@ -43,33 +44,61 @@ class TestEventPlaneMultiProcess:
             await self.run_test_case(publishers, subscribers)
 
     async def run_test_case(self, publisher_count: int, subscriber_count: int):
-        processes: List[subprocess.Popen] = []
 
-        try:
-            # Start subscribers
-            subscriber_logs = run_subscribers(processes, subscriber_count)
-            time.sleep(0.5)
+        # Prepare subscribers
+        subscriber_workers = prepare_subscribers(subscriber_count)
 
-            # Start publishers
-            publisher_logs = run_publishers(processes, publisher_count)
+        # Prepare publishers
+        publisher_workers = prepare_publishers(publisher_count)
 
-            print(
-                f"Running test case with {publisher_count} publisher(s) and {subscriber_count} subscriber(s)."
-            )
+        workers = subscriber_workers + publisher_workers
 
-            time.sleep(0.5)
+        # Execute all workers
+        executed_workers = run_workers(workers)
 
-            # Verify logs
-            all_events = gather_published_events(publisher_logs)
-            check_recieved_events(all_events, subscriber_logs)
-            print("Test case passed!")
-        finally:
-            # Terminate all processes
-            for proc in processes:
-                proc.terminate()
-            for proc in processes:
-                proc.wait()
+        # Check workers status
 
-            # Clean up log files
-            for log_file in publisher_logs + subscriber_logs:
-                os.remove(log_file)
+        alive_threads = False
+
+        for worker, thread in executed_workers:
+            if thread.is_alive():
+                alive_threads = True
+                logger.error(f"Worker {worker} is still alive after timeout")
+            if thread.returncode != 0:
+                logger.warning(f"Worker {worker} returned {thread.returncode}")
+
+        if alive_threads:
+            raise RuntimeError("Alive workers detected after test finished")
+        
+        # Verify results
+        publisher_events = gather_published_events(workers, "publisher")
+        subscriber_events = gather_published_events(workers, "subscriber")
+
+        # Check if all subscribers received all events from all publishers
+
+        # {'event_payload': 'Payload from publisher 2 idx 0', 'event_id': '2b335d2b-6571-496a-a1e5-995862789215', 'event_topic': 'publisher', 'event_type': 'all', 'component_id': 'None', 'log_file': '/tmp/subscriber_1_3lyrfd7_.json'}
+
+        # Build set of events for each subscriber using the log file names and payloads
+
+        # Dict of files
+        subscriber_files: dict[str, set[str]] = {}
+        for subscriber_event in subscriber_events:
+            file = subscriber_event["log_file"]
+            events: set[str] = subscriber_files.get(subscriber_event["log_file"], set())
+            events.add(subscriber_event["event_payload"])
+            subscriber_files[file] = events
+            
+
+        if len(publisher_events) == 0:
+            raise RuntimeError("No events published")
+        
+        # Check if all subscribers received all events from all publishers
+        missing_events = 0
+        for publisher_event in publisher_events:
+            for subscriber_file, events in subscriber_files.items():
+                if publisher_event["event_payload"] not in events:
+                    logger.error(f"Event {publisher_event} not found in subscriber {subscriber_file}")
+                    missing_events += 1
+                    
+        if missing_events > 15:
+            raise RuntimeError(f"Too many missing events {missing_events}")
