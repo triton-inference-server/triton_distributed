@@ -18,7 +18,6 @@ use anyhow::Result;
 use async_nats::service::endpoint::Endpoint;
 use derive_builder::Builder;
 use tokio_util::sync::CancellationToken;
-use tracing as log;
 
 #[derive(Builder)]
 pub struct PushEndpoint {
@@ -48,9 +47,9 @@ impl PushEndpoint {
 
                 // process shutdown
                 _ = self.cancellation_token.cancelled() => {
-                    // log::trace!(worker_id, "Shutting down service {}", self.endpoint.name);
+                    // tracing::trace!(worker_id, "Shutting down service {}", self.endpoint.name);
                     if let Err(e) = endpoint.stop().await {
-                        log::warn!("Failed to stop NATS service: {:?}", e);
+                        tracing::warn!("Failed to stop NATS service: {:?}", e);
                     }
                     break;
                 }
@@ -59,15 +58,15 @@ impl PushEndpoint {
             if let Some(req) = req {
                 let response = "".to_string();
                 if let Err(e) = req.respond(Ok(response.into())).await {
-                    log::warn!("Failed to respond to request; this may indicate the request has shutdown: {:?}", e);
+                    tracing::warn!("Failed to respond to request; this may indicate the request has shutdown: {:?}", e);
                 }
 
                 let ingress = self.service_handler.clone();
                 let worker_id = "".to_string();
                 tokio::spawn(async move {
-                    log::trace!(worker_id, "handling new request");
+                    tracing::trace!(worker_id, "handling new request");
                     let result = ingress.handle_payload(req.message.payload).await;
-                    log::trace!(worker_id, "request handled: {:?}", result);
+                    tracing::trace!(worker_id, "request handled: {:?}", result);
                 });
             } else {
                 break;

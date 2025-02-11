@@ -17,7 +17,7 @@
 name = "triton-distributed"
 description = "Distributed GenAI Inference Framework"
 readme = "README.md"
-version = "0.1.3" # TODO: Centralize Version Automation
+version = "0.2.0" # TODO: Centralize Version Automation
 edition = "2021"
 authors = ["NVIDIA"]
 license = "Apache-2.0"

@@ -22,7 +22,6 @@ use pyo3::{exceptions::PyException, prelude::*};
 use rs::pipeline::network::Ingress;
 use std::{fmt::Display, sync::Arc};
 use tokio::sync::Mutex;
-use tracing as log;
 
 use triton_distributed::{
     self as rs,
@@ -353,7 +352,7 @@ async fn process_stream(
 
         // Send the PyObject through the channel or log an error
         if let Err(e) = tx.send(annotated).await {
-            log::error!("Failed to send response: {:?}", e);
+            tracing::error!("Failed to send response: {:?}", e);
         }
 
         if is_error {

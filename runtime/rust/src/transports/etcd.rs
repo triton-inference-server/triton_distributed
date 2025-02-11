@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{error, log, CancellationToken, ErrorContext, Result, Runtime};
+use crate::{error, CancellationToken, ErrorContext, Result, Runtime};
 
 use async_nats::jetstream::kv;
 use derive_builder::Builder;
