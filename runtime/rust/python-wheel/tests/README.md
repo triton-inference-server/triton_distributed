@@ -93,3 +93,12 @@ source /opt/triton/venv/bin/activate
 python3 runtime/rust/python-wheel/tests/soak_client_python_native.py --request-count 10
 ```
 
+### Launch Client With ZMQ Response Path
+
+```
+# exec into same container
+docker exec -it test bash
+source /opt/triton/venv/bin/activate
+python3 runtime/rust/python-wheel/tests/soak_client_python_native.py --request-count 10 --use-zmq-response-path
+```
+

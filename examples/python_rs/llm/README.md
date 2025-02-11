@@ -114,3 +114,18 @@ python3 -m common.client \
 	--request-count 100
 ```
 
+
+### Launch Client With ZMQ Response Path
+
+```
+# exec into same container
+docker exec -it test bash
+source /opt/triton/venv/bin/activate
+cd /workspace/examples/python_rs/llm/vllm_python_native
+python3 -m common.client \
+    --prompt "what is the capital of france?" \
+    --max-tokens 10 \
+    --temperature 0.5 \
+	--request-count 100 \
+	--use-zmq-response-path
+```
