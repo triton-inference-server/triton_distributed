@@ -30,7 +30,6 @@ use pythonize::{depythonize, pythonize};
 
 use tokio::sync::mpsc;
 use tokio_stream::{wrappers::ReceiverStream, StreamExt};
-use tracing as log;
 
 /// Add bingings from this crate to the provided module
 pub fn add_to_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -124,7 +123,7 @@ where
         let ctx = context.context();
 
         let id = context.id().to_string();
-        log::trace!("processing request: {}", id);
+        tracing::trace!("processing request: {}", id);
 
         // Clone the PyObject to move into the thread
 
@@ -147,7 +146,7 @@ where
         let request_id = id.clone();
 
         tokio::spawn(async move {
-            log::debug!(
+            tracing::debug!(
                 request_id,
                 "starting task to process python async generator stream"
             );
@@ -157,7 +156,7 @@ where
 
             while let Some(item) = stream.next().await {
                 count += 1;
-                log::trace!(
+                tracing::trace!(
                     request_id,
                     "processing the {}th item from python async generator",
                     count
@@ -178,17 +177,17 @@ where
                                 // see: https://github.com/triton-inference-server/triton_distributed/issues/130
                                 ctx.stop_generating();
                                 let msg = format!("critical error: invalid response object from python async generator; application-logic-mismatch: {}", e);
-                                log::error!(request_id, "{}", msg);
+                                tracing::error!(request_id, "{}", msg);
                                 msg
                             }
                             ResponseProcessingError::PythonException(e) => {
                                 let msg = format!("a python exception was caught while processing the async generator: {}", e);
-                                log::warn!(request_id, "{}", msg);
+                                tracing::warn!(request_id, "{}", msg);
                                 msg
                             }
                             ResponseProcessingError::OffloadError(e) => {
                                 let msg = format!("critical error: failed to offload the python async generator to a new thread: {}", e);
-                                log::error!(request_id, "{}", msg);
+                                tracing::error!(request_id, "{}", msg);
                                 msg
                             }
                         };
@@ -198,7 +197,7 @@ where
                 };
 
                 if tx.send(response).await.is_err() {
-                    log::trace!(
+                    tracing::trace!(
                         request_id,
                         "error forwarding annotated response to channel; channel is closed"
                     );
@@ -206,7 +205,7 @@ where
                 }
 
                 if done {
-                    log::debug!(
+                    tracing::debug!(
                         request_id,
                         "early termination of python async generator stream task"
                     );
@@ -214,7 +213,7 @@ where
                 }
             }
 
-            log::debug!(
+            tracing::debug!(
                 request_id,
                 "finished processing python async generator stream"
             );
