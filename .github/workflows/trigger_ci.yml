@@ -53,7 +53,7 @@ jobs:
           vllm:
             - 'examples/python/llm/**'
             - 'container/deps/requirements.vllm.txt'
-            - 'container/deps/vllm'
+            - 'container/deps/vllm/**'
     - name: Trigger Pipeline
       run: |
         #!/bin/bash -e
