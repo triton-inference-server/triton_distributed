@@ -16,6 +16,7 @@
 
 import asyncio
 import uuid
+import random
 
 import uvloop
 import vllm
@@ -38,11 +39,17 @@ class VllmDecodeEngine:
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
         self.prefill = prefill
 
+        self.prefill_workers = engine_args.kv_transfer_config.kv_producers_parallel_size
+        self.kv_rank = engine_args.kv_transfer_config.kv_rank
+
+
     @triton_endpoint(Request, Response)
     async def generate(self, request):
         vllm_logger.info(f"Received request: {request}")
         sampling_params = vllm.SamplingParams(**request.sampling_params)
-        request_id = str(uuid.uuid4())
+        prefill_rank = random.choice(range(self.prefill_workers))
+        request_id = f"{uuid.uuid4()}___prefill_kv_rank_{prefill_rank}___decode_kv_rank_{self.kv_rank}"
+        prefill_endpoint_id = self.prefill.endpoint_ids()[prefill_rank]
 
         prefill_sampling_params = {**request.sampling_params}
         prefill_sampling_params["max_tokens"] = 1
@@ -51,8 +58,9 @@ class VllmDecodeEngine:
             sampling_params=prefill_sampling_params,
             request_id=request_id,
         )
-        prefill_generator = await self.prefill.generate(
-            prefill_request.model_dump_json()
+        prefill_generator = await self.prefill.direct(
+            prefill_request.model_dump_json(),
+            prefill_endpoint_id
         )
         prefill_response = [resp async for resp in prefill_generator]
         assert len(prefill_response) == 1, "Prefill response should be a single boolean"

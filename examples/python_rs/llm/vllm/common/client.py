@@ -15,10 +15,10 @@
 
 
 import asyncio
+import argparse
 
 import uvloop
 from triton_distributed_rs import DistributedRuntime, triton_worker
-from vllm.utils import FlexibleArgumentParser
 
 from .protocol import Request
 
@@ -40,22 +40,28 @@ async def worker(
     print(client.endpoint_ids())
 
     # issue request
-    stream = await client.generate(
-        Request(
-            prompt=prompt,
-            sampling_params={"temperature": temperature, "max_tokens": max_tokens},
-        ).model_dump_json()
-    )
+    tasks = []
+    for _ in range(1):
+        tasks.append(
+            client.generate(
+                Request(
+                    prompt=prompt,
+                    sampling_params={"temperature": temperature, "max_tokens": max_tokens},
+                ).model_dump_json()
+            )
+        )
+    streams = await asyncio.gather(*tasks)
 
     # process response
-    async for resp in stream:
-        print(resp)
+    for stream in streams:
+        async for resp in stream:
+            print(resp)
 
 
 if __name__ == "__main__":
     uvloop.install()
 
-    parser = FlexibleArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument("--prompt", type=str, default="what is the capital of france?")
     parser.add_argument("--max-tokens", type=int, default=10)
     parser.add_argument("--temperature", type=float, default=0.5)
