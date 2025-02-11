@@ -14,7 +14,7 @@
 # limitations under the License.
 
 ARG BASE_IMAGE="nvcr.io/nvidia/tritonserver"
-ARG BASE_IMAGE_TAG="24.12-py3"
+ARG BASE_IMAGE_TAG="25.01-py3"
 ARG VLLM_WHEEL
 
 FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS triton-distributed
@@ -33,12 +33,11 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Install OpenAI-compatible frontend and its dependencies from triton server
 # repository. These are used to have a consistent interface, schema, and FastAPI
 # app between Triton Core and Triton Distributed implementations.
-# NOTE: Current commit is == r24.12 + enum serialization fix
-ARG SERVER_OPENAI_COMMIT="2ebd762fa6c7b829e7d04bfaf80c8400a09d3767"
+ARG OPENAI_SERVER_TAG="r25.01"
 RUN mkdir -p /opt/tritonserver/python && \
     cd /opt/tritonserver/python && \
     rm -rf openai && \
-    git clone https://github.com/triton-inference-server/server.git && \
+    git clone -b ${OPENAI_SERVER_TAG} --single-branch https://github.com/triton-inference-server/server.git && \
     cd server && \
     git checkout ${SERVER_OPENAI_COMMIT} && \
     cd .. && \
@@ -65,7 +64,7 @@ RUN find /opt/tritonserver/python -maxdepth 1 -type f -name \
     "tritonserver-*.whl" | xargs -I {} pip3 install --force-reinstall --upgrade {}[all]
 
 # GENAI Perf Install
-ARG GENAI_PERF_TAG="r24.12"
+ARG GENAI_PERF_TAG="r25.01"
 RUN pip install "git+https://github.com/triton-inference-server/perf_analyzer.git@${GENAI_PERF_TAG}#subdirectory=genai-perf"
 
 # Backend & Framework Specific Installation
