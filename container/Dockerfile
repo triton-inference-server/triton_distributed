@@ -58,6 +58,8 @@ RUN cp runtime/rust/python-wheel/target/wheels/*.whl binding_package/wheels/.
 RUN cp runtime/rust/libtriton_llm/target/release/libtriton_llm_capi.so binding_package/lib/.
 RUN cp -r runtime/rust/libtriton_llm/include binding_package/.
 
+RUN pip install binding_package/wheels/triton_distributed_rs*cp312*.whl
+
 # Install OpenAI-compatible frontend and its dependencies from triton server
 # repository. These are used to have a consistent interface, schema, and FastAPI
 # app between Triton Core and Triton Distributed implementations.

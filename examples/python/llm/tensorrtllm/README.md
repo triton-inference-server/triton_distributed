@@ -251,7 +251,7 @@ To start a KV aware deployment with 2 decode workers:
 
 ```bash
 export MODEL_NAME="llama-3.1-8b-instruct"
-python3 /workspace/examples/llm/tensorrtllm/deploy/launch_workers.py \
+python3 /workspace/examples/python/llm/tensorrtllm/deploy/launch_workers.py \
   --generate-worker-count 2 \
   --model ${MODEL_NAME} \
   --initialize-request-plane \

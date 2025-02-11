@@ -18,25 +18,25 @@ import json
 
 import numpy
 
-from triton_distributed.worker import (
+from triton_distributed.runtime import (
     RemoteInferenceRequest,
     RemoteOperator,
     TritonCoreOperator,
 )
 
-from nova_distributed import KvRouter, nova_worker, DistributedRuntime
+from triton_distributed_rs import KvRouter, DistributedRuntime
 
 class KvAwareRoutingOperator(TritonCoreOperator):
     def __init__(
         self,
         name,
         version,
-        triton_core,
         request_plane,
         data_plane,
         parameters,
         repository,
         logger,
+        triton_core,
     ):
         loop = asyncio.get_running_loop()
         self._runtime = DistributedRuntime(loop)

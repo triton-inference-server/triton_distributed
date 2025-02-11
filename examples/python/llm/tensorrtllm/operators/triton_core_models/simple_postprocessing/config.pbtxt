@@ -22,7 +22,7 @@ dynamic_batching {}
 parameters {
   key: "tokenizer_dir"
   value: {
-    string_value: "/workspace/examples/llm/tensorrtllm/operators/hf_downloads/llama-3.1-8b-instruct"
+    string_value: "/workspace/examples/python/llm/tensorrtllm/operators/hf_downloads/llama-3.1-8b-instruct"
   }
 }
 

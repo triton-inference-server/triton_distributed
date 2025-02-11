@@ -25,15 +25,15 @@ KNOWN_MODELS = {
             "postprocessing",
             "ensemble",
             (
-                "/workspace/examples/llm/tensorrtllm/operators/triton_core_models/mock",
+                "/workspace/examples/python/llm/tensorrtllm/operators/triton_core_models/mock",
                 "context",
             ),
             (
-                "/workspace/examples/llm/tensorrtllm/operators/triton_core_models/mock",
+                "/workspace/examples/python/llm/tensorrtllm/operators/triton_core_models/mock",
                 "generate",
             ),
             (
-                "/workspace/examples/llm/tensorrtllm/operators/triton_core_models/mock",
+                "/workspace/examples/python/llm/tensorrtllm/operators/triton_core_models/mock",
                 "tensorrt_llm",
             ),
         ],
