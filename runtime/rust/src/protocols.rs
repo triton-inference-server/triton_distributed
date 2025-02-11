@@ -17,6 +17,8 @@ use serde::{Deserialize, Serialize};
 
 pub mod annotated;
 
+pub type LeaseId = i64;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Component {
     pub name: String,
@@ -25,9 +27,18 @@ pub struct Component {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Endpoint {
+    /// Name of the endpoint.
     pub name: String,
-    pub component: String,
+
+    /// Component of the endpoint.
+    pub component: Component,
+
+    /// Namespace of the component.
     pub namespace: String,
+
+    /// Optional lease id for the endpoint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lease: Option<LeaseId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]

@@ -12,4 +12,5 @@ triton-distributed = { workspace = true}
 triton-llm = { workspace = true}
 
 env_logger = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true }

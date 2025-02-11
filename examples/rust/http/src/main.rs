@@ -17,13 +17,15 @@ use std::collections::HashMap;
 
 use tokio::sync::mpsc::Receiver;
 use triton_distributed::{
-    component::ComponentEndpointInfo,
     transports::etcd::{self, WatchEvent},
     DistributedRuntime, Result, Runtime, Worker,
 };
-use triton_llm::http::service::{
-    service_v2::{HttpService, HttpServiceConfig},
-    ModelManager,
+use triton_llm::http::{
+    service::{
+        service_v2::{HttpService, HttpServiceConfig},
+        ModelManager,
+    },
+    ModelEntry,
 };
 
 fn main() -> Result<()> {
@@ -46,23 +48,38 @@ async fn app(runtime: Runtime) -> Result<()> {
     let etcd_client = distributed.etcd_client();
     let models_watcher = etcd_client.kv_get_and_watch_prefix(etcd_path).await?;
 
-    let (_prefix, _watcher, receiver) = models_watcher.dissolve();
-    let watcher_task = tokio::spawn(model_watcher(etcd_client, manager, receiver));
+    let (prefix, _watcher, receiver) = models_watcher.dissolve();
+    let watcher_task = tokio::spawn(model_watcher(prefix, etcd_client, manager, receiver));
 
     http_service.run(runtime.child_token()).await
 }
 
+/// [ModelDiscovery] is a struct that contains the information for the HTTP service to discover models
+/// from the etcd cluster.
+///
+/// When started, this will create a task that watches for llm::http::ModelEntry
+struct ModelRegistry {
+    models: HashMap<String, ModelEntry>,
+}
+
 async fn model_watcher(
+    prefix: String,
     etcd_client: etcd::Client,
     manager: ModelManager,
     events_rx: Receiver<WatchEvent>,
 ) -> Result<()> {
     let mut events_rx = events_rx;
-    let mut map: HashMap<String, HashMap<i64, ComponentEndpointInfo>> = HashMap::new();
+    let mut map: HashMap<String, HashMap<i64, ModelEntry>> = HashMap::new();
     while let Some(event) = events_rx.recv().await {
         match event {
             WatchEvent::Put(kv) => {
-                let key =
+                let key = kv.key_str()?;
+                let value = serde_json::from_slice::<ModelEntry>(&kv.value())?;
+
+                // trim prefix from key to get the model name
+                let model_name = key.trim_start_matches(&prefix);
+
+                // check to see if the model name is already in the map
             }
             WatchEvent::Delete(kv) => {}
         }

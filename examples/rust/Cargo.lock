@@ -983,6 +983,7 @@ name = "http"
 version = "0.1.3"
 dependencies = [
  "env_logger",
+ "serde_json",
  "tokio",
  "triton-distributed",
  "triton-llm",
