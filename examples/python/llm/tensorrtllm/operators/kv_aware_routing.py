@@ -17,6 +17,7 @@ import asyncio
 import json
 
 import numpy
+from triton_distributed_rs import DistributedRuntime, KvRouter
 
 from triton_distributed.runtime import (
     RemoteInferenceRequest,
@@ -24,7 +25,6 @@ from triton_distributed.runtime import (
     TritonCoreOperator,
 )
 
-from triton_distributed_rs import KvRouter, DistributedRuntime
 
 class KvAwareRoutingOperator(TritonCoreOperator):
     def __init__(
@@ -111,7 +111,9 @@ class KvAwareRoutingOperator(TritonCoreOperator):
         # KV aware routing
         lora_id = 0
         try:
-            self._generate.component_id = await self._router.schedule(input_ids[0], lora_id)
+            self._generate.component_id = await self._router.schedule(
+                input_ids[0], lora_id
+            )
         except Exception as e:
             print(str(e))
             if "No worker found" in str(e):

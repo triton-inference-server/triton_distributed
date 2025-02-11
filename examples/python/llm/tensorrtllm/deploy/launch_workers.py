@@ -104,6 +104,7 @@ def _launch_disagg_model(args):
 
     return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
 
+
 def _launch_kv_aware_model(args):
     if not args.kv_aware_routing:
         return
@@ -260,6 +261,7 @@ def _disaggregated_serving_cmd(args, starting_gpu):
 
     return command
 
+
 def _kv_aware_routing_cmd(args, starting_gpu):
     # NOTE: This worker gets the args --worker-name because it will
     # receive the API-serving facing requests, and internally handle
@@ -308,6 +310,7 @@ def _launch_nats_server(args, clear_store=True):
 
     env = os.environ.copy()
     return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
+
 
 def _launch_etcd(args):
     command = [

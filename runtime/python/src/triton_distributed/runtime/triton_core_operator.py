@@ -80,7 +80,9 @@ class TritonCoreOperator(Operator):
         parameter_config = self._parameters.get("config", {})
         if "parameters" not in parameter_config:
             parameter_config["parameters"] = {}
-        parameter_config["parameters"]["component_id"] = {"string_value": f"{self._request_plane.component_id}"}
+        parameter_config["parameters"]["component_id"] = {
+            "string_value": f"{self._request_plane.component_id}"
+        }
 
         model_config = None
 
@@ -95,10 +97,9 @@ class TritonCoreOperator(Operator):
         except Exception:
             pass
 
-        
         parameter_config = json_format.Parse(
-                json.dumps(parameter_config), model_config_pb2.ModelConfig()
-            )
+            json.dumps(parameter_config), model_config_pb2.ModelConfig()
+        )
         if model_config:
             model_config.MergeFrom(parameter_config)
         else:

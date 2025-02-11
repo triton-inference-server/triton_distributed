@@ -72,7 +72,13 @@ def parse_args():
         type=str,
         default="aggregate",
         help="Type of worker",
-        choices=["aggregate", "context", "generate", "disaggregated-serving", "kv-aware-routing"],
+        choices=[
+            "aggregate",
+            "context",
+            "generate",
+            "disaggregated-serving",
+            "kv-aware-routing",
+        ],
     )
 
     parser.add_argument("--gpu-device-id", type=int, default=0, help="gpu id")
