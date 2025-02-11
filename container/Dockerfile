@@ -48,19 +48,15 @@ RUN cd runtime/rust && \
 RUN cd runtime/rust/libtriton_llm && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Create virtualenv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-RUN mkdir /opt/triton && \
-    uv venv /opt/triton/venv --python 3.12 && \
-    source /opt/triton/venv/bin/activate && \
-    cd runtime/rust/python-wheel && \
+# Generate Python bindings
+RUN cd runtime/rust/python-wheel && \
     maturin build
 
 # Package the bindings
 RUN mkdir binding_package && mkdir binding_package/wheels && mkdir binding_package/lib
-RUN cp runtime/rust/python-wheels/target/wheels/*.whl binding_package/wheels/.
+RUN cp runtime/rust/python-wheel/target/wheels/*.whl binding_package/wheels/.
 RUN cp runtime/rust/libtriton_llm/target/release/libtriton_llm_capi.so binding_package/lib/.
-RUN cp -r runtime/rust/libnova_llm/include binding_package/.
+RUN cp -r runtime/rust/libtriton_llm/include binding_package/.
 
 # Install OpenAI-compatible frontend and its dependencies from triton server
 # repository. These are used to have a consistent interface, schema, and FastAPI
@@ -106,7 +102,7 @@ ARG TENSORRTLLM_BACKEND_REBUILD=
 ENV FRAMEWORK=${FRAMEWORK}
 RUN --mount=type=bind,source=./container/deps/requirements.tensorrtllm.txt,target=/tmp/requirements.txt \
     --mount=type=bind,source=./container/deps/clone_tensorrtllm.sh,target=/tmp/clone_tensorrtllm.sh \
-    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-repo-tag ${TENSORRTLLM_BACKEND_REPO_TAG} --tensorrtllm-backend-rebuild ${TENSORRTLLM_BACKEND_REBUILD} ; fi
+    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-repo-tag ${TENSORRTLLM_BACKEND_REPO_TAG} --tensorrtllm-backend-rebuild ${TENSORRTLLM_BACKEND_REBUILD} --triton-llm-path /workspace/binding_package ; fi
 
 RUN --mount=type=bind,source=./container/deps/requirements.vllm.txt,target=/tmp/requirements.txt \
     if [[ "$FRAMEWORK" == "VLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt ; fi
