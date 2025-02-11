@@ -49,3 +49,78 @@ pub struct ModelMetaData {
     pub component: Component,
     pub router_type: RouterType,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_component_creation() {
+        let component = Component {
+            name: "test_name".to_string(),
+            namespace: "test_namespace".to_string(),
+        };
+
+        assert_eq!(component.name, "test_name");
+        assert_eq!(component.namespace, "test_namespace");
+    }
+
+    #[test]
+    fn test_endpoint_creation() {
+        let endpoint = Endpoint {
+            name: "test_endpoint".to_string(),
+            component: "test_component".to_string(),
+            namespace: "test_namespace".to_string(),
+        };
+
+        assert_eq!(endpoint.name, "test_endpoint");
+        assert_eq!(endpoint.component, "test_component");
+        assert_eq!(endpoint.namespace, "test_namespace");
+    }
+
+    #[test]
+    fn test_router_type_default() {
+        let default_router = RouterType::default();
+        assert_eq!(default_router, RouterType::PushRandom);
+    }
+
+    #[test]
+    fn test_router_type_serialization() {
+        let router_round_robin = RouterType::PushRoundRobin;
+        let router_random = RouterType::PushRandom;
+
+        let serialized_round_robin = serde_json::to_string(&router_round_robin).unwrap();
+        let serialized_random = serde_json::to_string(&router_random).unwrap();
+
+        assert_eq!(serialized_round_robin, "\"push_round_robin\"");
+        assert_eq!(serialized_random, "\"push_random\"");
+    }
+
+    #[test]
+    fn test_router_type_deserialization() {
+        let round_robin: RouterType = serde_json::from_str("\"push_round_robin\"").unwrap();
+        let random: RouterType = serde_json::from_str("\"push_random\"").unwrap();
+
+        assert_eq!(round_robin, RouterType::PushRoundRobin);
+        assert_eq!(random, RouterType::PushRandom);
+    }
+
+    #[test]
+    fn test_model_metadata_creation() {
+        let component = Component {
+            name: "test_component".to_string(),
+            namespace: "test_namespace".to_string(),
+        };
+
+        let metadata = ModelMetaData {
+            name: "test_model".to_string(),
+            component,
+            router_type: RouterType::PushRoundRobin,
+        };
+
+        assert_eq!(metadata.name, "test_model");
+        assert_eq!(metadata.component.name, "test_component");
+        assert_eq!(metadata.component.namespace, "test_namespace");
+        assert_eq!(metadata.router_type, RouterType::PushRoundRobin);
+    }
+}
