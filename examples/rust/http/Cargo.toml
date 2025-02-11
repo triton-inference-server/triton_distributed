@@ -10,3 +10,6 @@ repository.workspace = true
 [dependencies]
 triton-distributed = { workspace = true}
 triton-llm = { workspace = true}
+
+env_logger = { workspace = true }
+tokio = { workspace = true }
