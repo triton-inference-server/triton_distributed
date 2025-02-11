@@ -42,7 +42,7 @@ The example is designed to run in a containerized environment using Triton Distr
 ./container/build.sh
 ```
 
-## Lgaunching the Environment
+## Launching the Environment
 ```
 # Run image interactively - mount local workspace
 ./container/run.sh -it --mount-workspace --name "test"
