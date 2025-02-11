@@ -131,7 +131,7 @@ git submodule update --init --recursive
 git lfs install
 git lfs pull
 
-if [ -z ${TENSORRTLLM_BACKEND_REBUILD} ]; then
+if [ ! -z ${TENSORRTLLM_BACKEND_REBUILD} ]; then
     # Install cmake
     apt update -q=2 \
 	    && apt install -y gpg wget \
