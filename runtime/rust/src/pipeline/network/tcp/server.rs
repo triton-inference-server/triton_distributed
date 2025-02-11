@@ -298,7 +298,14 @@ async fn tcp_listener(
     };
 
     loop {
-        let (stream, _addr) = listener.accept().await.unwrap();
+        let (stream, _addr) = match listener.accept().await {
+            Ok(x) => x,
+            Err(err) => {
+                // TODO: Probably this is normal, user Ctrl-C something like that, find out
+                tracing::info!(%err, addr, "TCP listener closed");
+                break;
+            }
+        };
         stream.set_nodelay(true).unwrap();
         tokio::spawn(handle_connection(stream, state.clone()));
     }
@@ -336,18 +343,16 @@ async fn tcp_listener(
 
         // we await on the raw bytes which should come in as a header only message
         // todo - improve error handling - check for no data
-        if first_message.header().is_none() {
-            return Err("Expected ControlMessage, got DataMessage".to_string());
-        }
-
-        // deserialize the [`CallHomeHandshake`] message
-        let handshake: CallHomeHandshake = serde_json::from_slice(first_message.header().unwrap())
-            .map_err(|e| {
+        let handshake: CallHomeHandshake = match first_message.header() {
+            Some(header) => serde_json::from_slice(header).map_err(|e| {
                 format!(
-                    "Failed to deserialize the first message as a valid `CallHomeHandshake`: {}",
-                    e
+                    "Failed to deserialize the first message as a valid `CallHomeHandshake`: {e}",
                 )
-            })?;
+            })?,
+            None => {
+                return Err("Expected ControlMessage, got DataMessage".to_string());
+            }
+        };
 
         // branch here to handle sender stream or receiver stream
         match handshake.stream_type {
@@ -357,7 +362,7 @@ async fn tcp_listener(
                     .await
             }
         }
-        .map_err(|e| format!("Failed to process stream: {}", e))
+        .map_err(|e| format!("Failed to process stream: {e}"))
     }
 
     async fn process_request_stream() -> Result<(), String> {
@@ -374,7 +379,7 @@ async fn tcp_listener(
             .lock().await
             .rx_subjects
             .remove(&subject)
-            .ok_or(format!("Subject not found: {}; upstream publisher specified a subject unknown to the downsteam subscriber", subject))?;
+            .ok_or(format!("Subject not found: {subject}; upstream publisher specified a subject unknown to the downsteam subscriber"))?;
 
         // unwrap response_stream
         let RequestedRecvConnection {
@@ -475,7 +480,9 @@ async fn tcp_listener(
                             }
 
                             if !data.is_empty() {
-                                response_tx.send(data).await.unwrap();
+                                if let Err(err) = response_tx.send(data).await {
+                                    return Err(format!("handle_response_stream: Failed sending to response_tx: {err}"));
+                                };
                             }
                         }
                         Some(Err(e)) => {
@@ -541,6 +548,9 @@ async fn tcp_listener(
             }
         }
         let mut framed_writer = _socket_tx;
-        framed_writer.get_mut().shutdown().await.unwrap();
+        if let Err(err) = framed_writer.get_mut().shutdown().await {
+            // TODO: This might be fine to ignore
+            tracing::error!("monitor shutdown error: {err}");
+        }
     }
 }
