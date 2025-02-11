@@ -139,7 +139,7 @@ if [ ! -z ${TENSORRTLLM_BACKEND_REBUILD} ]; then
 	    && . /etc/os-release \
 	    && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | tee /etc/apt/sources.list.d/kitware.list >/dev/null \
 	    && apt-get update -q=2 \
-	    && apt-get install -y --no-install-recommends cmake=3.28.3* cmake-data=3.28.3* \
+	    && apt-get install -y --no-install-recommends cmake=3.28.3* cmake-data=3.28.3* rapidjson-dev \
         && cmake --version
 
     # Install rapidjson
