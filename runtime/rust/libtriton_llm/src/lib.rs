@@ -315,7 +315,7 @@ pub extern "C" fn triton_kv_event_publish_removed(
 
 // /// create load publisher object and return a handle
 // /// load publisher will instantiate the nats service and tie its stats handler to
-// /// a watch channel receiver.  the watch channel sender will be attatch to the
+// /// a watch channel receiver.  the watch channel sender will be attach to the
 // /// handle and calls to [`triton_load_stats_publish`] issue the stats to the watch t
 // pub extern "C" fn triton_load_publisher_create() -> *mut LoadPublisher {
 //     // let publisher = Box::new(LoadPublisher::new());

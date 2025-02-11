@@ -174,7 +174,7 @@ RUN apt-get install tmux -y
 #
 # RUN --mount=type=bind,source=./container/deps/llama3-tok.tgz,target=/tmp/llama3-tok.tgz \
 #    mkdir -p /genai-perf/tokenizers && cd /genai-perf/tokenizers && tar -xzf /tmp/llama3-tok.tgz
- 
+
 RUN /workspace/icp/protos/gen_python.sh
 
 # Install python packages

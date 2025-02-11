@@ -32,7 +32,7 @@ use crate::kv_router::{
     scoring::ProcessedEndpoints,
 };
 
-// this shoudl be discovered from teh backend
+// this should be discovered from the backend
 pub const KV_BLOCK_SIZE: u64 = 64;
 
 pub const KV_EVENT_SUBJECT: &str = "kv_events";

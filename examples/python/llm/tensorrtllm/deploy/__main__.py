@@ -62,6 +62,7 @@ def _create_disaggregated_serving_op(name, args, max_inflight_requests):
         repository=model_repository,
     )
 
+
 def _create_kv_aware_routing_op(name, args, max_inflight_requests):
     model_repository = str(
         Path(args.operator_repository) / "triton_core_models"
@@ -72,6 +73,7 @@ def _create_kv_aware_routing_op(name, args, max_inflight_requests):
         max_inflight_requests=int(max_inflight_requests),
         repository=model_repository,
     )
+
 
 def _create_triton_core_op(
     name,
