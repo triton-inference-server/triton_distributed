@@ -120,7 +120,7 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0,1 python3 -m disaggreg
     --enforce-eager \
     --tensor-parallel-size 1 \
     --kv-transfer-config \
-    '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":4,"kv_producers_tensor_parallel_size":1,"kv_consumers_tensor_parallel_size":1,"kv_producers_pipeline_parallel_size":1,"kv_consumers_pipeline_parallel_size":1,"kv_producers_parallel_size":2}'
+    '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":4}'
 ```
 
 
@@ -131,7 +131,7 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=2,3 python3 -m disaggreg
     --enforce-eager \
     --tensor-parallel-size 1 \
     --kv-transfer-config \
-    '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":1,"kv_parallel_size":4,"kv_producers_tensor_parallel_size":1,"kv_consumers_tensor_parallel_size":1,"kv_producers_pipeline_parallel_size":1,"kv_consumers_pipeline_parallel_size":1,"kv_producers_parallel_size":2}'
+    '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":1,"kv_parallel_size":4}'
 
 **Terminal 2 - Decode Worker:**
 ```bash
@@ -145,9 +145,9 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=4,5 python3 -m disaggreg
     --max-model-len 100 \
     --gpu-memory-utilization 0.8 \
     --enforce-eager \
-    --tensor-parallel-size 1 \
+    --tensor-parallel-size 2 \
     --kv-transfer-config \
-    '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":2,"kv_parallel_size":4,"kv_producers_tensor_parallel_size":1,"kv_consumers_tensor_parallel_size":1,"kv_producers_pipeline_parallel_size":1,"kv_consumers_pipeline_parallel_size":1,"kv_producers_parallel_size":2}'
+    '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":2,"kv_parallel_size":4}'
 ```
 
 
@@ -157,9 +157,9 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=6,7 python3 -m disaggreg
     --max-model-len 100 \
     --gpu-memory-utilization 0.8 \
     --enforce-eager \
-    --tensor-parallel-size 1 \
+    --tensor-parallel-size 2 \
     --kv-transfer-config \
-    '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":3,"kv_parallel_size":4,"kv_producers_tensor_parallel_size":1,"kv_consumers_tensor_parallel_size":1,"kv_producers_pipeline_parallel_size":1,"kv_consumers_pipeline_parallel_size":1,"kv_producers_parallel_size":2}'
+    '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":3,"kv_parallel_size":4}'
 
 **Terminal 3 - Client:**
 ```bash

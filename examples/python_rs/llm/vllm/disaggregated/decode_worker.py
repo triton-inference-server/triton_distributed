@@ -32,15 +32,20 @@ class VllmDecodeEngine:
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs, prefills):
+    def __init__(self, engine_args: AsyncEngineArgs):
         assert (
             engine_args.kv_transfer_config.is_kv_consumer
         ), "Decode worker must be a KV consumer"
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        self.prefills = prefills
+        self.prefills = []
 
-        self.prefill_workers = engine_args.kv_transfer_config.kv_producers_parallel_size
-        self.kv_rank = engine_args.kv_transfer_config.kv_rank
+        self.prefill_workers = (
+            self.engine.engine.vllm_config.kv_transfer_config.kv_producers_parallel_size
+        )
+        self.kv_rank = self.engine.engine.vllm_config.kv_transfer_config.kv_rank
+
+    def add_prefill(self, prefill):
+        self.prefills.append(prefill)
 
     @triton_endpoint(Request, Response)
     async def generate(self, request):
@@ -76,16 +81,18 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
 
-    prefills = [
-        await runtime.namespace("triton-init")
-        .component("prefill")
-        .endpoint(f"generate_kv_rank_{i}")
-        .client()
-        for i in range(engine_args.kv_transfer_config.kv_producers_parallel_size)
-    ]
+    decode_engine = VllmDecodeEngine(engine_args)
+    for i in range(decode_engine.prefill_workers):
+        prefill = (
+            await runtime.namespace("triton-init")
+            .component("prefill")
+            .endpoint(f"generate_kv_rank_{i}")
+            .client()
+        )
+        decode_engine.add_prefill(prefill)
 
     endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(VllmDecodeEngine(engine_args, prefills).generate)
+    await endpoint.serve_endpoint(decode_engine.generate)
 
 
 if __name__ == "__main__":
