@@ -213,9 +213,10 @@ async fn handle_reader(
                         }
                     }
                     Some(Err(_)) => {
+                        // TODO(#171) - address fatal errors
+                        // in this case the binary representation of the message is invalid
+                        tracing::error!("fatal error - failed to decode message from stream");
                         break;
-                        // panic!("failed to decode message from stream: {:?}", e);
-                        // break;
                     }
                     None => {
                         // let mut writer = framed_reader.into_inner();
