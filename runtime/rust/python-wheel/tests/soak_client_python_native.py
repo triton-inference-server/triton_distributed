@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import time
 
+import uvloop
 from triton_distributed.icp import NatsRequestPlane, UcpDataPlane
 
 # from triton_distributed import DistributedRuntime, triton_worker
@@ -57,6 +58,7 @@ async def main(args):
 
 
 if __name__ == "__main__":
+    uvloop.install()
     parser = argparse.ArgumentParser()
     parser.add_argument("--request-count", type=int, default=5000)
     parser.add_argument("--use-zmq-response-path", action="store_true", default=False)

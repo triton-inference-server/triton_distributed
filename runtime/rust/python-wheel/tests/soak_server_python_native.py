@@ -19,6 +19,7 @@ import string
 import time
 from typing import AsyncIterator
 
+import uvloop
 from triton_distributed.icp import NatsServer
 from triton_distributed.runtime import CallableOperator
 from triton_distributed.runtime import OperatorConfig as FunctionConfig
@@ -51,7 +52,7 @@ def worker():
         name="generate",
         implementation=CallableOperator,
         parameters={"callable_object": RequestHandler().generate},
-        max_inflight_requests=1000,
+        max_inflight_requests=10000,
     )
 
     print("Started server instance")
@@ -82,8 +83,7 @@ def random_string(length=10):
 
 
 if __name__ == "__main__":
+    uvloop.install()
     request_plane_server = NatsServer(log_dir=None)
     time.sleep(2)
-    # uvloop.install()
-
     worker()

@@ -4,6 +4,7 @@ import asyncio
 # from triton_distributed.runtime import RemoteOperator as RemoteFunction
 import time
 
+import uvloop
 from triton_distributed_rs import DistributedRuntime, triton_worker
 
 # from triton_distributed.icp import NatsRequestPlane, UcpDataPlane
@@ -53,6 +54,7 @@ async def main(runtime: DistributedRuntime, ns: str = "soak", request_count=5000
 
 
 if __name__ == "__main__":
+    uvloop.install()
     parser = argparse.ArgumentParser()
     parser.add_argument("--request-count", type=int, default=5000)
     args = parser.parse_args()
