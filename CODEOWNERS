@@ -7,6 +7,7 @@
 *.rs @ryanolson @grahamking @paulhendricks
 /runtime/rust/ @ryanolson @grahamking @paulhendricks
 /llm/rust/ @ryanolson @grahamking @paulhendricks
+Cargo.toml @ryanolson @grahamking @paulhendricks
 
 # Python Libraries
 /runtime/python/ @nnshah1 @tanmayv25 @piotrm-nvidia @ptarasiewiczNV @nv-blazejkubiak
@@ -24,4 +25,4 @@
 # Legal
 /LICENSE @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
 /ATTRIBUTIONS.md @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
-/Cargo.lock @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
+/Cargo.lock @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv @ryanolson @grahamking @paulhendricks
