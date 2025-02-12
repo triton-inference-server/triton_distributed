@@ -194,7 +194,7 @@ class EventPlane:
         event: Union[bytes, Any],
         event_type: str,
         event_topic: Optional[EventTopic],
-    ) -> Event:
+    ) -> EventMetadata:
         """Publish an event to the event plane.
 
         Args:
