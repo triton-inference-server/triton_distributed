@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-exclude: ^src/grpc_generated
+exclude: ^(src/grpc_generated|.*\.patch$)
 repos:
 - repo: https://github.com/timothycrosley/isort
   rev: 5.12.0
