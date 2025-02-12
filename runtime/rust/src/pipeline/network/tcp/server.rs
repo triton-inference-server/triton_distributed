@@ -380,7 +380,7 @@ async fn tcp_listener(
         let first_message = framed_reader
             .next()
             .await
-            .ok_or(error!("Connection closed without a ControlMessge"))??;
+            .ok_or(error!("Connection closed without a ControlMessage"))??;
 
         // we await on the raw bytes which should come in as a header only message
         // todo - improve error handling - check for no data
