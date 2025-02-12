@@ -58,7 +58,8 @@ RUN cp runtime/rust/python-wheel/target/wheels/*.whl binding_package/wheels/.
 RUN cp runtime/rust/libtriton_llm/target/release/libtriton_llm_capi.so binding_package/lib/.
 RUN cp -r runtime/rust/libtriton_llm/include binding_package/.
 
-RUN pip install binding_package/wheels/triton_distributed_rs*cp312*.whl
+# RUN pip install binding_package/wheels/triton_distributed_rs*cp312*.whl
+RUN pip install binding_package/wheels/triton_distributed_rs-0.1.3-cp312-cp312-manylinux_2_34_x86_64.whl
 
 # Install OpenAI-compatible frontend and its dependencies from triton server
 # repository. These are used to have a consistent interface, schema, and FastAPI
@@ -147,6 +148,7 @@ ENV VLLM_GENERATE_WORKERS=${VLLM_FRAMEWORK:+1}
 ENV VLLM_BASELINE_TP_SIZE=${VLLM_FRAMEWORK:+1}
 ENV VLLM_CONTEXT_TP_SIZE=${VLLM_FRAMEWORK:+1}
 ENV VLLM_GENERATE_TP_SIZE=${VLLM_FRAMEWORK:+1}
+ENV VLLM_CAPI_PATH="/workspace/binding_package/lib/libtriton_llm_capi.so"
 ENV PYTHONUNBUFFERED=1
 
 # Install NATS - pointing toward NATS github instead of binaries.nats.dev due to server instability

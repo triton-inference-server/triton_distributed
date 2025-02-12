@@ -21,11 +21,12 @@
 ###############################################################################
 #  CONFIGURATION & DEFAULTS
 ###############################################################################
-DEFAULT_WHEEL_URL="https://files.pythonhosted.org/packages/4a/4c/ee65ba33467a4c0de350ce29fbae39b9d0e7fcd887cc756fa993654d1228/vllm-0.6.3.post1-cp38-abi3-manylinux1_x86_64.whl"
-DEFAULT_PATCH_FILE="vllm_patch_063post1.patch"
+
+DEFAULT_WHEEL_URL="https://files.pythonhosted.org/packages/51/70/6fc00dca2e9f53a76b7792d788cb2efbb9d2587ed0ca9a71d5ccf7fc7543/vllm-0.7.0-cp38-abi3-manylinux1_x86_64.whl"
+DEFAULT_PATCH_FILE="kv_vllm.patch"
 DEFAULT_DATA_PLANE_DIR="data_plane"
 DEFAULT_WHEEL_DIR="wheel"
-DEFAULT_OUTPUT_WHEEL="vllm-dist-0.6.3.post1-cp38-abi3-manylinux1_x86_64.whl"
+DEFAULT_OUTPUT_WHEEL="vllm-dist-0.7.0-cp38-abi3-manylinux1_x86_64.whl"
 # Optionally set a default SHA256 checksum for the downloaded wheel
 # DEFAULT_CHECKSUM="SOME_SHA256_HERE"
 

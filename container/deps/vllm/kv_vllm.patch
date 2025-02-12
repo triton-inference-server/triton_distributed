@@ -1,0 +1,319 @@
+diff --git a/vllm/core/block/cpu_gpu_block_allocator.py b/vllm/core/block/cpu_gpu_block_allocator.py
+index c3e1665b..390a5935 100644
+--- a/vllm/core/block/cpu_gpu_block_allocator.py
++++ b/vllm/core/block/cpu_gpu_block_allocator.py
+@@ -4,6 +4,7 @@ from vllm.core.block.interfaces import (Block, BlockAllocator, BlockId,
+                                         DeviceAwareBlockAllocator)
+ from vllm.core.block.naive_block import NaiveBlock, NaiveBlockAllocator
+ from vllm.core.block.prefix_caching_block import PrefixCachingBlockAllocator
++from vllm.core.event_manager import KVCacheEventManager
+ from vllm.platforms import current_platform
+ from vllm.utils import Device
+ 
+@@ -26,6 +27,7 @@ class CpuGpuBlockAllocator(DeviceAwareBlockAllocator):
+         num_gpu_blocks: int,
+         num_cpu_blocks: int,
+         block_size: int,
++        event_manager: Optional[KVCacheEventManager] = None,
+     ) -> DeviceAwareBlockAllocator:
+         """Creates a CpuGpuBlockAllocator instance with the specified
+         configuration.
+@@ -62,6 +64,7 @@ class CpuGpuBlockAllocator(DeviceAwareBlockAllocator):
+         cpu_block_ids = block_ids[num_gpu_blocks:]
+ 
+         if allocator_type == "naive":
++            assert event_manager is None, "Event API not supported with naive allocator."
+             gpu_allocator: BlockAllocator = NaiveBlockAllocator(
+                 create_block=NaiveBlock,  # type: ignore
+                 num_blocks=num_gpu_blocks,
+@@ -80,12 +83,14 @@ class CpuGpuBlockAllocator(DeviceAwareBlockAllocator):
+                 num_blocks=num_gpu_blocks,
+                 block_size=block_size,
+                 block_ids=gpu_block_ids,
++                event_manager=event_manager,
+             )
+ 
+             cpu_allocator = PrefixCachingBlockAllocator(
+                 num_blocks=num_cpu_blocks,
+                 block_size=block_size,
+                 block_ids=cpu_block_ids,
++                event_manager=event_manager,
+             )
+         else:
+             raise ValueError(f"Unknown allocator type {allocator_type=}")
+@@ -93,10 +98,12 @@ class CpuGpuBlockAllocator(DeviceAwareBlockAllocator):
+         return CpuGpuBlockAllocator(
+             cpu_block_allocator=cpu_allocator,
+             gpu_block_allocator=gpu_allocator,
++            event_manager=event_manager,
+         )
+ 
+     def __init__(self, cpu_block_allocator: BlockAllocator,
+-                 gpu_block_allocator: BlockAllocator):
++                 gpu_block_allocator: BlockAllocator,
++                 event_manager: Optional[KVCacheEventManager] = None,):
+         assert not (
+             cpu_block_allocator.all_block_ids
+             & gpu_block_allocator.all_block_ids
+@@ -106,6 +113,7 @@ class CpuGpuBlockAllocator(DeviceAwareBlockAllocator):
+             Device.CPU: cpu_block_allocator,
+             Device.GPU: gpu_block_allocator,
+         }
++        self.event_manager = event_manager
+ 
+         self._swap_mapping: Dict[int, int] = {}
+         self._null_block: Optional[Block] = None
+diff --git a/vllm/core/block/prefix_caching_block.py b/vllm/core/block/prefix_caching_block.py
+index ccdc5daa..b240dfa6 100644
+--- a/vllm/core/block/prefix_caching_block.py
++++ b/vllm/core/block/prefix_caching_block.py
+@@ -3,7 +3,7 @@ import sys
+ from bisect import bisect_left
+ from os.path import commonprefix
+ from typing import (Callable, Dict, FrozenSet, Iterable, List, Optional, Set,
+-                    Tuple)
++                    Tuple, TYPE_CHECKING)
+ 
+ from vllm.core.block.common import (CacheMetricData, CopyOnWriteTracker,
+                                     get_all_blocks_recursively)
+@@ -22,6 +22,9 @@ PrefixHash = int
+ # then we know this block hasn't been accessed yet.
+ _DEFAULT_LAST_ACCESSED_TIME = -1
+ 
++if TYPE_CHECKING:
++    from vllm.core.event_manager import KVCacheEventManager
++
+ logger = init_logger(__name__)
+ 
+ 
+@@ -70,6 +73,7 @@ class PrefixCachingBlockAllocator(BlockAllocator):
+         block_size: int,
+         block_ids: Optional[Iterable[int]] = None,
+         eviction_policy: EvictionPolicy = EvictionPolicy.LRU,
++        event_manager: Optional["KVCacheEventManager"] = None,
+     ):
+         if block_ids is None:
+             block_ids = range(num_blocks)
+@@ -121,6 +125,8 @@ class PrefixCachingBlockAllocator(BlockAllocator):
+ 
+         self.metric_data = CacheMetricData()
+ 
++        self.event_manager = event_manager
++
+     # Implements Block.Factory.
+     def _create_block(
+         self,
+@@ -328,6 +334,9 @@ class PrefixCachingBlockAllocator(BlockAllocator):
+         assert self._refcounter.get(_block_id) == 0
+         assert _block_id == block_id
+ 
++        if self.event_manager:
++            self.event_manager.enqueue_removed_event(block_id)
++
+         self._cached_blocks.pop(content_hash_to_evict)
+ 
+         self._refcounter.incr(block_id)
+@@ -504,6 +513,10 @@ class PrefixCachingBlockAllocator(BlockAllocator):
+             # Mark this block as touched so that it can be marked as
+             # computed after the entire batch of sequences are scheduled.
+             self._touched_blocks.add(block.block_id)
++
++            if self.event_manager:
++                self.event_manager.enqueue_stored_event(block.prev_block, block)
++
+             return block.block_id
+ 
+         # Reuse the cached content hash
+diff --git a/vllm/core/block_manager.py b/vllm/core/block_manager.py
+index 62a5f0bd..3443ffca 100644
+--- a/vllm/core/block_manager.py
++++ b/vllm/core/block_manager.py
+@@ -8,10 +8,12 @@ from vllm.core.block.cpu_gpu_block_allocator import CpuGpuBlockAllocator
+ from vllm.core.block.interfaces import Block
+ from vllm.core.block.prefix_caching_block import (ComputedBlocksTracker,
+                                                   LastAccessBlocksTracker)
++from vllm.core.event_manager import KVCacheEventManager
+ from vllm.core.block.utils import check_no_caching_or_swa_for_blockmgr_encdec
+ from vllm.core.interfaces import AllocStatus, BlockSpaceManager
+ from vllm.sequence import Sequence, SequenceGroup, SequenceStatus
+ from vllm.utils import Device
++from vllm.envs import VLLM_WORKER_ID, VLLM_KV_CAPI_PATH
+ 
+ SeqId = int
+ EncoderSeqId = str
+@@ -59,6 +61,7 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
+ 
+     def __init__(
+         self,
++        model_name: str, 
+         block_size: int,
+         num_gpu_blocks: int,
+         num_cpu_blocks: int,
+@@ -90,11 +93,17 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
+ 
+         self.watermark_blocks = int(watermark * num_gpu_blocks)
+ 
++        if VLLM_WORKER_ID is not None and VLLM_KV_CAPI_PATH is not None:
++            self.event_manager = KVCacheEventManager(model_name, worker_id=str(VLLM_WORKER_ID).encode(), lib_path=VLLM_KV_CAPI_PATH)
++        else:
++            self.event_manager = None
++
+         self.block_allocator = CpuGpuBlockAllocator.create(
+             allocator_type="prefix_caching" if enable_caching else "naive",
+             num_gpu_blocks=num_gpu_blocks,
+             num_cpu_blocks=num_cpu_blocks,
+             block_size=block_size,
++            event_manager=self.event_manager,
+         )
+ 
+         self.block_tables: Dict[SeqId, BlockTable] = {}
+diff --git a/vllm/core/event_manager.py b/vllm/core/event_manager.py
+new file mode 100644
+index 00000000..a4cb7958
+--- /dev/null
++++ b/vllm/core/event_manager.py
+@@ -0,0 +1,66 @@
++from typing import Optional
++from vllm.core.block.prefix_caching_block import PrefixCachingBlock
++
++import ctypes
++from ctypes import c_char_p, c_uint32, c_void_p, c_size_t
++import uuid
++
++
++class NovaResult:
++    OK = 0
++    ERR = 1
++
++class KVCacheEventManager:
++    def __init__(self, model_name: str, worker_id: bytes, lib_path: str):
++        self.lib = None
++
++        try:
++            self.lib = ctypes.CDLL(lib_path)
++            self.lib.triton_llm_init.argtypes = [c_char_p, c_char_p]
++            self.lib.triton_llm_init.restype = c_uint32
++
++            result = self.lib.triton_llm_init(model_name.encode(), worker_id)
++            if result == NovaResult.OK:
++                print("Initialization successful!")
++            else:
++                print("Initialization failed!")
++
++        except Exception as e:
++            print(f"Failed to load {lib_path}")
++            raise e
++
++        self.event_id_counter = 0
++
++    def enqueue_stored_event(self, parent: Optional[PrefixCachingBlock], block: PrefixCachingBlock):
++        parent_hash_ptr = ctypes.byref(ctypes.c_uint64(parent.content_hash)) if parent is not None else None
++
++        # Publish the event
++        result = self.lib.triton_kv_event_publish_stored(
++            self.event_id_counter,
++            (ctypes.c_uint32 * len(block.token_ids))(*block.token_ids),
++            (ctypes.c_size_t * 1)(len(block.token_ids)),
++            (ctypes.c_uint64 * 1)(block.block_id),
++            1,
++            parent_hash_ptr,
++            0,
++        )
++
++        if result == NovaResult.OK:
++            print("Stored event published successfully!")
++        else:
++            print("Failed to publish stored event.")
++
++        self.event_id_counter += 1
++
++    def enqueue_removed_event(self, block_id: int):
++        result = self.lib.triton_kv_event_publish_removed(
++            self.event_id_counter,
++            (ctypes.c_uint64 * 1)(block_id),
++            1,)
++
++        if result == NovaResult.OK:
++            print("Removed event published successfully!")
++        else:
++            print("Failed to publish remove event.")
++
++        self.event_id_counter += 1
+\ No newline at end of file
+diff --git a/vllm/core/scheduler.py b/vllm/core/scheduler.py
+index b1630b34..26d17328 100644
+--- a/vllm/core/scheduler.py
++++ b/vllm/core/scheduler.py
+@@ -8,7 +8,7 @@ from typing import Callable, Deque, Dict, Iterable, List, Optional
+ from typing import Sequence as GenericSequence
+ from typing import Set, Tuple, Union
+ 
+-from vllm.config import CacheConfig, LoRAConfig, SchedulerConfig
++from vllm.config import ModelConfig, CacheConfig, LoRAConfig, SchedulerConfig
+ from vllm.core.interfaces import AllocStatus, BlockSpaceManager
+ from vllm.logger import init_logger
+ from vllm.lora.request import LoRARequest
+@@ -323,12 +323,14 @@ class Scheduler:
+ 
+     def __init__(
+         self,
++        model_config: ModelConfig,
+         scheduler_config: SchedulerConfig,
+         cache_config: CacheConfig,
+         lora_config: Optional[LoRAConfig],
+         pipeline_parallel_size: int = 1,
+         output_proc_callback: Optional[Callable] = None,
+     ) -> None:
++        self.model_config = model_config
+         self.scheduler_config = scheduler_config
+         self.cache_config = cache_config
+         # Note for LoRA scheduling: the current policy is extremely
+@@ -354,6 +356,7 @@ class Scheduler:
+ 
+         # Create the block space manager.
+         self.block_manager = BlockSpaceManagerImpl(
++            model_name=self.model_config.served_model_name,
+             block_size=self.cache_config.block_size,
+             num_gpu_blocks=num_gpu_blocks,
+             num_cpu_blocks=num_cpu_blocks,
+diff --git a/vllm/engine/llm_engine.py b/vllm/engine/llm_engine.py
+index 7da18d5f..86cca1ac 100644
+--- a/vllm/engine/llm_engine.py
++++ b/vllm/engine/llm_engine.py
+@@ -346,7 +346,7 @@ class LLMEngine:
+         # GPU and CPU blocks, which are profiled in the distributed executor.
+         self.scheduler = [
+             Scheduler(
+-                self.scheduler_config, self.cache_config, self.lora_config,
++                self.model_config, self.scheduler_config, self.cache_config, self.lora_config,
+                 self.parallel_config.pipeline_parallel_size,
+                 self.async_callbacks[v_id]
+                 if self.model_config.use_async_output_proc else None)
+diff --git a/vllm/envs.py b/vllm/envs.py
+index 8627caec..c84e30ba 100644
+--- a/vllm/envs.py
++++ b/vllm/envs.py
+@@ -77,6 +77,8 @@ if TYPE_CHECKING:
+     V_SCALE_CONSTANT: int = 100
+     VLLM_SERVER_DEV_MODE: bool = False
+     VLLM_V1_OUTPUT_PROC_CHUNK_SIZE: int = 128
++    VLLM_KV_CAPI_PATH: Optional[str] = None
++    VLLM_WORKER_ID: Optional[str] = None
+ 
+ 
+ def get_default_cache_root():
+@@ -506,6 +508,14 @@ environment_variables: Dict[str, Callable[[], Any]] = {
+     # TTFT and overall throughput.
+     "VLLM_V1_OUTPUT_PROC_CHUNK_SIZE":
+     lambda: int(os.getenv("VLLM_V1_OUTPUT_PROC_CHUNK_SIZE", "128")),
++
++    # Path to the C API Library
++    "VLLM_KV_CAPI_PATH":
++    lambda: os.environ.get("VLLM_KV_CAPI_PATH", None),
++
++    # Worker ID used for identifying workers in distributed settings
++    "VLLM_WORKER_ID":
++    lambda: os.getenv("VLLM_WORKER_ID", None),
+ }
+ 
+ # end-env-vars-definition

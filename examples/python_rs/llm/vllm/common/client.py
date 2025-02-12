@@ -31,7 +31,7 @@ async def worker(
     Instantiate a `backend` client and call the `generate` endpoint
     """
     # get endpoint
-    endpoint = runtime.namespace("triton-init").component("vllm").endpoint("generate")
+    endpoint = runtime.namespace("triton-init").component("preprocess").endpoint("generate")
 
     # create client
     client = await endpoint.client()

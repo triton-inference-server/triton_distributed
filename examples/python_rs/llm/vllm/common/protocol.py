@@ -32,3 +32,10 @@ class Response(BaseModel):
 
 class PrefillResponse(BaseModel):
     prefilled: bool
+
+
+class TokenizeResponse(BaseModel):
+    tokens: list[int]
+
+class TokenizeRequest(BaseModel):
+    prompt: str
