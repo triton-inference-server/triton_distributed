@@ -23,9 +23,9 @@ import nats
 
 from triton_distributed.icp import EventTopic
 from triton_distributed.icp.event_plane import Event, EventSubscription
-from triton_distributed.icp.lazy_event import (
+from triton_distributed.icp.on_demand_event import (
     EventMetadata,
-    LazyEvent,
+    OnDemandEvent,
     _serialize_metadata,
 )
 
@@ -68,7 +68,7 @@ class NatsEventSubscription(EventSubscription):
         else:
             msg = next_task.result()
             metadata, event_payload = self._extract_metadata_and_payload(msg.data)
-            event = LazyEvent(event_payload, metadata)
+            event = OnDemandEvent(event_payload, metadata)
             return event
 
     def __aiter__(self):
@@ -208,7 +208,9 @@ class NatsEventPlane:
         subject = self._compose_publish_subject(event_metadata)
         await self._nc.publish(subject, message)
 
-        event_with_metadata = LazyEvent(payload, metadata_serialized, event_metadata)
+        event_with_metadata = OnDemandEvent(
+            payload, metadata_serialized, event_metadata
+        )
         return event_with_metadata
 
     async def subscribe(
@@ -236,7 +238,7 @@ class NatsEventPlane:
 
         async def _message_handler(msg):
             metadata, event_payload = self._extract_metadata_and_payload(msg.data)
-            event = LazyEvent(event_payload, metadata)
+            event = OnDemandEvent(event_payload, metadata)
 
             async def wrapper():
                 if callback is not None:
