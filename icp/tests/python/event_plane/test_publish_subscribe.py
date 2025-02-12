@@ -26,6 +26,8 @@ from triton_distributed.icp.nats_event_plane import (
     NatsEventPlane,
 )
 
+from icp.tests.python.event_plane.utils import nats_server, event_plane
+
 pytestmark = pytest.mark.pre_merge
 
 
@@ -41,7 +43,7 @@ class TestEventPlaneFunctional:
             received_events.append(event)
             print(event)
 
-        event_topic = EventTopic(["test", "event_topic"])
+        event_topic = EventTopic(["test","event_topic"])
         event_type = "test_event"
         event = b"test_payload"
 
