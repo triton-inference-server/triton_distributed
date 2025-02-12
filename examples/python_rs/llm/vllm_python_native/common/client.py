@@ -17,9 +17,8 @@
 import asyncio
 import time
 
+import uvloop
 from tqdm.asyncio import tqdm
-
-# import uvloop
 from vllm.utils import FlexibleArgumentParser
 
 from triton_distributed.icp import NatsRequestPlane, UcpDataPlane
@@ -87,6 +86,7 @@ async def main(
 
 
 if __name__ == "__main__":
+    uvloop.install()
     parser = FlexibleArgumentParser()
     parser.add_argument("--prompt", type=str, default="what is the capital of france?")
     parser.add_argument("--max-tokens", type=int, default=10)

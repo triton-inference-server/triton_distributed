@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import time
 import uuid
 from typing import AsyncIterator
 
+import uvloop
 import vllm
 from common.parser import parse_vllm_args
 from common.protocol import Request, Response
@@ -72,7 +72,7 @@ def worker(engine_args: AsyncEngineArgs):
 
 
 if __name__ == "__main__":
-    #    uvloop.install()
+    uvloop.install()
     request_plane_server = NatsServer(log_dir=None)
     time.sleep(2)
     engine_args = parse_vllm_args()
