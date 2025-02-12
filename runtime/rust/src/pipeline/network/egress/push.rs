@@ -179,7 +179,7 @@ where
                 Ok(r) => Some(r),
                 Err(err) => {
                     let json_str = String::from_utf8_lossy(&msg);
-                    tracing::error!(request_id, %err, %json_str, "Failed deserializing JSON to response");
+                    log::warn!(request_id, %err, %json_str, "Failed deserializing JSON to response");
                     None
                 }
             }
