@@ -14,7 +14,6 @@
 // limitations under the License.
 
 use super::*;
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[async_trait]
