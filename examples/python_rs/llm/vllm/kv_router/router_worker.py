@@ -31,33 +31,42 @@ class Router:
     Request handler for the generate endpoint
     """
 
-    def __init__(self, workers, router):
+    def __init__(self, router):
         vllm_logger.info("Router init")
-        self.workers = workers
+        # self.workers = workers
         self.router = router
 
     @triton_endpoint(TokenizeResponse, Response)
     async def generate(self, start_ids):
         vllm_logger.info(f"Received start_ids: {start_ids}")
+        vllm_logger.info(f"type start_ids: {type(start_ids)}")
 
         lora_id = 0
-        worker_subject = await self.router.schedule((start_ids, lora_id))
+        try:
+            worker_subject = await self.router.schedule(start_ids.tokens, lora_id)
+        except Exception as e:
+            vllm_logger.info(f"{e}")
+            if "No worker found" in str(e):
+                worker_subject = ""
+            else:
+                vllm_logger.exception(f"Error during worker selection: {e}")
+
         vllm_logger.info(f"Scheduling to worker subject: {worker_subject}")
         yield worker_subject
 
 
 
 @triton_worker()
-async def worker(runtime: DistributedRuntime, workers):
+async def worker(runtime: DistributedRuntime):
     # create endpoint service for frontend component
     router_component = runtime.namespace("triton-init").component("router")
     await router_component.create_service()
 
     endpoint = router_component.endpoint("generate")
 
-    await endpoint.serve_endpoint(Router(workers, KvRouter(runtime, router_component)).generate)
+    await endpoint.serve_endpoint(Router(KvRouter(runtime, router_component)).generate)
 
 if __name__ == "__main__":
     uvloop.install()
-    engine_args = parse_vllm_args()
-    asyncio.run(worker(engine_args))
+    # engine_args = parse_vllm_args()
+    asyncio.run(worker())

@@ -51,13 +51,13 @@ class VllmEngine:
 
     @triton_endpoint(TokenizeRequest, TokenizeResponse)
     async def tokenize(self, request):
-        vllm_logger.debug(f"Received request: {request}")
+        vllm_logger.info(f"Received request: {request}")
         tokenizer = await self.engine.get_tokenizer()
 
         # tokens = tokenizer.apply_chat_template(request.prompt, tokenize=True)
         tokens = tokenizer.encode(request.prompt)
 
-        vllm_logger.debug(f"Tokens: {tokens}")
+        vllm_logger.info(f"Tokens: {tokens}")
         yield tokens
 
 

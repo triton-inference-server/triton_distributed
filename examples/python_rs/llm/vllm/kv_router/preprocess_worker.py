@@ -70,28 +70,33 @@ class VllmPreprocessEngine:
                 prompt=request.prompt,
             ).model_dump_json()
         )
-        tokenizer_response = [resp async for resp in tokenize_generator]
-        vllm_logger.info(f"Tokenize response: {tokenizer_response}")
 
+        async for resp in tokenize_generator:
+            # Just need first response
+            tokenizer_response = resp.data() if hasattr(resp, 'data') else resp
+            break    
 
-        worker_subject = await self.router.generate(
+        worker_generator = await self.router.generate(
             TokenizeResponse(
                 tokens=tokenizer_response
             ).model_dump_json()
         )
+
+        async for resp in worker_generator:
+            worker_subject = resp.data() if hasattr(resp, 'data') else resp
+    
         vllm_logger.info(f"Router choice: {worker_subject}")
 
-        # engine_generator = await self.workers.generate(request)
-        # engine_generator = await self.workers.generate(
-        #     Request(
-        #     prompt="hello",
-        #     sampling_params={"temperature": 0.5, "max_tokens": 100},
-        # ).model_dump_json())
+        if worker_subject == "":
+            engine_generator = await self.workers.random(request.model_dump_json())
+        else:
+            engine_generator = await self.workers.direct(request.model_dump_json(), int(worker_subject))
 
-        async for response in tokenize_generator:
-            vllm_logger.info(f"Generated response: {response}")
+        async for resp in engine_generator:
+            vllm_logger.info(f"Generated response: {resp}")
+            resp = resp.data() if hasattr(resp, 'data') else resp
             # yield response
-            yield response.outputs[0].text
+            yield resp
 
 
 @triton_worker()
