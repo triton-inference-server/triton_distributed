@@ -15,6 +15,7 @@
 
 
 import asyncio
+import os
 import uuid
 
 import uvloop
@@ -69,6 +70,10 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     """
     component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
+
+    endpoint_id = runtime.id()
+    os.environ["VLLM_WORKER_ID"] = endpoint_id
+    vllm_logger.info(f"VLLM_WORKER_ID: {os.environ['VLLM_WORKER_ID']}")
 
     vllm_engine = VllmEngine(engine_args)
 
