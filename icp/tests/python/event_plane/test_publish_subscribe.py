@@ -26,6 +26,8 @@ from triton_distributed.icp.nats_event_plane import (
     NatsEventPlane,
 )
 
+from .utils import event_plane, nats_server
+
 pytestmark = pytest.mark.pre_merge
 
 
