@@ -44,6 +44,11 @@ jobs:
       with:
         path: ~/.cargo/registry
         key: ${{ runner.os }}-cargo-registry-${{ github.head_ref || github.ref_name }}-${{ hashFiles('**/Cargo.lock') }}
+    - name: Cache Cargo Tools
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/bin
+        key: ${{ runner.os }}-cargo-tools-${{ github.head_ref || github.ref_name }}-${{ hashFiles('**/Cargo.lock') }}
     - name: Set up Rust Toolchain Components
       run: rustup component add rustfmt clippy
     - name: Run Cargo Check
@@ -55,6 +60,12 @@ jobs:
     - name: Run Clippy Checks
       working-directory: runtime/rust
       run: cargo clippy --no-deps --all-targets -- -D warnings
+    - name: Install and Run cargo-deny
+      working-directory: runtime/rust
+      run: |
+        cargo-deny --version || cargo install cargo-deny
+        cargo-deny check --hide-inclusion-graph licenses
+      timeout-minutes: 5
     - name: Run Unit Tests
       working-directory: runtime/rust
       run: cargo test --locked --all-targets

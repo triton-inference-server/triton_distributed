@@ -52,8 +52,18 @@ tmp_path_retention_policy = "failed"
 # NOTE
 # We ignore model.py explcitly here to avoid mypy errors with duplicate modules
 # pytest overrides the default mypy exclude configuration and so we exclude here as well
-
-addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config", "--mypy", "--ignore-glob=*model.py"]
+addopts = [
+    "-ra",
+    "--showlocals",
+    "--strict-markers",
+    "--strict-config",
+    "--mypy",
+    "--ignore-glob=*model.py",
+    # FIXME: Get relative/generic blob paths to work here
+    # Ignore rust<->python bindings until python package is built/installed in environment
+    "--ignore-glob=/workspace/runtime/rust/python-wheel/python/triton_distributed_rs/*.py",
+    "--ignore-glob=/workspace/runtime/rust/python-wheel/python/triton_distributed_rs/*.pyi",
+]
 xfail_strict = true
 log_cli_level = "INFO"
 filterwarnings = [
@@ -62,9 +72,9 @@ filterwarnings = [
 # NOTE: Can also manually mark tests with @pytest.mark.asyncio
 asyncio_mode = "auto"
 markers = [
-	"pre_merge: marks tests to run before merging",
-        "nightly: marks tests to run nightly",
-	"weekly: marks tests to run weekly"
+  "pre_merge: marks tests to run before merging",
+  "nightly: marks tests to run nightly",
+  "weekly: marks tests to run weekly"
 ]
 
 # Linting/formatting
@@ -82,10 +92,6 @@ indent-width = 4
 # --explicit-package-bases: WAR errors about duplicate module names used
 #   throughout project such as launch_workers.py
 # explicit_package_bases = true
-
-# NOTE
-# We ignore model.py explcitly here to avoid mypy errors with duplicate modules
-exclude = ["model.py"]
 
 # --ignore-missing-imports: WAR too many errors when developing outside
 #   of container environment with PYTHONPATH set and packages installed.

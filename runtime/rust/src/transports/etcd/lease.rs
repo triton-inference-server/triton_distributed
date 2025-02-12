@@ -1,18 +1,17 @@
-/*
- * Copyright 2024-2025 NVIDIA CORPORATION & AFFILIATES
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 use super::*;
 
@@ -31,9 +30,9 @@ pub async fn create_lease(
 
     tokio::spawn(async move {
         match keep_alive(lease_client, id, ttl, child).await {
-            Ok(_) => log::trace!("keep alive task exited successfully"),
+            Ok(_) => tracing::trace!("keep alive task exited successfully"),
             Err(e) => {
-                log::info!("keep alive task failed: {:?}", e);
+                tracing::info!("keep alive task failed: {:?}", e);
                 token.cancel();
             }
         }
@@ -73,7 +72,7 @@ pub async fn keep_alive(
 
             status = heartbeat_receiver.message() => {
                 if let Some(resp) = status? {
-                    log::trace!(lease_id, "keep alive response received: {:?}", resp);
+                    tracing::trace!(lease_id, "keep alive response received: {:?}", resp);
 
                     // update ttl and deadline
                     ttl = resp.ttl();
@@ -87,20 +86,20 @@ pub async fn keep_alive(
             }
 
             _ = token.cancelled() => {
-                log::trace!(lease_id, "cancellation token triggered; revoking lease");
+                tracing::trace!(lease_id, "cancellation token triggered; revoking lease");
                 let _ = client.revoke(lease_id).await?;
                 return Ok(());
             }
 
             _ = tokio::time::sleep(tokio::time::Duration::from_secs(ttl as u64 / 2)) => {
-                log::trace!(lease_id, "sending keep alive");
+                tracing::trace!(lease_id, "sending keep alive");
 
                 // if we get a error issuing the heartbeat, set the ttl to 0
                 // this will allow us to poll the response stream once and the cancellation token once, then
                 // immediately try to tick the heartbeat
                 // this will repeat until either the heartbeat is reestablished or the deadline is exceeded
                 if let Err(e) = heartbeat_sender.keep_alive().await {
-                    log::warn!(lease_id, "keep alive failed: {:?}", e);
+                    tracing::warn!(lease_id, "keep alive failed: {:?}", e);
                     ttl = 0;
                 }
             }

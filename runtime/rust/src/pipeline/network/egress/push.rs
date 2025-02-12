@@ -1,22 +1,20 @@
-/*
- * Copyright 2024-2025 NVIDIA CORPORATION & AFFILIATES
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 use anyhow::Result;
 use async_nats::client::Client;
-use tracing as log;
 
 use super::*;
 
@@ -129,10 +127,20 @@ where
         // next build the two part message where we package the connection info and the request into
         // a single Vec<u8> that can be sent over the wire.
         // --- package this up in the WorkQueuePublisher ---
-        let ctrl = serde_json::to_vec(&control_message).unwrap();
-        let data = serde_json::to_vec(&request).unwrap();
+        let ctrl = match serde_json::to_vec(&control_message) {
+            Ok(ctrl) => ctrl,
+            Err(err) => {
+                anyhow::bail!("Failed serializing RequestControlMessage to JSON array: {err}");
+            }
+        };
+        let data = match serde_json::to_vec(&request) {
+            Ok(data) => data,
+            Err(err) => {
+                anyhow::bail!("Failed serializing request to JSON array: {err}");
+            }
+        };
 
-        log::trace!(
+        tracing::trace!(
             "[req: {}] packaging two-part message; ctrl: {} bytes, data: {} bytes",
             id,
             ctrl.len(),
@@ -145,11 +153,11 @@ where
         // or it should take a two part message directly
         // todo - update this
         let codec = TwoPartCodec::default();
-        let buffer = codec.encode_message(msg).unwrap();
+        let buffer = codec.encode_message(msg)?;
 
         // TRANSPORT ABSTRACT REQUIRED - END HERE
 
-        log::trace!("[req: {}] enqueueing two-part message to nats", id);
+        tracing::trace!("[req: {}] enqueueing two-part message to nats", id);
 
         // we might need to add a timeout on this if there is no subscriber to the subject; however, I think nats
         // will handle this for us
@@ -158,7 +166,7 @@ where
             .request(address.to_string(), buffer)
             .await?;
 
-        log::trace!("[req: {}] awaiting transport handshake", id);
+        tracing::trace!("[req: {}] awaiting transport handshake", id);
         let response_stream = response_stream_provider
             .await
             .map_err(|_| PipelineError::DetatchedStreamReceiver)?
@@ -166,9 +174,15 @@ where
 
         let stream = tokio_stream::wrappers::ReceiverStream::new(response_stream.rx);
 
-        let stream = stream.map(|msg| {
-            let resp: U = serde_json::from_slice(&msg).unwrap();
-            resp
+        let stream = stream.filter_map(|msg| async move {
+            match serde_json::from_slice::<U>(&msg) {
+                Ok(r) => Some(r),
+                Err(err) => {
+                    let json_str = String::from_utf8_lossy(&msg);
+                    tracing::error!(%err, %json_str, "Failed deserializing JSON to response");
+                    None
+                }
+            }
         });
 
         Ok(ResponseStream::new(Box::pin(stream), engine_ctx))

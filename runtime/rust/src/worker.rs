@@ -1,25 +1,24 @@
-/*
- * Copyright 2024-2025 NVIDIA CORPORATION & AFFILIATES
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 //! The [Worker] class is a convenience wrapper around the construction of the [Runtime]
 //! and execution of the users application.
 //!
 //! In the future, the [Worker] should probably be moved to a procedural macro similar
 //! to the `#[tokio::main]` attribute, where we might annotate an async main function with
-//! #[triton::main] or similar.
+//! `#[triton::main]` or similar.
 //!
 //! The [Worker::execute] method is designed to be called once from main and will block
 //! the calling thread until the application completes or is canceled. The method initialized
@@ -33,7 +32,7 @@
 //! and release builds. In development, the default is [DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_DEBUG] and
 //! in release, the default is [DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_RELEASE].
 
-use super::{error, log, CancellationToken, Result, Runtime, RuntimeConfig};
+use super::{error, CancellationToken, Result, Runtime, RuntimeConfig};
 
 use futures::Future;
 use once_cell::sync::OnceCell;
@@ -152,10 +151,10 @@ impl Worker {
 
             match &result {
                 Ok(_) => {
-                    log::info!("Application shutdown successfully");
+                    tracing::info!("Application shutdown successfully");
                 }
                 Err(e) => {
-                    log::error!("Application shutdown with error: {:?}", e);
+                    tracing::error!("Application shutdown with error: {:?}", e);
                 }
             }
 

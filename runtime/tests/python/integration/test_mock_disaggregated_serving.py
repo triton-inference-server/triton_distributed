@@ -57,10 +57,8 @@ try:
 except CUDARuntimeError:
     print("CUDA not available")
 
-# TODO
-# Decide if this should be
-# pre merge, nightly, or weekly
-pytestmark = pytest.mark.pre_merge
+# Slower test than others - make it nightly for now
+pytestmark = pytest.mark.nightly
 
 
 @pytest.fixture

@@ -1,18 +1,17 @@
-/*
- * Copyright 2024-2025 NVIDIA CORPORATION & AFFILIATES
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 //! TODO - we need to reconcile what is in this crate with distributed::transports
 
@@ -106,11 +105,7 @@ impl PendingConnections {
 }
 
 /// A [`ResponseService`] implements a services in which a context a specific subject with will
-/// be associated with a stream of responses. The key difference between a [`ResponseService`]
-/// and a [`RequestService`] is that the [`ResponseService`] is the awaits an explicit connection
-/// to be established, where as a [`RequestService`] has no known knowledge about incoming
-/// connections. All [`ResponseService`] connections are expected, all [`RequestService`] connections
-/// are unexpected.
+/// be associated with a stream of responses.
 #[async_trait::async_trait]
 pub trait ResponseService {
     async fn register(&self, options: StreamOptions) -> PendingConnections;
@@ -157,10 +152,15 @@ impl StreamSender {
     pub async fn send_prologue(&mut self, error: Option<String>) -> Result<(), String> {
         if let Some(prologue) = self.prologue.take() {
             let prologue = ResponseStreamPrologue { error, ..prologue };
+            let header_bytes: Bytes = match serde_json::to_vec(&prologue) {
+                Ok(b) => b.into(),
+                Err(err) => {
+                    tracing::error!(%err, "send_prologue: ResponseStreamPrologue did not serialize to a JSON array");
+                    return Err("Invalid prologue".to_string());
+                }
+            };
             self.tx
-                .send(TwoPartMessage::from_header(
-                    serde_json::to_vec(&prologue).unwrap().into(),
-                ))
+                .send(TwoPartMessage::from_header(header_bytes))
                 .await
                 .map_err(|e| e.to_string())?;
         } else {

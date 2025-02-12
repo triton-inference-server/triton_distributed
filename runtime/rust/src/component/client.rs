@@ -1,18 +1,17 @@
-/*
- * Copyright 2024-2025 NVIDIA CORPORATION & AFFILIATES
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 use crate::pipeline::{
     network::egress::push::{AddressedPushRouter, AddressedRequest, PushRouter},
@@ -86,20 +85,20 @@ where
         // currently this is created once per client, but this object/task should only be instantiated
         // once per worker/instance
         secondary.spawn(async move {
-            log::debug!("Starting endpoint watcher for prefix: {}", prefix);
+            tracing::debug!("Starting endpoint watcher for prefix: {}", prefix);
             let mut map = HashMap::new();
 
             loop {
                 let kv_event = tokio::select! {
                     _ = watch_tx.closed() => {
-                        log::debug!("all watchers have closed; shutting down endpoint watcher for prefix: {}", prefix);
+                        tracing::debug!("all watchers have closed; shutting down endpoint watcher for prefix: {}", prefix);
                         break;
                     }
                     kv_event = kv_event_rx.recv() => {
                         match kv_event {
                             Some(kv_event) => kv_event,
                             None => {
-                                log::debug!("watch stream has closed; shutting down endpoint watcher for prefix: {}", prefix);
+                                tracing::debug!("watch stream has closed; shutting down endpoint watcher for prefix: {}", prefix);
                                 break;
                             }
                         }
@@ -113,7 +112,7 @@ where
                         if let (Ok(key), Ok(val)) = (key, val) {
                             map.insert(key.clone(), val.lease_id);
                         } else {
-                            log::error!("Unable to parse put endpoint event; shutting down endpoint watcher for prefix: {}", prefix);
+                            tracing::error!("Unable to parse put endpoint event; shutting down endpoint watcher for prefix: {}", prefix);
                             break;
                         }
                     }
@@ -121,7 +120,7 @@ where
                         match String::from_utf8(kv.key().to_vec()) {
                             Ok(key) => { map.remove(&key); }
                             Err(_) => {
-                                log::error!("Unable to parse delete endpoint event; shutting down endpoint watcher for prefix: {}", prefix);
+                                tracing::error!("Unable to parse delete endpoint event; shutting down endpoint watcher for prefix: {}", prefix);
                                 break;
                             }
                         }
@@ -131,13 +130,13 @@ where
                 let endpoint_ids: Vec<i64> = map.values().cloned().collect();
 
                 if watch_tx.send(endpoint_ids).is_err() {
-                    log::debug!("Unable to send watch updates; shutting down endpoint watcher for prefix: {}", prefix);
+                    tracing::debug!("Unable to send watch updates; shutting down endpoint watcher for prefix: {}", prefix);
                     break;
                 }
 
             }
 
-            log::debug!("Completed endpoint watcher for prefix: {}", prefix);
+            tracing::debug!("Completed endpoint watcher for prefix: {}", prefix);
             let _ = watch_tx.send(vec![]);
         });
 

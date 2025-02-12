@@ -1,18 +1,17 @@
-/*
- * Copyright 2024-2025 NVIDIA CORPORATION & AFFILIATES
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 use super::Result;
 use derive_builder::Builder;
@@ -30,14 +29,15 @@ pub struct WorkerConfig {
 }
 
 impl WorkerConfig {
+    /// Instantiates and reads server configurations from appropriate sources.
+    /// Panics on invalid configuration.
     pub fn from_settings() -> Self {
-        // Instantiates and reads server configurations from appropriate sources.
         // All calls should be global and thread safe.
         Figment::new()
             .merge(Serialized::defaults(Self::default()))
             .merge(Env::prefixed("TRITON_WORKER_"))
             .extract()
-            .unwrap()
+            .unwrap() // safety: Called on startup, so panic is reasonable
     }
 }
 
@@ -68,7 +68,7 @@ pub struct RuntimeConfig {
     /// Maximum number of blocking threads
     /// Blocking threads are used for blocking operations, this value must be greater than 0.
     #[validate(range(min = 1))]
-    #[builder(default = "16")]
+    #[builder(default = "512")]
     #[builder_field_attr(serde(skip_serializing_if = "Option::is_none"))]
     pub max_blocking_threads: usize,
 }
@@ -118,7 +118,10 @@ impl RuntimeConfig {
 
 impl Default for RuntimeConfig {
     fn default() -> Self {
-        Self::single_threaded()
+        Self {
+            max_worker_threads: 16,
+            max_blocking_threads: 16,
+        }
     }
 }
 

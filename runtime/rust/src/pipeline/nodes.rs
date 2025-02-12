@@ -1,18 +1,17 @@
-/*
- * Copyright 2024-2025 NVIDIA CORPORATION & AFFILIATES
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 //! Pipeline Nodes
 //!
@@ -68,8 +67,7 @@ mod private {
 }
 
 // todo rename `ServicePipelineExt`
-/// A [`Source`] trait defines how data is emitted from a source to a downstream sink
-/// over an [`Edge`].
+/// A [`Source`] trait defines how data is emitted from a source to a downstream sink.
 #[async_trait]
 pub trait Source<T: PipelineIO>: Data {
     async fn on_next(&self, data: T, _: private::Token) -> Result<(), Error>;
@@ -89,7 +87,7 @@ pub trait Sink<T: PipelineIO>: Data {
     async fn on_data(&self, data: T, _: private::Token) -> Result<(), Error>;
 }
 
-/// An [`Edge`] is a connection between a [`Source`] and a [`Sink`]. Data flows over an [`Edge`].
+/// An [`Edge`] is a connection between a [`Source`] and a [`Sink`].
 pub struct Edge<T: PipelineIO> {
     downstream: Arc<dyn Sink<T>>,
 }
