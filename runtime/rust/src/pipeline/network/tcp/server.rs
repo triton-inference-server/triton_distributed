@@ -304,6 +304,7 @@ async fn tcp_listener(
         }
     };
 
+    // TODO(#173) - alternative / not fully functional exploration for #173; removed when resolved.
     // let socket = Socket::new(Domain::IPV4, Type::STREAM, None)?;
 
     // // Set the socket options
