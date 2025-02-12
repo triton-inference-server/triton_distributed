@@ -129,7 +129,7 @@ mod integration {
                         client.random("hello world".to_string().into()),
                     )
                     .await
-                    .context("request timedout")??;
+                    .context("request timed out")??;
 
                     while let Some(_resp) =
                         tokio::time::timeout(Duration::from_secs(30), stream.next())
