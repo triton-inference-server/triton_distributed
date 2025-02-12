@@ -56,13 +56,9 @@ class VllmDecodeEngine:
             sampling_params=prefill_sampling_params,
             request_id=request_id,
         )
-        prefill_generator = await self.prefills[prefill_rank].generate(
+        self.prefills[prefill_rank].generate(
             prefill_request.model_dump_json(),
         )
-        prefill_response = [resp async for resp in prefill_generator]
-        assert len(prefill_response) == 1, "Prefill response should be a single boolean"
-        prefill_response = prefill_response[0]
-        vllm_logger.debug(f"Prefill response: {prefill_response}")
 
         async for response in self.engine.generate(
             request.prompt, sampling_params, request_id
