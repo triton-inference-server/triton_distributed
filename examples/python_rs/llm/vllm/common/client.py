@@ -14,8 +14,8 @@
 # limitations under the License.
 
 
-import asyncio
 import argparse
+import asyncio
 
 import uvloop
 from triton_distributed_rs import DistributedRuntime, triton_worker
@@ -46,7 +46,10 @@ async def worker(
             client.generate(
                 Request(
                     prompt=prompt,
-                    sampling_params={"temperature": temperature, "max_tokens": max_tokens},
+                    sampling_params={
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                    },
                 ).model_dump_json()
             )
         )
