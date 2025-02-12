@@ -25,34 +25,44 @@ from triton_distributed.icp.nats_event_plane import (
 )
 
 
-async def main(subscriber_id, event_topic, event_type, component_id):
+async def main(args):
     server_url = DEFAULT_EVENTS_URI
     event_plane = NatsEventPlane(server_url, uuid.uuid4())
 
-    async def callback(event):
+    async def callback(received_event):
         print(
-            f"Subscriber {subscriber_id} received event: {event.event_id} event payload: {event.payload}"
+            f"""
+            Subscriber {args.subscriber_id}
+            received event: {received_event.event_id}
+            event payload: {received_event.payload.tobytes().decode("utf-8")}
+            event.topic: {received_event.event_topic}
+            event.type: {received_event.event_type}
+            event.component_id: {received_event.component_id}
+            event.timestamp: {received_event.timestamp}
+            """
         )
 
     await event_plane.connect()
 
     try:
-        event_topic = EventTopic(event_topic.split(".")) if event_topic else None
-        print(f"Subscribing to event_topic: {event_topic}")
+        event_topic = (
+            EventTopic(args.event_topic.split(".")) if args.event_topic else None
+        )
+        print(f"Subscribing to event_topic: {args.event_topic}")
         await event_plane.subscribe(
             callback,
             event_topic=event_topic,
-            event_type=event_type,
-            component_id=component_id,
+            event_type=args.event_type,
+            component_id=args.component_id,
         )
         print(
-            f"Subscriber {subscriber_id} is listening on event_topic {event_topic} with event type '{event_type or 'all'}' "
-            + f"component ID '{component_id}'"
+            f"Subscriber {args.subscriber_id} is listening on event_topic {event_topic} with event type '{args.event_type or 'all'}' "
+            + f"component ID '{args.component_id}'"
         )
 
         while True:
             await asyncio.sleep(5)  # Keep the subscriber running
-            print(f"Subscriber {subscriber_id} is still running")
+            print(f"Subscriber {args.subscriber_id} is still running")
     finally:
         await event_plane.disconnect()
 
@@ -83,6 +93,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    asyncio.run(
-        main(args.subscriber_id, args.event_topic, args.event_type, args.component_id)
-    )
+    asyncio.run(main(args))

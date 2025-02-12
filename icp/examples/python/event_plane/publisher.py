@@ -25,20 +25,20 @@ from triton_distributed.icp.nats_event_plane import (
 )
 
 
-async def main(component_id, event_type, publisher_id, event_count):
+async def main(args):
     server_url = DEFAULT_EVENTS_URI
-    event_plane = NatsEventPlane(server_url, component_id)
+    event_plane = NatsEventPlane(server_url, args.component_id)
 
     await event_plane.connect()
 
     try:
-        event_topic = EventTopic(["publisher", str(publisher_id)])
+        event_topic = (
+            EventTopic(args.event_topic.split(".")) if args.event_topic else None
+        )
 
-        for i in range(event_count):
-            event = f"Payload from publisher {publisher_id}".encode()
-            await event_plane.publish(event, event_type, event_topic)
-            print(f"Published event from publisher {publisher_id}")
-            await asyncio.sleep(0.01)
+        event = args.payload.encode()
+        await event_plane.publish(event, args.event_type, event_topic)
+        print(f"Published event from publisher {args.event_topic}")
     finally:
         await event_plane.disconnect()
 
@@ -52,14 +52,21 @@ if __name__ == "__main__":
         help="Component ID (UUID)",
     )
     parser.add_argument(
+        "--event-topic",
+        type=str,
+        default=None,
+        help="Event EventTopic to subscribe to (comma-separated for multiple levels)",
+    )
+    parser.add_argument(
         "--event-type", type=str, default="test_event", help="Event type"
     )
     parser.add_argument("--publisher-id", type=int, required=True, help="Publisher ID")
     parser.add_argument(
-        "--event-count", type=int, default=10, help="Event count to be published."
+        "--payload",
+        type=str,
+        default="test_payload",
+        help="Payload to be published with event.",
     )
 
     args = parser.parse_args()
-    asyncio.run(
-        main(args.component_id, args.event_type, args.publisher_id, args.event_count)
-    )
+    asyncio.run(main(args))
