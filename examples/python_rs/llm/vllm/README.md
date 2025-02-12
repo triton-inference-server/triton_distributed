@@ -172,6 +172,11 @@ For disaggregated deployment, you will also need to pass the `kv_ip` and `kv_por
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":<rank>,"kv_parallel_size":2,"kv_ip":<master_node_ip>,"kv_port":<kv_port>}'
 ```
 
+### 4. Known Issues and Limitations
 
+- vLLM is not working well with the `fork` method for multiprocessing and TP > 1. This is a known issue and a workaround is to use the `spawn` method instead. See [vLLM issue](https://github.com/vllm-project/vllm/issues/6152).
+- `kv_rank` of `kv_producer` must be smaller than of `kv_consumer`.
+- Instances with the same `kv_role` must have the same `--tensor-parallel-size`.
+- Currently only `--pipeline-parallel-size 1` is supported for XpYd disaggregated deployment.
 
 
