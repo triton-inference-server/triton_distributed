@@ -59,7 +59,11 @@ impl TcpClient {
                 Err(e) => {
                     if e.kind() == std::io::ErrorKind::AddrNotAvailable {
                         tracing::warn!("retry warning: failed to connect: {:?}", e);
+
+                        // TODO(#173) - remove with resolution of issue
+                        #[cfg(debug_assertions)]
                         eprintln!("retry warning: failed to connect: {:?}", e);
+
                         tokio::time::sleep(backoff).await;
                     } else {
                         return Err(e);

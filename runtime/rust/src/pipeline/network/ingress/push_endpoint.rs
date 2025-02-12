@@ -68,11 +68,10 @@ impl PushEndpoint {
                     let result = ingress.handle_payload(req.message.payload).await;
                     match result {
                         Ok(_) => {
-                            tracing::trace!(worker_id, "request handled: {:?}", result);
+                            tracing::trace!(worker_id, "request handled successfully");
                         }
                         Err(e) => {
                             tracing::warn!("Failed to handle request: {:?}", e);
-                            eprintln!("Failed to handle request: {:?}", e);
                         }
                     }
                 });
