@@ -135,6 +135,16 @@ where
         let generator = self.generator.clone();
         let event_loop = self.event_loop.clone();
 
+        // Acquiring the GIL is similar to acquiring a standard lock/mutex
+        // Performing this in an tokio async task could block the thread for an undefined amount of time
+        // To avoid this, we spawn a blocking task to acquire the GIL and perform the operations needed
+        // while holding the GIL.
+        //
+        // Under low GIL contention, we wouldn't need to do this.
+        // However, under high GIL contention, this can lead to significant performance degradation.
+        //
+        // Since we cannot predict the GIL contention, we will always use the blocking task and pay the
+        // cost. The Python GIL is the gift that keeps on giving -- performance hits...
         let stream = tokio::task::spawn_blocking(move || {
             Python::with_gil(|py| {
                 let py_request = pythonize(py, &request)?;
