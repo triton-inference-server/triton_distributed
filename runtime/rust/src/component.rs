@@ -43,7 +43,7 @@
 
 use crate::discovery::Lease;
 
-use super::{error, log, transports::nats::Slug, DistributedRuntime, Result};
+use super::{error, transports::nats::Slug, DistributedRuntime, Result};
 
 use crate::pipeline::network::{ingress::push_endpoint::PushEndpoint, PushWorkHandler};
 use async_nats::{

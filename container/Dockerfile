@@ -28,7 +28,6 @@ USER root
 # Rust build/dev dependencies
 RUN apt-get update; apt-get install -y gdb protobuf-compiler
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-RUN pip install maturin
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install OpenAI-compatible frontend and its dependencies from triton server
@@ -149,20 +148,25 @@ RUN apt-get install tmux -y
 # Working directory
 WORKDIR /workspace
 
-#TODO Exclude container directory
-COPY . /workspace
-
+COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Create virtualenv
+# Install uv and create virtualenv for general use
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
     cd runtime/rust/python-wheel && \
-    maturin develop
+    uv build && \
+    uv pip install dist/triton_distributed_rs*cp312*.whl
 
+# Install triton_distributed_rs wheel globally in container for tests that
+# currently run without virtual environment activated.
+# TODO: In future, we may use a virtualenv for everything and remove this.
+RUN pip install runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl
+
+COPY icp /workspace/icp
 RUN /workspace/icp/protos/gen_python.sh
 
 # Install python packages
@@ -173,9 +177,12 @@ ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown
 #
 # Normally SCM version is taken directly from .git but this is not available in the Dockerfile
 # and so we pass in via a buildarg
-
 RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
 RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/runtime/python
+
+# Copy everything in after install steps to avoid re-running build/install
+# commands on unrelated changes in other dirs.
+COPY . /workspace
 
 # Sets pythonpath for python modules
 ENV PYTHONPATH="${PYTHONPATH}:/workspace/examples/python:/opt/tritonserver/python/openai/openai_frontend"

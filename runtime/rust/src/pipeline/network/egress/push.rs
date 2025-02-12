@@ -15,7 +15,6 @@
 
 use anyhow::Result;
 use async_nats::client::Client;
-use tracing as log;
 
 use super::*;
 
@@ -128,8 +127,18 @@ where
         // next build the two part message where we package the connection info and the request into
         // a single Vec<u8> that can be sent over the wire.
         // --- package this up in the WorkQueuePublisher ---
-        let ctrl = serde_json::to_vec(&control_message).unwrap();
-        let data = serde_json::to_vec(&request).unwrap();
+        let ctrl = match serde_json::to_vec(&control_message) {
+            Ok(ctrl) => ctrl,
+            Err(err) => {
+                anyhow::bail!("Failed serializing RequestControlMessage to JSON array: {err}");
+            }
+        };
+        let data = match serde_json::to_vec(&request) {
+            Ok(data) => data,
+            Err(err) => {
+                anyhow::bail!("Failed serializing request to JSON array: {err}");
+            }
+        };
 
         log::trace!(
             request_id,
@@ -144,7 +153,7 @@ where
         // or it should take a two part message directly
         // todo - update this
         let codec = TwoPartCodec::default();
-        let buffer = codec.encode_message(msg).unwrap();
+        let buffer = codec.encode_message(msg)?;
 
         // TRANSPORT ABSTRACT REQUIRED - END HERE
 
@@ -163,19 +172,18 @@ where
             .map_err(|_| PipelineError::DetatchedStreamReceiver)?
             .map_err(PipelineError::ConnectionFailed)?;
 
-        let stream = async_stream::stream! {
-            let mut rx = response_stream.rx;
-            while let Some(msg) = rx.recv().await {
-                let resp = serde_json::from_slice::<U>(&msg);
-                match resp {
-                    Ok(resp) => yield resp,
-                    Err(_) => {
-                        log::warn!(request_id, "critical error: deserializing failed -- possible message mismatch");
-                        break;
-                    }
+        let stream = tokio_stream::wrappers::ReceiverStream::new(response_stream.rx);
+
+        let stream = stream.filter_map(|msg| async move {
+            match serde_json::from_slice::<U>(&msg) {
+                Ok(r) => Some(r),
+                Err(err) => {
+                    let json_str = String::from_utf8_lossy(&msg);
+                    tracing::error!(request_id, %err, %json_str, "Failed deserializing JSON to response");
+                    None
                 }
             }
-        };
+        });
 
         Ok(ResponseStream::new(Box::pin(stream), engine_ctx))
     }
