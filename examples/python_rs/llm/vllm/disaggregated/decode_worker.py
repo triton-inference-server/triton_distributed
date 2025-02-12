@@ -37,7 +37,7 @@ class VllmDecodeEngine:
             engine_args.kv_transfer_config.is_kv_consumer
         ), "Decode worker must be a KV consumer"
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        self.prefills = []
+        self.prefills: list = []
 
         self.prefill_workers = (
             self.engine.engine.vllm_config.kv_transfer_config.kv_producers_parallel_size
