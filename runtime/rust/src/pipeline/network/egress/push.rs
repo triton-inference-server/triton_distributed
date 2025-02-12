@@ -15,6 +15,7 @@
 
 use anyhow::Result;
 use async_nats::client::Client;
+use tracing as log;
 
 use super::*;
 
@@ -179,7 +180,7 @@ where
                 Ok(r) => Some(r),
                 Err(err) => {
                     let json_str = String::from_utf8_lossy(&msg);
-                    log::warn!(request_id, %err, %json_str, "Failed deserializing JSON to response");
+                    log::warn!(%err, %json_str, "Failed deserializing JSON to response");
                     None
                 }
             }
