@@ -185,7 +185,16 @@ async fn handle_reader(
                     Some(Ok(two_part_msg)) => {
                         match two_part_msg.optional_parts() {
                            (Some(bytes), None) => {
-                                let msg: ControlMessage = serde_json::from_slice(bytes).unwrap();
+                                let msg = match serde_json::from_slice::<ControlMessage>(bytes) {
+                                    Ok(msg) => msg,
+                                    Err(_) => {
+                                        // TODO(#171) - address fatal errors
+                                        tracing::error!("fatal error - invalid control message detected");
+                                        break;
+                                    }
+                                };
+
+
                                 match msg {
                                     ControlMessage::Stop => {
                                         context.stop();
