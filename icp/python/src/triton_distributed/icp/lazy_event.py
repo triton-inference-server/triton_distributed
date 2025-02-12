@@ -68,7 +68,7 @@ def _serialize_metadata(event_metadata: EventMetadata) -> bytes:
     return json_string
 
 
-class LazyEvent(Event):
+class OnDemandEvent(Event):
     """LazyEvent class for representing events."""
 
     def __init__(
