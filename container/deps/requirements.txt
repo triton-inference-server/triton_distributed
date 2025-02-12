@@ -17,7 +17,7 @@ fastapi==0.115.6
 ftfy
 grpcio-tools==1.66.0
 httpx
-msgspec # Event plane should have this in valid wheel configuration
+msgspec
 mypy
 numpy
 opentelemetry-api
