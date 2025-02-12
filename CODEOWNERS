@@ -1,0 +1,24 @@
+# CODEOWNERS file for Triton Distributed
+#
+# For more information about CODEOWNERS files, see:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Rust 
+*.rs @ryanolson @grahamking @paulhendricks
+/runtime/rust @ryanolson @grahamking @paulhendricks
+/llm/rust @ryanolson @grahamking @paulhendricks
+
+# Python Libraries
+/runtime/python/ @nnshah1 @tanmayv25 @piotrm-nvidia @ptarasiewiczNV @nv-blazejkubiak 
+/icp/ @nnshah1 @tanmayv25 @piotrm-nvidia @ptarasiewiczNV @nv-blazejkubiak 
+
+# Kubernetes
+/deploy/Kubernetes/ @whoisj @hutm @biswapanda
+
+# CI/CD
+/.github/ @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
+
+# Legal
+/LICENSE @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
+/ATTRIBUTIONS.md @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
+/Cargo.lock @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
