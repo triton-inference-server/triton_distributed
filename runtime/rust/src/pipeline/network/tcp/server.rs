@@ -348,11 +348,6 @@ async fn tcp_listener(
             }
         }
 
-        match stream.set_linger(Some(std::time::Duration::from_secs(0))) {
-            Ok(()) => (),
-            Err(e) => tracing::warn!("failed to set tcp stream to linger: {}", e),
-        }
-
         tokio::spawn(handle_connection(stream, state.clone()));
     }
 
@@ -389,18 +384,16 @@ async fn tcp_listener(
 
         // we await on the raw bytes which should come in as a header only message
         // todo - improve error handling - check for no data
-        if first_message.header().is_none() {
-            return Err(error!("Expected ControlMessage, got DataMessage"));
-        }
-
-        // deserialize the [`CallHomeHandshake`] message
-        let handshake: CallHomeHandshake = serde_json::from_slice(first_message.header().unwrap())
-            .map_err(|e| {
+        let handshake: CallHomeHandshake = match first_message.header() {
+            Some(header) => serde_json::from_slice(header).map_err(|e| {
                 error!(
-                    "Failed to deserialize the first message as a valid `CallHomeHandshake`: {}",
-                    e
+                    "Failed to deserialize the first message as a valid `CallHomeHandshake`: {e}",
                 )
-            })?;
+            })?,
+            None => {
+                return Err(error!("Expected ControlMessage, got DataMessage"));
+            }
+        };
 
         // branch here to handle sender stream or receiver stream
         match handshake.stream_type {
@@ -495,13 +488,8 @@ async fn tcp_listener(
         // check the results of each of the tasks
         let (monitor_result, forward_result) = tokio::join!(monitor_task, forward_task);
 
-        // if either of the tasks failed, we need to return an error
-        if let Err(e) = monitor_result {
-            return Err(error!("Monitor task failed: {}", e));
-        }
-        if let Err(e) = forward_result {
-            return Err(error!("Forward task failed: {}", e));
-        }
+        monitor_result??;
+        forward_result??;
 
         Ok(())
     }
@@ -512,7 +500,7 @@ async fn tcp_listener(
         control_tx: mpsc::Sender<Bytes>,
         context: Arc<dyn AsyncEngineContext>,
         alive_rx: mpsc::Receiver<()>,
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         // loop over reading the tcp stream and checking if the writer is closed
         loop {
             tokio::select! {
@@ -526,11 +514,13 @@ async fn tcp_listener(
                             }
 
                             if !data.is_empty() {
-                                response_tx.send(data).await.unwrap();
+                                if let Err(err) = response_tx.send(data).await {
+                                    return Err(error!("handle_response_stream: Failed sending to response_tx: {err}"));
+                                };
                             }
                         }
                         Some(Err(e)) => {
-                            return Err(format!("Failed to read TwoPartCodec message from TcpStream: {}", e));
+                            return Err(error!("Failed to read TwoPartCodec message from TcpStream: {}", e));
                         }
                         None => {
                             tracing::trace!("TcpStream closed naturally");
@@ -580,7 +570,7 @@ async fn tcp_listener(
         _socket_tx: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, TwoPartCodec>,
         ctx: Arc<dyn AsyncEngineContext>,
         alive_tx: mpsc::Sender<()>,
-    ) {
+    ) -> Result<()> {
         let alive_tx = alive_tx;
         tokio::select! {
             _ = ctx.stopped() => {
@@ -593,8 +583,8 @@ async fn tcp_listener(
         }
         let framed_writer = _socket_tx;
         let mut inner = framed_writer.into_inner();
-        inner.flush().await.unwrap();
-        inner.shutdown().await.unwrap();
-        // framed_writer.get_mut().shutdown().await.unwrap();
+        inner.flush().await?;
+        inner.shutdown().await?;
+        Ok(())
     }
 }

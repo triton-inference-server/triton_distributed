@@ -16,6 +16,7 @@
 use std::sync::Arc;
 
 use futures::{SinkExt, StreamExt};
+use tokio::io::{ReadHalf, WriteHalf};
 use tokio::{io::AsyncWriteExt, net::TcpStream};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
@@ -112,7 +113,14 @@ impl TcpClient {
             stream_type: StreamType::Response,
         };
 
-        let handshake_bytes = serde_json::to_vec(&handshake).unwrap();
+        let handshake_bytes = match serde_json::to_vec(&handshake) {
+            Ok(hb) => hb,
+            Err(err) => {
+                return Err(error!(
+                    "create_response_steam: Error converting CallHomeHandshake to JSON array: {err:#}"
+                ));
+            }
+        };
         let msg = TwoPartMessage::from_header(handshake_bytes.into());
 
         // issue the the first tcp handshake message

@@ -164,9 +164,15 @@ where
 
         let stream = tokio_stream::wrappers::ReceiverStream::new(response_stream.rx);
 
-        let stream = stream.map(|msg| {
-            let resp: U = serde_json::from_slice(&msg).unwrap();
-            resp
+        let stream = stream.filter_map(|msg| async move {
+            match serde_json::from_slice::<U>(&msg) {
+                Ok(r) => Some(r),
+                Err(err) => {
+                    let json_str = String::from_utf8_lossy(&msg);
+                    tracing::error!(%err, %json_str, "Failed deserializing JSON to response");
+                    None
+                }
+            }
         });
 
         Ok(ResponseStream::new(Box::pin(stream), engine_ctx))
