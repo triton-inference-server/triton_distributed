@@ -24,21 +24,35 @@ import pytest_asyncio
 
 from triton_distributed.icp.nats_event_plane import (
     DEFAULT_EVENTS_HOST,
+    DEFAULT_EVENTS_PORT,
     DEFAULT_EVENTS_URI,
     NatsEventPlane,
 )
+
+
+def is_port_in_use(port: int) -> bool:
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("localhost", port)) == 0
 
 
 @pytest_asyncio.fixture(loop_scope="session")
 async def nats_server():
     """Fixture to start and stop a NATS server."""
     try:
+        # Raise more intuitive error to developer if port is already in-use.
+        if is_port_in_use(DEFAULT_EVENTS_PORT):
+            raise RuntimeError(
+                f"ERROR: NATS Port {DEFAULT_EVENTS_PORT} already in use. Is a nats-server already running?"
+            )
+
         # Start NATS server
         process = subprocess.Popen(
             [
                 "nats-server",
                 "-p",
-                "3333",
+                str(DEFAULT_EVENTS_PORT),
                 "-addr",
                 DEFAULT_EVENTS_HOST,
             ],

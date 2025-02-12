@@ -40,32 +40,39 @@ DEFAULT_CONNECTION_TIMEOUT = int(os.getenv("DEFAULT_CONNECTION_TIMEOUT", 30))
 
 
 class NatsEventSubscription(EventSubscription):
-    def __init__(self, nc_sub: nats.aio.subscription.Subscription, nats):
+    def __init__(self, nc_sub: nats.aio.subscription.Subscription, nats_connection):
         self._nc_sub: Optional[nats.aio.subscription.Subscription] = nc_sub
-        self._nats = nats
-        self._failure_task = asyncio.create_task(nats.wait_for_failure())
+        self._nats = nats_connection
 
     async def __anext__(self):
         if self._nc_sub is None:
             raise StopAsyncIteration
-        if self._failure_task.done():
-            if not self._nats.is_connected:
+        if not self._nats.is_connected:
+            if self._error is not None:
                 raise RuntimeError(
-                    "NATS connection failure."
-                ) from self._failure_task.exception()
+                    f"NATS connection error: {self._error}"
+                ) from self._error
             else:
-                self._failure_task = asyncio.create_task(nats.wait_for_failure())
+                raise RuntimeError("NATS connection failure.")
+        else:
+            failure_task = asyncio.create_task(self._nats.wait_for_failure())
         next_task = asyncio.create_task(self._nc_sub.next_msg())
         _ = await asyncio.wait(
-            [next_task, self._failure_task], return_when=asyncio.FIRST_COMPLETED
+            [next_task, failure_task], return_when=asyncio.FIRST_COMPLETED
         )
 
-        if self._failure_task.done():
+        if failure_task.done():
             logger.warning("NATS connection failure.")
-            raise RuntimeError(
-                "NATS connection failure."
-            ) from self._failure_task.exception()
+            try:
+                await next_task.cancel()
+            except asyncio.CancelledError:
+                pass
+            raise RuntimeError("NATS connection failure.") from failure_task.exception()
         else:
+            try:
+                await failure_task.cancel()
+            except asyncio.CancelledError:
+                pass
             msg = next_task.result()
             metadata, event_payload = self._extract_metadata_and_payload(msg.data)
             event = OnDemandEvent(event_payload, metadata)
