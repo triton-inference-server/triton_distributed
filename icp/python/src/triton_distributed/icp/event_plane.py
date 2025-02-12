@@ -19,8 +19,6 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Any, AsyncIterator, Awaitable, Callable, List, Optional, Union
 
-import msgspec
-
 EVENT_TOPIC_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
@@ -75,95 +73,38 @@ class EventMetadata:
     event_topic: Optional[EventTopic] = None
 
 
-def _deserialize_metadata(event_metadata_serialized: bytes):
-    event_metadata_dict = msgspec.json.decode(event_metadata_serialized)
-    topic_meta = event_metadata_dict["event_topic"]
-    topic_list = topic_meta["event_topic"].split(".")
-    metadata = EventMetadata(
-        **{
-            **event_metadata_dict,
-            "event_topic": EventTopic(topic_list)
-            if event_metadata_dict["event_topic"]
-            else None,
-            "event_id": uuid.UUID(event_metadata_dict["event_id"]),
-            "component_id": uuid.UUID(event_metadata_dict["component_id"]),
-            "timestamp": datetime.fromisoformat(event_metadata_dict["timestamp"]),
-        }
-    )
-    return metadata
-
-
-def _serialize_metadata(event_metadata: EventMetadata) -> bytes:
-    def hook(obj):
-        if isinstance(obj, uuid.UUID):
-            return str(obj)
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        if isinstance(obj, EventTopic):
-            return list(obj.event_topic.split("."))
-        else:
-            raise NotImplementedError(f"Type {type(obj)} is not serializable.")
-
-    json_string = msgspec.json.encode(event_metadata, enc_hook=hook)
-    return json_string
-
-
 class Event:
     """Event class for representing events."""
 
-    def __init__(
-        self,
-        payload: bytes,
-        event_metadata_serialize: bytes,
-        event_metadata: Optional[EventMetadata] = None,
-        metadata_deserialize: Optional[
-            Callable[[bytes], EventMetadata]
-        ] = _deserialize_metadata,
-    ):
-        """Initialize the event.
-
-        Args:
-            event_metadata (EventMetadata): Event metadata
-            event (bytes): Event payload
-        """
-        self._payload = payload
-        self._event_metadata_serialize = event_metadata_serialize
-        self._event_metadata = event_metadata
-        self._metadata_deserialize = metadata_deserialize
-
     @property
-    def _metadata(self):
-        if not self._event_metadata:
-            if not self._metadata_deserialize:
-                raise ValueError("No metadata deserialization function provided.")
-            self._event_metadata = self._metadata_deserialize(
-                self._event_metadata_serialize
-            )
-        return self._event_metadata
-
-    @property
+    @abstractmethod
     def event_id(self) -> uuid.UUID:
-        return self._metadata.event_id
+        pass
 
     @property
+    @abstractmethod
     def event_type(self) -> str:
-        return self._metadata.event_type
+        pass
 
     @property
+    @abstractmethod
     def timestamp(self) -> datetime:
-        return self._metadata.timestamp
+        pass
 
     @property
+    @abstractmethod
     def component_id(self) -> uuid.UUID:
-        return self._metadata.component_id
+        pass
 
     @property
+    @abstractmethod
     def event_topic(self) -> Optional[EventTopic]:
-        return self._metadata.event_topic
+        pass
 
     @property
+    @abstractmethod
     def payload(self) -> bytes:
-        return self._payload
+        pass
 
 
 class EventSubscription(AsyncIterator[Event]):
