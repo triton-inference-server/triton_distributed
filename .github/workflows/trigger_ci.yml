@@ -22,11 +22,13 @@ on:
     paths-ignore:
     - 'deploy/Kubernetes/**'
     - '**/*.md'
+    - 'CODEOWNERS'
 
   pull_request:
     paths-ignore:
     - 'deploy/Kubernetes/**'
     - '**/*.md'
+    - 'CODEOWNERS'
 
 jobs:
   mirror_repo:
