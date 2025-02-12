@@ -1,20 +1,5 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 diff --git a/vllm/config.py b/vllm/config.py
-index 9ba49757..c849f685 100644
+index 9ba49757..7e871521 100644
 --- a/vllm/config.py
 +++ b/vllm/config.py
 @@ -2629,7 +2629,7 @@ class KVTransferConfig(BaseModel):
@@ -26,22 +11,13 @@ index 9ba49757..c849f685 100644
      kv_role: Optional[str] = None
  
      # The rank of this vLLM instance in the KV cache transfer. Typical value:
-@@ -2641,12 +2641,23 @@ class KVTransferConfig(BaseModel):
-     # PyNcclConnector, this should be 2.
-     kv_parallel_size: int = 1
- 
-+    # The number of parallel instances for KV cache transfer for producers.
-+    kv_producers_parallel_size: Optional[int] = None
-+
-     # The KV connector ip, used to build distributed connection
-     kv_ip: str = "127.0.0.1"
- 
+@@ -2647,6 +2647,14 @@ class KVTransferConfig(BaseModel):
      # The KV connector port, used to build distributed connection
      kv_port: int = 14579
  
 +
-+    # Global config for tensor parallelism and pipeline parallelism for kv transfer instances
-+    # This is used to create parallel group for kv transfer instances.
++    # This does not need to be set by the user. It is set by the connector.
++    kv_producers_parallel_size: Optional[int] = None
 +    kv_producers_tensor_parallel_size: Optional[int] = None
 +    kv_producers_pipeline_parallel_size: Optional[int] = None
 +    kv_consumers_tensor_parallel_size: Optional[int] = None
@@ -50,32 +26,15 @@ index 9ba49757..c849f685 100644
      def compute_hash(self) -> str:
          """
          WARNING: Whenever a new field is added to this config,
-@@ -2685,6 +2696,24 @@ class KVTransferConfig(BaseModel):
+@@ -2685,6 +2693,7 @@ class KVTransferConfig(BaseModel):
                               "is set, supported roles are `kv_producer`, "
                               "`kv_consumer`, and `kv_both`")
  
-+    
-+    def verify_with_parallel_config(self, parallel_config: ParallelConfig) -> None:
-+        if self.kv_role is not None:
-+            if self.is_kv_producer:
-+                if parallel_config.tensor_parallel_size != self.kv_producers_tensor_parallel_size:
-+                    raise ValueError("kv_producers_tensor_parallel_size should be equal to tensor_parallel_size.")
-+                if parallel_config.pipeline_parallel_size != self.kv_producers_pipeline_parallel_size:
-+                    raise ValueError("kv_producers_pipeline_parallel_size should be equal to pipeline_parallel_size.")
-+            if self.is_kv_consumer:
-+                if parallel_config.tensor_parallel_size != self.kv_consumers_tensor_parallel_size:
-+                    raise ValueError("kv_consumers_tensor_parallel_size should be equal to tensor_parallel_size.")
-+                if parallel_config.pipeline_parallel_size != self.kv_consumers_pipeline_parallel_size:
-+                    raise ValueError("kv_consumers_pipeline_parallel_size should be equal to pipeline_parallel_size.")
-+
-+        assert self.kv_producers_pipeline_parallel_size == 1 and self.kv_consumers_pipeline_parallel_size == 1, "Only pipeline parallel size 1 is supported for kv transfer instances."
-+        assert self.kv_consumers_tensor_parallel_size % self.kv_producers_tensor_parallel_size == 0, "kv_consumers_tensor_parallel_size should be divisible by kv_producers_tensor_parallel_size."
-+
 +
      @property
      def is_kv_transfer_instance(self) -> bool:
          return self.kv_connector is not None and \
-@@ -2706,6 +2735,18 @@ class KVTransferConfig(BaseModel):
+@@ -2706,6 +2715,18 @@ class KVTransferConfig(BaseModel):
          return self.kv_connector is not None and \
              self.kv_role in ["kv_consumer", "kv_both"]
  
@@ -94,17 +53,6 @@ index 9ba49757..c849f685 100644
  
  class CompilationLevel:
      # constants for the levels of the compilation process
-@@ -3283,6 +3324,10 @@ class VllmConfig:
-         if not self.instance_id:
-             self.instance_id = random_uuid()[:5]
- 
-+        # if self.kv_transfer_config is not None:
-+        #     self.kv_transfer_config.verify_with_parallel_config(
-+        #         self.parallel_config)
-+
-     def _set_cudagraph_sizes(self):
-         """
-         cudagraph batchsize padding logic:
 diff --git a/vllm/distributed/kv_transfer/kv_connector/factory.py b/vllm/distributed/kv_transfer/kv_connector/factory.py
 index fe480533..b768e03c 100644
 --- a/vllm/distributed/kv_transfer/kv_connector/factory.py
@@ -126,7 +74,7 @@ index fe480533..b768e03c 100644
  
  # Register various connectors here.
 diff --git a/vllm/distributed/kv_transfer/kv_connector/simple_connector.py b/vllm/distributed/kv_transfer/kv_connector/simple_connector.py
-index 2033e976..20b87a84 100644
+index 2033e976..71cd0567 100644
 --- a/vllm/distributed/kv_transfer/kv_connector/simple_connector.py
 +++ b/vllm/distributed/kv_transfer/kv_connector/simple_connector.py
 @@ -8,13 +8,15 @@ MooncakePipe.
@@ -158,75 +106,14 @@ index 2033e976..20b87a84 100644
  
          if self.config.kv_connector == "PyNcclConnector":
              from vllm.distributed.kv_transfer.kv_pipe.pynccl_pipe import (
-@@ -71,20 +73,92 @@ class SimpleConnector(KVConnectorBase):
+@@ -71,20 +73,31 @@ class SimpleConnector(KVConnectorBase):
          self.producer_signal_pipe: Union[PyNcclPipe, MooncakePipe]
          self.consumer_signal_pipe: Union[PyNcclPipe, MooncakePipe]
  
-+
-+        if rank == 0:
-+            if self.config.kv_connector == "PyNcclConnector":
-+                config_group = StatelessProcessGroup.create(
-+                    host=self.config.kv_ip,
-+                    port=self.config.kv_port,
-+                    rank=self.config.kv_rank,
-+                    world_size=self.config.kv_parallel_size,
-+                )
-+                parallel_configs = config_group.all_gather_obj({
-+                    "kv_rank": self.config.kv_rank,
-+                    "kv_parallel_size": self.config.kv_parallel_size,
-+                    "kv_role": self.config.kv_role,
-+                    "tensor_parallel_size": config.parallel_config.tensor_parallel_size,
-+                    "pipeline_parallel_size": config.parallel_config.pipeline_parallel_size,
-+                })
-+                logger.info("parallel_configs: %s", parallel_configs)
-+                kv_producers_tensor_parallel_size = None
-+                kv_consumers_tensor_parallel_size = None
-+                kv_producers_pipeline_parallel_size = None
-+                kv_consumers_pipeline_parallel_size = None
-+                kv_producers_parallel_size = 0
-+                for parallel_config in parallel_configs:
-+                    if parallel_config["kv_role"] == "kv_producer":
-+                        kv_producers_parallel_size += 1
-+                        if kv_producers_tensor_parallel_size is None:
-+                            kv_producers_tensor_parallel_size = parallel_config["tensor_parallel_size"]
-+                            kv_producers_pipeline_parallel_size = parallel_config["pipeline_parallel_size"]
-+                        else:
-+                            assert kv_producers_tensor_parallel_size == parallel_config["tensor_parallel_size"], "All kv producers should have the same tensor parallel size"
-+                            assert kv_producers_pipeline_parallel_size == parallel_config["pipeline_parallel_size"], "All kv producers should have the same pipeline parallel size"
-+                    elif parallel_config["kv_role"] == "kv_consumer":
-+                        if kv_consumers_tensor_parallel_size is None:
-+                            kv_consumers_tensor_parallel_size = parallel_config["tensor_parallel_size"]
-+                            kv_consumers_pipeline_parallel_size = parallel_config["pipeline_parallel_size"]
-+                        else:
-+                            assert kv_consumers_tensor_parallel_size == parallel_config["tensor_parallel_size"], "All kv consumers should have the same tensor parallel size"
-+                            assert kv_consumers_pipeline_parallel_size == parallel_config["pipeline_parallel_size"], "All kv consumers should have the same pipeline parallel size"
-+                    else:
-+                        raise ValueError("kv_role should be either kv_producer or kv_consumer")
-+                kv_config_enhanced = {
-+                    "kv_producers_tensor_parallel_size": kv_producers_tensor_parallel_size,
-+                    "kv_consumers_tensor_parallel_size": kv_consumers_tensor_parallel_size,
-+                    "kv_producers_pipeline_parallel_size": kv_producers_pipeline_parallel_size,
-+                    "kv_consumers_pipeline_parallel_size": kv_consumers_pipeline_parallel_size,
-+                    "kv_producers_parallel_size": kv_producers_parallel_size,
-+                }
-+                world_group.broadcast_object(kv_config_enhanced)
-+
-+            else:
-+                raise NotImplementedError("MooncakeConnector is not supported in Triton Distributed vllm patch")
-+        else:
-+            kv_config_enhanced = world_group.broadcast_object()
-+        logger.info("kv_config_enhanced: %s", kv_config_enhanced)
-+
-+        self.config.kv_producers_tensor_parallel_size = kv_config_enhanced["kv_producers_tensor_parallel_size"]
-+        self.config.kv_consumers_tensor_parallel_size = kv_config_enhanced["kv_consumers_tensor_parallel_size"]
-+        self.config.kv_producers_pipeline_parallel_size = kv_config_enhanced["kv_producers_pipeline_parallel_size"]
-+        self.config.kv_consumers_pipeline_parallel_size = kv_config_enhanced["kv_consumers_pipeline_parallel_size"]
-+        self.config.kv_producers_parallel_size = kv_config_enhanced["kv_producers_parallel_size"]
++        self._broadcast_and_enhance_kv_config(rank, config, world_group)
 +
 +        self.kv_group_rank = self._get_kv_group_rank(self.config.kv_rank, rank, self.config)
 +        self.tp_size = config.parallel_config.tensor_parallel_size
-+
-+
 +
          # 2 pipes for every rank in the world
 -        port_offset_base = 2 * rank
@@ -252,7 +139,7 @@ index 2033e976..20b87a84 100644
                      local_rank=local_rank,
                      config=self.config,
                      port_offset=port_offset_base + 1,
-@@ -108,11 +182,13 @@ class SimpleConnector(KVConnectorBase):
+@@ -108,11 +121,13 @@ class SimpleConnector(KVConnectorBase):
              # its recv pipe to the send pipe of KV producder
              if self.config.kv_connector == "PyNcclConnector":
                  self.consumer_data_pipe = PyNcclPipe(
@@ -266,7 +153,7 @@ index 2033e976..20b87a84 100644
                      local_rank=local_rank,
                      config=self.config,
                      port_offset=port_offset_base + 1,
-@@ -131,21 +207,25 @@ class SimpleConnector(KVConnectorBase):
+@@ -131,21 +146,25 @@ class SimpleConnector(KVConnectorBase):
                  self.config.kv_buffer_size,
              )
  
@@ -296,7 +183,7 @@ index 2033e976..20b87a84 100644
  
      def send_kv_caches_and_hidden_states(
          self,
-@@ -161,6 +241,7 @@ class SimpleConnector(KVConnectorBase):
+@@ -161,6 +180,7 @@ class SimpleConnector(KVConnectorBase):
          slot_mapping_flat = model_input.attn_metadata.slot_mapping.flatten()
          start_layer = model_executable.model.start_layer
          end_layer = model_executable.model.end_layer
@@ -304,7 +191,7 @@ index 2033e976..20b87a84 100644
  
          model_config = model_executable.model.config
          num_heads = int(model_config.num_key_value_heads / self.tp_size)
-@@ -175,27 +256,36 @@ class SimpleConnector(KVConnectorBase):
+@@ -175,27 +195,36 @@ class SimpleConnector(KVConnectorBase):
              start_pos = sum(seq_lens[:idx])
              end_pos = start_pos + slen
              current_tokens = input_tokens_tensor[start_pos:end_pos]
@@ -313,41 +200,41 @@ index 2033e976..20b87a84 100644
 +            starting_kv_group_rank = self._get_kv_group_rank(decode_kv_rank, 0, self.config)
 +
 +            for target_rank in range(self.config.tensor_parallel_multiplier):
- 
--            keys, values = [], []
++
 +                keys, values = [], []
  
--            for layer_id in range(start_layer, end_layer):
--                kv_cache = kv_caches[layer_id - start_layer]
+-            keys, values = [], []
 +                for layer_id in range(start_layer, end_layer):
 +                    kv_cache = kv_caches[layer_id - start_layer]
  
--                key_cache = kv_cache[0].reshape(-1, num_heads, head_size)
--                value_cache = kv_cache[1].reshape(-1, num_heads, head_size)
+-            for layer_id in range(start_layer, end_layer):
+-                kv_cache = kv_caches[layer_id - start_layer]
 +                    key_cache = kv_cache[0].reshape(-1, num_heads, head_size)
 +                    value_cache = kv_cache[1].reshape(-1, num_heads, head_size)
  
--                current_slot_mapping = slot_mapping_flat[start_pos:end_pos]
+-                key_cache = kv_cache[0].reshape(-1, num_heads, head_size)
+-                value_cache = kv_cache[1].reshape(-1, num_heads, head_size)
 +                    current_slot_mapping = slot_mapping_flat[start_pos:end_pos]
  
--                keys.append(key_cache[current_slot_mapping].unsqueeze(0))
--                values.append(value_cache[current_slot_mapping].unsqueeze(0))
+-                current_slot_mapping = slot_mapping_flat[start_pos:end_pos]
 +                    num_heads_per_rank = num_heads // self.config.tensor_parallel_multiplier
 +                    head_start = target_rank * num_heads_per_rank
 +                    head_end = head_start + num_heads_per_rank
  
--            keys = torch.cat(keys, dim=0)
--            values = torch.cat(values, dim=0)
+-                keys.append(key_cache[current_slot_mapping].unsqueeze(0))
+-                values.append(value_cache[current_slot_mapping].unsqueeze(0))
 +                    keys.append(key_cache[current_slot_mapping, head_start:head_end].unsqueeze(0))
 +                    values.append(value_cache[current_slot_mapping, head_start:head_end].unsqueeze(0))
+ 
+-            keys = torch.cat(keys, dim=0)
+-            values = torch.cat(values, dim=0)
++                keys = torch.cat(keys, dim=0)
++                values = torch.cat(values, dim=0)
  
 -            self.insert(current_tokens,
 -                        torch.ones_like(current_tokens,
 -                                        dtype=bool), keys, values,
 -                        hidden_or_intermediate_states[start_pos:end_pos])
-+                keys = torch.cat(keys, dim=0)
-+                values = torch.cat(values, dim=0)
-+
 +                self.insert(starting_kv_group_rank, target_rank, current_tokens,
 +                            torch.ones_like(current_tokens,
 +                                            dtype=bool), keys, values,
@@ -355,7 +242,7 @@ index 2033e976..20b87a84 100644
  
          logger.debug("[rank%d]: KV send DONE.", torch.distributed.get_rank())
  
-@@ -215,6 +305,7 @@ class SimpleConnector(KVConnectorBase):
+@@ -215,6 +244,7 @@ class SimpleConnector(KVConnectorBase):
          input_tokens_tensor = model_input.input_tokens
          seq_lens = model_input.attn_metadata.seq_lens
          slot_mapping = model_input.attn_metadata.slot_mapping.flatten()
@@ -363,7 +250,7 @@ index 2033e976..20b87a84 100644
  
          hidden_or_intermediate_states_for_one_req = []
  
-@@ -229,13 +320,15 @@ class SimpleConnector(KVConnectorBase):
+@@ -229,13 +259,15 @@ class SimpleConnector(KVConnectorBase):
              start_pos = sum(seq_lens[:idx])
              end_pos = start_pos + slen
              current_tokens = input_tokens_tensor[start_pos:end_pos]
@@ -380,7 +267,7 @@ index 2033e976..20b87a84 100644
                                torch.ones_like(current_tokens, dtype=bool))
              if ret[0] is None:
                  # didn't find any match.
-@@ -312,3 +405,29 @@ class SimpleConnector(KVConnectorBase):
+@@ -312,3 +344,77 @@ class SimpleConnector(KVConnectorBase):
              # MooncakePipe reuses data_pipe for signal_pipe, so we only have to
              # close the data_pipe.
              pass
@@ -410,8 +297,57 @@ index 2033e976..20b87a84 100644
 +        
 +        kv_consumer_rank = kv_rank - config.kv_producers_parallel_size
 +        return config.kv_producers_parallel_size + kv_consumer_rank * config.tensor_parallel_multiplier + rank % config.tensor_parallel_multiplier
++
++    def _broadcast_and_enhance_kv_config(self, rank: int, config: VllmConfig, world_group):
++        if rank == 0:
++            if self.config.kv_connector == "PyNcclConnector":
++                config_group = StatelessProcessGroup.create(
++                    host=self.config.kv_ip,
++                    port=self.config.kv_port,
++                    rank=self.config.kv_rank,
++                    world_size=self.config.kv_parallel_size,
++                )
++                parallel_configs = config_group.all_gather_obj({
++                    "kv_role": self.config.kv_role,
++                    "tensor_parallel_size": config.parallel_config.tensor_parallel_size,
++                    "pipeline_parallel_size": config.parallel_config.pipeline_parallel_size,
++                })
++                logger.debug("parallel_configs: %s", parallel_configs)
++                kv_config_enhanced = {
++                    "kv_producers_tensor_parallel_size": None,
++                    "kv_consumers_tensor_parallel_size": None,
++                    "kv_producers_pipeline_parallel_size": None,
++                    "kv_consumers_pipeline_parallel_size": None,
++                    "kv_producers_parallel_size": 0,
++                }
++                for parallel_config in parallel_configs:
++                    kv_role = parallel_config["kv_role"]
++                    assert parallel_config["pipeline_parallel_size"] == 1, f"Only pipeline parallel size 1 is supported for kv transfer instances"
++                    
++                    if kv_role == "kv_producer":
++                        kv_config_enhanced["kv_producers_parallel_size"] += 1
++                    if kv_config_enhanced[f"{kv_role}s_tensor_parallel_size"] is None:
++                        kv_config_enhanced[f"{kv_role}s_tensor_parallel_size"] = parallel_config["tensor_parallel_size"]
++                        kv_config_enhanced[f"{kv_role}s_pipeline_parallel_size"] = parallel_config["pipeline_parallel_size"]
++                    else:
++                        assert kv_config_enhanced[f"{kv_role}s_tensor_parallel_size"] == parallel_config["tensor_parallel_size"], f"All kv {kv_role}s should have the same tensor parallel size"
++                        assert kv_config_enhanced[f"{kv_role}s_pipeline_parallel_size"] == parallel_config["pipeline_parallel_size"], f"All kv {kv_role}s should have the same pipeline parallel size"
++                world_group.broadcast_object(kv_config_enhanced)
++
++            else:
++                raise NotImplementedError("MooncakeConnector is not supported in Triton Distributed vllm patch")
++        else:
++            kv_config_enhanced = world_group.broadcast_object()
++        logger.info("kv_config_enhanced: %s", kv_config_enhanced)
++
++        self.config.kv_producers_tensor_parallel_size = kv_config_enhanced["kv_producers_tensor_parallel_size"]
++        self.config.kv_consumers_tensor_parallel_size = kv_config_enhanced["kv_consumers_tensor_parallel_size"]
++        self.config.kv_producers_pipeline_parallel_size = kv_config_enhanced["kv_producers_pipeline_parallel_size"]
++        self.config.kv_consumers_pipeline_parallel_size = kv_config_enhanced["kv_consumers_pipeline_parallel_size"]
++        self.config.kv_producers_parallel_size = kv_config_enhanced["kv_producers_parallel_size"]
+\ No newline at end of file
 diff --git a/vllm/distributed/kv_transfer/kv_lookup_buffer/simple_buffer.py b/vllm/distributed/kv_transfer/kv_lookup_buffer/simple_buffer.py
-index 5e1b6235..566e8053 100644
+index 5e1b6235..b4506877 100644
 --- a/vllm/distributed/kv_transfer/kv_lookup_buffer/simple_buffer.py
 +++ b/vllm/distributed/kv_transfer/kv_lookup_buffer/simple_buffer.py
 @@ -12,7 +12,8 @@
@@ -490,7 +426,7 @@ index 5e1b6235..566e8053 100644
  
          with self.buffer_lock:
              for data in buffer_item:
-@@ -125,53 +132,58 @@ class SimpleBuffer(KVLookupBufferBase):
+@@ -125,53 +132,54 @@ class SimpleBuffer(KVLookupBufferBase):
      def _is_end_signal(self, signal):
          return signal is None
  
@@ -542,18 +478,14 @@ index 5e1b6235..566e8053 100644
 -                        # no match, just send None
 -                        for _ in range(5):
 -                            self.data_pipe.send_tensor(None)
-+            logger.info("Handling drop-select from rank %d", rank)
 +            signal = self.signal_pipe.recv_tensor(rank)
 +            if self._is_end_signal(signal):
 +                logger.info("Received end signal!")
 +                return
-+            logger.info("Handling drop-select from rank %d", rank)
 +            target_kv_rank = self.data_pipe.recv_tensor(rank)
 +            # assert target_rank.item() == rank, "Target rank does not match"\
 +            #     "the rank of the drop-select handler"
-+            logger.info("Handling drop-select from rank %d", rank)
 +            input_tokens = self.data_pipe.recv_tensor(rank)
-+            logger.info("Handling drop-select from rank %d", rank)
 +            roi = self.data_pipe.recv_tensor(rank)
 +            assert roi is not None, "Please provide the roi when sending "\
 +                "drop-select request"
@@ -593,7 +525,7 @@ index 5e1b6235..566e8053 100644
  
          except RuntimeError as e:
              if 'Connection closed by peer' not in str(e):
-@@ -180,10 +192,10 @@ class SimpleBuffer(KVLookupBufferBase):
+@@ -180,10 +188,10 @@ class SimpleBuffer(KVLookupBufferBase):
          logger.debug("Closing drop_select_handler")
  
      def drop_select(
@@ -606,7 +538,7 @@ index 5e1b6235..566e8053 100644
              "drop_select should be called by the KV cache consumer "\
              "(e.g. the decode vLLM instance)"
  
-@@ -192,26 +204,33 @@ class SimpleBuffer(KVLookupBufferBase):
+@@ -192,26 +200,28 @@ class SimpleBuffer(KVLookupBufferBase):
          if isinstance(roi, torch.Tensor):
              roi = roi.clone().float()
  
@@ -621,9 +553,7 @@ index 5e1b6235..566e8053 100644
  
 -        input_tokens = self.data_pipe.recv_tensor()
 -        roi = self.data_pipe.recv_tensor()
-+        logger.info("Drop-selecting from rank %d", rank)
 +        input_tokens = self.data_pipe.recv_tensor(rank)
-+        logger.info("Drop-selecting from rank %d", rank)
 +        roi = self.data_pipe.recv_tensor(rank)
          if roi is not None:
              # convert from float tensor to bool tensor
@@ -632,11 +562,8 @@ index 5e1b6235..566e8053 100644
 -        key = self.data_pipe.recv_tensor()
 -        value = self.data_pipe.recv_tensor()
 -        hidden = self.data_pipe.recv_tensor()
-+        logger.info("Drop-selecting from rank %d", rank)
 +        key = self.data_pipe.recv_tensor(rank)
-+        logger.info("Drop-selecting from rank %d", rank)
 +        value = self.data_pipe.recv_tensor(rank)
-+        logger.info("Drop-selecting from rank %d", rank)
 +        hidden = self.data_pipe.recv_tensor(rank)
  
          return [input_tokens, roi, key, value, hidden]
@@ -649,7 +576,7 @@ index 5e1b6235..566e8053 100644
                 key: torch.Tensor, value: torch.Tensor,
                 hidden: torch.Tensor) -> None:
  
-@@ -222,20 +241,19 @@ class SimpleBuffer(KVLookupBufferBase):
+@@ -222,20 +232,19 @@ class SimpleBuffer(KVLookupBufferBase):
          while self.buffer_size > self.buffer_size_threshold:
              self.full_handler()
  
@@ -699,10 +626,10 @@ index 40589fb3..da2829cf 100644
  
          Returns:
 diff --git a/vllm/distributed/kv_transfer/kv_pipe/pynccl_pipe.py b/vllm/distributed/kv_transfer/kv_pipe/pynccl_pipe.py
-index 7aa53d07..cd414638 100644
+index 7aa53d07..db10f8a0 100644
 --- a/vllm/distributed/kv_transfer/kv_pipe/pynccl_pipe.py
 +++ b/vllm/distributed/kv_transfer/kv_pipe/pynccl_pipe.py
-@@ -45,33 +45,37 @@ class PyNcclPipe(KVPipeBase):
+@@ -45,33 +45,33 @@ class PyNcclPipe(KVPipeBase):
      METADATA_DTYPE = torch.int64
  
      def __init__(self,
@@ -736,16 +663,13 @@ index 7aa53d07..cd414638 100644
          self.group.barrier()
          impl = self._get_device_send_recv_impl(self.group)
          self.device_send_func, self.device_recv_func = impl
-         # set target rank
+-        # set target rank
 -        self.target_rank_for_send = (self.kv_rank + 1) % self.kv_parallel_size
 -        self.target_rank_for_recv = (self.kv_rank - 1) % self.kv_parallel_size
-+        # self.target_ranks_for_send = list(range(1, self.kv_world_size))
-+        # self.target_ranks_for_recv = [0]
-+        # self.target_rank_for_recv = 0
  
          # transportation-related variables
          self.transport_thread: Optional[ThreadPoolExecutor] = None
-@@ -145,16 +149,16 @@ class PyNcclPipe(KVPipeBase):
+@@ -145,16 +145,16 @@ class PyNcclPipe(KVPipeBase):
                             dtype=metadata["dtype"],
                             device=self.device)
  
@@ -765,7 +689,7 @@ index 7aa53d07..cd414638 100644
          """
          Receive the metadata dictionary from the target rank.
  
-@@ -162,9 +166,9 @@ class PyNcclPipe(KVPipeBase):
+@@ -162,9 +162,9 @@ class PyNcclPipe(KVPipeBase):
              - metadata: A dictionary with keys "dtype" and "shape" describing 
                the tensor.
          """
@@ -777,7 +701,7 @@ index 7aa53d07..cd414638 100644
          """
          The actual implementation of sending the tensor and its metadata to the 
          target rank.
-@@ -174,12 +178,12 @@ class PyNcclPipe(KVPipeBase):
+@@ -174,12 +174,12 @@ class PyNcclPipe(KVPipeBase):
                being sent.
          """
          metadata = self._make_metadata(tensor)
@@ -793,12 +717,11 @@ index 7aa53d07..cd414638 100644
          """
          The actual implementation of receiving a tensor and its metadata from 
          the target rank.
-@@ -187,21 +191,23 @@ class PyNcclPipe(KVPipeBase):
+@@ -187,21 +187,22 @@ class PyNcclPipe(KVPipeBase):
          Returns:
              - buffer: The received tensor, or None if no tensor is received.
          """
 -        metadata = self._recv_metadata()
-+        logger.info("Receiving metadata from rank %d", src_rank)
 +        metadata = self._recv_metadata(src_rank)
          if metadata["dtype"] is None:
              return None
@@ -821,7 +744,7 @@ index 7aa53d07..cd414638 100644
  
              with self.buffer_size_lock:
                  self.buffer_size -= tensor_size
-@@ -220,7 +226,7 @@ class PyNcclPipe(KVPipeBase):
+@@ -220,7 +221,7 @@ class PyNcclPipe(KVPipeBase):
              logger.debug("KV cache transfer pipe is full. Waiting...")
              time.sleep(0.05)
  
@@ -830,15 +753,15 @@ index 7aa53d07..cd414638 100644
          """
          Sends a tensor and its metadata to the destination rank in a 
          non-blocking way.
-@@ -228,6 +234,7 @@ class PyNcclPipe(KVPipeBase):
+@@ -228,6 +229,7 @@ class PyNcclPipe(KVPipeBase):
          Parameters:
              - tensor: The tensor to send, or None if no tensor is being sent.
          """
-+        logger.info("Rank %d sending tensor of shape %s dtype %s to rank %d", self.kv_group_rank, tensor.shape if tensor is not None else "None", tensor.dtype if tensor is not None else "None", target_rank)
++        logger.debug("Rank %d sending tensor of shape %s dtype %s to rank %d", self.kv_group_rank, tensor.shape if tensor is not None else "None", tensor.dtype if tensor is not None else "None", target_rank)
          if self.transport_thread is None:
              self.transport_thread = ThreadPoolExecutor(max_workers=1)
  
-@@ -242,19 +249,23 @@ class PyNcclPipe(KVPipeBase):
+@@ -242,19 +244,23 @@ class PyNcclPipe(KVPipeBase):
              self.buffer_size += tensor_size
  
          self.transport_thread.submit(self.send_tensor_wrapper, tensor,
@@ -855,7 +778,7 @@ index 7aa53d07..cd414638 100644
              - tensor: The received tensor, or None if no tensor is received.
          """
 +
-+        logger.info("Rank %d receiving tensor from rank %d", self.kv_group_rank, src_rank)
++        logger.debug("Rank %d receiving tensor from rank %d", self.kv_group_rank, src_rank)
 +
          if self.transport_thread is None:
              self.transport_thread = ThreadPoolExecutor(max_workers=1)
