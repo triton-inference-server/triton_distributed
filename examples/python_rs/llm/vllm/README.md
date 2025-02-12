@@ -42,17 +42,13 @@ The example is designed to run in a containerized environment using Triton Distr
 
 ```bash
 # Build image
-./container/build.sh
+./container/build.sh --framework VLLM
 ```
 
 ## Launching the Environment
 ```
 # Run image interactively
-./container/run.sh -it
-
-# Add vllm into the python virtual environment
-source /opt/triton/venv/bin/activate
-uv pip install vllm==0.7.2
+./container/run.sh --framework VLLM -it
 ```
 
 ## Deployment Options
@@ -113,25 +109,15 @@ source /opt/triton/venv/bin/activate
 
 # Launch prefill worker
 cd /workspace/examples/python_rs/llm/vllm
-VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0,1 python3 -m disaggregated.prefill_worker \
+VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
     --gpu-memory-utilization 0.8 \
     --enforce-eager \
     --tensor-parallel-size 1 \
     --kv-transfer-config \
-    '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":4}'
+    '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2}'
 ```
-
-
-VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=2,3 python3 -m disaggregated.prefill_worker \
-    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
-    --max-model-len 100 \
-    --gpu-memory-utilization 0.8 \
-    --enforce-eager \
-    --tensor-parallel-size 1 \
-    --kv-transfer-config \
-    '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":1,"kv_parallel_size":4}'
 
 **Terminal 2 - Decode Worker:**
 ```bash
@@ -140,26 +126,15 @@ source /opt/triton/venv/bin/activate
 
 # Launch decode worker
 cd /workspace/examples/python_rs/llm/vllm
-VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=4,5 python3 -m disaggregated.decode_worker \
+VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggregated.decode_worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
     --gpu-memory-utilization 0.8 \
     --enforce-eager \
     --tensor-parallel-size 2 \
     --kv-transfer-config \
-    '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":2,"kv_parallel_size":4}'
+    '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2}'
 ```
-
-
-
-VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=6,7 python3 -m disaggregated.decode_worker \
-    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
-    --max-model-len 100 \
-    --gpu-memory-utilization 0.8 \
-    --enforce-eager \
-    --tensor-parallel-size 2 \
-    --kv-transfer-config \
-    '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":3,"kv_parallel_size":4}'
 
 **Terminal 3 - Client:**
 ```bash
