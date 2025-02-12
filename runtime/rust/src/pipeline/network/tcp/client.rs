@@ -253,9 +253,6 @@ async fn handle_writer(
         }
     }
     drop(alive_rx);
-    // if let Err(e) = framed_writer.get_mut().shutdown().await {
-    //     eprintln!("failed to shutdown writer: {:?}", e);
-    //     tracing::trace!("failed to shutdown writer: {:?}", e);
-    // }
+
     framed_writer
 }
