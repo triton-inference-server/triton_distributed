@@ -29,14 +29,15 @@ pub struct WorkerConfig {
 }
 
 impl WorkerConfig {
+    /// Instantiates and reads server configurations from appropriate sources.
+    /// Panics on invalid configuration.
     pub fn from_settings() -> Self {
-        // Instantiates and reads server configurations from appropriate sources.
         // All calls should be global and thread safe.
         Figment::new()
             .merge(Serialized::defaults(Self::default()))
             .merge(Env::prefixed("TRITON_WORKER_"))
             .extract()
-            .unwrap()
+            .unwrap() // safety: Called on startup, so panic is reasonable
     }
 }
 
