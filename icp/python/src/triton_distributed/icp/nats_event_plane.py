@@ -21,9 +21,13 @@ from typing import Awaitable, Callable, Optional
 
 import nats
 
-from triton_distributed.icp import EventMetadata, EventTopic
+from triton_distributed.icp import EventTopic
 from triton_distributed.icp.event_plane import Event, EventSubscription
-from triton_distributed.icp.lazy_event import LazyEvent, _serialize_metadata
+from triton_distributed.icp.lazy_event import (
+    EventMetadata,
+    LazyEvent,
+    _serialize_metadata,
+)
 
 logger = logging.getLogger(__name__)
 

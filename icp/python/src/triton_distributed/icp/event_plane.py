@@ -60,19 +60,6 @@ class EventTopic:
         return self.event_topic
 
 
-@dataclasses.dataclass
-class EventMetadata:
-    """
-    Class keeps metadata of an event.
-    """
-
-    event_id: uuid.UUID
-    event_type: str
-    timestamp: datetime
-    component_id: uuid.UUID
-    event_topic: Optional[EventTopic] = None
-
-
 class Event:
     """Event class for representing events."""
 

@@ -12,13 +12,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dataclasses
 import uuid
 from datetime import datetime
 from typing import Optional
 
 import msgspec
 
-from triton_distributed.icp.event_plane import Event, EventMetadata, EventTopic
+from triton_distributed.icp.event_plane import Event, EventTopic
+
+
+@dataclasses.dataclass
+class EventMetadata:
+    """
+    Class keeps metadata of an event.
+    """
+
+    event_id: uuid.UUID
+    event_type: str
+    timestamp: datetime
+    component_id: uuid.UUID
+    event_topic: Optional[EventTopic] = None
 
 
 def _deserialize_metadata(event_metadata_serialized: bytes):
@@ -58,10 +72,10 @@ class LazyEvent(Event):
     """LazyEvent class for representing events."""
 
     def __init__(
-            self,
-            payload: bytes,
-            event_metadata_serialized: bytes,
-            event_metadata: Optional[EventMetadata] = None,
+        self,
+        payload: bytes,
+        event_metadata_serialized: bytes,
+        event_metadata: Optional[EventMetadata] = None,
     ):
         """Initialize the event.
 
