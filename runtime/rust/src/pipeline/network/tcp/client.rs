@@ -198,7 +198,8 @@ async fn handle_reader(
                                 }
                            }
                            _ => {
-                               break;
+                                // not a control message, so we just continue
+                               continue;
                            }
                         }
                     }
