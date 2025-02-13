@@ -68,10 +68,10 @@ class NatsEventSubscription(EventSubscription):
         self._nats = nats_connection
         self._subject = subject
         self._topic = topic
+        self._error = None
 
-    async def __anext__(self):
-        if self._nc_sub is None:
-            raise StopAsyncIteration
+    async def _check_connection(self):
+        """Helper method to check connection status and raise appropriate errors"""
         if not self._nats.is_connected:
             if self._error is not None:
                 raise RuntimeError(
@@ -79,8 +79,13 @@ class NatsEventSubscription(EventSubscription):
                 ) from self._error
             else:
                 raise RuntimeError("NATS connection failure.")
-        else:
-            failure_task = asyncio.create_task(self._nats.wait_for_failure())
+
+    async def __anext__(self):
+        if self._nc_sub is None:
+            raise StopAsyncIteration
+
+        await self._check_connection()
+        failure_task = asyncio.create_task(self._nats.wait_for_failure())
         next_task = asyncio.create_task(self._nc_sub.next_msg())
         _ = await asyncio.wait(
             [next_task, failure_task], return_when=asyncio.FIRST_COMPLETED
@@ -294,7 +299,9 @@ class NatsEventPlane:
 
     async def subscribe(
         self,
-        callback: Optional[Callable[[Event], Awaitable[None]]] = None,
+        callback: Optional[
+            Callable[[Optional[Event], Optional[Exception]], Awaitable[None]]
+        ] = None,
         event_topic: Optional[Union[EventTopic, str, List[str]]] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
@@ -302,7 +309,7 @@ class NatsEventPlane:
         """Subscribe to events on the NATS server.
 
         Args:
-            callback: Callback function to be called when an event is received.
+            callback: Callback function to be called with (event, error). When error occurs, event will be None.
             event_topic: Event event_topic.
             event_type: Event type.
             component_id: Component ID.
@@ -320,15 +327,36 @@ class NatsEventPlane:
             event = OnDemandEvent(event_payload, metadata)
 
             async def wrapper():
-                if callback is not None:
-                    await callback(event)  # Ensure it's a proper coroutine
+                try:
+                    # Check connection before executing callback
+                    await event_sub._check_connection()
+                    if callback is not None:
+                        await callback(event, None)
+                except Exception as e:
+                    logger.error(f"Error in subscription callback: {e}")
+                    # Store the error for future async generator calls
+                    event_sub._error = e
+                    # Unsubscribe on error to prevent further messages
+                    await event_sub.unsubscribe()
+                    # Call callback with error
+                    if callback is not None:
+                        try:
+                            await callback(None, e)
+                        except Exception as cb_error:
+                            logger.error(f"Error in error callback: {cb_error}")
+                    # Re-raise the exception for parallel execution error handling
+                    raise
 
             if self._run_callback_in_parallel:
                 if callback is not None:
-                    asyncio.create_task(wrapper())  # Run in parallel
+                    # Create task but add error handling
+                    task = asyncio.create_task(wrapper())
+                    task.add_done_callback(
+                        lambda t: t.exception()
+                    )  # Prevent unhandled exception warnings
             else:
                 if callback is not None:
-                    await callback(event)  # Await normally
+                    await wrapper()
 
         subject_str, topic = self._compose_subscribe_subject(
             event_topic, event_type, component_id

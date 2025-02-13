@@ -35,7 +35,10 @@ async def single_publisher_subscriber_example():
     await plane.connect()
     received_events = []
 
-    async def callback(event):
+    async def callback(event, error):
+        if error:
+            print(f"Error occurred: {error}")
+            return
         print(event)
         received_events.append(event)
 

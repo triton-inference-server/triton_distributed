@@ -39,7 +39,9 @@ class TestEventPlaneFunctional:
 
         received_events: List[EventMetadata] = []
 
-        async def callback(event):
+        async def callback(event, error):
+            if error:
+                pytest.fail(f"Error in callback: {error}")
             received_events.append(event)
             print(event)
 
@@ -64,13 +66,19 @@ class TestEventPlaneFunctional:
         results_2: List[EventMetadata] = []
         results_3: List[EventMetadata] = []
 
-        async def callback_1(event):
+        async def callback_1(event, error):
+            if error:
+                pytest.fail(f"Error in callback_1: {error}")
             results_1.append(event)
 
-        async def callback_2(event):
+        async def callback_2(event, error):
+            if error:
+                pytest.fail(f"Error in callback_2: {error}")
             results_2.append(event)
 
-        async def callback_3(event):
+        async def callback_3(event, error):
+            if error:
+                pytest.fail(f"Error in callback_3: {error}")
             results_3.append(event)
 
         event_topic = EventTopic(["test"])
