@@ -22,7 +22,8 @@ use pyo3::{exceptions::PyException, prelude::*};
 use rs::pipeline::network::Ingress;
 use std::{fmt::Display, sync::Arc};
 use tokio::sync::Mutex;
-use tracing as log;
+use tracing::{self as log, Level};
+use tracing_subscriber::FmtSubscriber; 
 
 use triton_distributed::{
     self as rs,
@@ -41,11 +42,29 @@ static INIT: OnceCell<()> = OnceCell::new();
 
 const DEFAULT_ANNOTATED_SETTING: Option<bool> = Some(true);
 
+#[pyfunction]
+fn log_test() {
+    log::info!("This is an info log from Rust!");
+    log::debug!("This is a debug log from Rust!");
+}
+
 /// A Python module implemented in Rust. The name of this function must match
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+
+    let subscriber = FmtSubscriber::builder()
+    // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
+    // will be written to stdout.
+    .with_max_level(Level::TRACE)
+    // completes the builder.
+    .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+
+    .expect("setting default subscriber failed");
+    m.add_function(wrap_pyfunction!(log_test, m)?)?;
     m.add_class::<DistributedRuntime>()?;
     m.add_class::<CancellationToken>()?;
     m.add_class::<Namespace>()?;

@@ -16,14 +16,20 @@
 
 import asyncio
 import uuid
+import logging
 
 import uvloop
 import vllm
 from common.parser import parse_vllm_args
 from common.protocol import TokenizeResponse, Response
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker, KvRouter
-# from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
+
+# # need to set before rust import to get logs from rust
+vllm_logger.setLevel(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
+from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker, KvRouter
+from triton_distributed_rs._core import log_test
+# from vllm.engine.arg_utils import AsyncEngineArgs
 
 
 class Router:
@@ -33,6 +39,7 @@ class Router:
 
     def __init__(self, router):
         vllm_logger.info("Router init")
+        log_test()
         # self.workers = workers
         self.router = router
 
