@@ -22,6 +22,7 @@ mod integration {
     use std::{sync::Arc, time::Duration};
     use tokio::time::Instant;
     use triton_distributed::{
+        logging,
         pipeline::{
             async_trait, network::Ingress, AsyncEngine, AsyncEngineContextProvider, Error, ManyOut,
             ResponseStream, SingleIn,
@@ -32,7 +33,7 @@ mod integration {
 
     #[test]
     fn main() -> Result<()> {
-        env_logger::init();
+        logging::init();
         let worker = Worker::from_settings()?;
         worker.execute(app)
     }
@@ -103,8 +104,8 @@ mod integration {
         let run_duration =
             humantime::parse_duration(&run_duration).unwrap_or(Duration::from_secs(60));
 
-        let batch_load = std::env::var("TRD_SOAK_BATCH_LOAD").unwrap_or("1000".to_string());
-        let batch_load: usize = batch_load.parse().unwrap_or(1000);
+        let batch_load = std::env::var("TRD_SOAK_BATCH_LOAD").unwrap_or("10000".to_string());
+        let batch_load: usize = batch_load.parse().unwrap_or(10000);
 
         let client = runtime
             .namespace(DEFAULT_NAMESPACE)?

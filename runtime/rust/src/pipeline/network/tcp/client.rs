@@ -16,8 +16,12 @@
 use std::sync::Arc;
 
 use futures::{SinkExt, StreamExt};
-use tokio::io::{ReadHalf, WriteHalf};
-use tokio::{io::AsyncWriteExt, net::TcpStream};
+use tokio::io::{AsyncReadExt, ReadHalf, WriteHalf};
+use tokio::{
+    io::AsyncWriteExt,
+    net::TcpStream,
+    time::{self, Duration, Instant},
+};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 use super::{CallHomeHandshake, ControlMessage, TcpStreamConnectionInfo};
@@ -48,7 +52,7 @@ impl TcpClient {
     }
 
     async fn connect(address: &str) -> std::io::Result<TcpStream> {
-        // try to connect to the address; retry with exponential backoff if AddrNotAvailable
+        // try to connect to the address; retry with linear backoff if AddrNotAvailable
         let backoff = std::time::Duration::from_millis(200);
         loop {
             match TcpStream::connect(address).await {
@@ -59,11 +63,6 @@ impl TcpClient {
                 Err(e) => {
                     if e.kind() == std::io::ErrorKind::AddrNotAvailable {
                         tracing::warn!("retry warning: failed to connect: {:?}", e);
-
-                        // TODO(#173) - remove with resolution of issue
-                        #[cfg(debug_assertions)]
-                        eprintln!("retry warning: failed to connect: {:?}", e);
-
                         tokio::time::sleep(backoff).await;
                     } else {
                         return Err(e);
@@ -109,7 +108,7 @@ impl TcpClient {
         // captured by the monitor task
         let (alive_tx, alive_rx) = tokio::sync::oneshot::channel::<()>();
 
-        let reader_task = tokio::spawn(handle_reader(framed_reader, context, alive_tx));
+        let reader_task = tokio::spawn(handle_reader(framed_reader, context.clone(), alive_tx));
 
         // transport specific handshake message
         let handshake = CallHomeHandshake {
@@ -134,11 +133,11 @@ impl TcpClient {
             .map_err(|e| error!("failed to send handshake: {:?}", e))?;
 
         // set up the channel to send bytes to the transport layer
-        let (bytes_tx, bytes_rx) = tokio::sync::mpsc::channel(16);
+        let (bytes_tx, bytes_rx) = tokio::sync::mpsc::channel(64);
 
         // forwards the bytes send from this stream to the transport layer; hold the alive_rx half of the oneshot channel
 
-        let writer_task = tokio::spawn(handle_writer(framed_writer, bytes_rx, alive_rx));
+        let writer_task = tokio::spawn(handle_writer(framed_writer, bytes_rx, alive_rx, context));
 
         tokio::spawn(async move {
             // await both tasks
@@ -147,12 +146,40 @@ impl TcpClient {
             match (reader, writer) {
                 (Ok(reader), Ok(writer)) => {
                     let reader = reader.into_inner();
-                    let writer = writer.into_inner();
 
+                    let writer = match writer {
+                        Ok(writer) => writer.into_inner(),
+                        Err(e) => {
+                            tracing::error!("failed to join writer task: {:?}", e);
+                            return Err(e);
+                        }
+                    };
+
+                    tracing::debug!("joining reader and writer");
                     let mut stream = reader.unsplit(writer);
 
-                    // close the stream
-                    Ok(stream.shutdown().await?)
+                    // await the tcp server to shutdown the socket connection
+                    // set a timeout for the server shutdown
+                    tracing::debug!("awaiting server shutdown");
+                    let mut buf = vec![0u8; 1024];
+                    let deadline = Instant::now() + Duration::from_secs(10);
+                    loop {
+                        let n = time::timeout_at(deadline, stream.read(&mut buf))
+                            .await
+                            .inspect_err(|_| {
+                                tracing::debug!("server did not close socket within the deadline");
+                            })?
+                            .inspect_err(|e| {
+                                tracing::debug!("failed to read from stream: {:?}", e);
+                            })?;
+                        if n == 0 {
+                            // Server has closed (FIN)
+                            log::debug!("server closed the connection");
+                            break;
+                        }
+                    }
+
+                    Ok(())
                 }
                 _ => {
                     tracing::error!("failed to join reader and writer tasks");
@@ -193,46 +220,41 @@ async fn handle_reader(
                                     Ok(msg) => msg,
                                     Err(_) => {
                                         // TODO(#171) - address fatal errors
-                                        tracing::error!("fatal error - invalid control message detected");
-                                        break;
+                                        panic!("fatal error - invalid control message detected");
                                     }
                                 };
-
 
                                 match msg {
                                     ControlMessage::Stop => {
                                         context.stop();
-                                        break;
                                     }
                                     ControlMessage::Kill => {
                                         context.kill();
-                                        break;
+                                    }
+                                    ControlMessage::Sentinel => {
+                                        // TODO(#171) - address fatal errors
+                                        panic!("received a sentinel message; this should never happen");
                                     }
                                 }
                            }
                            _ => {
-                                // not a control message, so we just continue
-                               continue;
+                                panic!("received a non-control message; this should never happen");
                            }
                         }
                     }
                     Some(Err(_)) => {
                         // TODO(#171) - address fatal errors
                         // in this case the binary representation of the message is invalid
-                        tracing::error!("fatal error - failed to decode message from stream");
-                        break;
+                        panic!("fatal error - failed to decode message from stream; invalid line protocol");
                     }
                     None => {
-                        // let mut writer = framed_reader.into_inner();
-                        // if let Err(e) = writer.shutdown().await {
-                        //     tracing::trace!("failed to shutdown reader: {:?}", e);
-                        // }
+                        tracing::debug!("tcp stream closed by server");
                         break;
                     }
                 }
             }
             _ = alive_tx.closed() => {
-                // the channel was closed, we should stop the stream
+                tracing::debug!("writer stream closed; shutting down");
                 break;
             }
         }
@@ -244,19 +266,42 @@ async fn handle_writer(
     mut framed_writer: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, TwoPartCodec>,
     mut bytes_rx: tokio::sync::mpsc::Receiver<TwoPartMessage>,
     alive_rx: tokio::sync::oneshot::Receiver<()>,
-) -> FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, TwoPartCodec> {
-    while let Some(msg) = bytes_rx.recv().await {
+    context: Arc<dyn AsyncEngineContext>,
+) -> Result<FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, TwoPartCodec>> {
+    loop {
+        let msg = tokio::select! {
+            biased;
+
+            _ = context.killed() => {
+                tracing::trace!("context kill signal received; shutting down");
+                break;
+            }
+
+            msg = bytes_rx.recv() => {
+                match msg {
+                    Some(msg) => msg,
+                    None => {
+                        tracing::trace!("response channel closed; shutting down");
+                        break;
+                    }
+                }
+            }
+        };
+
         if let Err(e) = framed_writer.send(msg).await {
             tracing::trace!(
-                "failed to send message to stream; possible disconnect: {:?}",
+                "failed to send message to network; possible disconnect: {:?}",
                 e
             );
-
-            // TODO - possibly propagate the error upstream
             break;
         }
     }
-    drop(alive_rx);
 
-    framed_writer
+    // send sentinel message
+    let message = serde_json::to_vec(&ControlMessage::Sentinel)?;
+    let msg = TwoPartMessage::from_header(message.into());
+    framed_writer.send(msg).await?;
+
+    drop(alive_rx);
+    Ok(framed_writer)
 }

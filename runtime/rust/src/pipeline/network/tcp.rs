@@ -32,6 +32,7 @@
 pub mod client;
 pub mod server;
 
+use super::ControlMessage;
 use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
@@ -89,13 +90,6 @@ impl TryFrom<ConnectionInfo> for TcpStreamConnectionInfo {
 struct CallHomeHandshake {
     subject: String,
     stream_type: StreamType,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum ControlMessage {
-    Stop,
-    Kill,
 }
 
 #[cfg(test)]
