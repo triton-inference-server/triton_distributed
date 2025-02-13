@@ -17,7 +17,7 @@ import datetime
 import logging
 import os
 import uuid
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, List, Optional, Union
 
 import nats
 
@@ -38,11 +38,21 @@ DEFAULT_EVENTS_URI = os.getenv(
 )
 DEFAULT_CONNECTION_TIMEOUT = int(os.getenv("DEFAULT_CONNECTION_TIMEOUT", 30))
 
+EVENT_PLANE_NATS_PREFIX = "event_plane_nats_v1"
+
 
 class NatsEventSubscription(EventSubscription):
-    def __init__(self, nc_sub: nats.aio.subscription.Subscription, nats_connection):
+    def __init__(
+        self,
+        nc_sub: nats.aio.subscription.Subscription,
+        nats_connection: Any,
+        subject: str,
+        topic: EventTopic,
+    ):
         self._nc_sub: Optional[nats.aio.subscription.Subscription] = nc_sub
         self._nats = nats_connection
+        self._subject = subject
+        self._topic = topic
 
     async def __anext__(self):
         if self._nc_sub is None:
@@ -93,14 +103,22 @@ class NatsEventSubscription(EventSubscription):
         else:
             logger.warning("NATS not connected. Cannot unsubscribe.")
 
+    @property
+    def subject(self):
+        return self._subject
+
+    @property
+    def topic(self):
+        return self._topic
+
 
 class NatsEventPlane:
     """EventPlane implementation using NATS."""
 
     def __init__(
         self,
-        server_uri: str,
-        component_id: uuid.UUID,
+        server_uri: Optional[str] = None,
+        component_id: Optional[uuid.UUID] = None,
         run_callback_in_parallel: bool = False,
     ):
         """Initialize the NATS event plane.
@@ -110,7 +128,11 @@ class NatsEventPlane:
             component_id: Component ID.
         """
         self._run_callback_in_parallel = run_callback_in_parallel
+        if server_uri is None:
+            server_uri = DEFAULT_EVENTS_URI
         self._server_uri = server_uri
+        if component_id is None:
+            component_id = uuid.uuid4()
         self._component_id = component_id
         self._nc = nats.NATS()
         self._error = None
@@ -191,7 +213,12 @@ class NatsEventPlane:
         self._connected = True
 
     async def publish(
-        self, payload: bytes, event_type: str, event_topic: Optional[EventTopic]
+        self,
+        payload: Union[bytes, str],
+        event_type: Optional[str] = None,
+        event_topic: Optional[EventTopic] = None,
+        timestamp: Optional[datetime.datetime] = None,
+        event_id: Optional[uuid.UUID] = None,
     ) -> Event:
         """Publish an event to the NATS server.
 
@@ -208,32 +235,48 @@ class NatsEventPlane:
             else:
                 raise RuntimeError("NATS not connected.")
 
+        if isinstance(payload, str):
+            payload_bytes = payload.encode("utf-8")
+        else:
+            payload_bytes = payload
+
+        if timestamp is None:
+            timestamp = datetime.datetime.now(datetime.UTC)
+
+        if event_id is None:
+            event_id = uuid.uuid4()
+
+        kwargs = {}
+
+        if event_topic is not None:
+            kwargs["event_topic"] = event_topic
+
         event_metadata = EventMetadata(
-            event_id=uuid.uuid4(),
-            event_topic=event_topic,
+            event_id=event_id,
             event_type=event_type,
-            timestamp=datetime.datetime.now(datetime.UTC),
+            timestamp=timestamp,
             component_id=self._component_id,
+            **kwargs,
         )
 
         metadata_serialized = _serialize_metadata(event_metadata)
         metadata_size = len(metadata_serialized).to_bytes(4, byteorder="big")
 
         # Concatenate metadata size, metadata, and event payload
-        message = metadata_size + metadata_serialized + payload
+        message = metadata_size + metadata_serialized + payload_bytes
 
         subject = self._compose_publish_subject(event_metadata)
         await self._nc.publish(subject, message)
 
         event_with_metadata = OnDemandEvent(
-            payload, metadata_serialized, event_metadata
+            payload, metadata_serialized, event_metadata, subject
         )
         return event_with_metadata
 
     async def subscribe(
         self,
-        callback: Optional[Callable[[Event], Awaitable[None]]],
-        event_topic: Optional[EventTopic] = None,
+        callback: Optional[Callable[[Event], Awaitable[None]]] = None,
+        event_topic: Optional[Union[EventTopic, str, List[str]]] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
     ) -> EventSubscription:
@@ -268,11 +311,13 @@ class NatsEventPlane:
                 if callback is not None:
                     await callback(event)  # Await normally
 
-        subject = self._compose_subscribe_subject(event_topic, event_type, component_id)
+        subject_str, topic = self._compose_subscribe_subject(
+            event_topic, event_type, component_id
+        )
 
         _cb = _message_handler if callback is not None else None
-        sub = await self._nc.subscribe(subject, cb=_cb)
-        event_sub = NatsEventSubscription(sub, self)
+        sub = await self._nc.subscribe(subject_str, cb=_cb)
+        event_sub = NatsEventSubscription(sub, self, subject_str, topic)
 
         return event_sub
 
@@ -284,15 +329,24 @@ class NatsEventPlane:
         self._connected = False
 
     def _compose_publish_subject(self, event_metadata: EventMetadata):
-        return f"ep.{event_metadata.event_type}.{event_metadata.component_id}.{str(event_metadata.event_topic) + '.' if event_metadata.event_topic else ''}trunk"
+        return f"{EVENT_PLANE_NATS_PREFIX}.{event_metadata.event_type}.{event_metadata.component_id}.{str(event_metadata.event_topic) + '.' if event_metadata.event_topic else ''}trunk"
 
     def _compose_subscribe_subject(
         self,
-        event_topic: Optional[EventTopic],
-        event_type: Optional[str],
-        component_id: Optional[uuid.UUID],
+        event_topic: Optional[Union[EventTopic, str, List[str]]] = None,
+        event_type: Optional[str] = None,
+        component_id: Optional[uuid.UUID] = None,
     ):
-        return f"ep.{event_type or '*'}.{component_id or '*'}.{str(event_topic) + '.' if event_topic else ''}>"
+        if isinstance(event_topic, str) or isinstance(event_topic, list):
+            event_topic_obj = EventTopic(event_topic)
+        else:
+            event_topic_obj = event_topic
+        # subject = "{EVENT_PLANE_NATS_PREFIX}"
+        # if event_type or component_id
+        return (
+            f"{EVENT_PLANE_NATS_PREFIX}.{event_type or '*'}.{component_id or '*'}.{str(event_topic_obj) + '.' if event_topic else ''}>",
+            event_topic_obj,
+        )
 
     def _extract_metadata_and_payload(self, message: bytes):
         # Extract metadata size
@@ -305,3 +359,7 @@ class NatsEventPlane:
         event = message_view[4 + metadata_size :]
 
         return metadata_serialized, event
+
+    @property
+    def component_id(self) -> uuid.UUID:
+        return self._component_id

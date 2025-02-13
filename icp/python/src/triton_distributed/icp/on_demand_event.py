@@ -38,13 +38,17 @@ class EventMetadata:
 def _deserialize_metadata(event_metadata_serialized: bytes):
     event_metadata_dict = msgspec.json.decode(event_metadata_serialized)
     topic_meta = event_metadata_dict["event_topic"]
+    if event_metadata_dict["event_topic"] is not None:
+        topic_list = topic_meta["event_topic"].split(".")
+        topic_obj = EventTopic(topic_list)
+    else:
+        topic_obj = None
+
     topic_list = topic_meta["event_topic"].split(".")
     metadata = EventMetadata(
         **{
             **event_metadata_dict,
-            "event_topic": EventTopic(topic_list)
-            if event_metadata_dict["event_topic"]
-            else None,
+            "event_topic": topic_obj,
             "event_id": uuid.UUID(event_metadata_dict["event_id"]),
             "component_id": uuid.UUID(event_metadata_dict["component_id"]),
             "timestamp": datetime.fromisoformat(event_metadata_dict["timestamp"]),
@@ -76,6 +80,7 @@ class OnDemandEvent(Event):
         payload: bytes,
         event_metadata_serialized: bytes,
         event_metadata: Optional[EventMetadata] = None,
+        event_subject: Optional[str] = None,
     ):
         """Initialize the event.
 
@@ -86,6 +91,7 @@ class OnDemandEvent(Event):
         self._payload = payload
         self._event_metadata_serialized = event_metadata_serialized
         self._event_metadata = event_metadata
+        self._event_subject = event_subject
 
     @property
     def _metadata(self):
@@ -118,3 +124,7 @@ class OnDemandEvent(Event):
     @property
     def payload(self) -> bytes:
         return self._payload
+
+    @property
+    def event_subject(self) -> Optional[str]:
+        return self._event_subject
