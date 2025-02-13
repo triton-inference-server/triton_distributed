@@ -2045,7 +2045,7 @@ version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "825ea780781b15345a146be27eaefb05085e337e869bff01b4306a4fd4a9ad5a"
 dependencies = [
- "cfg-if",
+ "cfg-if 1.0.0",
  "glob",
  "proc-macro-crate",
  "proc-macro2",

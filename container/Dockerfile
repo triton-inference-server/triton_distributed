@@ -36,9 +36,7 @@ RUN cp ./etcd-v3.5.18-linux-amd64/etcd* /usr/local/bin/.
 # Working directory
 WORKDIR /workspace
 
-#TODO Exclude container directory
-COPY . /workspace
-
+COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
 
@@ -46,17 +44,20 @@ RUN cd runtime/rust && \
 RUN cd runtime/rust/libtriton_llm && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Generate Python bindings
-RUN cd runtime/rust/python-wheel && \
-    maturin build
+# Install uv and create virtualenv for general use
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN mkdir /opt/triton && \
+    uv venv /opt/triton/venv --python 3.12 && \
+    source /opt/triton/venv/bin/activate && \
+    cd runtime/rust/python-wheel && \
+    uv build && \
+    uv pip install dist/triton_distributed_rs*cp312*.whl
 
 # Package the bindings
-RUN mkdir binding_package && mkdir binding_package/wheels && mkdir binding_package/lib
-RUN cp runtime/rust/python-wheel/target/wheels/*.whl binding_package/wheels/.
-RUN cp runtime/rust/libtriton_llm/target/release/libtriton_llm_capi.so binding_package/lib/.
-RUN cp -r runtime/rust/libtriton_llm/include binding_package/.
-
-RUN pip install binding_package/wheels/triton_distributed_rs*cp312*.whl
+RUN mkdir -p /opt/triton/llm_binding/wheels && mkdir /opt/triton/llm_binding/lib
+RUN cp runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/.
+RUN cp runtime/rust/libtriton_llm/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/.
+RUN cp -r runtime/rust/libtriton_llm/include /opt/triton/llm_binding/.
 
 # Install OpenAI-compatible frontend and its dependencies from triton server
 # repository. These are used to have a consistent interface, schema, and FastAPI
@@ -102,7 +103,7 @@ ARG TENSORRTLLM_BACKEND_REBUILD=
 ENV FRAMEWORK=${FRAMEWORK}
 RUN --mount=type=bind,source=./container/deps/requirements.tensorrtllm.txt,target=/tmp/requirements.txt \
     --mount=type=bind,source=./container/deps/clone_tensorrtllm.sh,target=/tmp/clone_tensorrtllm.sh \
-    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-repo-tag ${TENSORRTLLM_BACKEND_REPO_TAG} --tensorrtllm-backend-rebuild ${TENSORRTLLM_BACKEND_REBUILD} --triton-llm-path /workspace/binding_package ; fi
+    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-repo-tag ${TENSORRTLLM_BACKEND_REPO_TAG} --tensorrtllm-backend-rebuild ${TENSORRTLLM_BACKEND_REBUILD} --triton-llm-path /opt/triton/llm_binding ; fi
 
 
 RUN --mount=type=bind,source=./container/deps/requirements.standard.txt,target=/tmp/requirements.txt \
@@ -141,22 +142,6 @@ RUN apt-get install tmux -y
 # RUN --mount=type=bind,source=./container/deps/llama3-tok.tgz,target=/tmp/llama3-tok.tgz \
 #    mkdir -p /genai-perf/tokenizers && cd /genai-perf/tokenizers && tar -xzf /tmp/llama3-tok.tgz
 
-# Working directory
-WORKDIR /workspace
-
-COPY runtime /workspace/runtime
-RUN cd runtime/rust && \
-    cargo build --release --locked && cargo doc --no-deps
-
-# Install uv and create virtualenv for general use
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-RUN mkdir /opt/triton && \
-    uv venv /opt/triton/venv --python 3.12 && \
-    source /opt/triton/venv/bin/activate && \
-    cd runtime/rust/python-wheel && \
-    uv build && \
-    uv pip install dist/triton_distributed_rs*cp312*.whl
-
 # Install patched vllm
 ARG VLLM_REF="v0.7.2"
 ARG VLLM_PATCH="vllm_v0.7.2.patch"
@@ -166,11 +151,10 @@ RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
         bash /tmp/deps/vllm/install.sh --patch /tmp/deps/vllm/${VLLM_PATCH} --ref ${VLLM_REF} --install-cmd "uv pip install --editable" --use-precompiled --installation-dir /opt/vllm ; \
     fi
 
-
 # Install triton_distributed_rs wheel globally in container for tests that
 # currently run without virtual environment activated.
 # TODO: In future, we may use a virtualenv for everything and remove this.
-RUN pip install runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl
+RUN pip install /opt/triton/llm_binding/wheels/triton_distributed_rs*cp312*.whl
 
 COPY icp /workspace/icp
 RUN /workspace/icp/protos/gen_python.sh
