@@ -33,12 +33,27 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_EVENTS_PORT = int(os.getenv("DEFAULT_EVENTS_PORT", 4222))
 DEFAULT_EVENTS_HOST = os.getenv("DEFAULT_EVENTS_HOST", "localhost")
-DEFAULT_EVENTS_URI = os.getenv(
-    "DEFAULT_EVENTS_URI", f"nats://{DEFAULT_EVENTS_HOST}:{DEFAULT_EVENTS_PORT}"
-)
+DEFAULT_EVENTS_PROTOCOL = os.getenv("DEFAULT_EVENTS_PROTOCOL", "tls")
 DEFAULT_CONNECTION_TIMEOUT = int(os.getenv("DEFAULT_CONNECTION_TIMEOUT", 30))
 
 EVENT_PLANE_NATS_PREFIX = "event_plane_nats_v1"
+
+
+def compose_nats_url(protocol: str = None, host: str = None, port: int = None) -> str:
+    """Compose a NATS URL from components.
+
+    Args:
+        protocol: The protocol to use (tls or nats). Defaults to DEFAULT_EVENTS_PROTOCOL.
+        host: The host to connect to. Defaults to DEFAULT_EVENTS_HOST.
+        port: The port to connect to. Defaults to DEFAULT_EVENTS_PORT.
+
+    Returns:
+        str: The composed NATS URL
+    """
+    protocol = protocol or DEFAULT_EVENTS_PROTOCOL
+    host = host or DEFAULT_EVENTS_HOST
+    port = port or DEFAULT_EVENTS_PORT
+    return f"{protocol}://{host}:{port}"
 
 
 class NatsEventSubscription(EventSubscription):
@@ -124,12 +139,12 @@ class NatsEventPlane:
         """Initialize the NATS event plane.
 
         Args:
-            server_uri: URI of the NATS server.
+            server_uri: URI of the NATS server. If None, will be composed using environment variables.
             component_id: Component ID.
         """
         self._run_callback_in_parallel = run_callback_in_parallel
         if server_uri is None:
-            server_uri = DEFAULT_EVENTS_URI
+            server_uri = compose_nats_url()
         self._server_uri = server_uri
         if component_id is None:
             component_id = uuid.uuid4()

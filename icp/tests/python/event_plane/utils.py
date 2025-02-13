@@ -26,8 +26,8 @@ import pytest_asyncio
 from triton_distributed.icp.nats_event_plane import (
     DEFAULT_EVENTS_HOST,
     DEFAULT_EVENTS_PORT,
-    DEFAULT_EVENTS_URI,
     NatsEventPlane,
+    compose_nats_url,
 )
 
 logger = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ async def nats_server():
 async def event_plane_context():
     # with nats_server_context() as server:
     print(f"Print loop plane context: {id(asyncio.get_running_loop())}")
-    server_url = DEFAULT_EVENTS_URI
+    server_url = compose_nats_url()
     component_id = uuid.uuid4()
     plane = NatsEventPlane(server_url, component_id)
     await plane.connect()
@@ -103,7 +103,7 @@ async def event_plane_context():
 @pytest_asyncio.fixture(loop_scope="function")
 async def event_plane():
     print(f"Print loop plane: {id(asyncio.get_running_loop())}")
-    server_url = DEFAULT_EVENTS_URI
+    server_url = compose_nats_url()
     component_id = uuid.uuid4()
     plane = NatsEventPlane(server_url, component_id)
     await plane.connect()

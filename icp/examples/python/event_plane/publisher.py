@@ -19,14 +19,14 @@ import asyncio
 import uuid
 
 from triton_distributed.icp.nats_event_plane import (
-    DEFAULT_EVENTS_URI,
     EventTopic,
     NatsEventPlane,
+    compose_nats_url,
 )
 
 
 async def main(args):
-    server_url = DEFAULT_EVENTS_URI
+    server_url = compose_nats_url()
     event_plane = NatsEventPlane(server_url, args.component_id)
 
     await event_plane.connect()
