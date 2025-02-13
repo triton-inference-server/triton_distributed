@@ -327,6 +327,13 @@ async fn tcp_listener(
             }
         }
 
+        match stream.set_linger(Some(std::time::Duration::from_secs(0))) {
+            Ok(_) => (),
+            Err(e) => {
+                tracing::warn!("failed to set tcp stream to linger: {}", e);
+            }
+        }
+
         tokio::spawn(handle_connection(stream, state.clone()));
     }
 
