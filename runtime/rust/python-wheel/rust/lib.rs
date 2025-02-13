@@ -222,6 +222,10 @@ impl Endpoint {
             Ok(Client { inner: client })
         })
     }
+
+    fn lease_id(&self) -> i64 {
+        self.inner.component().drt().primary_lease().id()
+    }
 }
 
 #[pymethods]

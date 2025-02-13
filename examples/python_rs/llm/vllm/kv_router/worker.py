@@ -34,6 +34,7 @@ class VllmEngine:
 
     def __init__(self, engine_args: AsyncEngineArgs):
         vllm_logger.info("Worker init")
+        vllm_logger.info("Worker init2")
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
 
     @triton_endpoint(Request, Response)
@@ -71,19 +72,20 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
 
-    endpoint_id = runtime.id()
-    os.environ["VLLM_WORKER_ID"] = endpoint_id
-    vllm_logger.info(f"VLLM_WORKER_ID: {os.environ['VLLM_WORKER_ID']}")
+    # os.environ["VLLM_WORKER_ID"] = endpoint_id
+    # vllm_logger.info(f"VLLM_WORKER_ID: {os.environ['VLLM_WORKER_ID']}")
 
     vllm_engine = VllmEngine(engine_args)
 
     generate_endpoint = component.endpoint("generate")
     tokenize_endpoint = component.endpoint("tokenize")
-    
-    await asyncio.gather(
+
+    (generate_id, tokenize_id) = await asyncio.gather(
         generate_endpoint.serve_endpoint(vllm_engine.generate),
         tokenize_endpoint.serve_endpoint(vllm_engine.tokenize)
     )
+
+    vllm_logger.info(f"generate_id {generate_id} tokenize_id {tokenize_id}")
 
 
 if __name__ == "__main__":

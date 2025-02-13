@@ -88,6 +88,7 @@ class VllmPreprocessEngine:
         vllm_logger.info(f"Router choice: {worker_subject}")
 
         if worker_subject == "":
+            # First request doens't have a subject
             engine_generator = await self.workers.random(request.model_dump_json())
         else:
             engine_generator = await self.workers.direct(request.model_dump_json(), int(worker_subject))

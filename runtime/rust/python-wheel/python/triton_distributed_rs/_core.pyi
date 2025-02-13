@@ -88,6 +88,12 @@ class Endpoint:
         Create a `Client` capable of calling served instances of this endpoint
         """
         ...
+    
+    async def lease_id(self) -> int:
+        """
+        Return primary lease id. Currently, cannot set a different lease id.
+        """
+        ...
 
 class Client:
     """

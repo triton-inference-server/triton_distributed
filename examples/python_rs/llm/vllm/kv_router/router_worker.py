@@ -59,12 +59,15 @@ class Router:
 @triton_worker()
 async def worker(runtime: DistributedRuntime):
     # create endpoint service for frontend component
+    vllm_logger.info(f"=========== Hi ===========")
     router_component = runtime.namespace("triton-init").component("router")
-    await router_component.create_service()
 
     endpoint = router_component.endpoint("generate")
+    vllm_logger.info(f"Lease ID: {await endpoint.lease_id()}")
 
-    await endpoint.serve_endpoint(Router(KvRouter(runtime, router_component)).generate)
+    router_id = await endpoint.serve_endpoint(Router(KvRouter(runtime, router_component)).generate, )
+    vllm_logger.info(f"router_id {router_id}")
+
 
 if __name__ == "__main__":
     uvloop.install()

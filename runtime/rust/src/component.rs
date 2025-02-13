@@ -113,6 +113,10 @@ impl Component {
         format!("{}/components/{}", self.namespace, self.name)
     }
 
+    pub fn drt(&self) -> &DistributedRuntime {
+        &self.drt
+    }
+
     fn slug(&self) -> Slug {
         Slug::from_string(self.etcd_path())
     }
@@ -171,6 +175,10 @@ pub struct Endpoint {
 impl Endpoint {
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn component(&self) -> &Component {
+        &self.component
     }
 
     pub fn etcd_path(&self) -> String {
