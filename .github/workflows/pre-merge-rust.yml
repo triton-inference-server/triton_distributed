@@ -27,6 +27,11 @@ on:
     - main
     paths:
     - 'runtime/rust/**'
+    - 'llm/rust/**'
+    - 'applications/llm/bin/tio/**'
+    - '**.rs'
+    - 'Cargo.toml'
+    - 'Cargo.lock'
 
 jobs:
   pre-merge-rust:
