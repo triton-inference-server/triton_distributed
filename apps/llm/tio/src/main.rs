@@ -17,7 +17,7 @@ use std::env;
 
 use clap::Parser;
 
-mod logging;
+use triton_distributed::logging;
 
 const HELP: &str = r#"
 triton-llm service runner stub
