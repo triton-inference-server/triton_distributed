@@ -1,8 +1,7 @@
-diff --git a/vllm/core/block/cpu_gpu_block_allocator.py b/vllm/core/block/cpu_gpu_block_allocator.py
-index c3e1665b..390a5935 100644
---- a/vllm/core/block/cpu_gpu_block_allocator.py
-+++ b/vllm/core/block/cpu_gpu_block_allocator.py
-@@ -4,6 +4,7 @@ from vllm.core.block.interfaces import (Block, BlockAllocator, BlockId,
+diff -Naur vllm/vllm/core/block/cpu_gpu_block_allocator.py nova/vllm/vllm/core/block/cpu_gpu_block_allocator.py
+--- vllm/vllm/core/block/cpu_gpu_block_allocator.py	2025-02-13 11:20:26.102478766 -0800
++++ nova/vllm/vllm/core/block/cpu_gpu_block_allocator.py	2025-02-13 11:28:05.375817731 -0800
+@@ -4,6 +4,7 @@
                                          DeviceAwareBlockAllocator)
  from vllm.core.block.naive_block import NaiveBlock, NaiveBlockAllocator
  from vllm.core.block.prefix_caching_block import PrefixCachingBlockAllocator
@@ -10,7 +9,7 @@ index c3e1665b..390a5935 100644
  from vllm.platforms import current_platform
  from vllm.utils import Device
  
-@@ -26,6 +27,7 @@ class CpuGpuBlockAllocator(DeviceAwareBlockAllocator):
+@@ -26,6 +27,7 @@
          num_gpu_blocks: int,
          num_cpu_blocks: int,
          block_size: int,
@@ -18,7 +17,7 @@ index c3e1665b..390a5935 100644
      ) -> DeviceAwareBlockAllocator:
          """Creates a CpuGpuBlockAllocator instance with the specified
          configuration.
-@@ -62,6 +64,7 @@ class CpuGpuBlockAllocator(DeviceAwareBlockAllocator):
+@@ -62,6 +64,7 @@
          cpu_block_ids = block_ids[num_gpu_blocks:]
  
          if allocator_type == "naive":
@@ -26,7 +25,7 @@ index c3e1665b..390a5935 100644
              gpu_allocator: BlockAllocator = NaiveBlockAllocator(
                  create_block=NaiveBlock,  # type: ignore
                  num_blocks=num_gpu_blocks,
-@@ -80,12 +83,14 @@ class CpuGpuBlockAllocator(DeviceAwareBlockAllocator):
+@@ -80,12 +83,14 @@
                  num_blocks=num_gpu_blocks,
                  block_size=block_size,
                  block_ids=gpu_block_ids,
@@ -41,7 +40,7 @@ index c3e1665b..390a5935 100644
              )
          else:
              raise ValueError(f"Unknown allocator type {allocator_type=}")
-@@ -93,10 +98,12 @@ class CpuGpuBlockAllocator(DeviceAwareBlockAllocator):
+@@ -93,10 +98,12 @@
          return CpuGpuBlockAllocator(
              cpu_block_allocator=cpu_allocator,
              gpu_block_allocator=gpu_allocator,
@@ -55,7 +54,7 @@ index c3e1665b..390a5935 100644
          assert not (
              cpu_block_allocator.all_block_ids
              & gpu_block_allocator.all_block_ids
-@@ -106,6 +113,7 @@ class CpuGpuBlockAllocator(DeviceAwareBlockAllocator):
+@@ -106,6 +113,7 @@
              Device.CPU: cpu_block_allocator,
              Device.GPU: gpu_block_allocator,
          }
@@ -63,11 +62,10 @@ index c3e1665b..390a5935 100644
  
          self._swap_mapping: Dict[int, int] = {}
          self._null_block: Optional[Block] = None
-diff --git a/vllm/core/block/prefix_caching_block.py b/vllm/core/block/prefix_caching_block.py
-index ccdc5daa..b240dfa6 100644
---- a/vllm/core/block/prefix_caching_block.py
-+++ b/vllm/core/block/prefix_caching_block.py
-@@ -3,7 +3,7 @@ import sys
+diff -Naur vllm/vllm/core/block/prefix_caching_block.py nova/vllm/vllm/core/block/prefix_caching_block.py
+--- vllm/vllm/core/block/prefix_caching_block.py	2025-02-13 11:20:26.102478766 -0800
++++ nova/vllm/vllm/core/block/prefix_caching_block.py	2025-02-13 11:28:05.375817731 -0800
+@@ -3,7 +3,7 @@
  from bisect import bisect_left
  from os.path import commonprefix
  from typing import (Callable, Dict, FrozenSet, Iterable, List, Optional, Set,
@@ -76,7 +74,7 @@ index ccdc5daa..b240dfa6 100644
  
  from vllm.core.block.common import (CacheMetricData, CopyOnWriteTracker,
                                      get_all_blocks_recursively)
-@@ -22,6 +22,9 @@ PrefixHash = int
+@@ -22,6 +22,9 @@
  # then we know this block hasn't been accessed yet.
  _DEFAULT_LAST_ACCESSED_TIME = -1
  
@@ -86,7 +84,7 @@ index ccdc5daa..b240dfa6 100644
  logger = init_logger(__name__)
  
  
-@@ -70,6 +73,7 @@ class PrefixCachingBlockAllocator(BlockAllocator):
+@@ -70,6 +73,7 @@
          block_size: int,
          block_ids: Optional[Iterable[int]] = None,
          eviction_policy: EvictionPolicy = EvictionPolicy.LRU,
@@ -94,7 +92,7 @@ index ccdc5daa..b240dfa6 100644
      ):
          if block_ids is None:
              block_ids = range(num_blocks)
-@@ -121,6 +125,8 @@ class PrefixCachingBlockAllocator(BlockAllocator):
+@@ -121,6 +125,8 @@
  
          self.metric_data = CacheMetricData()
  
@@ -103,7 +101,7 @@ index ccdc5daa..b240dfa6 100644
      # Implements Block.Factory.
      def _create_block(
          self,
-@@ -328,6 +334,9 @@ class PrefixCachingBlockAllocator(BlockAllocator):
+@@ -328,6 +334,9 @@
          assert self._refcounter.get(_block_id) == 0
          assert _block_id == block_id
  
@@ -113,7 +111,7 @@ index ccdc5daa..b240dfa6 100644
          self._cached_blocks.pop(content_hash_to_evict)
  
          self._refcounter.incr(block_id)
-@@ -504,6 +513,10 @@ class PrefixCachingBlockAllocator(BlockAllocator):
+@@ -504,6 +513,10 @@
              # Mark this block as touched so that it can be marked as
              # computed after the entire batch of sequences are scheduled.
              self._touched_blocks.add(block.block_id)
@@ -124,11 +122,10 @@ index ccdc5daa..b240dfa6 100644
              return block.block_id
  
          # Reuse the cached content hash
-diff --git a/vllm/core/block_manager.py b/vllm/core/block_manager.py
-index 62a5f0bd..3443ffca 100644
---- a/vllm/core/block_manager.py
-+++ b/vllm/core/block_manager.py
-@@ -8,10 +8,12 @@ from vllm.core.block.cpu_gpu_block_allocator import CpuGpuBlockAllocator
+diff -Naur vllm/vllm/core/block_manager.py nova/vllm/vllm/core/block_manager.py
+--- vllm/vllm/core/block_manager.py	2025-02-13 11:20:26.102478766 -0800
++++ nova/vllm/vllm/core/block_manager.py	2025-02-13 11:28:05.376817712 -0800
+@@ -8,10 +8,12 @@
  from vllm.core.block.interfaces import Block
  from vllm.core.block.prefix_caching_block import (ComputedBlocksTracker,
                                                    LastAccessBlocksTracker)
@@ -141,7 +138,7 @@ index 62a5f0bd..3443ffca 100644
  
  SeqId = int
  EncoderSeqId = str
-@@ -59,6 +61,7 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
+@@ -59,6 +61,7 @@
  
      def __init__(
          self,
@@ -149,7 +146,7 @@ index 62a5f0bd..3443ffca 100644
          block_size: int,
          num_gpu_blocks: int,
          num_cpu_blocks: int,
-@@ -90,11 +93,17 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
+@@ -90,11 +93,17 @@
  
          self.watermark_blocks = int(watermark * num_gpu_blocks)
  
@@ -167,11 +164,9 @@ index 62a5f0bd..3443ffca 100644
          )
  
          self.block_tables: Dict[SeqId, BlockTable] = {}
-diff --git a/vllm/core/event_manager.py b/vllm/core/event_manager.py
-new file mode 100644
-index 00000000..a4cb7958
---- /dev/null
-+++ b/vllm/core/event_manager.py
+diff -Naur vllm/vllm/core/event_manager.py nova/vllm/vllm/core/event_manager.py
+--- vllm/vllm/core/event_manager.py	1969-12-31 16:00:00.000000000 -0800
++++ nova/vllm/vllm/core/event_manager.py	2025-02-13 11:28:05.376817712 -0800
 @@ -0,0 +1,66 @@
 +from typing import Optional
 +from vllm.core.block.prefix_caching_block import PrefixCachingBlock
@@ -191,10 +186,10 @@ index 00000000..a4cb7958
 +
 +        try:
 +            self.lib = ctypes.CDLL(lib_path)
-+            self.lib.triton_llm_init.argtypes = [c_char_p, c_char_p]
-+            self.lib.triton_llm_init.restype = c_uint32
++            self.lib.nova_llm_init.argtypes = [c_char_p, c_char_p]
++            self.lib.nova_llm_init.restype = c_uint32
 +
-+            result = self.lib.triton_llm_init(model_name.encode(), worker_id)
++            result = self.lib.nova_llm_init(model_name.encode(), worker_id)
 +            if result == NovaResult.OK:
 +                print("Initialization successful!")
 +            else:
@@ -210,7 +205,7 @@ index 00000000..a4cb7958
 +        parent_hash_ptr = ctypes.byref(ctypes.c_uint64(parent.content_hash)) if parent is not None else None
 +
 +        # Publish the event
-+        result = self.lib.triton_kv_event_publish_stored(
++        result = self.lib.nova_kv_event_publish_stored(
 +            self.event_id_counter,
 +            (ctypes.c_uint32 * len(block.token_ids))(*block.token_ids),
 +            (ctypes.c_size_t * 1)(len(block.token_ids)),
@@ -228,7 +223,7 @@ index 00000000..a4cb7958
 +        self.event_id_counter += 1
 +
 +    def enqueue_removed_event(self, block_id: int):
-+        result = self.lib.triton_kv_event_publish_removed(
++        result = self.lib.nova_kv_event_publish_removed(
 +            self.event_id_counter,
 +            (ctypes.c_uint64 * 1)(block_id),
 +            1,)
@@ -240,11 +235,10 @@ index 00000000..a4cb7958
 +
 +        self.event_id_counter += 1
 \ No newline at end of file
-diff --git a/vllm/core/scheduler.py b/vllm/core/scheduler.py
-index b1630b34..26d17328 100644
---- a/vllm/core/scheduler.py
-+++ b/vllm/core/scheduler.py
-@@ -8,7 +8,7 @@ from typing import Callable, Deque, Dict, Iterable, List, Optional
+diff -Naur vllm/vllm/core/scheduler.py nova/vllm/vllm/core/scheduler.py
+--- vllm/vllm/core/scheduler.py	2025-02-13 11:20:26.102478766 -0800
++++ nova/vllm/vllm/core/scheduler.py	2025-02-13 11:28:05.376817712 -0800
+@@ -8,7 +8,7 @@
  from typing import Sequence as GenericSequence
  from typing import Set, Tuple, Union
  
@@ -253,7 +247,7 @@ index b1630b34..26d17328 100644
  from vllm.core.interfaces import AllocStatus, BlockSpaceManager
  from vllm.logger import init_logger
  from vllm.lora.request import LoRARequest
-@@ -323,12 +323,14 @@ class Scheduler:
+@@ -323,12 +323,14 @@
  
      def __init__(
          self,
@@ -268,7 +262,7 @@ index b1630b34..26d17328 100644
          self.scheduler_config = scheduler_config
          self.cache_config = cache_config
          # Note for LoRA scheduling: the current policy is extremely
-@@ -354,6 +356,7 @@ class Scheduler:
+@@ -354,6 +356,7 @@
  
          # Create the block space manager.
          self.block_manager = BlockSpaceManagerImpl(
@@ -276,11 +270,10 @@ index b1630b34..26d17328 100644
              block_size=self.cache_config.block_size,
              num_gpu_blocks=num_gpu_blocks,
              num_cpu_blocks=num_cpu_blocks,
-diff --git a/vllm/engine/llm_engine.py b/vllm/engine/llm_engine.py
-index 7da18d5f..86cca1ac 100644
---- a/vllm/engine/llm_engine.py
-+++ b/vllm/engine/llm_engine.py
-@@ -346,7 +346,7 @@ class LLMEngine:
+diff -Naur vllm/vllm/engine/llm_engine.py nova/vllm/vllm/engine/llm_engine.py
+--- vllm/vllm/engine/llm_engine.py	2025-02-13 11:20:26.104478729 -0800
++++ nova/vllm/vllm/engine/llm_engine.py	2025-02-13 11:28:05.378817675 -0800
+@@ -346,7 +346,7 @@
          # GPU and CPU blocks, which are profiled in the distributed executor.
          self.scheduler = [
              Scheduler(
@@ -289,11 +282,10 @@ index 7da18d5f..86cca1ac 100644
                  self.parallel_config.pipeline_parallel_size,
                  self.async_callbacks[v_id]
                  if self.model_config.use_async_output_proc else None)
-diff --git a/vllm/envs.py b/vllm/envs.py
-index 8627caec..c84e30ba 100644
---- a/vllm/envs.py
-+++ b/vllm/envs.py
-@@ -77,6 +77,8 @@ if TYPE_CHECKING:
+diff -Naur vllm/vllm/envs.py nova/vllm/vllm/envs.py
+--- vllm/vllm/envs.py	2025-02-13 11:20:26.106478691 -0800
++++ nova/vllm/vllm/envs.py	2025-02-13 11:28:05.381817618 -0800
+@@ -77,6 +77,8 @@
      V_SCALE_CONSTANT: int = 100
      VLLM_SERVER_DEV_MODE: bool = False
      VLLM_V1_OUTPUT_PROC_CHUNK_SIZE: int = 128
@@ -302,7 +294,7 @@ index 8627caec..c84e30ba 100644
  
  
  def get_default_cache_root():
-@@ -506,6 +508,14 @@ environment_variables: Dict[str, Callable[[], Any]] = {
+@@ -506,6 +508,14 @@
      # TTFT and overall throughput.
      "VLLM_V1_OUTPUT_PROC_CHUNK_SIZE":
      lambda: int(os.getenv("VLLM_V1_OUTPUT_PROC_CHUNK_SIZE", "128")),
