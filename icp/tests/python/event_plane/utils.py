@@ -15,6 +15,7 @@
 
 
 import asyncio
+import logging
 import subprocess
 import time
 import uuid
@@ -28,6 +29,8 @@ from triton_distributed.icp.nats_event_plane import (
     DEFAULT_EVENTS_URI,
     NatsEventPlane,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def is_port_in_use(port: int) -> bool:
@@ -48,6 +51,7 @@ async def nats_server():
             )
 
         # Start NATS server
+        logger.info("NATS server starting")
         process = subprocess.Popen(
             [
                 "nats-server",
@@ -59,11 +63,28 @@ async def nats_server():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        time.sleep(1)  # Allow the server time to start
+        while not is_port_in_use(DEFAULT_EVENTS_PORT):
+            logger.debug("Waiting for NATS server to start...")
+            time.sleep(0.2)
+        logger.info("NATS server started")
         yield process
     finally:
-        # Stop the NATS server
+        logger.debug("Closing NATS server")
+
         process.terminate()
+        # communicate() ensures we consume all stdout/stderr so they can close
+        out, err = process.communicate()
+
+        # If you want to log them:
+        logger.debug("NATS server stdout: %s", out.decode())
+        logger.debug("NATS server stderr: %s", err.decode())
+
+        if process.stdout:
+            process.stdout.close()
+        if process.stderr:
+            process.stderr.close()
+
+        # Stop the NATS server
         process.wait()
 
 
