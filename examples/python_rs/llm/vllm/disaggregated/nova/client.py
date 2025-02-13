@@ -7,19 +7,20 @@ from compoundai import depends, nova_endpoint, service, api
 
 from decode import Decode
 
-@service(
-    nova={
-        "enabled": True,
-        "namespace": "triton-init",
-    }
-)
+@service()
 class Client:
     # the original code -> points toward decode worker so we do that as well here
     decode = depends(Decode)
 
-    @api()
+    def __init__(self):
+        print("client init")
+
+    @api
     async def cmpl(self, prompt: str, max_tokens: int, temperature: float):
-        stream = await self.decode.generate(
+        print(prompt, max_tokens, temperature)
+
+        # Don't await the generator - directly async iterate over it
+        decgen = await self.decode.generate(
             {
                 "prompt": prompt,
                 "sampling_params": {
@@ -28,5 +29,6 @@ class Client:
                 },
             }
         )
-        async for response in stream:
-            yield response.outputs[0].text
+        async for response in decgen:
+            print("response")
+            yield response
