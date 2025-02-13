@@ -39,7 +39,11 @@ DEFAULT_CONNECTION_TIMEOUT = int(os.getenv("DEFAULT_CONNECTION_TIMEOUT", 30))
 EVENT_PLANE_NATS_PREFIX = "event_plane_nats_v1"
 
 
-def compose_nats_url(protocol: str = None, host: str = None, port: int = None) -> str:
+def compose_nats_url(
+    protocol: str = DEFAULT_EVENTS_PROTOCOL,
+    host: str = DEFAULT_EVENTS_HOST,
+    port: int = DEFAULT_EVENTS_PORT,
+) -> str:
     """Compose a NATS URL from components.
 
     Args:
@@ -50,9 +54,6 @@ def compose_nats_url(protocol: str = None, host: str = None, port: int = None) -
     Returns:
         str: The composed NATS URL
     """
-    protocol = protocol or DEFAULT_EVENTS_PROTOCOL
-    host = host or DEFAULT_EVENTS_HOST
-    port = port or DEFAULT_EVENTS_PORT
     return f"{protocol}://{host}:{port}"
 
 
@@ -162,9 +163,9 @@ class NatsEventPlane:
             component_id = uuid.uuid4()
         self._component_id = component_id
         self._nc = nats.NATS()
-        self._error = None
+        self._error: Optional[Exception] = None
         self._connected = False
-        self._failure_event = None
+        self._failure_event: Optional[asyncio.Event] = None
 
     async def wait_for_failure(self):
         """Wait for a failure event."""
@@ -310,7 +311,7 @@ class NatsEventPlane:
             Callable[[Optional[Event], Optional[Exception]], Awaitable[None]]
         ] = None,
         event_topic: Optional[Union[EventTopic, str, List[str]]] = None,
-        event_type: Optional[str] = None,
+        event_type: Optional[str] = "*",
         component_id: Optional[uuid.UUID] = None,
     ) -> EventSubscription:
         """Subscribe to events on the NATS server.
@@ -381,7 +382,8 @@ class NatsEventPlane:
             return
         await self._nc.close()
         self._error = asyncio.CancelledError("NATS connection closed.")
-        self._failure_event.set()
+        if self._failure_event is not None:
+            self._failure_event.set()
         self._connected = False
 
     def _compose_publish_subject(self, event_metadata: EventMetadata):
