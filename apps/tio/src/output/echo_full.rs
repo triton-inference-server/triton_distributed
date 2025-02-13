@@ -13,10 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{
-    sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
+use std::{sync::Arc, time::Duration};
 
 use async_stream::stream;
 use async_trait::async_trait;
@@ -26,8 +23,7 @@ use triton_distributed::pipeline::{Error, ManyOut, SingleIn};
 use triton_distributed::protocols::annotated::Annotated;
 use triton_llm::protocols::openai::chat_completions::FinishReason;
 use triton_llm::protocols::openai::chat_completions::{
-    ChatCompletionChoiceDelta, ChatCompletionContent, ChatCompletionRequest,
-    ChatCompletionResponseDelta, Content, MessageRole,
+    ChatCompletionRequest, ChatCompletionResponseDelta, Content,
 };
 use triton_llm::types::openai::chat_completions::OpenAIChatCompletionsStreamingEngine;
 
@@ -55,6 +51,7 @@ impl
         incoming_request: SingleIn<ChatCompletionRequest>,
     ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
         let (request, context) = incoming_request.transfer(());
+        let deltas = request.response_generator();
         let ctx = context.context();
         let req = request.messages.into_iter().last().unwrap();
         let prompt = match req.content {
@@ -68,55 +65,13 @@ impl
             for c in prompt.chars() {
                 // we are returning characters not tokens, so speed up some
                 tokio::time::sleep(TOKEN_ECHO_DELAY/2).await;
-                yield delta_full(id, c.to_string());
+                let delta = deltas.create_choice(0, Some(c.to_string()), None, None);
+                yield Annotated{ id: Some(id.to_string()), data: Some(delta), event: None, comment: None };
                 id += 1;
             }
-            yield stop(id);
+            let stop_delta = deltas.create_choice(0, None, Some(FinishReason::stop), None);
+            yield Annotated { id: Some(id.to_string()), data: Some(stop_delta), event: None, comment: None };
         };
         Ok(ResponseStream::new(Box::pin(output), ctx))
-    }
-}
-
-fn delta_full(id: usize, token: String) -> Annotated<ChatCompletionResponseDelta> {
-    create_delta(id, token, None)
-}
-
-fn stop(id: usize) -> Annotated<ChatCompletionResponseDelta> {
-    create_delta(id, "".to_string(), Some(FinishReason::stop))
-}
-
-fn create_delta(
-    id: usize,
-    token: String,
-    finish_reason: Option<FinishReason>,
-) -> Annotated<ChatCompletionResponseDelta> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let delta = ChatCompletionResponseDelta {
-        id: id.to_string(),
-        choices: vec![ChatCompletionChoiceDelta {
-            index: 0,
-            delta: ChatCompletionContent {
-                role: Some(MessageRole::assistant),
-                content: Some(token),
-                tool_calls: None,
-            },
-            logprobs: None,
-            finish_reason,
-        }],
-        model: "echo".to_string(),
-        created: now,
-        object: "text_completion".to_string(),
-        usage: None,
-        system_fingerprint: None,
-        service_tier: None,
-    };
-    Annotated {
-        id: None,
-        data: Some(delta),
-        event: None,
-        comment: None,
     }
 }

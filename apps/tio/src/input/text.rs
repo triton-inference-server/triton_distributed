@@ -28,6 +28,9 @@ use crate::EngineConfig;
 /// Max response tokens for each single query. Must be less than model context size.
 const MAX_TOKENS: i32 = 8192;
 
+/// Output of `isatty` if the fd is indeed a TTY
+const IS_A_TTY: i32 = 1;
+
 pub async fn run(
     cancel_token: CancellationToken,
     engine_config: EngineConfig,
@@ -49,8 +52,6 @@ pub async fn run(
 
     main_loop(cancel_token, &service_name, engine, inspect_template).await
 }
-
-const IS_A_TTY: i32 = 1;
 
 async fn main_loop(
     cancel_token: CancellationToken,
