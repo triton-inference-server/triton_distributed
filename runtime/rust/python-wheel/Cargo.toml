@@ -51,7 +51,7 @@ pyo3 = { version = "0.23.4", default-features = false, features = [
   "py-clone",
 ] }
 
-tracing-subscriber = { version = "0.3", features = ["fmt"] }
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 
 pyo3-async-runtimes = { version = "0.23.0", default-features = false, features = [
   "attributes",

@@ -22,7 +22,7 @@ use pyo3::{exceptions::PyException, prelude::*};
 use rs::pipeline::network::Ingress;
 use std::{fmt::Display, sync::Arc};
 use tokio::sync::Mutex;
-use tracing::{self as log, Level};
+use tracing::{self as log};
 use tracing_subscriber::FmtSubscriber; 
 
 use triton_distributed::{
@@ -55,15 +55,15 @@ fn log_test() {
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     let subscriber = FmtSubscriber::builder()
-    // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
-    // will be written to stdout.
-    .with_max_level(Level::TRACE)
-    // completes the builder.
-    .finish();
+        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
+        // will be written to stdout.
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        // completes the builder.
+        .finish();
 
     tracing::subscriber::set_global_default(subscriber)
-
-    .expect("setting default subscriber failed");
+        .expect("setting default subscriber failed");
+    
     m.add_function(wrap_pyfunction!(log_test, m)?)?;
     m.add_class::<DistributedRuntime>()?;
     m.add_class::<CancellationToken>()?;
