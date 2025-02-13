@@ -15,7 +15,9 @@
 
 use super::metrics;
 use super::ModelManager;
+use anyhow::Result;
 use derive_builder::Builder;
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 #[derive(Clone)]
@@ -26,7 +28,7 @@ pub struct HttpService {
 }
 
 #[derive(Clone, Builder)]
-#[builder(build_fn(private, name = "build_internal"))]
+#[builder(pattern = "owned", build_fn(private, name = "build_internal"))]
 pub struct HttpServiceConfig {
     #[builder(default = "8787")]
     port: u16,
@@ -49,7 +51,12 @@ impl HttpService {
         &self.models
     }
 
-    pub async fn run(&self, cancel_token: CancellationToken) -> anyhow::Result<()> {
+    pub async fn spawn(&self, cancel_token: CancellationToken) -> JoinHandle<Result<()>> {
+        let this = self.clone();
+        tokio::spawn(async move { this.run(cancel_token).await })
+    }
+
+    pub async fn run(&self, cancel_token: CancellationToken) -> Result<()> {
         let address = format!("0.0.0.0:{}", self.port);
         tracing::info!(address, "Starting HTTP service on: {address}");
 
@@ -60,10 +67,12 @@ impl HttpService {
         let router = self.router.clone();
         let observer = cancel_token.child_token();
 
-        Ok(axum::serve(listener, router)
+        axum::serve(listener, router)
             .with_graceful_shutdown(observer.cancelled_owned())
             .await
-            .inspect_err(|_| cancel_token.cancel())?)
+            .inspect_err(|_| cancel_token.cancel())?;
+
+        Ok(())
     }
 }
 

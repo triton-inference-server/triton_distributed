@@ -13,10 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use anyhow::Result;
 use async_nats::client::Client;
+use tracing as log;
 
 use super::*;
+use crate::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -85,7 +86,7 @@ where
     U: Data + for<'de> Deserialize<'de>,
 {
     async fn generate(&self, request: SingleIn<AddressedRequest<T>>) -> Result<ManyOut<U>, Error> {
-        let id = request.context().id().to_string();
+        let request_id = request.context().id().to_string();
         let (addressed_request, context) = request.transfer(());
         let (request, address) = addressed_request.into_parts();
         let engine_ctx = context.context();
@@ -127,22 +128,12 @@ where
         // next build the two part message where we package the connection info and the request into
         // a single Vec<u8> that can be sent over the wire.
         // --- package this up in the WorkQueuePublisher ---
-        let ctrl = match serde_json::to_vec(&control_message) {
-            Ok(ctrl) => ctrl,
-            Err(err) => {
-                anyhow::bail!("Failed serializing RequestControlMessage to JSON array: {err}");
-            }
-        };
-        let data = match serde_json::to_vec(&request) {
-            Ok(data) => data,
-            Err(err) => {
-                anyhow::bail!("Failed serializing request to JSON array: {err}");
-            }
-        };
+        let ctrl = serde_json::to_vec(&control_message)?;
+        let data = serde_json::to_vec(&request)?;
 
-        tracing::trace!(
-            "[req: {}] packaging two-part message; ctrl: {} bytes, data: {} bytes",
-            id,
+        log::trace!(
+            request_id,
+            "packaging two-part message; ctrl: {} bytes, data: {} bytes",
             ctrl.len(),
             data.len()
         );
@@ -157,7 +148,7 @@ where
 
         // TRANSPORT ABSTRACT REQUIRED - END HERE
 
-        tracing::trace!("[req: {}] enqueueing two-part message to nats", id);
+        log::trace!(request_id, "enqueueing two-part message to nats");
 
         // we might need to add a timeout on this if there is no subscriber to the subject; however, I think nats
         // will handle this for us
@@ -166,7 +157,7 @@ where
             .request(address.to_string(), buffer)
             .await?;
 
-        tracing::trace!("[req: {}] awaiting transport handshake", id);
+        log::trace!(request_id, "awaiting transport handshake");
         let response_stream = response_stream_provider
             .await
             .map_err(|_| PipelineError::DetatchedStreamReceiver)?
@@ -179,7 +170,7 @@ where
                 Ok(r) => Some(r),
                 Err(err) => {
                     let json_str = String::from_utf8_lossy(&msg);
-                    tracing::error!(%err, %json_str, "Failed deserializing JSON to response");
+                    log::warn!(%err, %json_str, "Failed deserializing JSON to response");
                     None
                 }
             }

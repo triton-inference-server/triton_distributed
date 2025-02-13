@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 pub use serde::{Deserialize, Serialize};
 pub use triton_distributed::{
     error,
@@ -86,8 +88,8 @@ enum ResponseProcessingError {
 #[pyclass]
 #[derive(Clone)]
 pub struct PythonAsyncEngine {
-    generator: PyObject,
-    event_loop: PyObject,
+    generator: Arc<PyObject>,
+    event_loop: Arc<PyObject>,
 }
 
 #[pymethods]
@@ -105,8 +107,8 @@ impl PythonAsyncEngine {
     #[new]
     pub fn new(generator: PyObject, event_loop: PyObject) -> PyResult<Self> {
         Ok(PythonAsyncEngine {
-            generator,
-            event_loop,
+            generator: Arc::new(generator),
+            event_loop: Arc::new(event_loop),
         })
     }
 }
@@ -130,12 +132,28 @@ where
         // Create a channel to communicate between the Python thread and the Rust async context
         let (tx, rx) = mpsc::channel::<Annotated<Resp>>(128);
 
-        let stream = Python::with_gil(|py| {
-            let py_request = pythonize(py, &request)?;
-            let gen = self.generator.call1(py, (py_request,))?;
-            let locals = TaskLocals::new(self.event_loop.bind(py).clone());
-            pyo3_async_runtimes::tokio::into_stream_with_locals_v1(locals, gen.into_bound(py))
-        })?;
+        let generator = self.generator.clone();
+        let event_loop = self.event_loop.clone();
+
+        // Acquiring the GIL is similar to acquiring a standard lock/mutex
+        // Performing this in an tokio async task could block the thread for an undefined amount of time
+        // To avoid this, we spawn a blocking task to acquire the GIL and perform the operations needed
+        // while holding the GIL.
+        //
+        // Under low GIL contention, we wouldn't need to do this.
+        // However, under high GIL contention, this can lead to significant performance degradation.
+        //
+        // Since we cannot predict the GIL contention, we will always use the blocking task and pay the
+        // cost. The Python GIL is the gift that keeps on giving -- performance hits...
+        let stream = tokio::task::spawn_blocking(move || {
+            Python::with_gil(|py| {
+                let py_request = pythonize(py, &request)?;
+                let gen = generator.call1(py, (py_request,))?;
+                let locals = TaskLocals::new(event_loop.bind(py).clone());
+                pyo3_async_runtimes::tokio::into_stream_with_locals_v1(locals, gen.into_bound(py))
+            })
+        })
+        .await??;
 
         let stream = Box::pin(stream);
 

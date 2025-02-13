@@ -32,6 +32,7 @@
 pub mod client;
 pub mod server;
 
+use super::ControlMessage;
 use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
@@ -66,18 +67,18 @@ impl From<TcpStreamConnectionInfo> for ConnectionInfo {
 }
 
 impl TryFrom<ConnectionInfo> for TcpStreamConnectionInfo {
-    type Error = String;
+    type Error = anyhow::Error;
 
     fn try_from(info: ConnectionInfo) -> Result<Self, Self::Error> {
         if info.transport != TCP_TRANSPORT {
-            return Err(format!(
+            return Err(anyhow::anyhow!(
                 "Invalid transport; TcpClient requires the transport to be `tcp_server`; however {} was passed",
                 info.transport
             ));
         }
 
         serde_json::from_str(&info.info)
-            .map_err(|e| format!("Failed parse ConnectionInfo: {:?}", e))
+            .map_err(|e| anyhow::anyhow!("Failed parse ConnectionInfo: {:?}", e))
     }
 }
 
@@ -89,13 +90,6 @@ impl TryFrom<ConnectionInfo> for TcpStreamConnectionInfo {
 struct CallHomeHandshake {
     subject: String,
     stream_type: StreamType,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum ControlMessage {
-    Stop,
-    Kill,
 }
 
 #[cfg(test)]
