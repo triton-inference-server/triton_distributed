@@ -31,10 +31,7 @@ async def example_with_context_managers():
     async with NatsEventPlane(server_url, component_id) as plane:
         received_events = []
 
-        async def callback(event, error):
-            if error:
-                print(f"Error occurred: {error}")
-                return
+        async def callback(event):
             print(event)
             received_events.append(event)
 
@@ -63,7 +60,7 @@ async def example_with_context_managers():
 #### 2) Define the callback function for receiving events
 ```python
     received_events = []
-    async def callback(event, metadata):
+    async def callback(event):
         print(metadata)
         received_events.append(metadata)
 ```
