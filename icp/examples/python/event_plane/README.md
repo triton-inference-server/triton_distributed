@@ -63,12 +63,9 @@ async def example_with_context_managers():
 #### 2) Define the callback function for receiving events
 ```python
     received_events = []
-    async def callback(event, error):
-        if error:
-            print(f"Error occurred: {error}")
-            return
-        print(event)
-        received_events.append(event)
+    async def callback(event, metadata):
+        print(metadata)
+        received_events.append(metadata)
 ```
 
 #### 3) Prepare the event event_topic, event type, and event payload

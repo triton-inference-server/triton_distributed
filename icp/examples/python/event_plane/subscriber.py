@@ -29,10 +29,7 @@ async def main(args):
     server_url = compose_nats_url()
     event_plane = NatsEventPlane(server_url, uuid.uuid4())
 
-    async def callback(received_event, error):
-        if error:
-            print(f"Error occurred for subscriber {args.subscriber_id}: {error}")
-            return
+    async def callback(received_event):
         print(
             f"""
             Subscriber {args.subscriber_id}
