@@ -22,9 +22,11 @@ import uvloop
 import vllm
 from common.parser import parse_vllm_args
 from common.protocol import Request, Response, TokenizeRequest, TokenizeResponse
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker, KvRouter
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
+
+import uuid
 
 
 class VllmEngine:
@@ -34,7 +36,6 @@ class VllmEngine:
 
     def __init__(self, engine_args: AsyncEngineArgs):
         vllm_logger.info("Worker init")
-        vllm_logger.info("Worker init2")
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
 
     @triton_endpoint(Request, Response)
@@ -72,20 +73,27 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
 
-    # os.environ["VLLM_WORKER_ID"] = endpoint_id
-    # vllm_logger.info(f"VLLM_WORKER_ID: {os.environ['VLLM_WORKER_ID']}")
-
     vllm_engine = VllmEngine(engine_args)
+
+    vllm_logger.info(f"Event subject: {component.event_subject('kv_events')}")
 
     generate_endpoint = component.endpoint("generate")
     tokenize_endpoint = component.endpoint("tokenize")
 
-    (generate_id, tokenize_id) = await asyncio.gather(
+    generate_id = generate_endpoint.lease_id()
+    vllm_logger.info(f"Generate endpoint ID: {generate_id}")
+
+    random_uuid = str(uuid.uuid4())
+    # TODO: Fix this. Added a random UUID as KVPublisher only takes in UUIDs as the worker ID
+    vllm_logger.info(f"Random UUID: {random_uuid}")
+    os.environ["VLLM_WORKER_ID"] = str(random_uuid)
+    vllm_logger.info(f"VLLM_WORKER_ID: {os.environ['VLLM_WORKER_ID']}")
+
+
+    await asyncio.gather(
         generate_endpoint.serve_endpoint(vllm_engine.generate),
         tokenize_endpoint.serve_endpoint(vllm_engine.tokenize)
     )
-
-    vllm_logger.info(f"generate_id {generate_id} tokenize_id {tokenize_id}")
 
 
 if __name__ == "__main__":

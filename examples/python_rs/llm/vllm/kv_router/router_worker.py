@@ -39,7 +39,6 @@ class Router:
     @triton_endpoint(TokenizeResponse, Response)
     async def generate(self, start_ids):
         vllm_logger.info(f"Received start_ids: {start_ids}")
-        vllm_logger.info(f"type start_ids: {type(start_ids)}")
 
         lora_id = 0
         try:
@@ -55,22 +54,63 @@ class Router:
         yield worker_subject
 
 
+# @triton_worker()
+# async def worker(runtime: DistributedRuntime):
+#     vllm_logger.info("Starting router worker")
+    
+#     # Create router component
+#     router_component = runtime.namespace("triton-init").component("router")
+#     await router_component.create_service()
+#     vllm_logger.info("Created router service")
+
+#     # Get VLLM component and create endpoint
+#     vllm_component = runtime.namespace("triton-init").component("vllm")
+#     generate_endpoint = vllm_component.endpoint("generate")
+    
+#     # Get client and wait for it to be ready
+#     generate_client = await generate_endpoint.client()
+#     try:
+#         await asyncio.wait_for(generate_client.wait_for_endpoints(), timeout=30.0)
+#         vllm_logger.info("VLLM endpoints are available")
+#     except asyncio.TimeoutError:
+#         vllm_logger.error("Timeout waiting for VLLM endpoints")
+#         raise Exception("No VLLM workers available after 30 seconds")
+
+#     # Create router
+#     router = KvRouter(runtime, vllm_component)
+#     vllm_logger.info("Created KvRouter")
+
+    
+#     # # List available endpoints
+#     # endpoints = await vllm_component.list_endpoints()
+#     # vllm_logger.info(f"Available endpoints: {endpoints}")
+    
+#     # # Create router
+#     # router = KvRouter(runtime, vllm_component)
+#     # vllm_logger.info("Created KvRouter")
+    
+#     endpoint = router_component.endpoint("generate")
+#     vllm_logger.info("Created router endpoint")
+    
+#     await endpoint.serve_endpoint(Router(router).generate)
+#     vllm_logger.info("Router endpoint is now serving")
+
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime):
     # create endpoint service for frontend component
     vllm_logger.info(f"=========== Hi ===========")
+
     router_component = runtime.namespace("triton-init").component("router")
     await router_component.create_service()
 
-    endpoint = router_component.endpoint("generate")
-    vllm_logger.info(f"Lease ID: {endpoint.lease_id()}")
+    router = KvRouter(runtime, router_component)
 
-    router_id = await endpoint.serve_endpoint(Router(KvRouter(runtime, router_component)).generate)
-    vllm_logger.info(f"router_id {router_id}")
+    endpoint = router_component.endpoint("generate")
+    await endpoint.serve_endpoint(Router(router).generate)
+    # vllm_logger.info(f"router_id {router_id}")
 
 
 if __name__ == "__main__":
     uvloop.install()
-    # engine_args = parse_vllm_args()
     asyncio.run(worker())

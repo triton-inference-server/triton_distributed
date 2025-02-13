@@ -32,6 +32,7 @@ impl KvPublisher {
     }
 
     pub fn publish(&self, event: KvCacheEvent) -> Result<(), mpsc::error::SendError<KvCacheEvent>> {
+        println!("Attempting to publish event: {:?}", event);
         self.tx.send(event)
     }
 }
@@ -46,6 +47,7 @@ fn start_publish_task(
     // [FIXME] service name is for metrics polling?
     // let service_name = backend.service_name();
     let kv_subject = backend.event_subject(KV_EVENT_SUBJECT);
+    println!("Publishing to subject: {}", kv_subject);
     _ = drt.runtime().secondary().spawn(async move {
         while let Some(event) = rx.recv().await {
             let router_event = RouterEvent::new(worker_id, event);
