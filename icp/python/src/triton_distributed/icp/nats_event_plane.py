@@ -17,8 +17,9 @@ import datetime
 import logging
 import os
 import uuid
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional, Union
 
+import msgspec
 import nats
 
 from triton_distributed.icp import EventTopic
@@ -64,17 +65,19 @@ class NatsEventSubscription(EventSubscription):
         if failure_task.done():
             logger.warning("NATS connection failure.")
             try:
-                await next_task.cancel()
+                next_task.cancel()
             except asyncio.CancelledError:
                 pass
             raise RuntimeError("NATS connection failure.") from failure_task.exception()
         else:
             try:
-                await failure_task.cancel()
+                failure_task.cancel()
             except asyncio.CancelledError:
                 pass
             msg = next_task.result()
-            metadata, event_payload = self._extract_metadata_and_payload(msg.data)
+            metadata, event_payload = NatsEventPlane._extract_metadata_and_payload(
+                msg.data
+            )
             event = OnDemandEvent(event_payload, metadata)
             return event
 
@@ -97,8 +100,8 @@ class NatsEventPlane:
 
     def __init__(
         self,
-        server_uri: str,
-        component_id: uuid.UUID,
+        server_uri: str = DEFAULT_EVENTS_URI,
+        component_id: Optional[uuid.UUID] = uuid.uuid1(),
         run_callback_in_parallel: bool = False,
     ):
         """Initialize the NATS event plane.
@@ -113,12 +116,13 @@ class NatsEventPlane:
         self._nc = nats.NATS()
         self._error = None
         self._connected = False
-        self._failure_event = None
+        self._failure_event: Optional[asyncio.Event] = None
 
     async def wait_for_failure(self):
         """Wait for a failure event."""
-        await self._failure_event.wait()
-        raise RuntimeError("NATS connection failure.") from self._error
+        if self._failure_event:
+            await self._failure_event.wait()
+            raise RuntimeError("NATS connection failure.") from self._error
 
     def is_connected(self):
         return self._connected
@@ -137,7 +141,8 @@ class NatsEventPlane:
         #                          )
         async def error_cb(e):
             logger.warning(f"NATS error: {e}")
-            self._failure_event.set()
+            if self._failure_event:
+                self._failure_event.set()
             self._error = e
 
         async def reconnected_cb():
@@ -170,9 +175,12 @@ class NatsEventPlane:
                     [connect_task, failed_task], return_when=asyncio.FIRST_COMPLETED
                 )
                 if failed_task.done():
+                    connect_task.cancel()
                     raise RuntimeError(
                         "NATS connection failure."
                     ) from failed_task.exception()
+                else:
+                    failed_task.cancel()
         except asyncio.TimeoutError:
             raise RuntimeError(
                 f"NATS connection timeout {DEFAULT_CONNECTION_TIMEOUT} reached."
@@ -181,7 +189,10 @@ class NatsEventPlane:
         self._connected = True
 
     async def publish(
-        self, payload: bytes, event_type: str, event_topic: Optional[EventTopic]
+        self,
+        payload: Union[bytes | Any],
+        event_type: Optional[str] = None,
+        event_topic: Optional[EventTopic] = None,
     ) -> Event:
         """Publish an event to the NATS server.
 
@@ -201,7 +212,7 @@ class NatsEventPlane:
         event_metadata = EventMetadata(
             event_id=uuid.uuid4(),
             event_topic=event_topic,
-            event_type=event_type,
+            event_type=event_type if event_type else str(type(payload).__name__),
             timestamp=datetime.datetime.now(datetime.UTC),
             component_id=self._component_id,
         )
@@ -210,7 +221,10 @@ class NatsEventPlane:
         metadata_size = len(metadata_serialized).to_bytes(4, byteorder="big")
 
         # Concatenate metadata size, metadata, and event payload
-        message = metadata_size + metadata_serialized + payload
+        if isinstance(payload, bytes):
+            message = metadata_size + metadata_serialized + payload
+        else:
+            message = metadata_size + metadata_serialized + msgspec.json.encode(payload)
 
         subject = self._compose_publish_subject(event_metadata)
         await self._nc.publish(subject, message)
@@ -222,7 +236,7 @@ class NatsEventPlane:
 
     async def subscribe(
         self,
-        callback: Optional[Callable[[Event], Awaitable[None]]],
+        callback: Optional[Callable[[Event], Awaitable[None]]] = None,
         event_topic: Optional[EventTopic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,
@@ -244,7 +258,9 @@ class NatsEventPlane:
                 raise RuntimeError("NATS not connected.")
 
         async def _message_handler(msg):
-            metadata, event_payload = self._extract_metadata_and_payload(msg.data)
+            metadata, event_payload = NatsEventPlane._extract_metadata_and_payload(
+                msg.data
+            )
             event = OnDemandEvent(event_payload, metadata)
 
             async def wrapper():
@@ -259,7 +275,6 @@ class NatsEventPlane:
                     await callback(event)  # Await normally
 
         subject = self._compose_subscribe_subject(event_topic, event_type, component_id)
-
         _cb = _message_handler if callback is not None else None
         sub = await self._nc.subscribe(subject, cb=_cb)
         event_sub = NatsEventSubscription(sub, self)
@@ -284,7 +299,8 @@ class NatsEventPlane:
     ):
         return f"ep.{event_type or '*'}.{component_id or '*'}.{str(event_topic) + '.' if event_topic else ''}>"
 
-    def _extract_metadata_and_payload(self, message: bytes):
+    @staticmethod
+    def _extract_metadata_and_payload(message: bytes):
         # Extract metadata size
         message_view = memoryview(message)
 

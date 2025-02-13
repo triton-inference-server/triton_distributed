@@ -40,6 +40,7 @@ def is_port_in_use(port: int) -> bool:
 @pytest_asyncio.fixture(loop_scope="session")
 async def nats_server():
     """Fixture to start and stop a NATS server."""
+    process = None
     try:
         # Raise more intuitive error to developer if port is already in-use.
         if is_port_in_use(DEFAULT_EVENTS_PORT):
@@ -56,15 +57,17 @@ async def nats_server():
                 "-addr",
                 DEFAULT_EVENTS_HOST,
             ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         time.sleep(1)  # Allow the server time to start
         yield process
     finally:
         # Stop the NATS server
-        process.terminate()
-        process.wait()
+        if process:
+            process.terminate()
+            process.wait()
 
 
 @asynccontextmanager

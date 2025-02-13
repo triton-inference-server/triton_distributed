@@ -17,12 +17,12 @@ import re
 import uuid
 from abc import abstractmethod
 from datetime import datetime
-from typing import Any, AsyncIterator, Awaitable, Callable, List, Optional, Union
+from typing import Any, AsyncIterator, Awaitable, Callable, List, Optional, Type, Union
 
 EVENT_TOPIC_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
-def _validate_subjects(subjects: List[str]) -> bool:
+def _validate_topics(topics: List[str]) -> bool:
     """
     Checks if all strings in the list are alphanumeric and can contain underscores (_) and hyphens (-).
 
@@ -31,7 +31,7 @@ def _validate_subjects(subjects: List[str]) -> bool:
     """
     pattern = EVENT_TOPIC_PATTERN
 
-    return all(pattern.match(subject) for subject in subjects)
+    return all(pattern.match(topic) for topic in topics)
 
 
 @dataclasses.dataclass
@@ -49,7 +49,7 @@ class EventTopic:
 
         if isinstance(event_topic, str):
             event_topic = [event_topic]
-        if not _validate_subjects(event_topic):
+        if not _validate_topics(event_topic):
             raise ValueError(
                 "Invalid event_topic string. Only alphanumeric characters, underscores, and hyphens are allowed."
             )
@@ -91,6 +91,10 @@ class Event:
     @property
     @abstractmethod
     def payload(self) -> bytes:
+        pass
+
+    @abstractmethod
+    def typed_payload(self, payload_type: Optional[Type | str] = None) -> Any:
         pass
 
 
@@ -135,7 +139,7 @@ class EventPlane:
     @abstractmethod
     async def subscribe(
         self,
-        callback: Callable[[bytes, bytes], Awaitable[None]],
+        callback: Callable[[Event], Awaitable[None]],
         event_topic: Optional[EventTopic] = None,
         event_type: Optional[str] = None,
         component_id: Optional[uuid.UUID] = None,

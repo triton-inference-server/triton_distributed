@@ -12,10 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import builtins
 import dataclasses
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional, Type
 
 import msgspec
 
@@ -38,7 +39,7 @@ class EventMetadata:
 def _deserialize_metadata(event_metadata_serialized: bytes):
     event_metadata_dict = msgspec.json.decode(event_metadata_serialized)
     topic_meta = event_metadata_dict["event_topic"]
-    topic_list = topic_meta["event_topic"].split(".")
+    topic_list = topic_meta["event_topic"].split(".") if topic_meta else []
     metadata = EventMetadata(
         **{
             **event_metadata_dict,
@@ -66,6 +67,20 @@ def _serialize_metadata(event_metadata: EventMetadata) -> bytes:
 
     json_string = msgspec.json.encode(event_metadata, enc_hook=hook)
     return json_string
+
+
+def _get_type(type_name: str):
+    # Check in builtins for the type
+    builtin_type = getattr(builtins, type_name, None)
+    if builtin_type and isinstance(builtin_type, type):
+        return builtin_type
+
+    # Check in globals for the type
+    global_type = globals().get(type_name)
+    if global_type and isinstance(global_type, type):
+        return global_type
+
+    return None
 
 
 class OnDemandEvent(Event):
@@ -118,3 +133,14 @@ class OnDemandEvent(Event):
     @property
     def payload(self) -> bytes:
         return self._payload
+
+    def typed_payload(self, payload_type: Optional[Type | str] = None) -> Any:
+        if payload_type is None:
+            payload_type = self.event_type
+
+        if isinstance(payload_type, str):
+            payload_type = _get_type(payload_type)
+
+        if payload_type is not None:
+            return msgspec.json.decode(self._payload, type=payload_type)
+        return msgspec.json.decode(self._payload)
