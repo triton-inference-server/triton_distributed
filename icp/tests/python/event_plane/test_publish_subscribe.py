@@ -149,7 +149,7 @@ class TestEventPlaneFunctional:
         assert len(received_events) == 1
         assert received_events[0].event_id == event_metadata.event_id
         assert isinstance(received_events[0].typed_payload(MyEvent), type(event))
-        assert isinstance(received_events[0].typed_payload(), dict)
+        assert isinstance(received_events[0].typed_payload(dict), dict)
 
     @pytest.mark.asyncio
     async def test_one_publisher_multiple_subscribers(self, nats_server):
