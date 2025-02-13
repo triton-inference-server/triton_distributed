@@ -82,27 +82,46 @@ class TestEventPlaneFunctional:
 
         component_id = uuid.uuid4()
         event_plane2 = NatsEventPlane(server_url, component_id)
-        await event_plane2.connect()
+        try:
+            await event_plane2.connect()
 
-        await event_plane2.subscribe(callback_1, event_topic=event_topic)
-        await event_plane2.subscribe(callback_2, event_topic=event_topic)
-        await event_plane2.subscribe(callback_3, event_type=event_type)
+            try:
+                subscription1 = await event_plane2.subscribe(
+                    callback_1, event_topic=event_topic
+                )
+                try:
+                    subscription2 = await event_plane2.subscribe(
+                        callback_2, event_topic=event_topic
+                    )
+                    try:
+                        subscription3 = await event_plane2.subscribe(
+                            callback_3, event_type=event_type
+                        )
 
-        component_id = uuid.uuid4()
-        event_plane1 = NatsEventPlane(server_url, component_id)
-        await event_plane1.connect()
+                        component_id = uuid.uuid4()
+                        event_plane1 = NatsEventPlane(server_url, component_id)
+                        try:
+                            await event_plane1.connect()
 
-        ch1 = EventTopic(["test", "1"])
-        ch2 = EventTopic(["test", "2"])
-        await event_plane1.publish(event, event_type, ch1)
-        await event_plane1.publish(event, event_type, ch2)
+                            ch1 = EventTopic(["test", "1"])
+                            ch2 = EventTopic(["test", "2"])
+                            await event_plane1.publish(event, event_type, ch1)
+                            await event_plane1.publish(event, event_type, ch2)
 
-        # Allow time for message propagation
-        await asyncio.sleep(2)
+                            # Allow time for message propagation
+                            await asyncio.sleep(2)
 
-        assert len(results_1) == 2
-        assert len(results_2) == 2
-        assert len(results_3) == 2
+                            assert len(results_1) == 2
+                            assert len(results_2) == 2
+                            assert len(results_3) == 2
+                        finally:
+                            await event_plane1.disconnect()
+                    finally:
+                        await subscription3.unsubscribe()
+                finally:
+                    await subscription2.unsubscribe()
+            finally:
+                await subscription1.unsubscribe()
 
-        await event_plane1.disconnect()
-        await event_plane2.disconnect()
+        finally:
+            await event_plane2.disconnect()

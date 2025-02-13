@@ -155,13 +155,6 @@ class NatsEventPlane:
         if self._connected:
             return
 
-        # Connect to NATS with logging callbacks.
-        # nc = await nats.connect('demo.nats.io',
-        #                          error_cb=error_cb,
-        #                          reconnected_cb=reconnected_cb,
-        #                          disconnected_cb=disconnected_cb,
-        #                          closed_cb=closed_cb,
-        #                          )
         async def error_cb(e):
             logger.warning("NATS error: %s", e)
             if self._failure_event is not None:
@@ -202,9 +195,20 @@ class NatsEventPlane:
                     [connect_task, failed_task], return_when=asyncio.FIRST_COMPLETED
                 )
                 if failed_task.done():
+                    try:
+                        connect_task.cancel()
+                        await connect_task
+                    except asyncio.CancelledError:
+                        pass
                     raise RuntimeError(
                         "NATS connection failure."
                     ) from failed_task.exception()
+                else:
+                    try:
+                        failed_task.cancel()
+                        await failed_task
+                    except asyncio.CancelledError:
+                        pass
         except asyncio.TimeoutError:
             raise RuntimeError(
                 f"NATS connection timeout {DEFAULT_CONNECTION_TIMEOUT} reached."
@@ -326,6 +330,8 @@ class NatsEventPlane:
         if not self._connected:
             return
         await self._nc.close()
+        self._error = asyncio.CancelledError("NATS connection closed.")
+        self._failure_event.set()
         self._connected = False
 
     def _compose_publish_subject(self, event_metadata: EventMetadata):
@@ -341,8 +347,6 @@ class NatsEventPlane:
             event_topic_obj = EventTopic(event_topic)
         else:
             event_topic_obj = event_topic
-        # subject = "{EVENT_PLANE_NATS_PREFIX}"
-        # if event_type or component_id
         return (
             f"{EVENT_PLANE_NATS_PREFIX}.{event_type or '*'}.{component_id or '*'}.{str(event_topic_obj) + '.' if event_topic else ''}>",
             event_topic_obj,
