@@ -224,7 +224,6 @@ async fn handle_reader(
                                     }
                                 };
 
-
                                 match msg {
                                     ControlMessage::Stop => {
                                         context.stop();
@@ -239,7 +238,6 @@ async fn handle_reader(
                                 }
                            }
                            _ => {
-                               // not a control message, so we just continue
                                 panic!("received a non-control message; this should never happen");
                            }
                         }
