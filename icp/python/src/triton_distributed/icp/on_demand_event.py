@@ -140,7 +140,16 @@ class OnDemandEvent(Event):
 
         if isinstance(payload_type, str):
             payload_type = _get_type(payload_type)
-
-        if payload_type is not None:
-            return msgspec.json.decode(self._payload, type=payload_type)
-        return msgspec.json.decode(self._payload)
+        if payload_type is not None and payload_type is not bytes:
+            try:
+                return msgspec.json.decode(self._payload, type=payload_type)
+            except Exception as e:
+                raise ValueError(
+                    f"Unable to convert payload {self._payload} to type {payload_type} from event type {self.event_type}"
+                ) from e
+        elif payload_type is bytes:
+            return bytes(self._payload)
+        else:
+            raise ValueError(
+                f"Unable to convert payload {self._payload} to type {payload_type} from event type {self.event_type}"
+            )

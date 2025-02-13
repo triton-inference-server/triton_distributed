@@ -37,11 +37,13 @@ async def single_publisher_subscriber_example():
 
     async def callback(event):
         print(event)
+        print(event.payload)
+        print(event.typed_payload(bytes))
         received_events.append(event)
 
     event_topic = EventTopic(["test", "event_topic"])
     event_type = "test_event"
-    event = b"my_payload"
+    event = b"[0]"
 
     await plane.subscribe(callback, event_topic=event_topic, event_type=event_type)
 

@@ -60,7 +60,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--event-type", type=str, default="test_event", help="Event type"
     )
-    parser.add_argument("--publisher-id", type=int, required=True, help="Publisher ID")
     parser.add_argument(
         "--payload",
         type=str,
