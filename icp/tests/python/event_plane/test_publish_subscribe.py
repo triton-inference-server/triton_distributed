@@ -139,9 +139,7 @@ class TestEventPlaneFunctional:
         async with NatsEventPlane(compose_nats_url(), uuid.uuid4()) as plane:
             assert plane.is_connected()
 
-            async def callback(event, error):
-                if error:
-                    pytest.fail(f"Error in callback: {error}")
+            async def callback(event):
                 received_events.append(event)
 
             async with await plane.subscribe(

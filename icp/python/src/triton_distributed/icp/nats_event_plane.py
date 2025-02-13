@@ -69,6 +69,7 @@ class NatsEventSubscription(EventSubscription):
         self._nats = nats_connection
         self._subject = subject
         self._topic = topic
+        self._unsubscribe_event: asyncio.Event = asyncio.Event()
 
     async def __anext__(self):
         if self._nc_sub is None:
