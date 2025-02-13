@@ -33,32 +33,6 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 RUN wget https://github.com/etcd-io/etcd/releases/download/v3.5.18/etcd-v3.5.18-linux-amd64.tar.gz && tar -xzf etcd-v3.5.18-linux-amd64.tar.gz
 RUN cp ./etcd-v3.5.18-linux-amd64/etcd* /usr/local/bin/.
 
-# Working directory
-WORKDIR /workspace
-
-COPY runtime /workspace/runtime
-RUN cd runtime/rust && \
-    cargo build --release --locked && cargo doc --no-deps
-
-# Generate C bindings
-RUN cd runtime/rust/libtriton_llm && \
-    cargo build --release --locked && cargo doc --no-deps
-
-# Install uv and create virtualenv for general use
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-RUN mkdir /opt/triton && \
-    uv venv /opt/triton/venv --python 3.12 && \
-    source /opt/triton/venv/bin/activate && \
-    cd runtime/rust/python-wheel && \
-    uv build && \
-    uv pip install dist/triton_distributed_rs*cp312*.whl
-
-# Package the bindings
-RUN mkdir -p /opt/triton/llm_binding/wheels && mkdir /opt/triton/llm_binding/lib
-RUN cp runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/.
-RUN cp runtime/rust/libtriton_llm/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/.
-RUN cp -r runtime/rust/libtriton_llm/include /opt/triton/llm_binding/.
-
 # Install OpenAI-compatible frontend and its dependencies from triton server
 # repository. These are used to have a consistent interface, schema, and FastAPI
 # app between Triton Core and Triton Distributed implementations.
@@ -95,6 +69,32 @@ RUN find /opt/tritonserver/python -maxdepth 1 -type f -name \
 # GENAI Perf Install
 ARG GENAI_PERF_TAG="r25.01"
 RUN pip install "git+https://github.com/triton-inference-server/perf_analyzer.git@${GENAI_PERF_TAG}#subdirectory=genai-perf"
+
+# Working directory
+WORKDIR /workspace
+
+COPY runtime /workspace/runtime
+RUN cd runtime/rust && \
+    cargo build --release --locked && cargo doc --no-deps
+
+# Generate C bindings. Note that this is required for TRTLLM backend re-build
+RUN cd runtime/rust/libtriton_llm && \
+    cargo build --release --locked && cargo doc --no-deps
+
+# Install uv and create virtualenv for general use
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN mkdir /opt/triton && \
+    uv venv /opt/triton/venv --python 3.12 && \
+    source /opt/triton/venv/bin/activate && \
+    cd runtime/rust/python-wheel && \
+    uv build && \
+    uv pip install dist/triton_distributed_rs*cp312*.whl
+
+# Package the bindings
+RUN mkdir -p /opt/triton/llm_binding/wheels && mkdir /opt/triton/llm_binding/lib
+RUN cp runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/.
+RUN cp runtime/rust/libtriton_llm/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/.
+RUN cp -r runtime/rust/libtriton_llm/include /opt/triton/llm_binding/.
 
 # Backend & Framework Specific Installation
 ARG FRAMEWORK="STANDARD"
