@@ -21,3 +21,4 @@
 pub mod etcd;
 pub mod nats;
 pub mod tcp;
+pub mod zmq;

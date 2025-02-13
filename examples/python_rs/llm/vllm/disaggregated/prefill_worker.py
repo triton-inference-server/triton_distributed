@@ -35,6 +35,7 @@ class VllmPrefillEngine:
             engine_args.kv_transfer_config.is_kv_producer
         ), "Prefill worker must be a KV producer"
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
+        self.kv_rank = self.engine.engine.vllm_config.kv_transfer_config.kv_rank
 
     @triton_endpoint(PrefillRequest, PrefillResponse)
     async def generate(self, request):
@@ -56,8 +57,9 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("prefill")
     await component.create_service()
 
-    endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(VllmPrefillEngine(engine_args).generate)
+    prefill_engine = VllmPrefillEngine(engine_args)
+    endpoint = component.endpoint(f"generate_kv_rank_{prefill_engine.kv_rank}")
+    await endpoint.serve_endpoint(prefill_engine.generate)
 
 
 if __name__ == "__main__":

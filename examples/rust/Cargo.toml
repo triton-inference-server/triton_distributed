@@ -49,6 +49,3 @@ tokio-util = { version = "0.7", features = ["codec", "net"] }
 tracing = { version = "0.1" }
 validator = { version = "0.20.0", features = ["derive"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-
-#
-env_logger = "0.11.6"

@@ -25,4 +25,3 @@ homepage.workspace = true
 triton-distributed = { workspace = true }
 
 # third-party
-env_logger = { workspace = true }
