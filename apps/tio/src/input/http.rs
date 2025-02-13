@@ -30,12 +30,11 @@ pub async fn run(
             engine,
             ..
         } => {
-            let mut http_builder = service_v2::HttpService::builder();
-            let _ = http_builder
+            let http_service = service_v2::HttpService::builder()
                 .port(http_port)
                 .enable_chat_endpoints(true)
-                .enable_cmpl_endpoints(true);
-            let http_service = http_builder.build()?;
+                .enable_cmpl_endpoints(true)
+                .build()?;
             http_service
                 .model_manager()
                 .add_chat_completions_model(&service_name, engine)?;
