@@ -18,7 +18,7 @@ name = "tio"
 version = "0.1.0"
 edition = "2021"
 authors = ["NVIDIA"]
-homepage = "https://gitlab-master.nvidia.com/dl/ai-services/libraries/rust/nim-nvllm"
+homepage = "https://github.com/triton-inference-server/triton_distributed"
 
 [dependencies]
 anyhow = "1"
