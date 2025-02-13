@@ -55,6 +55,6 @@ class TestEvent:
 class TestEventPlaneNats:
     @pytest.fixture
     def event_plane_instance(self):
-        server_url = "nats://localhost:4222"
+        server_url = "tls://localhost:4222"
         component_id = uuid.uuid4()
         return NatsEventPlane(server_url, component_id)

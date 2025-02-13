@@ -131,6 +131,13 @@ class NatsEventSubscription(EventSubscription):
     def topic(self):
         return self._topic
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.unsubscribe()
+        return False  # Don't suppress exceptions
+
 
 class NatsEventPlane:
     """EventPlane implementation using NATS."""
@@ -410,3 +417,11 @@ class NatsEventPlane:
     @property
     def component_id(self) -> uuid.UUID:
         return self._component_id
+
+    async def __aenter__(self):
+        await self.connect()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.disconnect()
+        return False  # Don't suppress exceptions
