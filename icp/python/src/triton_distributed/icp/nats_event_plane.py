@@ -64,13 +64,15 @@ class NatsEventSubscription(EventSubscription):
         if failure_task.done():
             logger.warning("NATS connection failure.")
             try:
-                await next_task.cancel()
+                next_task.cancel()
+                await next_task
             except asyncio.CancelledError:
                 pass
             raise RuntimeError("NATS connection failure.") from failure_task.exception()
         else:
             try:
-                await failure_task.cancel()
+                failure_task.cancel()
+                await failure_task
             except asyncio.CancelledError:
                 pass
             msg = next_task.result()
@@ -117,8 +119,11 @@ class NatsEventPlane:
 
     async def wait_for_failure(self):
         """Wait for a failure event."""
-        await self._failure_event.wait()
-        raise RuntimeError("NATS connection failure.") from self._error
+        if self._failure_event is not None:
+            await self._failure_event.wait()
+            raise RuntimeError("NATS connection failure.") from self._error
+        else:
+            raise RuntimeError("NATS connection failure event is None")
 
     def is_connected(self):
         return self._connected
@@ -136,8 +141,13 @@ class NatsEventPlane:
         #                          closed_cb=closed_cb,
         #                          )
         async def error_cb(e):
-            logger.warning(f"NATS error: {e}")
-            self._failure_event.set()
+            logger.warning("NATS error: %s", e)
+            if self._failure_event is not None:
+                self._failure_event.set()
+                self._failure_event = asyncio.Event()
+                self._error = e
+            else:
+                logger.error(f"NATS connection failure event is None for error {e}")
             self._error = e
 
         async def reconnected_cb():
