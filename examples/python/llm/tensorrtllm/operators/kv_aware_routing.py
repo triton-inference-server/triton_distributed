@@ -105,7 +105,6 @@ class KvAwareRoutingOperator(TritonCoreOperator):
 
         input_ids, input_lengths = await self._preprocess(query)
         self._logger.debug(input_ids, input_lengths)
-        print(input_ids)
 
         # [FIXME] not rate limiting due to metric polling is not supported
         # KV aware routing
@@ -114,10 +113,11 @@ class KvAwareRoutingOperator(TritonCoreOperator):
             self._generate.component_id = await self._router.schedule(
                 input_ids[0], lora_id
             )
+            self._logger.debug(f"worker selected: {self._generate.component_id}")
         except Exception as e:
-            print(str(e))
             if "No worker found" in str(e):
                 self._generate.component_id = None
+                self._logger.debug(f"no elgible worker")
             else:
                 self._logger.exception(f"Error during selecting worker: {e}")
 
