@@ -1,5 +1,32 @@
-// pub mod client;
-// pub mod server;
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! ZMQ Transport
+//!
+//! This module provides a ZMQ transport for the [crate::DistributedRuntime].
+//!
+//! Currently, the [Server] consists of a [async_zmq::Router] and the [Client] leverages
+//! a [async_zmq::Dealer].
+//!
+//! The distributed service pattern we will use is based on the Harmony pattern described in
+//! [Chapter 8: A Framework for Distributed Computing](https://zguide.zeromq.org/docs/chapter8/#True-Peer-Connectivity-Harmony-Pattern).
+//!
+//! This is similar to the TCP implementation; however, the TCP implementation used a direct
+//! connection between the client and server per stream. The ZMQ transport will enable the
+//! equivalent of a connection pool per upstream service at the cost of needing an extra internal
+//! routing step per service endpoint.
 
 use anyhow::{anyhow, Result};
 use async_zmq::{Context, Dealer, Router, Sink, SinkExt, StreamExt};
@@ -67,52 +94,11 @@ impl RouterState {
 }
 
 // Server implementation
-#[derive(Dissolve)]
+#[derive(Clone, Dissolve)]
 pub struct Server {
     state: Arc<Mutex<RouterState>>,
     cancel_token: CancellationToken,
     fd: i32,
-}
-
-/// The [ServerExecutionHandle] is the handle for background task executing the [Server].
-///
-/// You can use this to check if the server is finished or cancelled.
-///
-/// You can also join on the task to wait for it to finish.
-pub struct ServerExecutionHandle {
-    task: JoinHandle<Result<()>>,
-    cancel_token: CancellationToken,
-}
-
-impl ServerExecutionHandle {
-    /// Check if the task awaiting on the [Server]s background event loop has finished.
-    pub fn is_finished(&self) -> bool {
-        self.task.is_finished()
-    }
-
-    /// Check if the server's event loop has been cancelled.
-    pub fn is_cancelled(&self) -> bool {
-        self.cancel_token.is_cancelled()
-    }
-
-    /// Cancel the server's event loop.
-    ///
-    /// This will signal the server to stop processing requests and exit.
-    ///
-    /// This will not wait for the server to finish, it will exit immediately.
-    ///
-    /// This will not propagate to the [CancellationToken] used to start the [Server]
-    /// unless an error happens during the shutdown process.
-    pub fn cancel(&self) {
-        self.cancel_token.cancel();
-    }
-
-    /// Join on the task awaiting on the [Server]s background event loop.
-    ///
-    /// This will return the result of the [Server]s background event loop.
-    pub async fn join(self) -> Result<()> {
-        Ok(self.task.await??)
-    }
 }
 
 impl Server {
@@ -166,12 +152,16 @@ impl Server {
         ))
     }
 
+    // pub async fn register_stream(&)
+
     async fn run(
         router: Router<IntoIter<Vec<u8>>, Vec<u8>>,
         state: Arc<Mutex<RouterState>>,
         token: CancellationToken,
     ) -> Result<()> {
         let mut router = router;
+
+        // todo - move this into the Server impl to discover the os port being used
         // let fd = router.as_raw_socket().get_fd()?;
         // let sock = unsafe { socket2::Socket::from_raw_fd(fd) };
         // let addr = sock.local_addr()?;
@@ -272,6 +262,47 @@ impl Server {
         }
 
         Ok(())
+    }
+}
+
+/// The [ServerExecutionHandle] is the handle for background task executing the [Server].
+///
+/// You can use this to check if the server is finished or cancelled.
+///
+/// You can also join on the task to wait for it to finish.
+pub struct ServerExecutionHandle {
+    task: JoinHandle<Result<()>>,
+    cancel_token: CancellationToken,
+}
+
+impl ServerExecutionHandle {
+    /// Check if the task awaiting on the [Server]s background event loop has finished.
+    pub fn is_finished(&self) -> bool {
+        self.task.is_finished()
+    }
+
+    /// Check if the server's event loop has been cancelled.
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel_token.is_cancelled()
+    }
+
+    /// Cancel the server's event loop.
+    ///
+    /// This will signal the server to stop processing requests and exit.
+    ///
+    /// This will not wait for the server to finish, it will exit immediately.
+    ///
+    /// This will not propagate to the [CancellationToken] used to start the [Server]
+    /// unless an error happens during the shutdown process.
+    pub fn cancel(&self) {
+        self.cancel_token.cancel();
+    }
+
+    /// Join on the task awaiting on the [Server]s background event loop.
+    ///
+    /// This will return the result of the [Server]s background event loop.
+    pub async fn join(self) -> Result<()> {
+        Ok(self.task.await??)
     }
 }
 

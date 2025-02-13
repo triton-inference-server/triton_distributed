@@ -25,7 +25,7 @@ use tokio::sync::Mutex;
 
 use bytes::Bytes;
 use derive_builder::Builder;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use local_ip_address::{list_afinet_netifas, local_ip};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -36,8 +36,8 @@ use tokio::{
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 use super::{
-    CallHomeHandshake, PendingConnections, RegisteredStream, StreamOptions, StreamReceiver,
-    StreamSender, TcpStreamConnectionInfo, TwoPartCodec,
+    CallHomeHandshake, ControlMessage, PendingConnections, RegisteredStream, StreamOptions,
+    StreamReceiver, StreamSender, TcpStreamConnectionInfo, TwoPartCodec,
 };
 use crate::engine::AsyncEngineContext;
 use crate::pipeline::{
@@ -304,30 +304,6 @@ async fn tcp_listener(
         }
     };
 
-    // TODO(#173) - alternative / not fully functional exploration for #173; removed when resolved.
-    // let socket = Socket::new(Domain::IPV4, Type::STREAM, None)?;
-
-    // // Set the socket options
-    // socket.set_reuse_address(true)?;
-    // socket.set_nodelay(true)?;
-
-    // let addr: SocketAddr = addr.parse()?;
-    // //let addr: SocketAddr = "[::1]:0".parse()?;
-    // socket.bind(&addr.into())?;
-
-    // socket.listen(128)?;
-
-    // let listener: TcpListener = socket.into();
-    // let listener = tokio::net::TcpListener::from_std(listener)?;
-
-    // let addr = listener
-    //     .local_addr()
-    //     .map_err(|e| anyhow::anyhow!("Failed get SocketAddr: {:?}", e))?;
-
-    // read_tx
-    //     .send(Ok(addr.port()))
-    //     .expect("Failed to send ready signal");
-
     loop {
         // todo - add instrumentation
         // todo - add counter for all accepted connections
@@ -461,133 +437,171 @@ async fn tcp_listener(
         }
 
         // we need to know the buffer size from the registration options; add this to the RequestRecvConnection object
-        let (tx, rx) = mpsc::channel(16);
+        let (response_tx, response_rx) = mpsc::channel(64);
 
         if connection
-            .send(Ok(crate::pipeline::network::StreamReceiver { rx }))
+            .send(Ok(crate::pipeline::network::StreamReceiver {
+                rx: response_rx,
+            }))
             .is_err()
         {
             return Err(error!("The requester of the stream has been dropped before the connection was established"));
         }
 
-        let (alive_tx, alive_rx) = mpsc::channel::<()>(1);
-        let (control_tx, _control_rx) = mpsc::channel::<Bytes>(8);
+        let (control_tx, control_rx) = mpsc::channel::<ControlMessage>(1);
 
-        // monitor task
-        // if the context is cancelled, we need to forward the message across the transport layer
-        // we only determine the forwarding task on a kill signal, on a stop signal, we issue the stop signal, then await for the producer
-        // to naturally close the stream
-        let monitor_task = tokio::spawn(monitor(writer, context.clone(), alive_tx));
+        // sender task
+        // issues control messages to the sender and when finished shuts down the socket
+        // this should be the last task to finish and must
+        let send_task = tokio::spawn(network_send_handler(writer, control_rx));
 
         // forward task
-        let forward_task = tokio::spawn(handle_response_stream(
+        let recv_task = tokio::spawn(network_receive_handler(
             reader,
-            tx,
+            response_tx,
             control_tx,
             context.clone(),
-            alive_rx,
         ));
 
         // check the results of each of the tasks
-        let (monitor_result, forward_result) = tokio::join!(monitor_task, forward_task);
+        let (monitor_result, forward_result) = tokio::join!(send_task, recv_task);
 
-        monitor_result??;
-        forward_result??;
+        monitor_result?;
+        forward_result?;
 
         Ok(())
     }
 
-    async fn handle_response_stream(
+    async fn network_receive_handler(
         mut framed_reader: FramedRead<tokio::io::ReadHalf<tokio::net::TcpStream>, TwoPartCodec>,
         response_tx: mpsc::Sender<Bytes>,
-        control_tx: mpsc::Sender<Bytes>,
+        control_tx: mpsc::Sender<ControlMessage>,
         context: Arc<dyn AsyncEngineContext>,
-        alive_rx: mpsc::Receiver<()>,
-    ) -> Result<()> {
+    ) {
         // loop over reading the tcp stream and checking if the writer is closed
+        let mut can_stop = true;
         loop {
             tokio::select! {
+                biased;
+
+                _ = response_tx.closed() => {
+                    tracing::trace!("response channel closed before the client finished writing data");
+                    control_tx.send(ControlMessage::Kill).await.expect("the control channel should not be closed");
+                    break;
+                }
+
+                _ = context.killed() => {
+                    tracing::trace!("context kill signal received; shutting down");
+                    control_tx.send(ControlMessage::Kill).await.expect("the control channel should not be closed");
+                    break;
+                }
+
+                _ = context.stopped(), if can_stop => {
+                    can_stop = false;
+                    control_tx.send(ControlMessage::Stop).await.expect("the control channel should not be closed");
+                }
+
                 msg = framed_reader.next() => {
                     match msg {
                         Some(Ok(msg)) => {
                             let (header, data) = msg.into_parts();
 
-                            if !header.is_empty() && (control_tx.send(header).await).is_err() {
-                                tracing::trace!("Control channel closed")
+                            // received a control message
+                            if !header.is_empty() {
+                                match process_control_message(header) {
+                                    Ok(ControlAction::Continue) => {}
+                                    Ok(ControlAction::Shutdown) => {
+                                        assert!(data.is_empty(), "received sentinel message with data; this should never happen");
+                                        tracing::trace!("received sentinel message; shutting down");
+                                        break;
+                                    }
+                                    Err(e) => {
+                                        // TODO(#171) - address fatal errors
+                                        assert!(false, "{:?}", e);
+                                    }
+                                }
                             }
 
                             if !data.is_empty() {
                                 if let Err(err) = response_tx.send(data).await {
-                                    return Err(error!("handle_response_stream: Failed sending to response_tx: {err}"));
+                                    tracing::debug!("forwarding body/data message to response channel failed: {}", err);
+                                    control_tx.send(ControlMessage::Kill).await.expect("the control channel should not be closed");
+                                    break;
                                 };
                             }
                         }
-                        Some(Err(e)) => {
-                            return Err(error!("Failed to read TwoPartCodec message from TcpStream: {}", e));
+                        Some(Err(_)) => {
+                            // TODO(#171) - address fatal errors
+                            assert!(false, "invalid message issued over socket; this should never happen");
                         }
                         None => {
-                            tracing::trace!("TcpStream closed naturally");
+                            // this is allowed but we try to avoid it
+                            // the logic is that the client will tell us when its is done and the server
+                            // will close the connection naturally when the sentinel message is received
+                            // the client closing early represents a transport error outside the control of the
+                            // transport library
+                            tracing::trace!("tcp stream was closed by client");
                             break;
                         }
                     }
                 }
-                _ = response_tx.closed() => {
-                    break;
-                }
-                _ = context.killed() => { break; }
+
             }
         }
-        drop(alive_rx);
-        Ok(())
     }
 
-    #[allow(dead_code)]
-    async fn handle_control_message(
-        mut control_rx: mpsc::Receiver<Bytes>,
-        context: Arc<dyn AsyncEngineContext>,
-        alive_tx: mpsc::Sender<()>,
-    ) -> Result<(), String> {
-        loop {
-            tokio::select! {
-                msg = control_rx.recv() => {
-                    match msg {
-                        Some(_msg) => {
-                            // handle control message
-                        }
-                        None => {
-                            tracing::trace!("Control channel closed");
-                            break;
-                        }
-                    }
-                }
-                _ = context.killed() => {
-                    break;
-                }
-            }
-        }
-        drop(alive_tx);
-        Ok(())
-    }
+    async fn network_send_handler(
+        socket_tx: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, TwoPartCodec>,
+        control_rx: mpsc::Receiver<ControlMessage>,
+    ) {
+        let mut socket_tx = socket_tx;
+        let mut control_rx = control_rx;
 
-    async fn monitor(
-        _socket_tx: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, TwoPartCodec>,
-        ctx: Arc<dyn AsyncEngineContext>,
-        alive_tx: mpsc::Sender<()>,
-    ) -> Result<()> {
-        let alive_tx = alive_tx;
-        tokio::select! {
-            _ = ctx.stopped() => {
-                // send cancellation message
-                panic!("impl cancellation signal");
-            }
-            _ = alive_tx.closed() => {
-                tracing::trace!("response stream closed naturally")
+        while let Some(control_msg) = control_rx.recv().await {
+            assert_ne!(
+                control_msg,
+                ControlMessage::Sentinel,
+                "received sentinel message; this should never happen"
+            );
+            let bytes =
+                serde_json::to_vec(&control_msg).expect("failed to serialize control message");
+            let message = TwoPartMessage::from_header(bytes.into());
+            match socket_tx.send(message.into()).await {
+                Ok(_) => tracing::debug!("issued control message {control_msg:?} to sender"),
+                Err(_) => {
+                    tracing::debug!("failed to send control message {control_msg:?} to sender")
+                }
             }
         }
-        let framed_writer = _socket_tx;
-        let mut inner = framed_writer.into_inner();
-        inner.flush().await?;
-        inner.shutdown().await?;
-        Ok(())
+
+        let mut inner = socket_tx.into_inner();
+        if let Err(e) = inner.flush().await {
+            tracing::debug!("failed to flush socket: {}", e);
+        }
+        if let Err(e) = inner.shutdown().await {
+            tracing::debug!("failed to shutdown socket: {}", e);
+        }
+    }
+}
+
+enum ControlAction {
+    Continue,
+    Shutdown,
+}
+
+fn process_control_message(message: Bytes) -> Result<ControlAction> {
+    match serde_json::from_slice::<ControlMessage>(&message)? {
+        ControlMessage::Sentinel => {
+            // the client issued a sentinel message
+            // it has finished writing data and is now awaiting the server to close the connection
+            tracing::trace!("sentinel received; shutting down");
+            Ok(ControlAction::Shutdown)
+        }
+        ControlMessage::Kill | ControlMessage::Stop => {
+            // TODO(#171) - address fatal errors
+            anyhow::bail!(
+                "fatal error - unexpected control message received - this should never happen"
+            );
+        }
     }
 }

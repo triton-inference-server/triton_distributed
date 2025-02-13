@@ -22,6 +22,7 @@ mod integration {
     use std::{sync::Arc, time::Duration};
     use tokio::time::Instant;
     use triton_distributed::{
+        logging,
         pipeline::{
             async_trait, network::Ingress, AsyncEngine, AsyncEngineContextProvider, Error, ManyOut,
             ResponseStream, SingleIn,
@@ -32,7 +33,7 @@ mod integration {
 
     #[test]
     fn main() -> Result<()> {
-        env_logger::init();
+        logging::init();
         let worker = Worker::from_settings()?;
         worker.execute(app)
     }
