@@ -14,7 +14,7 @@
 // limitations under the License.
 
 use crate::kv_router::{indexer::RouterEvent, protocols::KvCacheEvent, KV_EVENT_SUBJECT};
-use crate::{component::Component, DistributedRuntime, Result};
+use triton_distributed::{component::Component, DistributedRuntime, Result};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 

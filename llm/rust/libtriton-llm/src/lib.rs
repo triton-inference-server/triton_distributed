@@ -19,7 +19,7 @@ use once_cell::sync::OnceCell;
 use std::ffi::CStr;
 use uuid::Uuid;
 
-use triton_distributed::kv_router::{
+use triton_llm::kv_router::{
     indexer::compute_block_hash_for_seq, protocols::*, publisher::KvPublisher,
 };
 use triton_distributed::{DistributedRuntime, Worker};

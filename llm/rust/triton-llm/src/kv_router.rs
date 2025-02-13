@@ -13,9 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{component::Component, DistributedRuntime};
-use anyhow::{Error, Result};
-use futures::stream::{self, StreamExt};
+use triton_distributed::{component::Component, DistributedRuntime};
+use anyhow::Result;
+use futures::stream::StreamExt;
 use std::{sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 use tracing as log;
@@ -62,7 +62,7 @@ impl KvRouter {
     }
 
     pub async fn new(
-        nats_client: crate::transports::nats::Client,
+        nats_client: triton_distributed::transports::nats::Client,
         service_name: String,
         kv_subject: String,
     ) -> Result<Arc<Self>> {
@@ -142,7 +142,7 @@ impl KvRouter {
 }
 
 async fn collect_endpoints(
-    nats_client: crate::transports::nats::Client,
+    nats_client: triton_distributed::transports::nats::Client,
     service_name: String,
     ep_tx: tokio::sync::mpsc::Sender<ProcessedEndpoints>,
     cancel: CancellationToken,

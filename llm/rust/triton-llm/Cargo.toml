@@ -46,6 +46,7 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 validator = { workspace = true }
 uuid = { workspace = true }
+xxhash-rust = { workspace = true }
 
 # protocols
 chrono = { version = "0.4" }
