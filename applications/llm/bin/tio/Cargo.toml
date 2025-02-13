@@ -20,6 +20,11 @@ edition = "2021"
 authors = ["NVIDIA"]
 homepage = "https://github.com/triton-inference-server/triton_distributed"
 
+[features]
+mistralrs = ["triton-llm/mistralrs"]
+cuda = ["triton-llm/cuda"]
+metal = ["triton-llm/metal"]
+
 [dependencies]
 anyhow = "1"
 async-stream = { version = "0.3" }

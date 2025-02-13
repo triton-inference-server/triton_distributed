@@ -48,6 +48,10 @@ impl fmt::Display for Input {
 pub enum Output {
     /// Accept un-preprocessed requests, echo the prompt back as the response
     EchoFull,
+
+    #[cfg(feature = "mistralrs")]
+    /// Run inference on a model in a GGUF file using mistralrs w/ candle
+    MistralRs,
 }
 
 impl TryFrom<&str> for Output {
@@ -55,6 +59,9 @@ impl TryFrom<&str> for Output {
 
     fn try_from(s: &str) -> anyhow::Result<Self> {
         match s {
+            #[cfg(feature = "mistralrs")]
+            "mistralrs" => Ok(Output::MistralRs),
+
             "echo_full" => Ok(Output::EchoFull),
             e => Err(anyhow::anyhow!("Invalid out= option '{e}'")),
         }
@@ -64,6 +71,9 @@ impl TryFrom<&str> for Output {
 impl fmt::Display for Output {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match self {
+            #[cfg(feature = "mistralrs")]
+            Output::MistralRs => "mistralrs",
+
             Output::EchoFull => "echo_full",
         };
         write!(f, "{s}")

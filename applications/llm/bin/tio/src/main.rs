@@ -20,10 +20,15 @@ use clap::Parser;
 use triton_distributed::logging;
 
 const HELP: &str = r#"
-triton-llm service runner stub
+triton-llm service runner
+
+Example:
+- cargo build --release --features mistralrs,cuda
+- ./target/release/tio in=text out=mistralrs --model-path Llama-3.2-1B-Instruct-Q4_K_M.gguf --model-name 'Llama-3.2-1B-Instruct'
+
 "#;
 
-const USAGE: &str = "USAGE: tio in=[http|text] out=[echo_full] [--http-port 8080]";
+const USAGE: &str = "USAGE: tio in=[http|text] out=[mistralrs|echo_full] [--http-port 8080] [--model-path <path>] [--model-name <served-model-name>]";
 
 fn main() -> anyhow::Result<()> {
     logging::init();
