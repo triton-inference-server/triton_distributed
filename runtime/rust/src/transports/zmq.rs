@@ -230,7 +230,7 @@ impl Server {
                         mpsc::error::TrySendError::Full(data) => {
                             log::warn!(request_id, "response stream is full; backpressue alert");
                             // todo - add timeout - we are blocking all other streams
-                            if let Err(_) = tx.send(data).await {
+                            if (tx.send(data).await).is_err() {
                                 StreamAction::Close
                             } else {
                                 StreamAction::SendDelayed(message_size)
@@ -302,7 +302,7 @@ impl ServerExecutionHandle {
     ///
     /// This will return the result of the [Server]s background event loop.
     pub async fn join(self) -> Result<()> {
-        Ok(self.task.await??)
+        self.task.await?
     }
 }
 
@@ -379,9 +379,9 @@ mod tests {
         state.lock().await.active_streams.insert(id.clone(), tx);
 
         // Create client
-        let mut client = Client::new(&context, &address)?;
+        let mut client = Client::new(&context, address)?;
 
-        let _ = client
+        client
             .dealer()
             .send(vec![id.as_bytes().to_vec(), id.as_bytes().to_vec()].into())
             .await?;

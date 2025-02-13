@@ -517,7 +517,7 @@ async fn tcp_listener(
                                     }
                                     Err(e) => {
                                         // TODO(#171) - address fatal errors
-                                        assert!(false, "{:?}", e);
+                                        panic!("{:?}", e);
                                     }
                                 }
                             }
@@ -532,7 +532,7 @@ async fn tcp_listener(
                         }
                         Some(Err(_)) => {
                             // TODO(#171) - address fatal errors
-                            assert!(false, "invalid message issued over socket; this should never happen");
+                            panic!("invalid message issued over socket; this should never happen");
                         }
                         None => {
                             // this is allowed but we try to avoid it
@@ -566,7 +566,7 @@ async fn tcp_listener(
             let bytes =
                 serde_json::to_vec(&control_msg).expect("failed to serialize control message");
             let message = TwoPartMessage::from_header(bytes.into());
-            match socket_tx.send(message.into()).await {
+            match socket_tx.send(message).await {
                 Ok(_) => tracing::debug!("issued control message {control_msg:?} to sender"),
                 Err(_) => {
                     tracing::debug!("failed to send control message {control_msg:?} to sender")

@@ -220,8 +220,7 @@ async fn handle_reader(
                                     Ok(msg) => msg,
                                     Err(_) => {
                                         // TODO(#171) - address fatal errors
-                                        tracing::error!("fatal error - invalid control message detected");
-                                        break;
+                                        panic!("fatal error - invalid control message detected");
                                     }
                                 };
 
@@ -235,21 +234,20 @@ async fn handle_reader(
                                     }
                                     ControlMessage::Sentinel => {
                                         // TODO(#171) - address fatal errors
-                                        assert!(false, "received a sentinel message; this should never happen");
+                                        panic!("received a sentinel message; this should never happen");
                                     }
                                 }
                            }
                            _ => {
                                // not a control message, so we just continue
-                               assert!(false, "received a non-control message; this should never happen");
+                                panic!("received a non-control message; this should never happen");
                            }
                         }
                     }
                     Some(Err(_)) => {
                         // TODO(#171) - address fatal errors
                         // in this case the binary representation of the message is invalid
-                        assert!(false, "fatal error - failed to decode message from stream; invalid line protocol");
-                        break;
+                        panic!("fatal error - failed to decode message from stream; invalid line protocol");
                     }
                     None => {
                         tracing::debug!("tcp stream closed by server");
