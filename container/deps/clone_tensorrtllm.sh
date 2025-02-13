@@ -117,12 +117,12 @@ show_options
 
 git clone ${GIT_REPO}
 cd tensorrtllm_backend
-git checkout -b ${TENSORRTLLM_BACKEND_REPO_TAG}
+git checkout ${TENSORRTLLM_BACKEND_REPO_TAG}
 git submodule update --init --recursive
 git lfs install
 git lfs pull
 
-if [ -z ${TENSORRTLLM_BACKEND_REBUILD} ]; then
+if [ ! -z ${TENSORRTLLM_BACKEND_REBUILD} ]; then
     # Install cmake
     apt update -q=2 \
 	    && apt install -y gpg wget \
@@ -132,6 +132,9 @@ if [ -z ${TENSORRTLLM_BACKEND_REBUILD} ]; then
 	    && apt-get update -q=2 \
 	    && apt-get install -y --no-install-recommends cmake=3.28.3* cmake-data=3.28.3* \
         && cmake --version
+
+    # Install rapidjson
+    apt install -y rapidjson-dev
 
     # Build the backend
     (cd inflight_batcher_llm/src \

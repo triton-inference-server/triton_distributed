@@ -13,9 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use anyhow::Result;
 use core::panic;
-use std::{collections::HashMap, sync::Arc};
+use socket2::{Domain, SockAddr, Socket, Type};
+use std::{
+    collections::HashMap,
+    net::{SocketAddr, TcpListener},
+    os::fd::{AsFd, FromRawFd},
+    sync::Arc,
+};
 use tokio::sync::Mutex;
 
 use bytes::Bytes;
@@ -26,6 +31,7 @@ use serde::{Deserialize, Serialize};
 use tokio::{
     io::AsyncWriteExt,
     sync::{mpsc, oneshot},
+    time,
 };
 use tokio_util::codec::{FramedRead, FramedWrite};
 
@@ -42,6 +48,7 @@ use crate::pipeline::{
     },
     PipelineError,
 };
+use crate::{error, ErrorContext, Result};
 
 #[allow(dead_code)]
 type ResponseType = TwoPartMessage;
@@ -61,13 +68,9 @@ impl ServerOptions {
     }
 }
 
-// todo - rename TcpResponseServer
-// we may need to disambiguate this and a TcpRequestServer
-
 /// A [`TcpStreamServer`] is a TCP service that listens on a port for incoming response connections.
 /// A Response connection is a connection that is established by a client with the intention of sending
-/// specific data back to the server. The key differentiating factor is that a [`ResponseServer`] is
-/// expecting a connection from a client with an established subject.
+/// specific data back to the server.
 pub struct TcpStreamServer {
     local_ip: String,
     local_port: u16,
@@ -111,7 +114,7 @@ struct RequestedRecvConnection {
 struct State {
     tx_subjects: HashMap<String, RequestedSendConnection>,
     rx_subjects: HashMap<String, RequestedRecvConnection>,
-    handle: Option<tokio::task::JoinHandle<()>>,
+    handle: Option<tokio::task::JoinHandle<Result<()>>>,
 }
 
 impl TcpStreamServer {
@@ -144,7 +147,7 @@ impl TcpStreamServer {
                 PipelineError::Generic(format!("Failed to start TcpStreamServer: {}", e))
             })?;
 
-        tracing::info!("TcpStreamServer started on {}:{}", local_ip, local_port);
+        tracing::info!("tcp transport service on {}:{}", local_ip, local_port);
 
         Ok(Arc::new(Self {
             local_ip,
@@ -277,7 +280,7 @@ async fn tcp_listener(
     addr: String,
     state: Arc<Mutex<State>>,
     read_tx: tokio::sync::oneshot::Sender<Result<u16>>,
-) {
+) -> Result<()> {
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to start TcpListender on {}: {}", addr, e));
@@ -297,13 +300,57 @@ async fn tcp_listener(
         }
         Err(e) => {
             read_tx.send(Err(e)).expect("Failed to send ready signal");
-            return;
+            return Err(anyhow::anyhow!("Failed to start TcpListender on {}", addr));
         }
     };
 
+    // TODO(#173) - alternative / not fully functional exploration for #173; removed when resolved.
+    // let socket = Socket::new(Domain::IPV4, Type::STREAM, None)?;
+
+    // // Set the socket options
+    // socket.set_reuse_address(true)?;
+    // socket.set_nodelay(true)?;
+
+    // let addr: SocketAddr = addr.parse()?;
+    // //let addr: SocketAddr = "[::1]:0".parse()?;
+    // socket.bind(&addr.into())?;
+
+    // socket.listen(128)?;
+
+    // let listener: TcpListener = socket.into();
+    // let listener = tokio::net::TcpListener::from_std(listener)?;
+
+    // let addr = listener
+    //     .local_addr()
+    //     .map_err(|e| anyhow::anyhow!("Failed get SocketAddr: {:?}", e))?;
+
+    // read_tx
+    //     .send(Ok(addr.port()))
+    //     .expect("Failed to send ready signal");
+
     loop {
-        let (stream, _addr) = listener.accept().await.unwrap();
-        stream.set_nodelay(true).unwrap();
+        // todo - add instrumentation
+        // todo - add counter for all accepted connections
+        // todo - add gauge for all inflight connections
+        // todo - add counter for incoming bytes
+        // todo - add counter for outgoing bytes
+        let (stream, _addr) = match listener.accept().await {
+            Ok((stream, _addr)) => (stream, _addr),
+            Err(e) => {
+                // the client should retry, so we don't need to abort
+                tracing::warn!("failed to accept tcp connection: {}", e);
+                eprintln!("failed to accept tcp connection: {}", e);
+                continue;
+            }
+        };
+
+        match stream.set_nodelay(true) {
+            Ok(_) => (),
+            Err(e) => {
+                tracing::warn!("failed to set tcp stream to nodelay: {}", e);
+            }
+        }
+
         tokio::spawn(handle_connection(stream, state.clone()));
     }
 
@@ -312,17 +359,18 @@ async fn tcp_listener(
     async fn handle_connection(stream: tokio::net::TcpStream, state: Arc<Mutex<State>>) {
         let result = process_stream(stream, state).await;
         match result {
-            Ok(_) => tracing::trace!("TcpStream connection closed"),
-            Err(e) => tracing::error!("TcpStream connection failed: {}", e),
+            Ok(_) => tracing::trace!("successfully processed tcp connection"),
+            Err(e) => {
+                tracing::warn!("failed to handle tcp connection: {}", e);
+                #[cfg(debug_assertions)]
+                eprintln!("failed to handle tcp connection: {}", e);
+            }
         }
     }
 
     /// This method is responsible for the internal tcp stream handshake
     /// The handshake will specialize the stream as a request/sender or response/receiver stream
-    async fn process_stream(
-        stream: tokio::net::TcpStream,
-        state: Arc<Mutex<State>>,
-    ) -> Result<(), String> {
+    async fn process_stream(stream: tokio::net::TcpStream, state: Arc<Mutex<State>>) -> Result<()> {
         // split the socket in to a reader and writer
         let (read_half, write_half) = tokio::io::split(stream);
 
@@ -335,23 +383,20 @@ async fn tcp_listener(
         let first_message = framed_reader
             .next()
             .await
-            .ok_or("Connection closed without a ControlMessge".to_string())?
-            .map_err(|e| e.to_string())?;
+            .ok_or(error!("Connection closed without a ControlMessage"))??;
 
         // we await on the raw bytes which should come in as a header only message
         // todo - improve error handling - check for no data
-        if first_message.header().is_none() {
-            return Err("Expected ControlMessage, got DataMessage".to_string());
-        }
-
-        // deserialize the [`CallHomeHandshake`] message
-        let handshake: CallHomeHandshake = serde_json::from_slice(first_message.header().unwrap())
-            .map_err(|e| {
-                format!(
-                    "Failed to deserialize the first message as a valid `CallHomeHandshake`: {}",
-                    e
+        let handshake: CallHomeHandshake = match first_message.header() {
+            Some(header) => serde_json::from_slice(header).map_err(|e| {
+                error!(
+                    "Failed to deserialize the first message as a valid `CallHomeHandshake`: {e}",
                 )
-            })?;
+            })?,
+            None => {
+                return Err(error!("Expected ControlMessage, got DataMessage"));
+            }
+        };
 
         // branch here to handle sender stream or receiver stream
         match handshake.stream_type {
@@ -361,10 +406,9 @@ async fn tcp_listener(
                     .await
             }
         }
-        .map_err(|e| format!("Failed to process stream: {}", e))
     }
 
-    async fn process_request_stream() -> Result<(), String> {
+    async fn process_request_stream() -> Result<()> {
         Ok(())
     }
 
@@ -373,12 +417,12 @@ async fn tcp_listener(
         state: Arc<Mutex<State>>,
         mut reader: FramedRead<tokio::io::ReadHalf<tokio::net::TcpStream>, TwoPartCodec>,
         writer: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, TwoPartCodec>,
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         let response_stream = state
             .lock().await
             .rx_subjects
             .remove(&subject)
-            .ok_or(format!("Subject not found: {}; upstream publisher specified a subject unknown to the downsteam subscriber", subject))?;
+            .ok_or(error!("Subject not found: {}; upstream publisher specified a subject unknown to the downsteam subscriber", subject))?;
 
         // unwrap response_stream
         let RequestedRecvConnection {
@@ -391,14 +435,13 @@ async fn tcp_listener(
         let prologue = reader
             .next()
             .await
-            .ok_or("Connection closed without a ControlMessge".to_string())?
-            .map_err(|e| e.to_string())?;
+            .ok_or(error!("Connection closed without a ControlMessge"))??;
 
         // deserialize prologue
         let prologue = match prologue.into_message_type() {
             TwoPartMessageType::HeaderOnly(header) => {
                 let prologue: ResponseStreamPrologue = serde_json::from_slice(&header)
-                    .map_err(|e| format!("Failed to deserialize ControlMessage: {}", e))?;
+                    .map_err(|e| error!("Failed to deserialize ControlMessage: {}", e))?;
                 prologue
             }
             _ => {
@@ -414,7 +457,7 @@ async fn tcp_listener(
         // us to trace the initial setup time vs the time to prologue
         if let Some(error) = &prologue.error {
             let _ = connection.send(Err(error.clone()));
-            return Err(format!("Received error prologue: {}", error));
+            return Err(error!("Received error prologue: {}", error));
         }
 
         // we need to know the buffer size from the registration options; add this to the RequestRecvConnection object
@@ -424,7 +467,7 @@ async fn tcp_listener(
             .send(Ok(crate::pipeline::network::StreamReceiver { rx }))
             .is_err()
         {
-            return Err("The requester of the stream has been dropped before the connection was established".to_string());
+            return Err(error!("The requester of the stream has been dropped before the connection was established"));
         }
 
         let (alive_tx, alive_rx) = mpsc::channel::<()>(1);
@@ -448,13 +491,8 @@ async fn tcp_listener(
         // check the results of each of the tasks
         let (monitor_result, forward_result) = tokio::join!(monitor_task, forward_task);
 
-        // if either of the tasks failed, we need to return an error
-        if let Err(e) = monitor_result {
-            return Err(format!("Monitor task failed: {}", e));
-        }
-        if let Err(e) = forward_result {
-            return Err(format!("Forward task failed: {}", e));
-        }
+        monitor_result??;
+        forward_result??;
 
         Ok(())
     }
@@ -465,7 +503,7 @@ async fn tcp_listener(
         control_tx: mpsc::Sender<Bytes>,
         context: Arc<dyn AsyncEngineContext>,
         alive_rx: mpsc::Receiver<()>,
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         // loop over reading the tcp stream and checking if the writer is closed
         loop {
             tokio::select! {
@@ -479,11 +517,13 @@ async fn tcp_listener(
                             }
 
                             if !data.is_empty() {
-                                response_tx.send(data).await.unwrap();
+                                if let Err(err) = response_tx.send(data).await {
+                                    return Err(error!("handle_response_stream: Failed sending to response_tx: {err}"));
+                                };
                             }
                         }
                         Some(Err(e)) => {
-                            return Err(format!("Failed to read TwoPartCodec message from TcpStream: {}", e));
+                            return Err(error!("Failed to read TwoPartCodec message from TcpStream: {}", e));
                         }
                         None => {
                             tracing::trace!("TcpStream closed naturally");
@@ -533,7 +573,7 @@ async fn tcp_listener(
         _socket_tx: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, TwoPartCodec>,
         ctx: Arc<dyn AsyncEngineContext>,
         alive_tx: mpsc::Sender<()>,
-    ) {
+    ) -> Result<()> {
         let alive_tx = alive_tx;
         tokio::select! {
             _ = ctx.stopped() => {
@@ -544,7 +584,10 @@ async fn tcp_listener(
                 tracing::trace!("response stream closed naturally")
             }
         }
-        let mut framed_writer = _socket_tx;
-        framed_writer.get_mut().shutdown().await.unwrap();
+        let framed_writer = _socket_tx;
+        let mut inner = framed_writer.into_inner();
+        inner.flush().await?;
+        inner.shutdown().await?;
+        Ok(())
     }
 }

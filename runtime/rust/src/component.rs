@@ -15,14 +15,14 @@
 
 //! The [Component] module defines the top-level API for building distributed applications.
 //!
-//! A distributed application consists of a set of [Component][Component] that can host one
-//! or more [Endpoint][Endpoint]. Each [Endpoint][Endpoint] is a network-accessible service
-//! that can be accessed by other [Component][Component] in the distributed application.
+//! A distributed application consists of a set of [Component] that can host one
+//! or more [Endpoint]. Each [Endpoint] is a network-accessible service
+//! that can be accessed by other [Component] in the distributed application.
 //!
 //! A [Component] is made discoverable by registering it with the distributed runtime under
 //! a [`Namespace`].
 //!
-//! A [`Namespace`] is a logical grouping of [Component][Component] that are grouped together.
+//! A [`Namespace`] is a logical grouping of [Component] that are grouped together.
 //!
 //! We might extend namespace to include grouping behavior, which would define groups of
 //! components that are tightly coupled.
@@ -35,7 +35,7 @@
 //! which define how that component was constructed/configured and what capabilities it can
 //! provide.
 //!
-//! Other [Component][Component] can write to watching locations within a [Component] etcd
+//! Other [Component] can write to watching locations within a [Component] etcd
 //! path. This allows the [Component] to take dynamic actions depending on the watch
 //! triggers.
 //!
@@ -43,7 +43,7 @@
 
 use crate::discovery::Lease;
 
-use super::{error, log, transports::nats::Slug, DistributedRuntime, Result};
+use super::{error, transports::nats::Slug, DistributedRuntime, Result};
 
 use crate::pipeline::network::{ingress::push_endpoint::PushEndpoint, PushWorkHandler};
 use async_nats::{
@@ -85,8 +85,8 @@ pub struct ComponentEndpointInfo {
 }
 
 /// A [Component] a discoverable entity in the distributed runtime.
-/// You can host [Endpoint][Endpoint] on a [Component] by first creating
-/// a [Service] then adding one or more [Endpoint][Endpoint] to the [Service].
+/// You can host [Endpoint] on a [Component] by first creating
+/// a [Service] then adding one or more [Endpoint] to the [Service].
 ///
 /// You can also issue a request to a [Component]'s [Endpoint] by creating a [Client].
 #[derive(Educe, Builder, Clone)]
@@ -130,8 +130,10 @@ impl Component {
         unimplemented!("endpoints")
     }
 
+    /// TODO
+    ///
     /// This method will scrape the stats for all available services
-    /// Returns a stream of [`ServiceInfo`] objects.
+    /// Returns a stream of `ServiceInfo` objects.
     /// This should be consumed by a `[tokio::time::timeout_at`] because each services
     /// will only respond once, but there is no way to know when all services have responded.
     pub async fn stats_stream(&self) -> Result<()> {

@@ -14,7 +14,6 @@
 // limitations under the License.
 
 use super::*;
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[async_trait]
@@ -38,7 +37,15 @@ where
                     header.len(),
                     data.len()
                 );
-                let control_msg: RequestControlMessage = serde_json::from_slice(&header).unwrap();
+                let control_msg: RequestControlMessage = match serde_json::from_slice(&header) {
+                    Ok(cm) => cm,
+                    Err(err) => {
+                        let json_str = String::from_utf8_lossy(&header);
+                        return Err(PipelineError::DeserializationError(
+                            format!("Failed deserializing to RequestControlMessage. err={err}, json_str={json_str}"),
+                        ));
+                    }
+                };
                 let request: T = serde_json::from_slice(&data)?;
                 (control_msg, request)
             }

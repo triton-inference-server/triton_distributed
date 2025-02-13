@@ -23,7 +23,6 @@ use std::sync::{Arc, Mutex};
 pub use anyhow::{anyhow as error, Context as ErrorContext, Error, Ok as OK, Result};
 
 use async_once_cell::OnceCell;
-use tracing as log;
 
 mod config;
 pub use config::RuntimeConfig;

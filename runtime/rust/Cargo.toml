@@ -17,7 +17,7 @@
 name = "triton-distributed"
 description = "Distributed GenAI Inference Framework"
 readme = "README.md"
-version = "0.1.2" # TODO: Centralize Version Automation
+version = "0.2.0" # TODO: Centralize Version Automation
 edition = "2021"
 authors = ["NVIDIA"]
 license = "Apache-2.0"
@@ -25,12 +25,17 @@ homepage = "https://github.com/triton-inference-server/triton_distributed"
 repository = "https://github.com/triton-inference-server/triton_distributed"
 keywords = ["llm", "genai", "inference", "nvidia", "distributed", "triton"]
 
+[features]
+default = []
+integration = []
+
 [dependencies]
 # workspace - when we expand to multiple crates; put these in the workspace
 anyhow = { version = "1" }
 async-nats = { version = "0.38", features = ["service"] }
 async-stream = { version = "0.3" }
 async-trait = { version = "0.1" }
+async_zmq = "0.4.0"
 blake3 = "1"
 bytes = "1"
 derive_builder = "0.20"
@@ -38,11 +43,13 @@ derive-getters = "0.5"
 either = { version = "1.13", features = ["serde"] }
 figment = { version = "0.10.19", features = ["env", "json", "toml", "test"] }
 futures = { version = "0.3" }
+humantime = { version = "2.1.0" }
 once_cell = "1"
 prometheus = { version = "0.13" }
 regex = { version = "1" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+socket2 = { version = "0.5.8" }
 thiserror = { version = "1" }
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1" }
@@ -64,3 +71,4 @@ rand = { version = "0.8"}
 
 [dev-dependencies]
 assert_matches = "1.5.0"
+env_logger = "0.11"
