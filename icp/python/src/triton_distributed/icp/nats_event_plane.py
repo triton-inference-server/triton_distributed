@@ -354,7 +354,7 @@ class NatsEventPlane:
         if not self._connected:
             return
         await self._nc.close()
-        self._error = asyncio.CancelledError("NATS connection closed.")
+        self._error = RuntimeError("NATS connection closed by disconnect.")
         if self._failure_event is not None:
             self._failure_event.set()
         self._connected = False
