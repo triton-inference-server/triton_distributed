@@ -43,7 +43,7 @@ async def single_publisher_subscriber_example():
 
     event_topic = EventTopic(["test", "event_topic"])
     event_type = "test_event"
-    event = b"[0]"
+    event = b"my_payload"
 
     await plane.subscribe(callback, event_topic=event_topic, event_type=event_type)
 
