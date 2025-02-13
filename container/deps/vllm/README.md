@@ -15,4 +15,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-Apply this patch to Python source code from vLLM release [v0.6.3.post1](https://github.com/vllm-project/vllm/releases/tag/v0.6.3.post1). Copy files in ``data_plane`` folder into vLLM folder ``vllm/distributed``.
+Apply this patch to Python source code from vLLM release [v0.7.2](https://github.com/vllm-project/vllm/releases/tag/v0.7.2).

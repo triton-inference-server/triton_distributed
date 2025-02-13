@@ -71,7 +71,7 @@ TENSORRTLLM_BACKEND_REBUILD=0
 # vllm version installed in the base image.
 VLLM_BASE_VERSION=25.01
 VLLM_BASE_IMAGE=nvcr.io/nvidia/tritonserver
-VLLM_BASE_IMAGE_TAG=${VLLM_BASE_VERSION}-vllm-python-py3
+VLLM_BASE_IMAGE_TAG=${VLLM_BASE_VERSION}-py3
 
 get_options() {
     while :; do
