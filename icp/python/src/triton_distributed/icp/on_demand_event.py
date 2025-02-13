@@ -145,11 +145,11 @@ class OnDemandEvent(Event):
                 return msgspec.json.decode(self._payload, type=payload_type)
             except Exception as e:
                 raise ValueError(
-                    f"Unable to convert payload {self._payload} to type {payload_type} from event type {self.event_type}"
+                    f"Unable to convert payload {self._payload!r} to type {payload_type} from event type {self.event_type}"
                 ) from e
         elif payload_type is bytes:
             return bytes(self._payload)
         else:
             raise ValueError(
-                f"Unable to convert payload {self._payload} to type {payload_type} from event type {self.event_type}"
+                f"Unable to convert payload {self._payload!r} to type {payload_type} from event type {self.event_type}"
             )
