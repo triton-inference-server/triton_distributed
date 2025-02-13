@@ -176,10 +176,7 @@ fn inc_counter(
 
 #[tokio::test]
 async fn test_http_service() {
-    let mut builder = HttpService::builder();
-    builder.port(8989);
-
-    let service = builder.build().unwrap();
+    let service = HttpService::builder().port(8989).build().unwrap();
     let manager = service.model_manager().clone();
 
     let token = CancellationToken::new();

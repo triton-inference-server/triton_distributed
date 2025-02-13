@@ -66,7 +66,14 @@ impl PushEndpoint {
                 tokio::spawn(async move {
                     tracing::trace!(worker_id, "handling new request");
                     let result = ingress.handle_payload(req.message.payload).await;
-                    tracing::trace!(worker_id, "request handled: {:?}", result);
+                    match result {
+                        Ok(_) => {
+                            tracing::trace!(worker_id, "request handled successfully");
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to handle request: {:?}", e);
+                        }
+                    }
                 });
             } else {
                 break;

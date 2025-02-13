@@ -1,0 +1,22 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "rust-analyzer.linkedProjects": [
+            "llm/rust/Cargo.toml",
+            "runtime/rust/Cargo.toml",
+            "runtime/rust/python-wheel/Cargo.toml",
+            "examples/rust/Cargo.toml"
+        ],
+        "rust-analyzer.procMacro.enable": true,
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "rust-lang.rust-analyzer"
+        ]
+    }
+}
