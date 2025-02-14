@@ -271,18 +271,12 @@ class NatsEventPlane:
         if event_id is None:
             event_id = uuid.uuid4()
 
-        kwargs = {}
-
-        if event_topic is not None:
-            kwargs["event_topic"] = event_topic
-
         event_metadata = EventMetadata(
             event_id=event_id,
             event_topic=event_topic,
             event_type=event_type if event_type else str(type(payload).__name__),
             timestamp=timestamp,
             component_id=self._component_id,
-            **kwargs,
         )
 
         metadata_serialized = _serialize_metadata(event_metadata)
