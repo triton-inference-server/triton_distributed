@@ -14,16 +14,19 @@
 # limitations under the License.
 
 import asyncio
+
+# import gc
 import random
 import string
 import time
 from typing import AsyncIterator
 
 import uvloop
+
 from triton_distributed.icp import NatsServer
 from triton_distributed.runtime import CallableOperator
 from triton_distributed.runtime import OperatorConfig as FunctionConfig
-from triton_distributed.runtime import Worker
+from triton_distributed.runtime.mp_worker import MPWorker
 
 # import uvloop
 # from triton_distributed_rs import DistributedRuntime, triton_worker
@@ -57,7 +60,12 @@ def worker():
 
     print("Started server instance")
 
-    Worker(
+    # Worker(
+    #     operators=[generate_engine],
+    #     log_level=1,
+    # ).start()
+
+    MPWorker(
         operators=[generate_engine],
         log_level=1,
     ).start()
@@ -72,9 +80,15 @@ class RequestHandler:
     """
 
     async def generate(self, request: str) -> AsyncIterator[str]:
+        # await asyncio.sleep(2)
+        # first_sent = False
         for char in request:
             await asyncio.sleep(0.1)
             yield char
+            # if not first_sent:
+            # print(f"\t\t\t\t{time.time_ns()}")
+            # first_sent = True
+        # print(f"\t\t\t\t\t\t\t\t{time.time_ns()}")
 
 
 def random_string(length=10):
@@ -83,6 +97,7 @@ def random_string(length=10):
 
 
 if __name__ == "__main__":
+    # gc.disable()
     uvloop.install()
     request_plane_server = NatsServer(log_dir=None)
     time.sleep(2)
