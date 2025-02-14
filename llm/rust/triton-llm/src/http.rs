@@ -14,22 +14,3 @@
 // limitations under the License.
 
 pub mod service;
-
-use serde::{Deserialize, Serialize};
-use triton_distributed::protocols;
-
-/// [ModelEntry] is a struct that contains the information for the HTTP service to discover models
-/// from the etcd cluster.
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
-pub struct ModelEntry {
-    /// Public name of the model
-    /// This will be used to identify the model in the HTTP service and the value used in an
-    /// an [OAI ChatRequest][crate::protocols::openai::chat_completions::ChatCompletionRequest].
-    pub name: String,
-
-    /// Component of the endpoint.
-    pub endpoint: protocols::Endpoint,
-
-    /// Lease id for the requester
-    pub lease_id: i64,
-}

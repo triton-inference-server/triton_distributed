@@ -20,13 +20,12 @@ use derive_builder::Builder;
 use derive_getters::Dissolve;
 use futures::StreamExt;
 use tokio::sync::mpsc;
+use tracing as log;
 use validator::Validate;
 
-use etcd_client::{
-    Compare, CompareOp, GetOptions, KeyValue, PutOptions, Txn, TxnOp, WatchOptions, Watcher,
-};
+use etcd_client::{Compare, CompareOp, GetOptions, PutOptions, Txn, TxnOp, WatchOptions, Watcher};
 
-pub use etcd_client::{ConnectOptions, LeaseClient};
+pub use etcd_client::{ConnectOptions, KeyValue, LeaseClient};
 
 mod lease;
 use lease::*;
@@ -192,6 +191,9 @@ impl Client {
             .ok_or(error!("missing header; unable to get revision"))?
             .revision();
 
+        log::trace!("start_revision: {}", start_revision);
+        let start_revision = start_revision + 1;
+
         let (watcher, mut watch_stream) = watch_client
             .watch(
                 prefix.as_ref(),
@@ -204,6 +206,7 @@ impl Client {
             .await?;
 
         let kvs = get_response.take_kvs();
+        log::trace!("initial kv count: {:?}", kvs.len());
 
         let (tx, rx) = mpsc::channel(32);
 
@@ -263,14 +266,14 @@ pub enum WatchEvent {
 #[derive(Debug, Clone, Builder, Validate)]
 pub struct ClientOptions {
     #[validate(length(min = 1))]
-    etcd_url: Vec<String>,
+    pub etcd_url: Vec<String>,
 
     #[builder(default)]
-    etcd_connect_options: Option<ConnectOptions>,
+    pub etcd_connect_options: Option<ConnectOptions>,
 
     /// If true, the client will attach a lease to the primary [`CancellationToken`].
     #[builder(default = "true")]
-    attach_lease: bool,
+    pub attach_lease: bool,
 }
 
 impl Default for ClientOptions {
