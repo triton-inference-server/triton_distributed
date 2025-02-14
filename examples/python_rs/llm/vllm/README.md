@@ -57,8 +57,9 @@ The example is designed to run in a containerized environment using Triton Distr
 
 Run the server logging (with debug level logging):
 ```bash
-TRD_LOG=DEBUG http --port 8080
+TRD_LOG=DEBUG http
 ```
+By default the server will run on port 9992.
 
 Add model to the server:
 ```bash
@@ -127,7 +128,7 @@ The disaggregated deployment utilizes separate GPUs for prefill and decode opera
 ### 3. Client
 
 ```bash
-curl localhost:8080/v1/chat/completions \
+curl localhost:9992/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "vllm",
@@ -138,7 +139,23 @@ curl localhost:8080/v1/chat/completions \
 ```
 
 Expected output:
-```
+```json
+{
+    "id": "5b04e7b0-0dcd-4c45-baa0-1d03d924010c",
+    "choices": [{
+        "message": {
+            "role": "assistant",
+            "content": "The capital of France is Paris. Paris is a major city known for iconic landmarks like the Eiffel Tower and the Louvre Museum."
+        },
+        "index": 0,
+        "finish_reason": "stop"
+    }],
+    "created": 1739548787,
+    "model": "vllm",
+    "object": "chat.completion",
+    "usage": null,
+    "system_fingerprint": null
+}
 ```
 
 ### 4. Multi-Node Deployment
