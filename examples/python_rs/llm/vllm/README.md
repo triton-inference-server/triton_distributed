@@ -51,13 +51,26 @@ The example is designed to run in a containerized environment using Triton Distr
 ./container/run.sh --framework VLLM -it
 ```
 
-## Deployment Options
+## Deployment
 
-### 1. Monolithic Deployment
+#### 1. HTTP Server
 
-Run the server and client components in separate terminal sessions:
+Run the server logging (with debug level logging):
+```bash
+TRD_LOG=DEBUG http --port 8080
+```
 
-**Terminal 1 - Server:**
+Add model to the server:
+```bash
+llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B triton-init.vllm.generate
+```
+
+### 2. Workers
+
+#### 2.1. Monolithic Deployment
+
+In a separate terminal run the vllm worker:
+
 ```bash
 # Activate virtual environment
 source /opt/triton/venv/bin/activate
@@ -70,35 +83,7 @@ python3 -m monolith.worker \
     --enforce-eager
 ```
 
-**Terminal 2 - Client:**
-```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
-# Run client
-cd /workspace/examples/python_rs/llm/vllm
-python3 -m common.client \
-    --prompt "what is the capital of france?" \
-    --max-tokens 10 \
-    --temperature 0.5
-```
-
-The output should look similar to:
-```
-Annotated(data=' Well', event=None, comment=[], id=None)
-Annotated(data=' Well,', event=None, comment=[], id=None)
-Annotated(data=' Well, France', event=None, comment=[], id=None)
-Annotated(data=' Well, France is', event=None, comment=[], id=None)
-Annotated(data=' Well, France is a', event=None, comment=[], id=None)
-Annotated(data=' Well, France is a country', event=None, comment=[], id=None)
-Annotated(data=' Well, France is a country located', event=None, comment=[], id=None)
-Annotated(data=' Well, France is a country located in', event=None, comment=[], id=None)
-Annotated(data=' Well, France is a country located in Western', event=None, comment=[], id=None)
-Annotated(data=' Well, France is a country located in Western Europe', event=None, comment=[], id=None)
-```
-
-
-### 2. Disaggregated Deployment
+#### 2.2. Disaggregated Deployment
 
 This deployment option splits the model serving across prefill and decode workers, enabling more efficient resource utilization.
 
@@ -136,24 +121,27 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggreg
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2}'
 ```
 
-**Terminal 3 - Client:**
-```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
-# Run client
-cd /workspace/examples/python_rs/llm/vllm
-python3 -m common.client \
-    --prompt "what is the capital of france?" \
-    --max-tokens 10 \
-    --temperature 0.5
-```
-
 The disaggregated deployment utilizes separate GPUs for prefill and decode operations, allowing for optimized resource allocation and improved performance. For more details on the disaggregated deployment, please refer to the [vLLM documentation](https://docs.vllm.ai/en/latest/features/disagg_prefill.html).
 
 
+### 3. Client
 
-### 3. Multi-Node Deployment
+```bash
+curl localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "vllm",
+    "messages": [
+      {"role": "user", "content": "What is the capital of France?"}
+    ]
+  }'
+```
+
+Expected output:
+```
+```
+
+### 4. Multi-Node Deployment
 
 The vLLM workers can be deployed across multiple nodes by configuring the NATS and etcd connection endpoints through environment variables. This enables distributed inference across a cluster.
 
@@ -172,7 +160,7 @@ For disaggregated deployment, you will also need to pass the `kv_ip` and `kv_por
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":<rank>,"kv_parallel_size":2,"kv_ip":<master_node_ip>,"kv_port":<kv_port>}'
 ```
 
-### 4. Known Issues and Limitations
+### 5. Known Issues and Limitations
 
 - vLLM is not working well with the `fork` method for multiprocessing and TP > 1. This is a known issue and a workaround is to use the `spawn` method instead. See [vLLM issue](https://github.com/vllm-project/vllm/issues/6152).
 - `kv_rank` of `kv_producer` must be smaller than of `kv_consumer`.
@@ -180,13 +168,3 @@ For disaggregated deployment, you will also need to pass the `kv_ip` and `kv_por
 - Currently only `--pipeline-parallel-size 1` is supported for XpYd disaggregated deployment.
 
 
-
-
-curl localhost:9992/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "vllm",
-    "messages": [
-      {"role": "user", "content": "What is the capital of France?"}
-    ]
-  }'
