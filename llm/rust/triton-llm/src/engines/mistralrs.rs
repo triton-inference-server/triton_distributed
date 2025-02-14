@@ -13,17 +13,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{cmp::min, num::NonZero, path::Path, sync::Arc};
+use std::{
+    cmp::min,
+    num::NonZero,
+    path::Path,
+    sync::{atomic::AtomicU64, Arc},
+};
 
 use async_stream::stream;
 use async_trait::async_trait;
 use either::Either;
 use indexmap::IndexMap;
 use mistralrs::{
-    Constraint, DefaultSchedulerMethod, Device, DeviceMapMetadata, GGUFLoaderBuilder,
-    GGUFSpecificConfig, MemoryGpuConfig, MistralRs, MistralRsBuilder, ModelDType, NormalRequest,
-    PagedAttentionConfig, Pipeline, Request, RequestMessage, ResponseOk, SamplingParams,
-    SchedulerConfig, TokenSource,
+    Constraint, DefaultSchedulerMethod, Device, DeviceMapMetadata, DeviceMapSetting,
+    GGUFLoaderBuilder, GGUFSpecificConfig, MemoryGpuConfig, MistralRs, MistralRsBuilder,
+    ModelDType, NormalRequest, PagedAttentionConfig, Pipeline, Request, RequestMessage, ResponseOk,
+    SamplingParams, SchedulerConfig, TokenSource,
 };
 use tokio::sync::mpsc::channel;
 
@@ -64,6 +69,7 @@ fn best_device() -> pipeline_error::Result<Device> {
 struct MistralRsEngine {
     mistralrs: Arc<MistralRs>,
     pipeline: Arc<tokio::sync::Mutex<dyn Pipeline + Send + Sync + 'static>>,
+    next_id: AtomicU64,
 }
 
 impl MistralRsEngine {
@@ -85,7 +91,7 @@ impl MistralRsEngine {
             model_dir.display().to_string(),
             vec![model_filename.to_string_lossy().into_owned()],
             GGUFSpecificConfig {
-                prompt_batchsize: None,
+                prompt_chunksize: None,
                 topology: None,
             },
         )
@@ -108,7 +114,7 @@ impl MistralRsEngine {
             &ModelDType::Auto,
             &best_device()?,
             false,
-            DeviceMapMetadata::dummy(),
+            DeviceMapSetting::Map(DeviceMapMetadata::dummy()),
             None,
             paged_attention_config,
         )?;
@@ -136,6 +142,7 @@ impl MistralRsEngine {
         Ok(MistralRsEngine {
             mistralrs: builder.build(),
             pipeline,
+            next_id: AtomicU64::new(0),
         })
     }
 }
@@ -195,7 +202,9 @@ impl
             response: tx,
             return_logprobs: false,
             is_streaming: true,
-            id: 0,
+            id: self
+                .next_id
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed) as usize,
             constraint: Constraint::None,
             suffix: None,
             adapters: None,
@@ -219,7 +228,10 @@ impl
                 };
                 match response {
                     ResponseOk::Chunk(c) => {
-                        let from_assistant = c.choices[0].delta.content.clone();
+                        let Some(from_assistant) = c.choices[0].delta.content.clone() else {
+                            tracing::warn!("No content from mistralrs. Abandoning request.");
+                            break;
+                        };
                         if let Some(tok) = maybe_tok.as_ref() {
                             used_output_tokens += tok
                                 .encode(from_assistant.clone(), false)

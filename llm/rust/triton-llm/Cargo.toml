@@ -60,7 +60,7 @@ prometheus = { version = "0.13" }
 # mistralrs
 either = { version = "1.13" }
 indexmap = { version = "2.6" }
-mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "c26e6c8", optional = true }
+mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "5e689c9", optional = true }
 
 [dev-dependencies]
 insta = { version = "1.41", features = ["glob", "json", "redactions"]}
