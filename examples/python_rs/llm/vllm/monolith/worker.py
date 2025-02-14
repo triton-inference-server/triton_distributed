@@ -37,7 +37,7 @@ class VllmEngine:
         self.chat_processor = ChatProcessor(self.engine, self.model_config)
 
     async def generate(self, raw_request):
-        vllm_logger.info(f"Received raw request: {raw_request}")
+        vllm_logger.debug(f"Received raw request: {raw_request}")
         request = self.chat_processor.parse_raw_request(raw_request)
         conversation, _, engine_prompt = await self.chat_processor.preprocess(
             raw_request
@@ -53,7 +53,7 @@ class VllmEngine:
         )
         request_id = str(uuid.uuid4())
 
-        vllm_logger.info(
+        vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
         )
         generator = self.engine.generate(engine_prompt, sampling_params, request_id)
