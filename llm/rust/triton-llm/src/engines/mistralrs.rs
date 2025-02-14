@@ -20,10 +20,10 @@ use async_trait::async_trait;
 use either::Either;
 use indexmap::IndexMap;
 use mistralrs::{
-    Constraint, DefaultSchedulerMethod, Device, DeviceMapMetadata, GGUFLoaderBuilder,
-    GGUFSpecificConfig, MemoryGpuConfig, MistralRs, MistralRsBuilder, ModelDType, NormalRequest,
-    PagedAttentionConfig, Pipeline, Request, RequestMessage, ResponseOk, SamplingParams,
-    SchedulerConfig, TokenSource,
+    Constraint, DefaultSchedulerMethod, Device, DeviceMapMetadata, DeviceMapSetting,
+    GGUFLoaderBuilder, GGUFSpecificConfig, MemoryGpuConfig, MistralRs, MistralRsBuilder,
+    ModelDType, NormalRequest, PagedAttentionConfig, Pipeline, Request, RequestMessage, ResponseOk,
+    SamplingParams, SchedulerConfig, TokenSource,
 };
 use tokio::sync::mpsc::channel;
 
@@ -85,7 +85,7 @@ impl MistralRsEngine {
             model_dir.display().to_string(),
             vec![model_filename.to_string_lossy().into_owned()],
             GGUFSpecificConfig {
-                prompt_batchsize: None,
+                prompt_chunksize: None,
                 topology: None,
             },
         )
@@ -108,7 +108,7 @@ impl MistralRsEngine {
             &ModelDType::Auto,
             &best_device()?,
             false,
-            DeviceMapMetadata::dummy(),
+            DeviceMapSetting::Map(DeviceMapMetadata::dummy()),
             None,
             paged_attention_config,
         )?;
@@ -195,7 +195,7 @@ impl
             response: tx,
             return_logprobs: false,
             is_streaming: true,
-            id: 0,
+            id: self.mistralrs.next_request_id(),
             constraint: Constraint::None,
             suffix: None,
             adapters: None,
@@ -219,7 +219,10 @@ impl
                 };
                 match response {
                     ResponseOk::Chunk(c) => {
-                        let from_assistant = c.choices[0].delta.content.clone();
+                        let Some(from_assistant) = c.choices[0].delta.content.clone() else {
+                            tracing::warn!("No content from mistralrs. Abandoning request.");
+                            break;
+                        };
                         if let Some(tok) = maybe_tok.as_ref() {
                             used_output_tokens += tok
                                 .encode(from_assistant.clone(), false)
