@@ -19,7 +19,7 @@
 // we will want to associate the components cancellation token with the
 // component's "service state"
 
-use crate::{log, transports::nats, Result};
+use crate::{transports::nats, Result};
 
 use async_nats::Message;
 use async_stream::try_stream;
@@ -95,7 +95,7 @@ impl ServiceClient {
                     continue;
                 }
                 let service = serde_json::from_slice::<ServiceInfo>(&message.payload)?;
-                log::trace!("service: {:?}", service);
+                tracing::trace!("service: {:?}", service);
                 yield service;
             }
         }
@@ -106,7 +106,7 @@ impl ServiceClient {
         let (ok, err): (Vec<_>, Vec<_>) = services.into_iter().partition(Result::is_ok);
 
         if !err.is_empty() {
-            log::error!("failed to collect services: {:?}", err);
+            tracing::error!("failed to collect services: {:?}", err);
         }
 
         Ok(ServiceSet {

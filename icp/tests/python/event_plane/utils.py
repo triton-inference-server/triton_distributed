@@ -15,19 +15,20 @@
 
 
 import asyncio
+import logging
 import subprocess
 import time
-import uuid
 from contextlib import asynccontextmanager
 
 import pytest_asyncio
 
-from triton_distributed.icp.nats_event_plane import (
+from triton_distributed.icp import (
     DEFAULT_EVENTS_HOST,
     DEFAULT_EVENTS_PORT,
-    DEFAULT_EVENTS_URI,
     NatsEventPlane,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def is_port_in_use(port: int) -> bool:
@@ -49,6 +50,7 @@ async def nats_server():
             )
 
         # Start NATS server
+        logger.info("NATS server starting")
         process = subprocess.Popen(
             [
                 "nats-server",
@@ -58,15 +60,33 @@ async def nats_server():
                 DEFAULT_EVENTS_HOST,
             ],
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
-        time.sleep(1)  # Allow the server time to start
+        while not is_port_in_use(DEFAULT_EVENTS_PORT):
+            logger.debug("Waiting for NATS server to start...")
+            time.sleep(0.2)
+        logger.info("NATS server started")
         yield process
     finally:
         # Stop the NATS server
         if process:
+            logger.debug("Closing NATS server")
+
             process.terminate()
+            # communicate() ensures we consume all stdout/stderr so they can close
+            out, err = process.communicate()
+
+            # If you want to log them:
+            logger.debug("NATS server stdout: %s", out.decode())
+            logger.debug("NATS server stderr: %s", err.decode())
+
+            if process.stdout:
+                process.stdout.close()
+            if process.stderr:
+                process.stderr.close()
+
+            # Stop the NATS server
             process.wait()
 
 
@@ -74,9 +94,7 @@ async def nats_server():
 async def event_plane_context():
     # with nats_server_context() as server:
     print(f"Print loop plane context: {id(asyncio.get_running_loop())}")
-    server_url = DEFAULT_EVENTS_URI
-    component_id = uuid.uuid4()
-    plane = NatsEventPlane(server_url, component_id)
+    plane = NatsEventPlane()
     await plane.connect()
     yield plane
     await plane.disconnect()
@@ -85,9 +103,7 @@ async def event_plane_context():
 @pytest_asyncio.fixture(loop_scope="function")
 async def event_plane():
     print(f"Print loop plane: {id(asyncio.get_running_loop())}")
-    server_url = DEFAULT_EVENTS_URI
-    component_id = uuid.uuid4()
-    plane = NatsEventPlane(server_url, component_id)
+    plane = NatsEventPlane()
     await plane.connect()
     yield plane
     await plane.disconnect()

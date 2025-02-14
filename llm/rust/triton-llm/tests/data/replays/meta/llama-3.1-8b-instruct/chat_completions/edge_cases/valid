@@ -1,0 +1,8 @@
+data: {"id":"chat-06857e1c859247c38a73fdb559b8dfdb","object":"chat.completion.chunk","created":1728365454,"model":"meta/llama-3.1-8b-instruct","choices":[{"index":0,"delta":{"role":"assistant","content":null},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chat-06857e1c859247c38a73fdb559b8dfdb","object":"chat.completion.chunk","created":1728365454,"model":"meta/llama-3.1-8b-instruct","choices":[{"index":0,"delta":{"role":null,"content":"Deep"},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chat-06857e1c859247c38a73fdb559b8dfdb","object":"chat.completion.chunk","created":1728365454,"model":"meta/llama-3.1-8b-instruct","choices":[{"index":0,"delta":{"role":null,"content":" learning"},"logprobs":null,"finish_reason":null}]}
+
+data: [DATA]
+

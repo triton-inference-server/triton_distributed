@@ -48,13 +48,18 @@ class EventTopic:
         """
 
         if isinstance(event_topic, str):
-            event_topic = [event_topic]
-        if not _validate_topics(event_topic):
+            if "." in event_topic:
+                event_topic_list = event_topic.split(".")
+            else:
+                event_topic_list = [event_topic]
+        else:
+            event_topic_list = event_topic
+        if not _validate_topics(event_topic_list):
             raise ValueError(
-                "Invalid event_topic string. Only alphanumeric characters, underscores, and hyphens are allowed."
+                "Invalid event_topic. Only alphanumeric characters, underscores, and hyphens are allowed."
             )
-        event_topic = ".".join(event_topic)
-        self.event_topic = event_topic
+        event_topic_string = ".".join(event_topic_list)
+        self.event_topic = event_topic_string
 
     def __str__(self):
         return self.event_topic

@@ -67,8 +67,7 @@ mod private {
 }
 
 // todo rename `ServicePipelineExt`
-/// A [`Source`] trait defines how data is emitted from a source to a downstream sink
-/// over an [`Edge`].
+/// A [`Source`] trait defines how data is emitted from a source to a downstream sink.
 #[async_trait]
 pub trait Source<T: PipelineIO>: Data {
     async fn on_next(&self, data: T, _: private::Token) -> Result<(), Error>;
@@ -88,7 +87,7 @@ pub trait Sink<T: PipelineIO>: Data {
     async fn on_data(&self, data: T, _: private::Token) -> Result<(), Error>;
 }
 
-/// An [`Edge`] is a connection between a [`Source`] and a [`Sink`]. Data flows over an [`Edge`].
+/// An [`Edge`] is a connection between a [`Source`] and a [`Sink`].
 pub struct Edge<T: PipelineIO> {
     downstream: Arc<dyn Sink<T>>,
 }

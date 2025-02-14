@@ -171,31 +171,95 @@ class TestEventPlaneFunctional:
         event = b"multi_payload"
 
         # async with event_plane_context() as event_plane1:
-        server_url = "nats://localhost:4222"
+        server_url = "tls://localhost:4222"
 
         component_id = uuid.uuid4()
         event_plane2 = NatsEventPlane(server_url, component_id)
-        await event_plane2.connect()
+        try:
+            await event_plane2.connect()
 
-        await event_plane2.subscribe(callback_1, event_topic=event_topic)
-        await event_plane2.subscribe(callback_2, event_topic=event_topic)
-        await event_plane2.subscribe(callback_3, event_type=event_type)
+            try:
+                subscription1 = await event_plane2.subscribe(
+                    callback_1, event_topic=event_topic
+                )
+                try:
+                    subscription2 = await event_plane2.subscribe(
+                        callback_2, event_topic=event_topic
+                    )
+                    try:
+                        subscription3 = await event_plane2.subscribe(
+                            callback_3, event_type=event_type
+                        )
 
-        component_id = uuid.uuid4()
-        event_plane1 = NatsEventPlane(server_url, component_id)
-        await event_plane1.connect()
+                        component_id = uuid.uuid4()
+                        event_plane1 = NatsEventPlane(server_url, component_id)
+                        try:
+                            await event_plane1.connect()
 
-        ch1 = EventTopic(["test", "1"])
-        ch2 = EventTopic(["test", "2"])
-        await event_plane1.publish(event, event_type, ch1)
-        await event_plane1.publish(event, event_type, ch2)
+                            ch1 = EventTopic(["test", "1"])
+                            ch2 = EventTopic(["test", "2"])
+                            await event_plane1.publish(event, event_type, ch1)
+                            await event_plane1.publish(event, event_type, ch2)
 
-        # Allow time for message propagation
-        await asyncio.sleep(2)
+                            # Allow time for message propagation
+                            await asyncio.sleep(2)
 
-        assert len(results_1) == 2
-        assert len(results_2) == 2
-        assert len(results_3) == 2
+                            assert len(results_1) == 2
+                            assert len(results_2) == 2
+                            assert len(results_3) == 2
+                        finally:
+                            await event_plane1.disconnect()
+                    finally:
+                        await subscription3.unsubscribe()
+                finally:
+                    await subscription2.unsubscribe()
+            finally:
+                await subscription1.unsubscribe()
 
-        await event_plane1.disconnect()
-        await event_plane2.disconnect()
+        finally:
+            await event_plane2.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_context_manager(self, nats_server):
+        """Test that context managers properly handle connection/disconnection and subscription/unsubscription."""
+        received_events: List[Event] = []
+        event_topic = EventTopic(["test", "event_topic"])
+        event_type = "test_event"
+        event = b"test_payload"
+
+        # Test successful operation with context managers
+        async with NatsEventPlane() as plane:
+            assert plane.is_connected()
+
+            async def callback(event):
+                received_events.append(event)
+
+            async with await plane.subscribe(
+                callback, event_topic=event_topic, event_type=event_type
+            ) as subscription:
+                assert subscription._nc_sub is not None
+                event_metadata = await plane.publish(event, event_type, event_topic)
+                await asyncio.sleep(2)  # Allow time for message to propagate
+
+            # After subscription context, should be unsubscribed
+            assert subscription._nc_sub is None
+
+        # After plane context, should be disconnected
+        assert not plane.is_connected()
+        assert len(received_events) == 1
+        assert received_events[0].event_id == event_metadata.event_id
+
+        # Test error handling in context managers
+        with pytest.raises(RuntimeError):
+            async with NatsEventPlane() as plane:
+                async with await plane.subscribe(
+                    callback, event_topic=event_topic, event_type=event_type
+                ):
+                    raise RuntimeError("Test error")
+                # Should not reach here
+                pytest.fail("Should have raised exception")
+            # Should not reach here
+            pytest.fail("Should have raised exception")
+
+        # Even after error, resources should be cleaned up
+        assert not plane.is_connected()

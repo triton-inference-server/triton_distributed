@@ -40,12 +40,12 @@ def _deserialize_metadata(event_metadata_serialized: bytes):
     event_metadata_dict = msgspec.json.decode(event_metadata_serialized)
     topic_meta = event_metadata_dict["event_topic"]
     topic_list = topic_meta["event_topic"].split(".") if topic_meta else []
+    topic_obj = EventTopic(topic_list)
+
     metadata = EventMetadata(
         **{
             **event_metadata_dict,
-            "event_topic": EventTopic(topic_list)
-            if event_metadata_dict["event_topic"]
-            else None,
+            "event_topic": topic_obj,
             "event_id": uuid.UUID(event_metadata_dict["event_id"]),
             "component_id": uuid.UUID(event_metadata_dict["component_id"]),
             "timestamp": datetime.fromisoformat(event_metadata_dict["timestamp"]),

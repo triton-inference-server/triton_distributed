@@ -18,9 +18,9 @@ import asyncio
 import uuid
 
 from triton_distributed.icp.nats_event_plane import (
-    DEFAULT_EVENTS_URI,
     EventTopic,
     NatsEventPlane,
+    compose_nats_url,
 )
 
 
@@ -28,7 +28,7 @@ async def single_publisher_subscriber_example():
     # async with aclosing(event_plane()) as event_plane_instance:
     # event_plane_instance = await anext(event_plane)
 
-    server_url = DEFAULT_EVENTS_URI
+    server_url = compose_nats_url()
     component_id = str(uuid.uuid4())
     plane = NatsEventPlane(server_url, component_id)
 

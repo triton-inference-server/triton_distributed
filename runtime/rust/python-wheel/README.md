@@ -34,8 +34,8 @@ apt install protobuf-compiler
 ```
 
 3. Setup a virtualenv
+
 ```
-cd python-wheels/triton-distributed
 uv venv
 source .venv/bin/activate
 uv pip install maturin
@@ -80,3 +80,21 @@ one server instance above, you should see the requests from the client being
 distributed across the server instances in each server's output. If only one
 server instance is started, you should see the requests go to that server
 each time.
+
+# Performance
+
+The performance impacts of synchrononizing the Python and Rust async runtimes
+is a critical consideration when optimizing the performance of a highly
+concurrent and parallel distributed system.
+
+The Python GIL is a global critical section and is ultimately the death of
+parallelism. To compound that, when Rust async futures become ready,
+accessing the GIL on those async event loop needs to be considered carefully.
+Under high load, accessing the GIL or performing CPU intenstive tasks on
+on the event loop threads can starve out other async tasks for CPU resources.
+However, performing a `tokio::task::spawn_blocking` is not without overheads
+as well.
+
+If bouncing many small message back-and-forth between the Python and Rust
+event loops where Rust requires GIL access, this is pattern where moving the
+code from Python to Rust will give you significant gains.

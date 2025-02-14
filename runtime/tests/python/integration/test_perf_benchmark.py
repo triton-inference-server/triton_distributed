@@ -36,10 +36,8 @@ TRITON_LOG_LEVEL = 0
 
 logger = get_logger(__name__)
 
-# TODO
-# Decide if this should be
-# pre merge, nightly, or weekly
-pytestmark = pytest.mark.pre_merge
+# Slower test than others - make it nightly for now
+pytestmark = pytest.mark.nightly
 
 
 @pytest.fixture

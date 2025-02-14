@@ -52,16 +52,16 @@ BUILD_CONTEXT=$(dirname "$(readlink -f "$SOURCE_DIR")")
 
 # Base Images
 
-STANDARD_BASE_VERSION=24.12
+STANDARD_BASE_VERSION=25.01
 STANDARD_BASE_IMAGE=nvcr.io/nvidia/tritonserver
 STANDARD_BASE_IMAGE_TAG=${STANDARD_BASE_VERSION}-py3
 
-TENSORRTLLM_BASE_VERSION=24.12
+TENSORRTLLM_BASE_VERSION=25.01
 TENSORRTLLM_BASE_IMAGE=nvcr.io/nvidia/tritonserver
 TENSORRTLLM_BASE_IMAGE_TAG=${TENSORRTLLM_BASE_VERSION}-trtllm-python-py3
 # IMPORTANT NOTE: Ensure the repo tag complies with the TRTLLM backend version
 # used in the base image above.
-TENSORRTLLM_BACKEND_REPO_TAG=v0.16.0
+TENSORRTLLM_BACKEND_REPO_TAG=v0.17.0
 # Set this as 1 to rebuild and replace trtllm backend bits in the container.
 # This will allow building triton distributed container image with custom
 # trt-llm backend repo branch.
@@ -69,9 +69,9 @@ TENSORRTLLM_BACKEND_REBUILD=0
 
 # vllm installation is done later in the Dockerfile so it will overwrite the
 # vllm version installed in the base image.
-VLLM_BASE_VERSION=24.12
+VLLM_BASE_VERSION=25.01
 VLLM_BASE_IMAGE=nvcr.io/nvidia/tritonserver
-VLLM_BASE_IMAGE_TAG=${VLLM_BASE_VERSION}-vllm-python-py3
+VLLM_BASE_IMAGE_TAG=${VLLM_BASE_VERSION}-py3
 
 get_options() {
     while :; do

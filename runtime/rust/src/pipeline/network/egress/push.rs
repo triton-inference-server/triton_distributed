@@ -13,11 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use anyhow::Result;
 use async_nats::client::Client;
 use tracing as log;
 
 use super::*;
+use crate::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -86,7 +86,7 @@ where
     U: Data + for<'de> Deserialize<'de>,
 {
     async fn generate(&self, request: SingleIn<AddressedRequest<T>>) -> Result<ManyOut<U>, Error> {
-        let id = request.context().id().to_string();
+        let request_id = request.context().id().to_string();
         let (addressed_request, context) = request.transfer(());
         let (request, address) = addressed_request.into_parts();
         let engine_ctx = context.context();
@@ -128,12 +128,12 @@ where
         // next build the two part message where we package the connection info and the request into
         // a single Vec<u8> that can be sent over the wire.
         // --- package this up in the WorkQueuePublisher ---
-        let ctrl = serde_json::to_vec(&control_message).unwrap();
-        let data = serde_json::to_vec(&request).unwrap();
+        let ctrl = serde_json::to_vec(&control_message)?;
+        let data = serde_json::to_vec(&request)?;
 
         log::trace!(
-            "[req: {}] packaging two-part message; ctrl: {} bytes, data: {} bytes",
-            id,
+            request_id,
+            "packaging two-part message; ctrl: {} bytes, data: {} bytes",
             ctrl.len(),
             data.len()
         );
@@ -144,11 +144,11 @@ where
         // or it should take a two part message directly
         // todo - update this
         let codec = TwoPartCodec::default();
-        let buffer = codec.encode_message(msg).unwrap();
+        let buffer = codec.encode_message(msg)?;
 
         // TRANSPORT ABSTRACT REQUIRED - END HERE
 
-        log::trace!("[req: {}] enqueueing two-part message to nats", id);
+        log::trace!(request_id, "enqueueing two-part message to nats");
 
         // we might need to add a timeout on this if there is no subscriber to the subject; however, I think nats
         // will handle this for us
@@ -157,7 +157,7 @@ where
             .request(address.to_string(), buffer)
             .await?;
 
-        log::trace!("[req: {}] awaiting transport handshake", id);
+        log::trace!(request_id, "awaiting transport handshake");
         let response_stream = response_stream_provider
             .await
             .map_err(|_| PipelineError::DetatchedStreamReceiver)?
@@ -165,9 +165,15 @@ where
 
         let stream = tokio_stream::wrappers::ReceiverStream::new(response_stream.rx);
 
-        let stream = stream.map(|msg| {
-            let resp: U = serde_json::from_slice(&msg).unwrap();
-            resp
+        let stream = stream.filter_map(|msg| async move {
+            match serde_json::from_slice::<U>(&msg) {
+                Ok(r) => Some(r),
+                Err(err) => {
+                    let json_str = String::from_utf8_lossy(&msg);
+                    log::warn!(%err, %json_str, "Failed deserializing JSON to response");
+                    None
+                }
+            }
         });
 
         Ok(ResponseStream::new(Box::pin(stream), engine_ctx))
