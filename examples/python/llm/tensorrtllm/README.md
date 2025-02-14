@@ -250,6 +250,7 @@ This example also showcase smart routing based on worker KV usage, in aggregated
 To start a KV aware deployment with 2 decode workers:
 
 ```bash
+export HOSTNAME=localhost
 export MODEL_NAME="llama-3.1-8b-instruct"
 python3 /workspace/examples/python/llm/tensorrtllm/deploy/launch_workers.py \
   --generate-worker-count 2 \
@@ -257,6 +258,14 @@ python3 /workspace/examples/python/llm/tensorrtllm/deploy/launch_workers.py \
   --initialize-request-plane \
   --kv-aware-routing \
   --request-plane-uri ${HOSTNAME}:4222 &
+```
+
+```bash
+python3 -m llm.api_server \
+  --tokenizer meta-llama/Llama-3.1-8B-Instruct \
+  --request-plane-uri ${HOSTNAME}:4222 \
+  --api-server-host ${HOSTNAME} \
+  --model-name ${MODEL_NAME} &
 ```
 
 ```bash
