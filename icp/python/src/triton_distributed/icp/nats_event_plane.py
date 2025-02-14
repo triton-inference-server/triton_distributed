@@ -271,7 +271,7 @@ class NatsEventPlane:
         if event_id is None:
             event_id = uuid.uuid4()
 
-        if not isinstance(event_topic, EventTopic):
+        if event_topic is not None and not isinstance(event_topic, EventTopic):
             event_topic = EventTopic(event_topic)
 
         event_metadata = EventMetadata(
