@@ -18,7 +18,6 @@ import os
 import uuid
 
 random_uuid = str(uuid.uuid4())
-os.environ["VLLM_WORKER_ID"] = str(random_uuid)
 
 import uvloop
 import vllm
@@ -30,8 +29,7 @@ from vllm.logger import logger as vllm_logger
 
 import uuid
 
-# TODO: Fix this. Added a random UUID as KVPublisher only takes in UUIDs as the worker ID
-vllm_logger.info(f"VLLM_WORKER_ID: {os.environ['VLLM_WORKER_ID']}")
+# vllm_logger.info(f"VLLM_WORKER_ID: {os.environ['VLLM_WORKER_ID']}")
 vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
 
@@ -80,11 +78,12 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     generate_endpoint = component.endpoint("generate")
     tokenize_endpoint = component.endpoint("tokenize")
 
-    generate_id = generate_endpoint.lease_id()
-    vllm_logger.info(f"Generate endpoint ID: {generate_id}")
+    VLLM_WORKER_ID = uuid.UUID(int=generate_endpoint.lease_id())
+    os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
+    vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
 
     vllm_engine = VllmEngine(engine_args)
-    
+
     await asyncio.gather(
         generate_endpoint.serve_endpoint(vllm_engine.generate),
         tokenize_endpoint.serve_endpoint(vllm_engine.tokenize)
