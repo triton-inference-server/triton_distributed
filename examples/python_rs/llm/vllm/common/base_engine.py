@@ -18,7 +18,6 @@ import abc
 import vllm
 from common.chat_processor import ChatProcessor
 from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.logger import logger as vllm_logger
 
 
 class BaseVllmEngine:
@@ -32,11 +31,12 @@ class BaseVllmEngine:
         self.chat_processor = ChatProcessor(self.engine, self.model_config)
 
     async def _parse_raw_request(self, raw_request):
-        vllm_logger.debug(f"Parsing raw request: {raw_request}")
         request = self.chat_processor.parse_raw_request(raw_request)
-        conversation, _, engine_prompt = await self.chat_processor.preprocess(
-            raw_request
-        )
+        (
+            conversation,
+            request_prompt,
+            engine_prompt,
+        ) = await self.chat_processor.preprocess(raw_request)
         default_max_tokens = self.model_config.max_model_len - len(
             engine_prompt["prompt_token_ids"]
         )
@@ -46,17 +46,15 @@ class BaseVllmEngine:
             self.model_config.logits_processor_pattern,
             default_sampling_params,
         )
-        return request, conversation, engine_prompt, sampling_params
+        return request, conversation, request_prompt, engine_prompt, sampling_params
 
     async def _stream_response(self, request, generator, request_id, conversation):
-        async for response in self.chat_processor.stream_response(
+        return self.chat_processor.stream_response(
             request,
             generator,
             request_id,
             conversation,
-        ):
-            vllm_logger.debug(f"Generated response: {response}")
-            yield response
+        )
 
     @abc.abstractmethod
     async def generate(self, raw_request):

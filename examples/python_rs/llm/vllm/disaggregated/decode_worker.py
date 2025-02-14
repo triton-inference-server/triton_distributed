@@ -18,6 +18,7 @@ import asyncio
 import random
 import uuid
 
+import msgspec
 import uvloop
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
@@ -39,7 +40,7 @@ class VllmDecodeEngine(BaseVllmEngine):
         super().__init__(engine_args)
         self.prefills: list = []
 
-        self.prefill_workers = (
+        self.num_prefill_workers = (
             self.engine.engine.vllm_config.kv_transfer_config.kv_producers_parallel_size
         )
         self.kv_rank = self.engine.engine.vllm_config.kv_transfer_config.kv_rank
@@ -48,33 +49,39 @@ class VllmDecodeEngine(BaseVllmEngine):
         self.prefills.append(prefill)
 
     async def generate(self, raw_request):
+        vllm_logger.debug(f"Got raw request: {raw_request}")
         (
             request,
             conversation,
+            request_prompt,
             engine_prompt,
             sampling_params,
         ) = await self._parse_raw_request(raw_request)
-        prefill_rank = random.choice(range(self.prefill_workers))
+        prefill_rank = random.choice(range(self.num_prefill_workers))
         request_id = f"{uuid.uuid4()}___prefill_kv_rank_{prefill_rank}___decode_kv_rank_{self.kv_rank}"
 
-        prefill_sampling_params = {**request.sampling_params}
+        prefill_sampling_params = {**msgspec.to_builtins(sampling_params)}
         prefill_sampling_params["max_tokens"] = 1
         prefill_request = PrefillRequest(
-            prompt=request.prompt,
+            prompt=request_prompt,  # TODO: we should use engine prompt to avoid extra tokenization
             sampling_params=prefill_sampling_params,
             request_id=request_id,
         )
         print(prefill_request)
-        # self.prefills[prefill_rank].generate(
-        #     prefill_request.model_dump_json(),
-        # )
+        self.prefills[prefill_rank].generate(
+            prefill_request.model_dump_json(),
+        )
 
         vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
         )
         generator = self.engine.generate(engine_prompt, sampling_params, request_id)
 
-        return self._stream_response(request, generator, request_id, conversation)
+        async for response in await self._stream_response(
+            request, generator, request_id, conversation
+        ):
+            vllm_logger.debug(f"Generated response: {response}")
+            yield response
 
 
 @triton_worker()
@@ -87,7 +94,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     await component.create_service()
 
     decode_engine = VllmDecodeEngine(engine_args)
-    for i in range(decode_engine.prefill_workers):
+    for i in range(decode_engine.num_prefill_workers):
         prefill = (
             await runtime.namespace("triton-init")
             .component("prefill")

@@ -34,9 +34,11 @@ class VllmEngine(BaseVllmEngine):
         super().__init__(engine_args)
 
     async def generate(self, raw_request):
+        vllm_logger.debug(f"Got raw request: {raw_request}")
         (
             request,
             conversation,
+            _,
             engine_prompt,
             sampling_params,
         ) = await self._parse_raw_request(raw_request)
@@ -47,7 +49,11 @@ class VllmEngine(BaseVllmEngine):
         )
         generator = self.engine.generate(engine_prompt, sampling_params, request_id)
 
-        return self._stream_response(request, generator, request_id, conversation)
+        async for response in await self._stream_response(
+            request, generator, request_id, conversation
+        ):
+            vllm_logger.debug(f"Generated response: {response}")
+            yield response
 
 
 @triton_worker()
