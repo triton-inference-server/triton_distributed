@@ -70,9 +70,6 @@ async def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Event subscriber script")
     parser.add_argument(
-        "--subscriber-id", type=int, required=True, help="Subscriber ID"
-    )
-    parser.add_argument(
         "--event-topic",
         type=str,
         default=None,

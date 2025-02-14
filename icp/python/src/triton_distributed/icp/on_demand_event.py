@@ -12,10 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import builtins
 import dataclasses
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional, Type
 
 import msgspec
 
@@ -38,13 +39,9 @@ class EventMetadata:
 def _deserialize_metadata(event_metadata_serialized: bytes):
     event_metadata_dict = msgspec.json.decode(event_metadata_serialized)
     topic_meta = event_metadata_dict["event_topic"]
-    if event_metadata_dict["event_topic"] is not None:
-        topic_list = topic_meta["event_topic"].split(".")
-        topic_obj = EventTopic(topic_list)
-    else:
-        topic_obj = None
+    topic_list = topic_meta["event_topic"].split(".") if topic_meta else []
+    topic_obj = EventTopic(topic_list)
 
-    topic_list = topic_meta["event_topic"].split(".")
     metadata = EventMetadata(
         **{
             **event_metadata_dict,
@@ -72,6 +69,20 @@ def _serialize_metadata(event_metadata: EventMetadata) -> bytes:
     return json_string
 
 
+def _get_type(type_name: str):
+    # Check in builtins for the type
+    builtin_type = getattr(builtins, type_name, None)
+    if builtin_type and isinstance(builtin_type, type):
+        return builtin_type
+
+    # Check in globals for the type
+    global_type = globals().get(type_name)
+    if global_type and isinstance(global_type, type):
+        return global_type
+
+    return None
+
+
 class OnDemandEvent(Event):
     """LazyEvent class for representing events."""
 
@@ -80,7 +91,6 @@ class OnDemandEvent(Event):
         payload: bytes,
         event_metadata_serialized: bytes,
         event_metadata: Optional[EventMetadata] = None,
-        event_subject: Optional[str] = None,
     ):
         """Initialize the event.
 
@@ -91,7 +101,6 @@ class OnDemandEvent(Event):
         self._payload = payload
         self._event_metadata_serialized = event_metadata_serialized
         self._event_metadata = event_metadata
-        self._event_subject = event_subject
 
     @property
     def _metadata(self):
@@ -125,6 +134,22 @@ class OnDemandEvent(Event):
     def payload(self) -> bytes:
         return self._payload
 
-    @property
-    def event_subject(self) -> Optional[str]:
-        return self._event_subject
+    def typed_payload(self, payload_type: Optional[Type | str] = None) -> Any:
+        if payload_type is None:
+            payload_type = self.event_type
+
+        if isinstance(payload_type, str):
+            payload_type = _get_type(payload_type)
+        if payload_type is not None and payload_type is not bytes:
+            try:
+                return msgspec.json.decode(self._payload, type=payload_type)
+            except Exception as e:
+                raise ValueError(
+                    f"Unable to convert payload {self._payload!r} to type {payload_type} from event type {self.event_type}"
+                ) from e
+        elif payload_type is bytes:
+            return bytes(self._payload)
+        else:
+            raise ValueError(
+                f"Unable to convert payload {self._payload!r} to type {payload_type} from event type {self.event_type}"
+            )

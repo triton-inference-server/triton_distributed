@@ -19,6 +19,7 @@ import os
 import uuid
 from typing import Any, Awaitable, Callable, List, Optional, Union
 
+import msgspec
 import nats
 
 from triton_distributed.icp import EventTopic
@@ -33,13 +34,13 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_EVENTS_PORT = int(os.getenv("DEFAULT_EVENTS_PORT", 4222))
 DEFAULT_EVENTS_HOST = os.getenv("DEFAULT_EVENTS_HOST", "localhost")
-DEFAULT_EVENTS_PROTOCOL = os.getenv("DEFAULT_EVENTS_PROTOCOL", "tls")
+DEFAULT_EVENTS_PROTOCOL = os.getenv("DEFAULT_EVENTS_PROTOCOL", "nats")
 DEFAULT_CONNECTION_TIMEOUT = int(os.getenv("DEFAULT_CONNECTION_TIMEOUT", 30))
 
 EVENT_PLANE_NATS_PREFIX = "event_plane_nats_v1"
 
 
-def compose_nats_url(
+def compose_nats_uri(
     protocol: str = DEFAULT_EVENTS_PROTOCOL,
     host: str = DEFAULT_EVENTS_HOST,
     port: int = DEFAULT_EVENTS_PORT,
@@ -103,7 +104,9 @@ class NatsEventSubscription(EventSubscription):
             except asyncio.CancelledError:
                 pass
             msg = next_task.result()
-            metadata, event_payload = self._extract_metadata_and_payload(msg.data)
+            metadata, event_payload = NatsEventPlane._extract_metadata_and_payload(
+                msg.data
+            )
             event = OnDemandEvent(event_payload, metadata)
             return event
 
@@ -141,8 +144,8 @@ class NatsEventPlane:
 
     def __init__(
         self,
-        server_uri: Optional[str] = None,
-        component_id: Optional[uuid.UUID] = None,
+        server_uri: str = compose_nats_uri(),
+        component_id: Optional[uuid.UUID] = uuid.uuid4(),
         run_callback_in_parallel: bool = False,
     ):
         """Initialize the NATS event plane.
@@ -153,7 +156,7 @@ class NatsEventPlane:
         """
         self._run_callback_in_parallel = run_callback_in_parallel
         if server_uri is None:
-            server_uri = compose_nats_url()
+            server_uri = compose_nats_uri()
         self._server_uri = server_uri
         if component_id is None:
             component_id = uuid.uuid4()
@@ -181,13 +184,12 @@ class NatsEventPlane:
 
         async def error_cb(e):
             logger.warning("NATS error: %s", e)
+            self._error = e
             if self._failure_event is not None:
                 self._failure_event.set()
                 self._failure_event = asyncio.Event()
-                self._error = e
             else:
                 logger.error(f"NATS connection failure event is None for error {e}")
-            self._error = e
 
         async def reconnected_cb():
             logger.debug("NATS reconnected")
@@ -242,11 +244,11 @@ class NatsEventPlane:
 
     async def publish(
         self,
-        payload: Union[bytes, str],
+        payload: bytes | Any,
         event_type: Optional[str] = None,
         event_topic: Optional[EventTopic] = None,
-        timestamp: Optional[datetime.datetime] = None,
-        event_id: Optional[uuid.UUID] = None,
+        timestamp: Optional[datetime.datetime] = datetime.datetime.now(datetime.UTC),
+        event_id: Optional[uuid.UUID] = uuid.uuid4(),
     ) -> Event:
         """Publish an event to the NATS server.
 
@@ -263,48 +265,41 @@ class NatsEventPlane:
             else:
                 raise RuntimeError("NATS not connected.")
 
-        if isinstance(payload, str):
-            payload_bytes = payload.encode("utf-8")
-        else:
-            payload_bytes = payload
-
         if timestamp is None:
             timestamp = datetime.datetime.now(datetime.UTC)
 
         if event_id is None:
             event_id = uuid.uuid4()
 
-        kwargs = {}
-
-        if event_topic is not None:
-            kwargs["event_topic"] = event_topic
-
         event_metadata = EventMetadata(
             event_id=event_id,
-            event_type=event_type,
+            event_topic=event_topic,
+            event_type=event_type if event_type else str(type(payload).__name__),
             timestamp=timestamp,
             component_id=self._component_id,
-            **kwargs,
         )
 
         metadata_serialized = _serialize_metadata(event_metadata)
         metadata_size = len(metadata_serialized).to_bytes(4, byteorder="big")
 
         # Concatenate metadata size, metadata, and event payload
-        message = metadata_size + metadata_serialized + payload_bytes
+        if isinstance(payload, bytes):
+            message = metadata_size + metadata_serialized + payload
+        else:
+            message = metadata_size + metadata_serialized + msgspec.json.encode(payload)
 
         subject = self._compose_publish_subject(event_metadata)
         await self._nc.publish(subject, message)
 
         event_with_metadata = OnDemandEvent(
-            payload, metadata_serialized, event_metadata, subject
+            payload, metadata_serialized, event_metadata
         )
         return event_with_metadata
 
     async def subscribe(
         self,
         callback: Optional[Callable[[Event], Awaitable[None]]] = None,
-        event_topic: Optional[Union[EventTopic, str, List[str]]] = None,
+        event_topic: Optional[EventTopic | str | List[str]] = None,
         event_type: Optional[str] = "*",
         component_id: Optional[uuid.UUID] = None,
     ) -> EventSubscription:
@@ -325,7 +320,9 @@ class NatsEventPlane:
                 raise RuntimeError("NATS not connected.")
 
         async def _message_handler(msg):
-            metadata, event_payload = self._extract_metadata_and_payload(msg.data)
+            metadata, event_payload = NatsEventPlane._extract_metadata_and_payload(
+                msg.data
+            )
             event = OnDemandEvent(event_payload, metadata)
 
             async def wrapper():
@@ -342,7 +339,6 @@ class NatsEventPlane:
         subject_str, topic = self._compose_subscribe_subject(
             event_topic, event_type, component_id
         )
-
         _cb = _message_handler if callback is not None else None
         sub = await self._nc.subscribe(subject_str, cb=_cb)
         event_sub = NatsEventSubscription(sub, self, subject_str, topic)
@@ -377,7 +373,8 @@ class NatsEventPlane:
             event_topic_obj,
         )
 
-    def _extract_metadata_and_payload(self, message: bytes):
+    @staticmethod
+    def _extract_metadata_and_payload(message: bytes):
         # Extract metadata size
         message_view = memoryview(message)
 

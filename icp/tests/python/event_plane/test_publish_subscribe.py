@@ -15,17 +15,13 @@
 
 
 import asyncio
+import dataclasses
 import uuid
 from typing import List
 
 import pytest
 
-from triton_distributed.icp.nats_event_plane import (
-    EventMetadata,
-    EventTopic,
-    NatsEventPlane,
-    compose_nats_url,
-)
+from triton_distributed.icp import Event, EventTopic, NatsEventPlane
 
 from .utils import event_plane, nats_server
 
@@ -38,7 +34,7 @@ class TestEventPlaneFunctional:
     async def test_single_publisher_subscriber(self, nats_server, event_plane):
         print(f"Print loop test: {id(asyncio.get_running_loop())}")
 
-        received_events: List[EventMetadata] = []
+        received_events: List[Event] = []
 
         async def callback(event):
             received_events.append(event)
@@ -60,10 +56,106 @@ class TestEventPlaneFunctional:
         assert received_events[0].event_id == event_metadata.event_id
 
     @pytest.mark.asyncio
+    async def test_single_publisher_subscriber_iterator(self, nats_server, event_plane):
+        print(f"Print loop test: {id(asyncio.get_running_loop())}")
+
+        received_events: List[Event] = []
+
+        event_topic = EventTopic(["test", "event_topic"])
+        event_type = "test_event"
+        event = b"test_payload"
+
+        subscription = await event_plane.subscribe(
+            event_topic=event_topic, event_type=event_type
+        )
+        event_metadata = await event_plane.publish(
+            event, event_topic=event_topic, event_type=event_type
+        )
+
+        # Allow time for message to propagate
+        await asyncio.sleep(2)
+
+        async for x in subscription:
+            print(x.timestamp)
+            print(x.event_id)
+            print(x.event_type)
+            print(x.event_topic)
+            print(x.payload)
+            received_events.append(x)
+            break
+
+        assert len(received_events) == 1
+        assert received_events[0].event_id == event_metadata.event_id
+
+    @pytest.mark.asyncio
+    async def test_default_subscription(self, nats_server, event_plane):
+        print(f"Print loop test: {id(asyncio.get_running_loop())}")
+
+        received_events: List[Event] = []
+
+        event = b"test_payload"
+
+        subscription = await event_plane.subscribe()
+        event_metadata = await event_plane.publish(
+            event,
+        )
+
+        # Allow time for message to propagate
+        await asyncio.sleep(2)
+
+        async for x in subscription:
+            print(x.timestamp)
+            print(x.event_id)
+            print(x.event_type)
+            print(x.event_topic)
+            print(x.payload)
+            received_events.append(x)
+            break
+
+        assert len(received_events) == 1
+        assert received_events[0].event_id == event_metadata.event_id
+
+    @pytest.mark.asyncio
+    async def test_custom_type(self, nats_server, event_plane):
+        print(f"Print loop test: {id(asyncio.get_running_loop())}")
+
+        received_events: List[Event] = []
+
+        @dataclasses.dataclass
+        class MyEvent:
+            test: str
+            index: int
+
+        event = MyEvent("hello", 0)
+
+        subscription = await event_plane.subscribe()
+        event_metadata = await event_plane.publish(
+            event,
+        )
+
+        # Allow time for message to propagate
+        await asyncio.sleep(2)
+
+        async for x in subscription:
+            print(x.timestamp)
+            print(x.event_id)
+            print(x.event_type)
+            print(x.event_topic)
+            print(x.payload)
+            print(x.typed_payload(MyEvent))
+            received_events.append(x)
+            break
+
+        assert len(received_events) == 1
+        assert received_events[0].event_id == event_metadata.event_id
+        assert isinstance(received_events[0].typed_payload(MyEvent), type(event))
+        assert isinstance(received_events[0].typed_payload(dict), dict)
+
+    @pytest.mark.asyncio
     async def test_one_publisher_multiple_subscribers(self, nats_server):
-        results_1: List[EventMetadata] = []
-        results_2: List[EventMetadata] = []
-        results_3: List[EventMetadata] = []
+        results_1: List[Event] = []
+        results_2: List[Event] = []
+        results_3: List[Event] = []
 
         async def callback_1(event):
             results_1.append(event)
@@ -130,13 +222,13 @@ class TestEventPlaneFunctional:
     @pytest.mark.asyncio
     async def test_context_manager(self, nats_server):
         """Test that context managers properly handle connection/disconnection and subscription/unsubscription."""
-        received_events: List[EventMetadata] = []
+        received_events: List[Event] = []
         event_topic = EventTopic(["test", "event_topic"])
         event_type = "test_event"
         event = b"test_payload"
 
         # Test successful operation with context managers
-        async with NatsEventPlane(compose_nats_url(), uuid.uuid4()) as plane:
+        async with NatsEventPlane() as plane:
             assert plane.is_connected()
 
             async def callback(event):
@@ -159,7 +251,7 @@ class TestEventPlaneFunctional:
 
         # Test error handling in context managers
         with pytest.raises(RuntimeError):
-            async with NatsEventPlane(compose_nats_url(), uuid.uuid4()) as plane:
+            async with NatsEventPlane() as plane:
                 async with await plane.subscribe(
                     callback, event_topic=event_topic, event_type=event_type
                 ):

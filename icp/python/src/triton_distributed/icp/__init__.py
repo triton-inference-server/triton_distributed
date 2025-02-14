@@ -14,8 +14,15 @@
 # limitations under the License.
 
 from triton_distributed.icp.data_plane import DataPlane as DataPlane
+from triton_distributed.icp.event_plane import Event as Event
 from triton_distributed.icp.event_plane import EventPlane as EventPlane
 from triton_distributed.icp.event_plane import EventTopic as EventTopic
+from triton_distributed.icp.nats_event_plane import (
+    DEFAULT_EVENTS_HOST as DEFAULT_EVENTS_HOST,
+)
+from triton_distributed.icp.nats_event_plane import (
+    DEFAULT_EVENTS_PORT as DEFAULT_EVENTS_PORT,
+)
 from triton_distributed.icp.nats_event_plane import NatsEventPlane as NatsEventPlane
 from triton_distributed.icp.nats_request_plane import (
     NatsRequestPlane as NatsRequestPlane,
