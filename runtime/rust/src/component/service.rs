@@ -60,26 +60,23 @@ impl ServiceConfigBuilder {
             return Err(anyhow::anyhow!("Service already exists"));
         }
 
-        // create service on the secondary runtime
-        let secondary = component.drt.runtime.secondary.clone();
         let builder = component.drt.nats_client.client().service_builder();
-        let service = secondary
-            .spawn(async move {
-                // unwrap the stats handler
-                let builder = match stat_handler {
-                    Some(handler) => builder.stats_handler(handler),
-                    None => builder,
-                };
+        let service = tokio::spawn(async move {
+            // unwrap the stats handler
+            let builder = match stat_handler {
+                Some(handler) => builder.stats_handler(handler),
+                None => builder,
+            };
 
-                tracing::debug!("Starting service: {}", service_name);
+            tracing::debug!("Starting service: {}", service_name);
 
-                builder
-                    .description(description)
-                    .start(service_name.to_string(), version)
-                    .await
-            })
-            .await?
-            .map_err(|e| anyhow::anyhow!("Failed to start service: {e}"))?;
+            builder
+                .description(description)
+                .start(service_name.to_string(), version)
+                .await
+        })
+        .await?
+        .map_err(|e| anyhow::anyhow!("Failed to start service: {e}"))?;
 
         guard.insert(component.etcd_path(), service);
         drop(guard);
