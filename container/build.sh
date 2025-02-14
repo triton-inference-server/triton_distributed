@@ -265,6 +265,11 @@ error() {
 get_options "$@"
 
 
+# Update DOCKERFILE if framework is VLLM
+if [[ $FRAMEWORK == "VLLM" ]]; then
+    DOCKERFILE=${SOURCE_DIR}/Dockerfile.vllm
+fi
+
 # BUILD DEV IMAGE
 
 BUILD_ARGS+=" --build-arg BASE_IMAGE=$BASE_IMAGE --build-arg BASE_IMAGE_TAG=$BASE_IMAGE_TAG --build-arg FRAMEWORK=$FRAMEWORK --build-arg ${FRAMEWORK}_FRAMEWORK=1 --build-arg VERSION=$VERSION --build-arg PYTHON_PACKAGE_VERSION=$PYTHON_PACKAGE_VERSION"

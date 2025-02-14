@@ -128,16 +128,6 @@ RUN mkdir /opt/triton && \
     uv build && \
     uv pip install dist/triton_distributed_rs*cp312*.whl
 
-# Install patched vllm
-ARG VLLM_REF="v0.7.2"
-ARG VLLM_PATCH="vllm_v0.7.2.patch"
-RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
-    if [[ "$FRAMEWORK" == "VLLM" ]]; then \
-        source /opt/triton/venv/bin/activate && \
-        bash /tmp/deps/vllm/install.sh --patch /tmp/deps/vllm/${VLLM_PATCH} --ref ${VLLM_REF} --install-cmd "uv pip install --editable" --use-precompiled --installation-dir /opt/vllm ; \
-    fi
-
-
 # Install triton_distributed_rs wheel globally in container for tests that
 # currently run without virtual environment activated.
 # TODO: In future, we may use a virtualenv for everything and remove this.

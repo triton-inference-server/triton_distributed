@@ -59,9 +59,6 @@ Run the server and client components in separate terminal sessions:
 
 **Terminal 1 - Server:**
 ```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
 # Launch worker
 cd /workspace/examples/python_rs/llm/vllm
 python3 -m monolith.worker \
@@ -72,9 +69,6 @@ python3 -m monolith.worker \
 
 **Terminal 2 - Client:**
 ```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
 # Run client
 cd /workspace/examples/python_rs/llm/vllm
 python3 -m common.client \
@@ -104,9 +98,6 @@ This deployment option splits the model serving across prefill and decode worker
 
 **Terminal 1 - Prefill Worker:**
 ```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
 # Launch prefill worker
 cd /workspace/examples/python_rs/llm/vllm
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
@@ -121,9 +112,6 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregat
 
 **Terminal 2 - Decode Worker:**
 ```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
 # Launch decode worker
 cd /workspace/examples/python_rs/llm/vllm
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggregated.decode_worker \
@@ -138,9 +126,6 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggreg
 
 **Terminal 3 - Client:**
 ```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
 # Run client
 cd /workspace/examples/python_rs/llm/vllm
 python3 -m common.client \
