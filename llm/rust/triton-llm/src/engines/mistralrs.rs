@@ -13,12 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{
-    cmp::min,
-    num::NonZero,
-    path::Path,
-    sync::{atomic::AtomicU64, Arc},
-};
+use std::{cmp::min, num::NonZero, path::Path, sync::Arc};
 
 use async_stream::stream;
 use async_trait::async_trait;
@@ -69,7 +64,6 @@ fn best_device() -> pipeline_error::Result<Device> {
 struct MistralRsEngine {
     mistralrs: Arc<MistralRs>,
     pipeline: Arc<tokio::sync::Mutex<dyn Pipeline + Send + Sync + 'static>>,
-    next_id: AtomicU64,
 }
 
 impl MistralRsEngine {
@@ -142,7 +136,6 @@ impl MistralRsEngine {
         Ok(MistralRsEngine {
             mistralrs: builder.build(),
             pipeline,
-            next_id: AtomicU64::new(0),
         })
     }
 }
@@ -202,9 +195,7 @@ impl
             response: tx,
             return_logprobs: false,
             is_streaming: true,
-            id: self
-                .next_id
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed) as usize,
+            id: self.mistralrs.next_request_id(),
             constraint: Constraint::None,
             suffix: None,
             adapters: None,
