@@ -13,42 +13,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use triton_distributed_py3;
-use pyo3::{exceptions::PyException, prelude::*};
-use std::{fmt::Display, sync::Arc};
-
-use triton_llm as rs;
-
-/// A Python module implemented in Rust. The name of this function must match
-/// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
-/// import the module.
-#[pymodule]
-fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<KvRouter>()?;
-
-    Ok(())
-}
-
-pub fn to_pyerr<E>(err: E) -> PyErr
-where
-    E: Display,
-{
-    PyException::new_err(format!("{}", err))
-}
+use super::*;
 
 #[pyclass]
 pub(crate) struct KvRouter {
-    inner: Arc<rs::kv_router::KvRouter>,
+    inner: Arc<llm_rs::kv_router::KvRouter>,
 }
 
 #[pymethods]
 impl KvRouter {
     #[new]
-    fn new(drt: triton_distributed_py3::DistributedRuntime, component: triton_distributed_py3::Component) -> PyResult<Self> {
+    fn new(drt: DistributedRuntime, component: Component) -> PyResult<Self> {
         let runtime = pyo3_async_runtimes::tokio::get_runtime();
         runtime.block_on(async {
             let inner =
-                rs::kv_router::KvRouter::from_runtime(drt.inner.clone(), component.inner.clone())
+                llm_rs::kv_router::KvRouter::from_runtime(drt.inner.clone(), component.inner.clone())
                     .await
                     .map_err(to_pyerr)?;
             Ok(Self { inner })

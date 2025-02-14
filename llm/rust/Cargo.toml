@@ -17,7 +17,6 @@
 members = [
     "triton-llm",
     "libtriton-llm",
-    "python-wheel"
 ]
 resolver = "2"
 
@@ -33,7 +32,6 @@ repository = "https://github.com/triton-inference-server/triton_distributed"
 [workspace.dependencies]
 # local or crates.io
 triton-distributed = { version = "0.2.0", path = "../../runtime/rust" }
-triton_distributed_py3 = { path = "../../runtime/rust/python-wheel" }
 
 # crates.io
 anyhow = { version = "1" }

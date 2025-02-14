@@ -29,7 +29,9 @@ use triton_distributed::{
     protocols::annotated::Annotated as RsAnnotated,
 };
 
+use triton_llm::{self as llm_rs};
 
+mod llm;
 mod engine;
 
 type JsonServerStreamingIngress =
@@ -51,6 +53,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Endpoint>()?;
     m.add_class::<Client>()?;
     m.add_class::<AsyncResponseStream>()?;
+    m.add_class::<llm::kv::KvRouter>()?;
 
     engine::add_to_module(m)?;
 

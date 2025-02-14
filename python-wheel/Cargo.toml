@@ -14,7 +14,7 @@
 # limitations under the License.
 
 [package]
-name = "triton_llm_py3"
+name = "triton_distributed_py3"
 version = "0.2.0"
 edition = "2021"
 authors = ["NVIDIA"]
@@ -24,15 +24,22 @@ repository = "https://github.com/triton-inference-server/triton_distributed"
 
 [lib]
 path = "rust/lib.rs"
-name = "_llm"
+name = "_core"
 # "cdylib" is necessary to produce a shared library for Python to import from.
 crate-type = ["cdylib"]
 
 
 [dependencies]
-triton-llm = { path = "../triton-llm" }
-triton_distributed_py3 = { workspace = true }
+triton-llm = { path = "../llm/rust/triton-llm" }
+triton-distributed = { path = "../runtime/rust" }
 
+futures = "0.3"
+once_cell = "1.20.3"
+serde = "1"
+serde_json = "1.0.138"
+thiserror = "2.0"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0"
 tracing = "0"
 
 # "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)

@@ -20,7 +20,7 @@ from typing import Any, AsyncGenerator, Callable, Type
 
 from pydantic import BaseModel, ValidationError
 from triton_distributed_rs._core import DistributedRuntime
-from triton_distributed_rs._core import Component as Component
+from triton_distributed_rs._core import KvRouter as KvRouter
 
 
 def triton_worker():
