@@ -20,10 +20,9 @@ import uuid
 from typing import List
 
 import pytest
+from utils import event_plane, nats_server
 
 from triton_distributed.icp import Event, EventTopic, NatsEventPlane
-
-from .utils import event_plane, nats_server
 
 pytestmark = pytest.mark.pre_merge
 
