@@ -131,7 +131,7 @@ The disaggregated deployment utilizes separate GPUs for prefill and decode opera
 curl localhost:9992/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "vllm",
+    "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
     "messages": [
       {"role": "user", "content": "What is the capital of France?"}
     ]
