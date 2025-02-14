@@ -15,7 +15,7 @@
 
 use super::{
     ChatCompletionChoiceDelta, ChatCompletionContent, ChatCompletionRequest,
-    ChatCompletionResponseDelta, FinishReason, MessageRole, ServiceTier,
+    ChatCompletionResponseDelta, MessageRole, NvidiaFinishReason, ServiceTier,
 };
 use crate::protocols::common;
 use crate::protocols::openai::CompletionUsage;
@@ -83,7 +83,7 @@ impl DeltaGenerator {
         &self,
         index: u64,
         text: Option<String>,
-        finish_reason: Option<super::FinishReason>,
+        finish_reason: Option<NvidiaFinishReason>,
         logprobs: Option<super::ChatCompletionLogprobs>,
     ) -> ChatCompletionResponseDelta {
         // todo - update for tool calling
@@ -133,14 +133,23 @@ impl crate::protocols::openai::DeltaGeneratorExt<ChatCompletionResponseDelta> fo
         let logprobs = None;
 
         let finish_reason = match delta.finish_reason {
-            Some(common::FinishReason::EoS) => Some(FinishReason::stop),
-            Some(common::FinishReason::Stop) => Some(FinishReason::stop),
-            Some(common::FinishReason::Length) => Some(FinishReason::length),
-            Some(common::FinishReason::Cancelled) => Some(FinishReason::cancelled),
+            Some(common::FinishReason::EoS) | Some(common::FinishReason::Stop) => Some(
+                NvidiaFinishReason::OpenAI(async_openai::types::FinishReason::Stop),
+            ),
+            Some(common::FinishReason::Length) => Some(NvidiaFinishReason::OpenAI(
+                async_openai::types::FinishReason::Length,
+            )),
+            Some(common::FinishReason::ContentFilter) => Some(NvidiaFinishReason::OpenAI(
+                async_openai::types::FinishReason::ContentFilter,
+            )),
+            Some(common::FinishReason::ToolCalls) => Some(NvidiaFinishReason::OpenAI(
+                async_openai::types::FinishReason::ToolCalls,
+            )),
+            Some(common::FinishReason::Cancelled) => Some(NvidiaFinishReason::Cancelled),
             Some(common::FinishReason::Error(err_msg)) => {
-                return Err(anyhow::anyhow!(err_msg));
+                return Err(anyhow::anyhow!("finish_reason::error = {}", err_msg));
             }
-            None => None,
+            None => Some(NvidiaFinishReason::Null),
         };
 
         // create choice

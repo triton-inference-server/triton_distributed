@@ -116,6 +116,8 @@ impl crate::protocols::openai::DeltaGeneratorExt<CompletionResponse> for DeltaGe
             Some(common::FinishReason::Stop) => Some("stop".to_string()),
             Some(common::FinishReason::Length) => Some("length".to_string()),
             Some(common::FinishReason::Cancelled) => Some("cancelled".to_string()),
+            Some(common::FinishReason::ToolCalls) => Some("tool_calls".to_string()),
+            Some(common::FinishReason::ContentFilter) => Some("content_filter".to_string()),
             Some(common::FinishReason::Error(err_msg)) => {
                 return Err(anyhow::anyhow!(err_msg));
             }

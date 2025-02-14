@@ -65,6 +65,12 @@ pub enum FinishReason {
 
     #[serde(rename = "cancelled")]
     Cancelled,
+
+    #[serde(rename = "tool_calls")]
+    ToolCalls,
+
+    #[serde(rename = "content_filter")]
+    ContentFilter,
 }
 
 /// LLM Inference Engines can accept a variety of input types. Not all Engines will support all

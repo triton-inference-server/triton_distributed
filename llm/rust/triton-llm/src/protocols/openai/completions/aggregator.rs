@@ -38,7 +38,7 @@ pub struct DeltaAggregator {
 struct DeltaChoice {
     index: u64,
     text: String,
-    finish_reason: Option<crate::protocols::openai::chat_completions::FinishReason>,
+    finish_reason: Option<crate::protocols::openai::chat_completions::NvidiaFinishReason>,
     logprobs: Option<LogprobResult>,
 }
 
@@ -111,7 +111,7 @@ impl DeltaAggregator {
 
                         if let Some(finish_reason) = choice.finish_reason {
                             let reason =
-                                crate::protocols::openai::chat_completions::FinishReason::from_str(
+                                crate::protocols::openai::chat_completions::NvidiaFinishReason::from_str(
                                     &finish_reason,
                                 )
                                 .ok();
@@ -258,7 +258,7 @@ mod tests {
         let choice = &response.choices[0];
         assert_eq!(choice.index, 0);
         assert_eq!(choice.text, "Hello,".to_string());
-        assert_eq!(choice.finish_reason, Some("length".to_string()));
+        assert_eq!(choice.finish_reason, Some("Length".to_string()));
         assert!(choice.logprobs.is_none());
     }
 
@@ -286,7 +286,7 @@ mod tests {
         let choice = &response.choices[0];
         assert_eq!(choice.index, 0);
         assert_eq!(choice.text, "Hello, world!".to_string());
-        assert_eq!(choice.finish_reason, Some("stop".to_string()));
+        assert_eq!(choice.finish_reason, Some("Stop".to_string()));
     }
 
     #[tokio::test]
@@ -336,11 +336,11 @@ mod tests {
         let choice0 = &response.choices[0];
         assert_eq!(choice0.index, 0);
         assert_eq!(choice0.text, "Choice 0".to_string());
-        assert_eq!(choice0.finish_reason, Some("stop".to_string()));
+        assert_eq!(choice0.finish_reason, Some("Stop".to_string()));
 
         let choice1 = &response.choices[1];
         assert_eq!(choice1.index, 1);
         assert_eq!(choice1.text, "Choice 1".to_string());
-        assert_eq!(choice1.finish_reason, Some("stop".to_string()));
+        assert_eq!(choice1.finish_reason, Some("Stop".to_string()));
     }
 }

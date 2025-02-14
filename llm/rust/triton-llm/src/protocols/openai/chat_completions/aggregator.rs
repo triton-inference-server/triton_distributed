@@ -15,7 +15,7 @@
 
 use super::{
     ChatCompletionChoice, ChatCompletionContent, ChatCompletionResponse,
-    ChatCompletionResponseDelta, CompletionUsage, FinishReason, MessageRole, ServiceTier,
+    ChatCompletionResponseDelta, CompletionUsage, MessageRole, NvidiaFinishReason, ServiceTier,
 };
 use crate::protocols::{
     codec::{Message, SseCodecError},
@@ -45,7 +45,7 @@ struct DeltaChoice {
     index: u64,
     text: String,
     role: Option<MessageRole>,
-    finish_reason: Option<FinishReason>,
+    finish_reason: Option<NvidiaFinishReason>,
     logprobs: Option<ChatCompletionLogprobs>,
 }
 
@@ -169,7 +169,9 @@ impl From<DeltaChoice> for ChatCompletionChoice {
                 tool_calls: None,
             },
             index: delta.index,
-            finish_reason: delta.finish_reason.unwrap_or(FinishReason::length),
+            finish_reason: delta.finish_reason.unwrap_or(NvidiaFinishReason::OpenAI(
+                async_openai::types::FinishReason::Length,
+            )),
             logprobs: delta.logprobs,
         }
     }
@@ -201,7 +203,7 @@ mod tests {
         index: u64,
         text: &str,
         role: Option<MessageRole>,
-        finish_reason: Option<FinishReason>,
+        finish_reason: Option<NvidiaFinishReason>,
     ) -> Annotated<ChatCompletionResponseDelta> {
         Annotated {
             data: Some(ChatCompletionResponseDelta {
@@ -276,7 +278,10 @@ mod tests {
         let choice = &response.choices[0];
         assert_eq!(choice.index, 0);
         assert_eq!(choice.message.content.as_ref().unwrap(), "Hello,");
-        assert_eq!(choice.finish_reason, FinishReason::length);
+        assert_eq!(
+            choice.finish_reason,
+            NvidiaFinishReason::OpenAI(async_openai::types::FinishReason::Length)
+        );
         assert_eq!(choice.message.role.as_ref().unwrap(), &MessageRole::user);
         assert!(response.service_tier.is_none());
     }
@@ -287,7 +292,14 @@ mod tests {
         // One will have a MessageRole and no FinishReason,
         // the other will have a FinishReason and no MessageRole
         let annotated_delta1 = create_test_delta(0, "Hello,", Some(MessageRole::user), None);
-        let annotated_delta2 = create_test_delta(0, " world!", None, Some(FinishReason::stop));
+        let annotated_delta2 = create_test_delta(
+            0,
+            " world!",
+            None,
+            Some(NvidiaFinishReason::OpenAI(
+                async_openai::types::FinishReason::Stop,
+            )),
+        );
 
         // Create a stream
         let annotated_deltas = vec![annotated_delta1, annotated_delta2];
@@ -305,7 +317,10 @@ mod tests {
         let choice = &response.choices[0];
         assert_eq!(choice.index, 0);
         assert_eq!(choice.message.content.as_ref().unwrap(), "Hello, world!");
-        assert_eq!(choice.finish_reason, FinishReason::stop);
+        assert_eq!(
+            choice.finish_reason,
+            NvidiaFinishReason::OpenAI(async_openai::types::FinishReason::Stop,)
+        );
         assert_eq!(choice.message.role.as_ref().unwrap(), &MessageRole::user);
     }
 
@@ -326,7 +341,9 @@ mod tests {
                         content: Some("Choice 0".to_string()),
                         tool_calls: None,
                     },
-                    finish_reason: Some(FinishReason::stop),
+                    finish_reason: Some(NvidiaFinishReason::OpenAI(
+                        async_openai::types::FinishReason::Stop,
+                    )),
                     logprobs: None,
                 },
                 ChatCompletionChoiceDelta {
@@ -336,7 +353,9 @@ mod tests {
                         content: Some("Choice 1".to_string()),
                         tool_calls: None,
                     },
-                    finish_reason: Some(FinishReason::stop),
+                    finish_reason: Some(NvidiaFinishReason::OpenAI(
+                        async_openai::types::FinishReason::Stop,
+                    )),
                     logprobs: None,
                 },
             ],
@@ -366,7 +385,10 @@ mod tests {
         let choice0 = &response.choices[0];
         assert_eq!(choice0.index, 0);
         assert_eq!(choice0.message.content.as_ref().unwrap(), "Choice 0");
-        assert_eq!(choice0.finish_reason, FinishReason::stop);
+        assert_eq!(
+            choice0.finish_reason,
+            NvidiaFinishReason::OpenAI(async_openai::types::FinishReason::Stop,)
+        );
         assert_eq!(
             choice0.message.role.as_ref().unwrap(),
             &MessageRole::assistant
@@ -375,7 +397,10 @@ mod tests {
         let choice1 = &response.choices[1];
         assert_eq!(choice1.index, 1);
         assert_eq!(choice1.message.content.as_ref().unwrap(), "Choice 1");
-        assert_eq!(choice1.finish_reason, FinishReason::stop);
+        assert_eq!(
+            choice1.finish_reason,
+            NvidiaFinishReason::OpenAI(async_openai::types::FinishReason::Stop,)
+        );
         assert_eq!(
             choice1.message.role.as_ref().unwrap(),
             &MessageRole::assistant

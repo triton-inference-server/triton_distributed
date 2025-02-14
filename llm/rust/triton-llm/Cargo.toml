@@ -61,6 +61,7 @@ prometheus = { version = "0.13" }
 either = { version = "1.13" }
 indexmap = { version = "2.6" }
 mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "c26e6c8", optional = true }
+async-openai = "0.27.2"
 
 [dev-dependencies]
 insta = { version = "1.41", features = ["glob", "json", "redactions"]}

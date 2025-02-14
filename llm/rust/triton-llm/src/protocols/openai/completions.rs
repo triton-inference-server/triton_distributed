@@ -25,6 +25,7 @@ mod delta;
 pub use aggregator::DeltaAggregator;
 
 use super::{
+    chat_completions::NvidiaFinishReason,
     common::{self, SamplingOptionsProvider, StopConditionsProvider},
     nvext::{NvExt, NvExtProvider},
     validate_logit_bias, CompletionUsage, ContentProvider, OpenAISamplingOptionsProvider,
@@ -545,6 +546,27 @@ impl TryFrom<common::StreamingCompletionResponse> for CompletionChoice {
     type Error = anyhow::Error;
 
     fn try_from(response: common::StreamingCompletionResponse) -> Result<Self, Self::Error> {
+        let finish_reason = match &response.delta.finish_reason {
+            Some(common::FinishReason::EoS) | Some(common::FinishReason::Stop) => Some(
+                NvidiaFinishReason::OpenAI(async_openai::types::FinishReason::Stop),
+            ),
+            Some(common::FinishReason::Length) => Some(NvidiaFinishReason::OpenAI(
+                async_openai::types::FinishReason::Length,
+            )),
+            Some(common::FinishReason::ContentFilter) => Some(NvidiaFinishReason::OpenAI(
+                async_openai::types::FinishReason::ContentFilter,
+            )),
+            Some(common::FinishReason::Cancelled) => Some(NvidiaFinishReason::Cancelled),
+            Some(common::FinishReason::Error(err_msg)) => {
+                return Err(anyhow::anyhow!("finish_reason::error = {}", err_msg));
+            }
+            None => None,
+            _ => {
+                tracing::warn!("Unknown finish reason: {:?}", response.delta.finish_reason);
+                Some(NvidiaFinishReason::Null)
+            }
+        };
+
         let choice = CompletionChoice {
             text: response
                 .delta
@@ -552,16 +574,7 @@ impl TryFrom<common::StreamingCompletionResponse> for CompletionChoice {
                 .ok_or(anyhow::anyhow!("No text in response"))?,
             index: response.delta.index.unwrap_or(0) as u64,
             logprobs: None,
-            finish_reason: match &response.delta.finish_reason {
-                Some(common::FinishReason::EoS) => Some("stop".to_string()),
-                Some(common::FinishReason::Stop) => Some("stop".to_string()),
-                Some(common::FinishReason::Length) => Some("length".to_string()),
-                Some(common::FinishReason::Error(err_msg)) => {
-                    return Err(anyhow::anyhow!("finish_reason::error = {}", err_msg));
-                }
-                Some(common::FinishReason::Cancelled) => Some("cancelled".to_string()),
-                None => None,
-            },
+            finish_reason: finish_reason.map(|fr| fr.to_string()),
         };
 
         Ok(choice)
