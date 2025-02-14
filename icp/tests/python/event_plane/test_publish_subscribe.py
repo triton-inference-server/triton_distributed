@@ -115,6 +115,32 @@ class TestEventPlaneFunctional:
         assert received_events[0].event_id == event_metadata.event_id
 
     @pytest.mark.asyncio
+    async def test_event_topic_list(self, nats_server, event_plane):
+        print(f"Print loop test: {id(asyncio.get_running_loop())}")
+
+        received_events: List[Event] = []
+
+        event = b"test_payload"
+
+        subscription = await event_plane.subscribe(event_topic="hello")
+        event_metadata = await event_plane.publish(event, event_topic=["hello"])
+
+        # Allow time for message to propagate
+        await asyncio.sleep(2)
+
+        async for x in subscription:
+            print(x.timestamp)
+            print(x.event_id)
+            print(x.event_type)
+            print(x.event_topic)
+            print(x.payload)
+            received_events.append(x)
+            break
+
+        assert len(received_events) == 1
+        assert received_events[0].event_id == event_metadata.event_id
+
+    @pytest.mark.asyncio
     async def test_custom_type(self, nats_server, event_plane):
         print(f"Print loop test: {id(asyncio.get_running_loop())}")
 
