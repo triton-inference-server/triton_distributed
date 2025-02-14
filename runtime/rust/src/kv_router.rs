@@ -57,7 +57,7 @@ impl KvRouter {
         let nats_client = runtime.nats_client();
         let service_name = backend.service_name();
         let kv_subject = backend.event_subject(KV_EVENT_SUBJECT);
-
+        log::info!("service_name {} kv_subject {}", service_name, kv_subject);
         Self::new(nats_client, service_name, kv_subject).await
     }
 

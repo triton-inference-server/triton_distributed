@@ -17,6 +17,10 @@ use crate::kv_router::{indexer::RouterEvent, protocols::KvCacheEvent, KV_EVENT_S
 use crate::{component::Component, DistributedRuntime, Result};
 use tokio::sync::mpsc;
 use uuid::Uuid;
+use tracing as log;
+use tracing_subscriber::FmtSubscriber;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 pub struct KvPublisher {
     tx: mpsc::UnboundedSender<KvCacheEvent>,
@@ -24,15 +28,28 @@ pub struct KvPublisher {
 
 impl KvPublisher {
     pub fn new(drt: DistributedRuntime, backend: Component, worker_id: Uuid) -> Result<Self> {
+
+        let subscriber = FmtSubscriber::builder()
+            // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
+            // will be written to stdout.
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            // completes the builder.
+            .finish();
+
+        tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
+        
+        log::info!("Logging Started in Publisher");
+
         let (tx, rx) = mpsc::unbounded_channel::<KvCacheEvent>();
-        let p = KvPublisher { tx };
+        let p: KvPublisher = KvPublisher { tx };
 
         start_publish_task(drt, backend, worker_id, rx);
         Ok(p)
     }
 
     pub fn publish(&self, event: KvCacheEvent) -> Result<(), mpsc::error::SendError<KvCacheEvent>> {
-        println!("Attempting to publish event: {:?}", event);
+        log::info!("Attempting to publish event: {:?}", event);
         self.tx.send(event)
     }
 }
@@ -46,12 +63,12 @@ fn start_publish_task(
     let client = drt.nats_client().client().clone();
     // [FIXME] service name is for metrics polling?
     // let service_name = backend.service_name();
-    let kv_subject = backend.event_subject(KV_EVENT_SUBJECT);
-    println!("Publishing to subject: {}", kv_subject);
+    let kv_subject: String = backend.event_subject(KV_EVENT_SUBJECT);
+    log::info!("Publishing to subject: {}", kv_subject);
     _ = drt.runtime().secondary().spawn(async move {
         while let Some(event) = rx.recv().await {
-            let router_event = RouterEvent::new(worker_id, event);
-            let data = serde_json::to_string(&router_event).unwrap();
+            let router_event: RouterEvent = RouterEvent::new(worker_id, event);
+            let data: String = serde_json::to_string(&router_event).unwrap();
             client
                 .publish(kv_subject.to_string(), data.into())
                 .await

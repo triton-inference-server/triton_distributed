@@ -19,6 +19,7 @@ import asyncio
 import uvloop
 from triton_distributed_rs import DistributedRuntime, triton_worker
 from vllm.utils import FlexibleArgumentParser
+from vllm.logger import logger as vllm_logger
 
 from .protocol import Request
 
@@ -37,7 +38,7 @@ async def worker(
     client = await endpoint.client()
 
     # list the endpoints
-    print(client.endpoint_ids())
+    vllm_logger.info(f"Client Ids: {client.endpoint_ids()}")
 
     # issue request
     stream = await client.generate(

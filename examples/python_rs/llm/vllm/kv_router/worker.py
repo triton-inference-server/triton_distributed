@@ -13,10 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import asyncio
 import os
 import uuid
+
+random_uuid = str(uuid.uuid4())
+os.environ["VLLM_WORKER_ID"] = str(random_uuid)
 
 import uvloop
 import vllm
@@ -27,6 +29,10 @@ from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 
 import uuid
+
+# TODO: Fix this. Added a random UUID as KVPublisher only takes in UUIDs as the worker ID
+vllm_logger.info(f"VLLM_WORKER_ID: {os.environ['VLLM_WORKER_ID']}")
+vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
 
 class VllmEngine:
@@ -43,24 +49,24 @@ class VllmEngine:
         # TODO: take in tokenized input
         # tokens_prompt = TokensPrompt(prompt_token_ids=tokens)
 
-        vllm_logger.info(f"Received request: {request}")
+        # vllm_logger.info(f"Received request: {request}")
         sampling_params = vllm.SamplingParams(**request.sampling_params)
         request_id = str(uuid.uuid4())
         async for response in self.engine.generate(
             request.prompt, sampling_params, request_id
         ):
-            vllm_logger.info(f"Generated response: {response}")
+            # vllm_logger.info(f"Generated response: {response}")
             yield response.outputs[0].text
 
     @triton_endpoint(TokenizeRequest, TokenizeResponse)
     async def tokenize(self, request):
-        vllm_logger.info(f"Received request: {request}")
+        # vllm_logger.info(f"Received request: {request}")
         tokenizer = await self.engine.get_tokenizer()
 
         # tokens = tokenizer.apply_chat_template(request.prompt, tokenize=True)
         tokens = tokenizer.encode(request.prompt)
 
-        vllm_logger.info(f"Tokens: {tokens}")
+        # vllm_logger.info(f"Tokens: {tokens}")
         yield tokens
 
 
@@ -83,12 +89,6 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     generate_id = generate_endpoint.lease_id()
     vllm_logger.info(f"Generate endpoint ID: {generate_id}")
 
-    random_uuid = str(uuid.uuid4())
-    # TODO: Fix this. Added a random UUID as KVPublisher only takes in UUIDs as the worker ID
-    vllm_logger.info(f"Random UUID: {random_uuid}")
-    os.environ["VLLM_WORKER_ID"] = str(random_uuid)
-    vllm_logger.info(f"VLLM_WORKER_ID: {os.environ['VLLM_WORKER_ID']}")
-
 
     await asyncio.gather(
         generate_endpoint.serve_endpoint(vllm_engine.generate),
@@ -100,4 +100,6 @@ if __name__ == "__main__":
     uvloop.install()
     engine_args = parse_vllm_args()
     engine_args.dtype = 'float16'
+    engine_args.enable_prefix_caching = True
+    engine_args.block_size = 64
     asyncio.run(worker(engine_args))

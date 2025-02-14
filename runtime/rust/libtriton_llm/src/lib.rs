@@ -18,6 +18,7 @@ use libc::c_char;
 use once_cell::sync::OnceCell;
 use std::ffi::CStr;
 use uuid::Uuid;
+use tracing as log;
 
 use triton_distributed::kv_router::{
     indexer::compute_block_hash_for_seq, protocols::*, publisher::KvPublisher,
@@ -152,6 +153,7 @@ fn kv_event_create_stored_block_from_parts(
     assert!(num_tokens <= 64);
     let tokens_hash =
         compute_block_hash_for_seq(unsafe { std::slice::from_raw_parts(token_ids, num_tokens) })[0];
+    log::info!("tokens_hash: {:?}", tokens_hash);
     KvCacheStoredBlockData {
         block_hash: ExternalSequenceBlockHash(block_hash),
         tokens_hash,
@@ -175,6 +177,9 @@ fn kv_event_create_stored_from_parts(
         let tokens = unsafe { token_ids.offset(token_offset.try_into().unwrap()) };
         let num_toks = unsafe { *num_block_tokens.offset(block_idx.try_into().unwrap()) };
         // compute hash only apply to full block (64 token) [FIXME] 64 => KV_TOKEN_SIZE
+        log::info!("block_idx: {:?}", block_idx);
+        log::info!("block_hash: {:?}", block_hash);
+        log::info!("num_toks: {:?}", tokens);
         if num_toks < 64 {
             break;
         }
@@ -183,7 +188,7 @@ fn kv_event_create_stored_from_parts(
             block_hash, tokens, num_toks, lora_id,
         ));
     }
-
+    log::info!("BLOCKS: {:?}", blocks);
     KvCacheEvent {
         data: KvCacheEventData::Stored(KvCacheStoreData {
             blocks,
@@ -223,6 +228,8 @@ pub unsafe extern "C" fn triton_kv_event_publish_stored(
     parent_hash: *const u64,
     lora_id: u64,
 ) -> TritonLlmResult {
+    log::info!("Token ID's: {:?}", token_ids);
+    log::info!("block_ids's: {:?}", block_ids);
     let publisher = KV_PUB.get().unwrap();
     let parent_hash = {
         if parent_hash.is_null() {

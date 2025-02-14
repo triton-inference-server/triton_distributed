@@ -55,6 +55,7 @@ tracing = { version = "0.1" }
 uuid = { version = "1", features = ["v4", "serde"] }
 validator = { version = "0.20", features = ["derive"] }
 xxhash-rust = { version = "0.8", features = ["xxh3", "const_xxh3"] }
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 
 # non-workspace
 async-once-cell = "0.5.4"

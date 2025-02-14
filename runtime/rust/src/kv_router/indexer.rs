@@ -280,12 +280,11 @@ impl RadixTree {
     pub fn apply_event(&mut self, event: RouterEvent) {
         let (worker_id, event) = (event.worker_id, event.event);
         let (id, op) = (event.event_id, event.data);
-
+        log::info!(id, "Store operation: {:?}", op);
         let worker_lookup = self.lookup.entry(worker_id).or_default();
 
         match op {
             KvCacheEventData::Stored(op) => {
-                log::trace!(id, "Store operation: {:?}", op);
                 // find the parent block - if the parent exists it must be on our worker, if not,
                 // we check the radix tree's root to find it.
                 // this is the single most expensive lookup
@@ -300,6 +299,7 @@ impl RadixTree {
                         log::warn!(
                             worker_id = worker_id.to_string(),
                             id,
+                            parent_hash = ?op.parent_hash,
                             "Failed to find parent block; skipping store operation"
                         );
                         return;
