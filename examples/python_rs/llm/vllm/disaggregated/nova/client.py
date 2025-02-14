@@ -20,7 +20,7 @@ class Client:
         print(prompt, max_tokens, temperature)
 
         # Don't await the generator - directly async iterate over it
-        decgen = await self.decode.generate(
+        decgen = self.decode.generate(
             {
                 "prompt": prompt,
                 "sampling_params": {

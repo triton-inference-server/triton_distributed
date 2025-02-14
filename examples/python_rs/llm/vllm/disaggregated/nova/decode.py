@@ -8,6 +8,8 @@ from vllm.logger import logger as vllm_logger
 from prefill import Prefill
 from compoundai import depends, nova_endpoint, service, api
 
+from huggingface_hub import snapshot_download
+
 @service(
     nova={
         "enabled": True,
@@ -17,7 +19,8 @@ from compoundai import depends, nova_endpoint, service, api
 class Decode:
     prefill = depends(Prefill)
 
-    def __init__(self, engine_args: AsyncEngineArgs):
+    def __init__(self):
+        print("booting up decoding")
         engine_args = AsyncEngineArgs(
             model="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
             max_model_len=100,
@@ -30,11 +33,12 @@ class Decode:
                 "kv_parallel_size": 2
             }
         )
+        # TODO: hacked right now
         assert (
-            engine_args.kv_transfer_config.is_kv_consumer
+            engine_args.kv_transfer_config["kv_role"] == "kv_consumer"
         ), "Decode worker must be a KV consumer"
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        print(self.engine.check_health())
+        print("healthcheck", self.engine.check_health())
 
     @nova_endpoint # should have req/resp types
     async def generate(self, request):
@@ -53,7 +57,7 @@ class Decode:
             "request_id": request_id,
         }
         print("prefill request abt to be sent")
-        prefill_generator = await self.prefill.generate(
+        prefill_generator = self.prefill.generate(
             prefill_request
         )
         print("prefill generator abt to be awaited")

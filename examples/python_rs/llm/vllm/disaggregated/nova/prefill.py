@@ -25,8 +25,9 @@ class Prefill:
                 "kv_parallel_size": 2
             }
         )
+        # TODO: hacked right now
         assert (
-            engine_args.kv_transfer_config.is_kv_producer
+            engine_args.kv_transfer_config["kv_role"] == "kv_producer"
         ), "Prefill worker must be a KV producer"
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
 
