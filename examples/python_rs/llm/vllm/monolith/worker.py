@@ -19,8 +19,8 @@ import uuid
 
 import uvloop
 import vllm
+from common.chat_processor import ChatProcessor
 from common.parser import parse_vllm_args
-from common.preprocess import Preprocessor
 from triton_distributed_rs import DistributedRuntime, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
@@ -34,12 +34,14 @@ class VllmEngine:
     def __init__(self, engine_args: AsyncEngineArgs):
         self.model_config = engine_args.create_model_config()
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        self.preprocessor = Preprocessor(self.engine, self.model_config)
+        self.chat_processor = ChatProcessor(self.engine, self.model_config)
 
     async def generate(self, raw_request):
         vllm_logger.info(f"Received raw request: {raw_request}")
-        request = self.preprocessor.parse_raw_request(raw_request)
-        conversation, _, engine_prompt = await self.preprocessor.preprocess(raw_request)
+        request = self.chat_processor.parse_raw_request(raw_request)
+        conversation, _, engine_prompt = await self.chat_processor.preprocess(
+            raw_request
+        )
         default_max_tokens = self.model_config.max_model_len - len(
             engine_prompt["prompt_token_ids"]
         )
@@ -56,13 +58,13 @@ class VllmEngine:
         )
         generator = self.engine.generate(engine_prompt, sampling_params, request_id)
 
-        async for response in self.preprocessor.stream_response(
+        async for response in self.chat_processor.stream_response(
             request,
             generator,
             request_id,
             conversation,
         ):
-            vllm_logger.info(f"Generated response: {response}")
+            vllm_logger.debug(f"Generated response: {response}")
             yield response
 
 
