@@ -136,7 +136,7 @@ RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
         source /opt/triton/venv/bin/activate && \
         bash /tmp/deps/vllm/install.sh --patch /tmp/deps/vllm/${VLLM_PATCH} --ref ${VLLM_REF} --install-cmd "uv pip install --editable" --use-precompiled --installation-dir /opt/vllm ; \
     fi
-
+COPY icp /workspace/icp
 
 ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION}
 ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION}
@@ -161,7 +161,6 @@ RUN source /opt/triton/venv/bin/activate && \
 # TODO: In future, we may use a virtualenv for everything and remove this.
 RUN pip install runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl
 
-COPY icp /workspace/icp
 
 RUN /workspace/icp/protos/gen_python.sh
 
