@@ -20,8 +20,8 @@ import uuid
 import uvloop
 import vllm
 from common.parser import parse_vllm_args
-from common.protocol import Request, Response
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+from common.preprocess import Preprocessor
+from triton_distributed_rs import DistributedRuntime, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 
@@ -32,15 +32,30 @@ class VllmEngine:
     """
 
     def __init__(self, engine_args: AsyncEngineArgs):
+        self.model_config = engine_args.create_model_config()
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
+        self.preprocessor = Preprocessor(self.engine, self.model_config)
 
-    @triton_endpoint(Request, Response)
-    async def generate(self, request):
-        vllm_logger.debug(f"Received request: {request}")
-        sampling_params = vllm.SamplingParams(**request.sampling_params)
+    async def generate(self, raw_request):
+        vllm_logger.info(f"Received raw request: {raw_request}")
+        request = self.preprocessor.parse_raw_request(raw_request)
+        _, _, engine_prompt = await self.preprocessor.preprocess(raw_request)
+        default_max_tokens = self.model_config.max_model_len - len(
+            engine_prompt["prompt_token_ids"]
+        )
+        default_sampling_params = self.model_config.get_diff_sampling_param()
+        sampling_params = request.to_sampling_params(
+            default_max_tokens,
+            self.model_config.logits_processor_pattern,
+            default_sampling_params,
+        )
         request_id = str(uuid.uuid4())
+
+        vllm_logger.info(
+            f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
+        )
         async for response in self.engine.generate(
-            request.prompt, sampling_params, request_id
+            engine_prompt, sampling_params, request_id
         ):
             vllm_logger.debug(f"Generated response: {response}")
             yield response.outputs[0].text
