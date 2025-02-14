@@ -116,7 +116,7 @@ impl DistributedRuntimeProvider for Component {
 
 impl RuntimeProvider for Component {
     fn rt(&self) -> &Runtime {
-        &self.drt.rt()
+        self.drt.rt()
     }
 }
 
@@ -174,13 +174,13 @@ pub struct Endpoint {
 
 impl DistributedRuntimeProvider for Endpoint {
     fn drt(&self) -> &DistributedRuntime {
-        &self.component.drt()
+        self.component.drt()
     }
 }
 
 impl RuntimeProvider for Endpoint {
     fn rt(&self) -> &Runtime {
-        &self.component.rt()
+        self.component.rt()
     }
 }
 
@@ -238,7 +238,7 @@ impl DistributedRuntimeProvider for Namespace {
 
 impl RuntimeProvider for Namespace {
     fn rt(&self) -> &Runtime {
-        &self.runtime.rt()
+        self.runtime.rt()
     }
 }
 
