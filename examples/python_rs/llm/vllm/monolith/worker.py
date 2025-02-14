@@ -39,7 +39,7 @@ class VllmEngine:
     async def generate(self, raw_request):
         vllm_logger.info(f"Received raw request: {raw_request}")
         request = self.preprocessor.parse_raw_request(raw_request)
-        _, _, engine_prompt = await self.preprocessor.preprocess(raw_request)
+        conversation, _, engine_prompt = await self.preprocessor.preprocess(raw_request)
         default_max_tokens = self.model_config.max_model_len - len(
             engine_prompt["prompt_token_ids"]
         )
@@ -54,11 +54,16 @@ class VllmEngine:
         vllm_logger.info(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
         )
-        async for response in self.engine.generate(
-            engine_prompt, sampling_params, request_id
+        generator = self.engine.generate(engine_prompt, sampling_params, request_id)
+
+        async for response in self.preprocessor.stream_response(
+            request,
+            generator,
+            request_id,
+            conversation,
         ):
-            vllm_logger.debug(f"Generated response: {response}")
-            yield response.outputs[0].text
+            vllm_logger.info(f"Generated response: {response}")
+            yield response
 
 
 @triton_worker()

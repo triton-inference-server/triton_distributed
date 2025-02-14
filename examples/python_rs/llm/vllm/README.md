@@ -180,3 +180,13 @@ For disaggregated deployment, you will also need to pass the `kv_ip` and `kv_por
 - Currently only `--pipeline-parallel-size 1` is supported for XpYd disaggregated deployment.
 
 
+
+
+curl localhost:9992/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "vllm",
+    "messages": [
+      {"role": "user", "content": "What is the capital of France?"}
+    ]
+  }'

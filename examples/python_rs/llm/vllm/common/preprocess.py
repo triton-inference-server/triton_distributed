@@ -14,11 +14,16 @@
 # limitations under the License.
 
 import asyncio
+import json
+from typing import AsyncIterator, List
 
 import vllm
 from vllm.config import ModelConfig
 from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.entrypoints.openai.protocol import ChatCompletionRequest
+from vllm.entrypoints.openai.protocol import (
+    ChatCompletionRequest,
+    RequestResponseMetadata,
+)
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 
 
@@ -64,6 +69,30 @@ class Preprocessor:
         )
 
         return conversation[0], request_prompts[0], engine_prompts[0]
+
+    async def stream_response(
+        self,
+        request: ChatCompletionRequest,
+        result_generator: AsyncIterator,
+        request_id: str,
+        conversation: List,
+    ):
+        tokenizer = await self.engine_client.get_tokenizer()
+        request_metadata = RequestResponseMetadata(request_id=request_id)
+        assert request.stream, "Only stream is supported"
+        async for raw_response in self.openai_serving.chat_completion_stream_generator(
+            request,
+            result_generator,
+            request_id,
+            request.model,
+            conversation,
+            tokenizer,
+            request_metadata,
+        ):
+            if raw_response == "data: [DONE]":
+                break
+            response = json.loads(raw_response.lstrip("data: "))
+            yield response
 
 
 async def main():
