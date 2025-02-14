@@ -19,15 +19,15 @@ import random
 import uuid
 
 import uvloop
-import vllm
+from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
-from common.protocol import PrefillRequest, Request, Response
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+from common.protocol import PrefillRequest
+from triton_distributed_rs import DistributedRuntime, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 
 
-class VllmDecodeEngine:
+class VllmDecodeEngine(BaseVllmEngine):
     """
     Request handler for the generate endpoint
     """
@@ -36,7 +36,7 @@ class VllmDecodeEngine:
         assert (
             engine_args.kv_transfer_config.is_kv_consumer
         ), "Decode worker must be a KV consumer"
-        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
+        super().__init__(engine_args)
         self.prefills: list = []
 
         self.prefill_workers = (
@@ -47,10 +47,13 @@ class VllmDecodeEngine:
     def add_prefill(self, prefill):
         self.prefills.append(prefill)
 
-    @triton_endpoint(Request, Response)
-    async def generate(self, request):
-        vllm_logger.info(f"Received request: {request}")
-        sampling_params = vllm.SamplingParams(**request.sampling_params)
+    async def generate(self, raw_request):
+        (
+            request,
+            conversation,
+            engine_prompt,
+            sampling_params,
+        ) = await self._parse_raw_request(raw_request)
         prefill_rank = random.choice(range(self.prefill_workers))
         request_id = f"{uuid.uuid4()}___prefill_kv_rank_{prefill_rank}___decode_kv_rank_{self.kv_rank}"
 
@@ -61,15 +64,17 @@ class VllmDecodeEngine:
             sampling_params=prefill_sampling_params,
             request_id=request_id,
         )
-        self.prefills[prefill_rank].generate(
-            prefill_request.model_dump_json(),
-        )
+        print(prefill_request)
+        # self.prefills[prefill_rank].generate(
+        #     prefill_request.model_dump_json(),
+        # )
 
-        async for response in self.engine.generate(
-            request.prompt, sampling_params, request_id
-        ):
-            vllm_logger.debug(f"Generated response: {response}")
-            yield response.outputs[0].text
+        vllm_logger.debug(
+            f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
+        )
+        generator = self.engine.generate(engine_prompt, sampling_params, request_id)
+
+        return self._stream_response(request, generator, request_id, conversation)
 
 
 @triton_worker()

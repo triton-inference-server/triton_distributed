@@ -18,39 +18,28 @@ import asyncio
 import uuid
 
 import uvloop
-import vllm
-from common.chat_processor import ChatProcessor
+from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
 from triton_distributed_rs import DistributedRuntime, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 
 
-class VllmEngine:
+class VllmEngine(BaseVllmEngine):
     """
     Request handler for the generate endpoint
     """
 
     def __init__(self, engine_args: AsyncEngineArgs):
-        self.model_config = engine_args.create_model_config()
-        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        self.chat_processor = ChatProcessor(self.engine, self.model_config)
+        super().__init__(engine_args)
 
     async def generate(self, raw_request):
-        vllm_logger.debug(f"Received raw request: {raw_request}")
-        request = self.chat_processor.parse_raw_request(raw_request)
-        conversation, _, engine_prompt = await self.chat_processor.preprocess(
-            raw_request
-        )
-        default_max_tokens = self.model_config.max_model_len - len(
-            engine_prompt["prompt_token_ids"]
-        )
-        default_sampling_params = self.model_config.get_diff_sampling_param()
-        sampling_params = request.to_sampling_params(
-            default_max_tokens,
-            self.model_config.logits_processor_pattern,
-            default_sampling_params,
-        )
+        (
+            request,
+            conversation,
+            engine_prompt,
+            sampling_params,
+        ) = await self._parse_raw_request(raw_request)
         request_id = str(uuid.uuid4())
 
         vllm_logger.debug(
@@ -58,14 +47,7 @@ class VllmEngine:
         )
         generator = self.engine.generate(engine_prompt, sampling_params, request_id)
 
-        async for response in self.chat_processor.stream_response(
-            request,
-            generator,
-            request_id,
-            conversation,
-        ):
-            vllm_logger.debug(f"Generated response: {response}")
-            yield response
+        return self._stream_response(request, generator, request_id, conversation)
 
 
 @triton_worker()
