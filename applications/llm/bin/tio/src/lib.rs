@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::PathBuf;
+
 use triton_distributed::runtime::CancellationToken;
 use triton_llm::types::openai::chat_completions::OpenAIChatCompletionsStreamingEngine;
 
@@ -30,9 +32,14 @@ pub struct Flags {
     pub http_port: u16,
 
     /// The name of the model we are serving
-    /// Later that will come from the HF repo name, and still later from etcd during discovery
     #[arg(long)]
-    pub model_name: String,
+    pub model_name: Option<String>,
+
+    /// Full path to the model. This differs by engine:
+    /// - mistralrs: File. GGUF.
+    /// - echo_full: Omit the flag.
+    #[arg(long)]
+    pub model_path: Option<PathBuf>,
 }
 
 pub enum EngineConfig {
@@ -49,12 +56,44 @@ pub async fn run(
     flags: Flags,
     cancel_token: CancellationToken,
 ) -> anyhow::Result<()> {
+    // Turn relative paths into absolute paths
+    let model_path = flags.model_path.and_then(|p| p.canonicalize().ok());
+    // Serve the model under the name provided, or the name of the GGUF file.
+    let model_name = flags.model_name.or_else(||
+            // "stem" means the filename without the extension.
+            model_path.as_ref()
+                .and_then(|p| p.file_stem())
+                .map(|n| n.to_string_lossy().into_owned()));
+
     // Create the engine matching `out`
     let engine_config = match out_opt {
-        Output::EchoFull => EngineConfig::StaticFull {
-            service_name: flags.model_name,
-            engine: output::echo_full::make_engine_full(),
-        },
+        Output::EchoFull => {
+            let Some(model_name) = model_name else {
+                anyhow::bail!(
+                    "Pass --model-name or --model-path so we know which model to imitate"
+                );
+            };
+            EngineConfig::StaticFull {
+                service_name: model_name,
+                engine: output::echo_full::make_engine_full(),
+            }
+        }
+        #[cfg(feature = "mistralrs")]
+        Output::MistralRs => {
+            let Some(model_path) = model_path else {
+                anyhow::bail!("out=mistralrs requires flag --model-path=<full-path-to-model-gguf>");
+            };
+            if !model_path.is_file() {
+                anyhow::bail!("--model-path should refer to a GGUF file");
+            }
+            let Some(model_name) = model_name else {
+                unreachable!("We checked model_path earlier, and set model_name from model_path");
+            };
+            EngineConfig::StaticFull {
+                service_name: model_name,
+                engine: triton_llm::engines::mistralrs::make_engine(&model_path).await?,
+            }
+        }
     };
 
     match in_opt {
