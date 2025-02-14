@@ -53,6 +53,14 @@ pub enum StreamType {
     Response,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlMessage {
+    Stop,
+    Kill,
+    Sentinel,
+}
+
 /// This is the first message in a `ResponseStream`. This is not a message that gets process
 /// by the general pipeline, but is a control message that is awaited before the
 /// [`AsyncEngine::generate`] method is allowed to return.
@@ -141,21 +149,31 @@ pub struct StreamSender {
 }
 
 impl StreamSender {
-    pub async fn send(&self, data: Bytes) -> Result<(), String> {
-        self.tx
-            .send(TwoPartMessage::from_data(data))
-            .await
-            .map_err(|e| e.to_string())
+    pub async fn send(&self, data: Bytes) -> Result<()> {
+        Ok(self.tx.send(TwoPartMessage::from_data(data)).await?)
+    }
+
+    pub async fn send_control(&self, control: ControlMessage) -> Result<()> {
+        let bytes = serde_json::to_vec(&control)?;
+        Ok(self
+            .tx
+            .send(TwoPartMessage::from_header(bytes.into()))
+            .await?)
     }
 
     #[allow(clippy::needless_update)]
     pub async fn send_prologue(&mut self, error: Option<String>) -> Result<(), String> {
         if let Some(prologue) = self.prologue.take() {
             let prologue = ResponseStreamPrologue { error, ..prologue };
+            let header_bytes: Bytes = match serde_json::to_vec(&prologue) {
+                Ok(b) => b.into(),
+                Err(err) => {
+                    tracing::error!(%err, "send_prologue: ResponseStreamPrologue did not serialize to a JSON array");
+                    return Err("Invalid prologue".to_string());
+                }
+            };
             self.tx
-                .send(TwoPartMessage::from_header(
-                    serde_json::to_vec(&prologue).unwrap().into(),
-                ))
+                .send(TwoPartMessage::from_header(header_bytes))
                 .await
                 .map_err(|e| e.to_string())?;
         } else {

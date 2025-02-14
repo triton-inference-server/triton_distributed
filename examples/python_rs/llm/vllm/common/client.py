@@ -14,13 +14,13 @@
 # limitations under the License.
 
 
+import argparse
 import asyncio
 import time
 
 import uvloop
 from tqdm.asyncio import tqdm
 from triton_distributed_rs import DistributedRuntime, triton_worker
-from vllm.utils import FlexibleArgumentParser
 
 from .protocol import Request
 
@@ -62,7 +62,6 @@ async def worker(
 
     # list the endpoints
     print(client.endpoint_ids())
-
     tasks = []
     for i in range(request_count):
         tasks.append(
@@ -85,7 +84,7 @@ async def worker(
 if __name__ == "__main__":
     uvloop.install()
 
-    parser = FlexibleArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument("--prompt", type=str, default="what is the capital of france?")
     parser.add_argument("--max-tokens", type=int, default=10)
     parser.add_argument("--temperature", type=float, default=0.5)

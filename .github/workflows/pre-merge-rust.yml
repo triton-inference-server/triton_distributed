@@ -27,6 +27,11 @@ on:
     - main
     paths:
     - 'runtime/rust/**'
+    - 'llm/rust/**'
+    - 'applications/llm/bin/tio/**'
+    - '**.rs'
+    - 'Cargo.toml'
+    - 'Cargo.lock'
 
 jobs:
   pre-merge-rust:
@@ -48,17 +53,23 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-tools-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-tools-${{ github.head_ref || github.ref_name }}-${{ hashFiles('**/Cargo.lock') }}
     - name: Set up Rust Toolchain Components
       run: rustup component add rustfmt clippy
-    - name: Run Cargo Check
+    - name: Run Cargo Check on runtime
       working-directory: runtime/rust
+      run: cargo check --locked
+    - name: Run Cargo Check on tio
+      working-directory: applications/llm/bin/tio
       run: cargo check --locked
     - name: Verify Code Formatting
       working-directory: runtime/rust
       run: cargo fmt -- --check
-    - name: Run Clippy Checks
+    - name: Run Clippy Checks on runtime
       working-directory: runtime/rust
+      run: cargo clippy --no-deps --all-targets -- -D warnings
+    - name: Run Clippy Checks on tio
+      working-directory: applications/llm/bin/tio
       run: cargo clippy --no-deps --all-targets -- -D warnings
     - name: Install and Run cargo-deny
       working-directory: runtime/rust

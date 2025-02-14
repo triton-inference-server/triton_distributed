@@ -16,6 +16,7 @@
 use hello_world::DEFAULT_NAMESPACE;
 use std::sync::Arc;
 use triton_distributed::{
+    logging,
     pipeline::{
         async_trait, network::Ingress, AsyncEngine, AsyncEngineContextProvider, Error, ManyOut,
         ResponseStream, SingleIn,
@@ -25,7 +26,7 @@ use triton_distributed::{
 };
 
 fn main() -> Result<()> {
-    env_logger::init();
+    logging::init();
     let worker = Worker::from_settings()?;
     worker.execute(app)
 }

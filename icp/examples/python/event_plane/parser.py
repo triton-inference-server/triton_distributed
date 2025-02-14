@@ -13,12 +13,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Necessary for vLLM engine.
---extra-index-url https://flashinfer.ai/whl/cu121/torch2.4
-flashinfer<0.2.0
-# Necessary for vLLM engine.
-ninja==1.11.1.3
-ucx-py-cu12
-# vLLM is installed by patching script
-# vllm==0.6.3post1
+import argparse
 
+from triton_distributed.icp.nats_event_plane import DEFAULT_EVENTS_PORT
+
+
+def parse_args(args=None):
+    parser = argparse.ArgumentParser(description="Event Plane Example")
+
+    parser.add_argument(
+        "--nats-port",
+        type=int,
+        default=DEFAULT_EVENTS_PORT,
+        help="Nats server port",
+    )
+
+    parser.add_argument(
+        "--publisher-count",
+        type=int,
+        default=1,
+        help="Number of publishers to deploy",
+    )
+
+    parser.add_argument(
+        "--subscriber-count",
+        type=int,
+        default=10,
+        help="Number of subscribers to deploy",
+    )
+
+    args = parser.parse_args(args)
+
+    return args

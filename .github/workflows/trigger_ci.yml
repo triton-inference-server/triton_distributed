@@ -1,0 +1,84 @@
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: NVIDIA Test Lab Validation
+
+on:
+  push:
+    branches:
+    - main
+    paths-ignore:
+    - 'deploy/Kubernetes/**'
+    - '**/*.md'
+    - 'CODEOWNERS'
+
+  pull_request:
+    paths-ignore:
+    - 'deploy/Kubernetes/**'
+    - '**/*.md'
+    - 'CODEOWNERS'
+
+jobs:
+  mirror_repo:
+    name: Mirror Repository to GitLab
+    environment: GITLAB
+    runs-on: self-hosted
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Sync Mirror Repository
+      run: ./.github/workflows/mirror_repo.sh ${{ secrets.TOKEN }} ${{ secrets.MIRROR_URL }}
+
+  trigger-ci:
+    name: Trigger CI Pipeline
+    environment: GITLAB
+    needs: mirror_repo
+    runs-on: self-hosted
+    steps:
+    - name: Detect source code changes
+      id: src_changes
+      uses: dorny/paths-filter@v3
+      with:
+        filters: |
+          vllm:
+            - 'examples/python/llm/**'
+            - 'container/deps/requirements.vllm.txt'
+            - 'container/deps/vllm/**'
+    - name: Trigger Pipeline
+      run: |
+        #!/bin/bash -e
+        declare -A ci_variables
+        if [ "${{ steps.src_changes.outputs.vllm }}" == "true" ]; then
+          ci_variables["RUN_VLLM"]="true"
+        fi
+
+        ci_args=""
+        for key in "${!ci_variables[@]}"; do
+          ci_args+="--form variables[$key]=${ci_variables[$key]} "
+        done
+
+        echo "Running Pipeline with Variables: $ci_args"
+
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          REF="${{ github.event.pull_request.head.ref }}"
+        else
+          REF="${{ github.ref }}"
+        fi
+        curl --fail-with-body \
+          --request POST \
+          --form token=${{ secrets.PIPELINE_TOKEN }} \
+          --form ref=${REF} \
+          $ci_args \
+          "${{ secrets.PIPELINE_URL }}"

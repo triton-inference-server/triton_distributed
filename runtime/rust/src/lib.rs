@@ -23,7 +23,6 @@ use std::sync::{Arc, Mutex};
 pub use anyhow::{anyhow as error, Context as ErrorContext, Error, Ok as OK, Result};
 
 use async_once_cell::OnceCell;
-use tracing as log;
 
 mod config;
 pub use config::RuntimeConfig;
@@ -31,6 +30,7 @@ pub use config::RuntimeConfig;
 pub mod component;
 pub mod discovery;
 pub mod engine;
+pub mod logging;
 pub mod pipeline;
 pub mod protocols;
 pub mod runtime;

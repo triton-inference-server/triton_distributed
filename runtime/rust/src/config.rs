@@ -29,14 +29,15 @@ pub struct WorkerConfig {
 }
 
 impl WorkerConfig {
+    /// Instantiates and reads server configurations from appropriate sources.
+    /// Panics on invalid configuration.
     pub fn from_settings() -> Self {
-        // Instantiates and reads server configurations from appropriate sources.
         // All calls should be global and thread safe.
         Figment::new()
             .merge(Serialized::defaults(Self::default()))
             .merge(Env::prefixed("TRITON_WORKER_"))
             .extract()
-            .unwrap()
+            .unwrap() // safety: Called on startup, so panic is reasonable
     }
 }
 
@@ -131,4 +132,32 @@ impl RuntimeConfigBuilder {
         config.validate()?;
         Ok(config)
     }
+}
+
+/// Check if an environment variable is truthy
+pub fn env_is_truthy(env: &str) -> bool {
+    match std::env::var(env) {
+        Ok(val) => is_truthy(val.as_str()),
+        Err(_) => false,
+    }
+}
+
+/// Check if a string is truthy
+/// This will be used to evaluate environment variables or any other subjective
+/// configuration parameters that can be set by the user that should be evaluated
+/// as a boolean value.
+pub fn is_truthy(val: &str) -> bool {
+    matches!(val.to_lowercase().as_str(), "1" | "true" | "on" | "yes")
+}
+
+/// Check whether JSONL logging enabled
+/// Set the `TRD_LOGGING_JSONL` environment variable a [`is_truthy`] value
+pub fn jsonl_logging_enabled() -> bool {
+    env_is_truthy("TRD_LOGGING_JSONL")
+}
+
+/// Check whether logging with ANSI terminal escape codes and colors is disabled.
+/// Set the `TRD_SDK_DISABLE_ANSI_LOGGING` environment variable a [`is_truthy`] value
+pub fn disable_ansi_logging() -> bool {
+    env_is_truthy("TRD_SDK_DISABLE_ANSI_LOGGING")
 }

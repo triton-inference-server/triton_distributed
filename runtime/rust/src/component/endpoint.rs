@@ -43,7 +43,7 @@ impl EndpointConfigBuilder {
         let (endpoint, lease, handler) = self.build_internal()?.dissolve();
         let lease = lease.unwrap_or(endpoint.component.drt.primary_lease());
 
-        log::debug!(
+        tracing::debug!(
             "Starting endpoint: {}",
             endpoint.etcd_path_with_id(lease.id())
         );
@@ -78,7 +78,7 @@ impl EndpointConfigBuilder {
         // launch in primary runtime
         let task = tokio::spawn(push_endpoint.start(service_endpoint));
 
-        // log::debug!(worker_id, "endpoint subject: {}", subject);
+        // tracing::debug!(worker_id, "endpoint subject: {}", subject);
 
         // make the components service endpoint discovery in etcd
 
@@ -104,7 +104,7 @@ impl EndpointConfigBuilder {
             )
             .await
         {
-            log::error!("Failed to register discoverable service: {:?}", e);
+            tracing::error!("Failed to register discoverable service: {:?}", e);
             cancel_token.cancel();
             return Err(error!("Failed to register discoverable service"));
         }

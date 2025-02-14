@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 pub use serde::{Deserialize, Serialize};
 pub use triton_distributed::{
     error,
@@ -30,7 +32,6 @@ use pythonize::{depythonize, pythonize};
 
 use tokio::sync::mpsc;
 use tokio_stream::{wrappers::ReceiverStream, StreamExt};
-use tracing as log;
 
 /// Add bingings from this crate to the provided module
 pub fn add_to_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -87,8 +88,8 @@ enum ResponseProcessingError {
 #[pyclass]
 #[derive(Clone)]
 pub struct PythonAsyncEngine {
-    generator: PyObject,
-    event_loop: PyObject,
+    generator: Arc<PyObject>,
+    event_loop: Arc<PyObject>,
 }
 
 #[pymethods]
@@ -106,8 +107,8 @@ impl PythonAsyncEngine {
     #[new]
     pub fn new(generator: PyObject, event_loop: PyObject) -> PyResult<Self> {
         Ok(PythonAsyncEngine {
-            generator,
-            event_loop,
+            generator: Arc::new(generator),
+            event_loop: Arc::new(event_loop),
         })
     }
 }
@@ -124,19 +125,35 @@ where
         let ctx = context.context();
 
         let id = context.id().to_string();
-        log::trace!("processing request: {}", id);
+        tracing::trace!("processing request: {}", id);
 
         // Clone the PyObject to move into the thread
 
         // Create a channel to communicate between the Python thread and the Rust async context
         let (tx, rx) = mpsc::channel::<Annotated<Resp>>(128);
 
-        let stream = Python::with_gil(|py| {
-            let py_request = pythonize(py, &request)?;
-            let gen = self.generator.call1(py, (py_request,))?;
-            let locals = TaskLocals::new(self.event_loop.bind(py).clone());
-            pyo3_async_runtimes::tokio::into_stream_with_locals_v1(locals, gen.into_bound(py))
-        })?;
+        let generator = self.generator.clone();
+        let event_loop = self.event_loop.clone();
+
+        // Acquiring the GIL is similar to acquiring a standard lock/mutex
+        // Performing this in an tokio async task could block the thread for an undefined amount of time
+        // To avoid this, we spawn a blocking task to acquire the GIL and perform the operations needed
+        // while holding the GIL.
+        //
+        // Under low GIL contention, we wouldn't need to do this.
+        // However, under high GIL contention, this can lead to significant performance degradation.
+        //
+        // Since we cannot predict the GIL contention, we will always use the blocking task and pay the
+        // cost. The Python GIL is the gift that keeps on giving -- performance hits...
+        let stream = tokio::task::spawn_blocking(move || {
+            Python::with_gil(|py| {
+                let py_request = pythonize(py, &request)?;
+                let gen = generator.call1(py, (py_request,))?;
+                let locals = TaskLocals::new(event_loop.bind(py).clone());
+                pyo3_async_runtimes::tokio::into_stream_with_locals_v1(locals, gen.into_bound(py))
+            })
+        })
+        .await??;
 
         let stream = Box::pin(stream);
 
@@ -147,7 +164,7 @@ where
         let request_id = id.clone();
 
         tokio::spawn(async move {
-            log::debug!(
+            tracing::debug!(
                 request_id,
                 "starting task to process python async generator stream"
             );
@@ -157,7 +174,7 @@ where
 
             while let Some(item) = stream.next().await {
                 count += 1;
-                log::trace!(
+                tracing::trace!(
                     request_id,
                     "processing the {}th item from python async generator",
                     count
@@ -178,17 +195,17 @@ where
                                 // see: https://github.com/triton-inference-server/triton_distributed/issues/130
                                 ctx.stop_generating();
                                 let msg = format!("critical error: invalid response object from python async generator; application-logic-mismatch: {}", e);
-                                log::error!(request_id, "{}", msg);
+                                tracing::error!(request_id, "{}", msg);
                                 msg
                             }
                             ResponseProcessingError::PythonException(e) => {
                                 let msg = format!("a python exception was caught while processing the async generator: {}", e);
-                                log::warn!(request_id, "{}", msg);
+                                tracing::warn!(request_id, "{}", msg);
                                 msg
                             }
                             ResponseProcessingError::OffloadError(e) => {
                                 let msg = format!("critical error: failed to offload the python async generator to a new thread: {}", e);
-                                log::error!(request_id, "{}", msg);
+                                tracing::error!(request_id, "{}", msg);
                                 msg
                             }
                         };
@@ -198,7 +215,7 @@ where
                 };
 
                 if tx.send(response).await.is_err() {
-                    log::trace!(
+                    tracing::trace!(
                         request_id,
                         "error forwarding annotated response to channel; channel is closed"
                     );
@@ -206,7 +223,7 @@ where
                 }
 
                 if done {
-                    log::debug!(
+                    tracing::debug!(
                         request_id,
                         "early termination of python async generator stream task"
                     );
@@ -214,7 +231,7 @@ where
                 }
             }
 
-            log::debug!(
+            tracing::debug!(
                 request_id,
                 "finished processing python async generator stream"
             );

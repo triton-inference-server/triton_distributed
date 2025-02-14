@@ -32,7 +32,7 @@
 //! and release builds. In development, the default is [DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_DEBUG] and
 //! in release, the default is [DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_RELEASE].
 
-use super::{error, log, CancellationToken, Result, Runtime, RuntimeConfig};
+use super::{error, CancellationToken, Result, Runtime, RuntimeConfig};
 
 use futures::Future;
 use once_cell::sync::OnceCell;
@@ -151,10 +151,10 @@ impl Worker {
 
             match &result {
                 Ok(_) => {
-                    log::info!("Application shutdown successfully");
+                    tracing::info!("Application shutdown successfully");
                 }
                 Err(e) => {
-                    log::error!("Application shutdown with error: {:?}", e);
+                    tracing::error!("Application shutdown with error: {:?}", e);
                 }
             }
 
