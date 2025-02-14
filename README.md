@@ -36,6 +36,16 @@ center scale without sacrificing performance or ease of use.
 > rapid-prototyping stage and we are actively looking for feedback and
 > collaborators.
 
+## Pre-requisites
+
+Before building the Triton Distributed containers, ensure the following:
+
+- Docker with [buildx plugin](https://github.com/docker/buildx) is installed on the system. For more information, refer to the Docker documentation.
+- To run model inference on NVIDIA GPU using the Docker runtime,
+install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/overview.html), which enables GPU acceleration for containers.
+    - Run `nvidia-smi` to verify GPU functionality.
+
+
 ## Building Triton Distributed
 
 Triton Distributed development and examples are container based.
