@@ -44,6 +44,16 @@ pub use futures::stream;
 pub use tokio_util::sync::CancellationToken;
 pub use worker::Worker;
 
+/// A trait for objects taht proivde access to the [Runtime]
+pub trait RuntimeProvider {
+    fn rt(&self) -> &Runtime;
+}
+
+/// A trait for objects that provide access to the [DistributedRuntime].
+pub trait DistributedRuntimeProvider {
+    fn drt(&self) -> &DistributedRuntime;
+}
+
 /// Types of Tokio runtimes that can be used to construct a Triton [Runtime].
 #[derive(Clone)]
 enum RuntimeType {
@@ -78,4 +88,10 @@ pub struct DistributedRuntime {
     // a single endpoint watcher for both clients, this keeps the number background tasking watching specific
     // paths in etcd to a minimum.
     component_registry: component::Registry,
+}
+
+impl RuntimeProvider for DistributedRuntime {
+    fn rt(&self) -> &Runtime {
+        &self.runtime
+    }
 }
