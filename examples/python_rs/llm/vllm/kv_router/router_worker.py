@@ -63,7 +63,7 @@ class Router:
 async def worker(runtime: DistributedRuntime):
 
     # TODO Router is a fixed namespace seperate from the others
-    kv_listener = runtime.namespace("router").component("facebook/opt-125m")
+    kv_listener = runtime.namespace("router").component("deepseek-ai/DeepSeek-R1-Distill-Llama-8B")
     await kv_listener.create_service()
 
     router = KvRouter(runtime, kv_listener)

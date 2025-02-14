@@ -93,6 +93,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 if __name__ == "__main__":
     uvloop.install()
     engine_args = parse_vllm_args()
+    engine_args.model = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
     engine_args.dtype = 'float16'
     engine_args.enable_prefix_caching = True
     engine_args.block_size = 64 # Must be 64, otherwise Router won't work (accepts only 64 tokens)
