@@ -38,14 +38,11 @@ class Router:
     """
 
     def __init__(self, router):
-        vllm_logger.info("Router init")
-        log_test()
-        # self.workers = workers
+        vllm_logger.info("Router Init")
         self.router = router
 
     @triton_endpoint(TokenizeResponse, Response)
     async def generate(self, start_ids):
-        # vllm_logger.info(f"Received start_ids: {start_ids}")
 
         lora_id = 0
         try:
@@ -64,9 +61,8 @@ class Router:
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime):
-    # create endpoint service for frontend component
-    # vllm_logger.info(f"=========== Hi ===========")
 
+    # TODO Router is a fixed namespace seperate from the others
     kv_listener = runtime.namespace("router").component("facebook/opt-125m")
     await kv_listener.create_service()
 
@@ -77,7 +73,6 @@ async def worker(runtime: DistributedRuntime):
 
     endpoint = router_component.endpoint("generate")
     await endpoint.serve_endpoint(Router(router).generate)
-    # vllm_logger.info(f"router_id {router_id}")
 
 
 if __name__ == "__main__":

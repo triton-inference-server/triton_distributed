@@ -49,24 +49,20 @@ class VllmEngine:
         # TODO: take in tokenized input
         # tokens_prompt = TokensPrompt(prompt_token_ids=tokens)
 
-        # vllm_logger.info(f"Received request: {request}")
         sampling_params = vllm.SamplingParams(**request.sampling_params)
         request_id = str(uuid.uuid4())
         async for response in self.engine.generate(
             request.prompt, sampling_params, request_id
         ):
-            # vllm_logger.info(f"Generated response: {response}")
             yield response.outputs[0].text
 
     @triton_endpoint(TokenizeRequest, TokenizeResponse)
     async def tokenize(self, request):
-        # vllm_logger.info(f"Received request: {request}")
         tokenizer = await self.engine.get_tokenizer()
 
         # tokens = tokenizer.apply_chat_template(request.prompt, tokenize=True)
         tokens = tokenizer.encode(request.prompt)
 
-        # vllm_logger.info(f"Tokens: {tokens}")
         yield tokens
 
 
@@ -79,8 +75,6 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
 
-    vllm_engine = VllmEngine(engine_args)
-
     vllm_logger.info(f"Event subject: {component.event_subject('kv_events')}")
 
     generate_endpoint = component.endpoint("generate")
@@ -89,7 +83,8 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     generate_id = generate_endpoint.lease_id()
     vllm_logger.info(f"Generate endpoint ID: {generate_id}")
 
-
+    vllm_engine = VllmEngine(engine_args)
+    
     await asyncio.gather(
         generate_endpoint.serve_endpoint(vllm_engine.generate),
         tokenize_endpoint.serve_endpoint(vllm_engine.tokenize)
@@ -101,5 +96,5 @@ if __name__ == "__main__":
     engine_args = parse_vllm_args()
     engine_args.dtype = 'float16'
     engine_args.enable_prefix_caching = True
-    engine_args.block_size = 64
+    engine_args.block_size = 64 # Must be 64, otherwise Router won't work (accepts only 64 tokens)
     asyncio.run(worker(engine_args))

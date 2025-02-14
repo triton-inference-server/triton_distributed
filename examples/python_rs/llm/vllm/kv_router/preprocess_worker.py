@@ -65,6 +65,7 @@ class VllmPreprocessEngine:
     async def generate(self, request):
         vllm_logger.info(f"Received request: {request}")
 
+        # Send to tokenize endpoint
         tokenize_generator = await self.tokenize_workers.generate(
             TokenizeRequest(
                 prompt=request.prompt,
@@ -87,16 +88,14 @@ class VllmPreprocessEngine:
     
         vllm_logger.info(f"Router choice: {worker_subject}")
 
-        if worker_subject == "":
+        if worker_subject == "" or isinstance(worker_subject, str): #TODO just a hack to avoid failues since routing [WIP]
             # First request doens't have a subject
             engine_generator = await self.workers.random(request.model_dump_json())
         else:
             engine_generator = await self.workers.direct(request.model_dump_json(), int(worker_subject))
 
         async for resp in engine_generator:
-            vllm_logger.info(f"Generated response: {resp}")
             resp = resp.data() if hasattr(resp, 'data') else resp
-            # yield response
             yield resp
 
 

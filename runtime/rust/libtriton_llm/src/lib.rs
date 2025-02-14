@@ -177,9 +177,7 @@ fn kv_event_create_stored_from_parts(
         let tokens = unsafe { token_ids.offset(token_offset.try_into().unwrap()) };
         let num_toks = unsafe { *num_block_tokens.offset(block_idx.try_into().unwrap()) };
         // compute hash only apply to full block (64 token) [FIXME] 64 => KV_TOKEN_SIZE
-        log::info!("block_idx: {:?}", block_idx);
-        log::info!("block_hash: {:?}", block_hash);
-        log::info!("num_toks: {:?}", tokens);
+
         if num_toks < 64 {
             break;
         }
@@ -228,8 +226,7 @@ pub unsafe extern "C" fn triton_kv_event_publish_stored(
     parent_hash: *const u64,
     lora_id: u64,
 ) -> TritonLlmResult {
-    log::info!("Token ID's: {:?}", token_ids);
-    log::info!("block_ids's: {:?}", block_ids);
+
     let publisher = KV_PUB.get().unwrap();
     let parent_hash = {
         if parent_hash.is_null() {
