@@ -35,19 +35,87 @@ Start required services (etcd and NATS):
     - [etcd](https://etcd.io) server
         - follow instructions in [etcd installation](https://etcd.io/docs/v3.5/install/) to start an `etcd-server` locally
 
-Note: This example is work in progress.
+*Note*: This example is work in progress.
 
-## Building the Environment
+## Building the Environment [WIP]
 
 The example is designed to run in a containerized environment using Triton Distributed, tensorrt_llm, and associated dependencies. To build the container:
 
+REVISIT: Currently using special container from Kris to build the image with tensorrt_llm supporting pytorch workflow in LLM API
+TODO: Work on better instructions for building the container with latest tensorrt_llm.
+
 ```bash
 # Build image
-./container/build.sh --framework TENSORRTLLM
+./container/build.sh --framework TENSORRTLLM --base-image gitlab-master.nvidia.com:5005/dl/dgx/tritonserver/tensorrt-llm/amd64 --base-image-tag krish-multinode-test
 ```
 
 ## Launching the Environment
 ```
 # Run image interactively
-./container/run.sh --framework tensorrt_llm -it
+./container/run.sh --framework TENSORRTLLM -it
 ```
+
+## Deployment Options
+
+### 1. Monolithic Deployment
+
+Run the server and client components in separate terminal sessions:
+
+**Server:**
+
+REVISIT: I had to install some dependencies manually in the container to get this to work.
+TODO: Move these extra dependencies to the container build step.
+
+```bash
+# Install dependencies
+pip3 install flash_attn
+
+# Launch worker in background
+cd /workspace/examples/python_rs/llm/tensorrt_llm
+python3 -m monolith.worker --engine_args model.json &
+```
+
+Upon successful launch, the output should look similar to:
+
+```
+[TensorRT-LLM][INFO] KV cache block reuse is disabled
+[TensorRT-LLM][INFO] Max KV cache pages per sequence: 2048
+[TensorRT-LLM][INFO] Number of tokens per block: 64.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 26.91 GiB for max tokens in paged KV cache (220480).
+[02/14/2025-09:38:53] [TRT-LLM] [I] max_seq_len=131072, max_num_requests=2048, max_num_tokens=8192
+[02/14/2025-09:38:53] [TRT-LLM] [I] Engine loaded and ready to serve...
+```
+
+**Client:**
+
+```bash
+
+# Run client
+python3 -m common.client \
+    --prompt "Describe the capital of France" \
+    --max-tokens 10 \
+    --temperature 0.5
+```
+
+The output should look similar to:
+```
+Annotated(data=',', event=None, comment=[], id=None)
+Annotated(data=', Paris', event=None, comment=[], id=None)
+Annotated(data=', Paris,', event=None, comment=[], id=None)
+Annotated(data=', Paris, in', event=None, comment=[], id=None)
+Annotated(data=', Paris, in terms', event=None, comment=[], id=None)
+Annotated(data=', Paris, in terms of', event=None, comment=[], id=None)
+Annotated(data=', Paris, in terms of its', event=None, comment=[], id=None)
+Annotated(data=', Paris, in terms of its history', event=None, comment=[], id=None)
+Annotated(data=', Paris, in terms of its history,', event=None, comment=[], id=None)
+Annotated(data=', Paris, in terms of its history, culture', event=None, comment=[], id=None)
+```
+
+Next steps:
+- Building container with latest tensorrt_llm wheel.
+- Support and test TP>1: single-node , multi-GPU
+- Support and test TP>1: multi-node, multi-GPU
+- Support and test dissagregated serving: single-node
+- Support and test dissagregated serving: multi-node
+
+NOTE: For multi-node deployment we need to handle the MPI_WORLD setup.
