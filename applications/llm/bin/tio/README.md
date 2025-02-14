@@ -50,7 +50,7 @@ List the models: `curl localhost:8080/v1/models`
 
 Send a request:
 ```
-curl -d '{"model": "Llama-3.2-3B-Instruct-Q6_K", "max_tokens": 2048, "messages":[{"role":"user", "content": "What is the capital of South Africa?" }]}' -H 'Content-Type: application/json' http://localhost:8080/v1/chat/completions
+curl -d '{"model": "Llama-3.2-1B-Instruct-Q4_K_M", "max_tokens": 2049, "messages":[{"role":"user", "content": "What is the capital of South Africa?" }]}' -H 'Content-Type: application/json' http://localhost:8080/v1/chat/completions
 ```
 
 Run `tio --help` for more options.

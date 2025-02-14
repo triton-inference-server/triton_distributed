@@ -56,11 +56,22 @@ pub async fn run(
     flags: Flags,
     cancel_token: CancellationToken,
 ) -> anyhow::Result<()> {
+    // Turn relative paths into absolute paths
+    let model_path = flags.model_path.and_then(|p| p.canonicalize().ok());
+    // Serve the model under the name provided, or the name of the GGUF file.
+    let model_name = flags.model_name.or_else(||
+            // "stem" means the filename without the extension.
+            model_path.as_ref()
+                .and_then(|p| p.file_stem())
+                .map(|n| n.to_string_lossy().into_owned()));
+
     // Create the engine matching `out`
     let engine_config = match out_opt {
         Output::EchoFull => {
-            let Some(model_name) = flags.model_name else {
-                anyhow::bail!("Pass --model-name so we know which model to imitate");
+            let Some(model_name) = model_name else {
+                anyhow::bail!(
+                    "Pass --model-name or --model-path so we know which model to imitate"
+                );
             };
             EngineConfig::StaticFull {
                 service_name: model_name,
@@ -69,23 +80,14 @@ pub async fn run(
         }
         #[cfg(feature = "mistralrs")]
         Output::MistralRs => {
-            let Some(model_path) = flags.model_path else {
+            let Some(model_path) = model_path else {
                 anyhow::bail!("out=mistralrs requires flag --model-path=<full-path-to-model-gguf>");
             };
             if !model_path.is_file() {
                 anyhow::bail!("--model-path should refer to a GGUF file");
             }
-            let model_name = match flags.model_name {
-                Some(name) => name,
-                None => {
-                    // "stem" means the filename without the extension.
-                    // Safety: We checked earlier, it's a file so it must have a stem
-                    model_path
-                        .file_stem()
-                        .unwrap()
-                        .to_string_lossy()
-                        .into_owned()
-                }
+            let Some(model_name) = model_name else {
+                unreachable!("We checked model_path earlier, and set model_name from model_path");
             };
             EngineConfig::StaticFull {
                 service_name: model_name,

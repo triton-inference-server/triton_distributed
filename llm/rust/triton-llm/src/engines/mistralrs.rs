@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{cmp::min, path::Path, sync::Arc};
+use std::{cmp::min, num::NonZero, path::Path, sync::Arc};
 
 use async_stream::stream;
 use async_trait::async_trait;
@@ -114,14 +114,12 @@ impl MistralRsEngine {
         )?;
         let scheduler = if cfg!(feature = "cuda") {
             tracing::debug!("Using mistralrs PagedAttentionMeta scheduler");
-            let config = pipeline
-                .lock()
-                .await
-                .get_metadata()
-                .cache_config
-                .as_ref()
-                .unwrap()
-                .clone();
+            let config = match pipeline.lock().await.get_metadata().cache_config.as_ref() {
+                Some(conf) => conf.clone(),
+                None => {
+                    anyhow::bail!("Failed loading model config");
+                }
+            };
             SchedulerConfig::PagedAttentionMeta {
                 max_num_seqs: 5,
                 config,
@@ -129,7 +127,8 @@ impl MistralRsEngine {
         } else {
             tracing::debug!("Using mistralrs DefaultScheduler");
             SchedulerConfig::DefaultScheduler {
-                method: DefaultSchedulerMethod::Fixed(5.try_into().unwrap()),
+                // Safety: unwrap trivially safe here
+                method: DefaultSchedulerMethod::Fixed(NonZero::new(5).unwrap()),
             }
         };
         // Create the MistralRs, which is a runner
@@ -210,10 +209,11 @@ impl
 
         let mut used_output_tokens = 0;
         let output = stream! {
-            loop {
-                let response = match rx.recv().await {
-                    Some(res) => res.as_result().unwrap(),
-                    None => {
+            while let Some(response) = rx.recv().await {
+                let response = match response.as_result() {
+                    Ok(r) => r,
+                    Err(err) => {
+                        tracing::error!(%err, "Failed converting mistralrs channel response to result.");
                         break;
                     }
                 };
