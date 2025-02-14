@@ -38,7 +38,7 @@ except ImportError:
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.nats_request_plane import NatsRequestPlane
-from triton_distributed.icp.request_plane import RequestPlane
+from triton_distributed.icp.request_plane import RequestPlane, RequestPlaneError
 from triton_distributed.icp.ucp_data_plane import UcpDataPlane
 from triton_distributed.runtime.logger import get_logger, get_logger_config
 from triton_distributed.runtime.operator import Operator, OperatorConfig
@@ -213,7 +213,13 @@ class Worker:
             remote_request = RemoteInferenceRequest.from_model_infer_request(
                 request, self._data_plane, self._request_plane
             )
-            await operator.execute([remote_request])
+            try:
+                await operator.execute([remote_request])
+            except Exception as e:
+                await remote_request.response_sender().send(
+                    final=True, error=RequestPlaneError(str(e))
+                )
+                del remote_request
         else:
             logger.warning("Received request for unknown operator")
 

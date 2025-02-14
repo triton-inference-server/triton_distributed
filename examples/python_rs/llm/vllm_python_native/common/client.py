@@ -14,26 +14,31 @@
 # limitations under the License.
 
 
-import argparse
 import asyncio
 import time
 
 import uvloop
 from tqdm.asyncio import tqdm
-from triton_distributed_rs import DistributedRuntime, triton_worker
+from vllm.utils import FlexibleArgumentParser
 
-from .protocol import Request
+from triton_distributed.icp import NatsRequestPlane, UcpDataPlane
+
+# from triton_distributed import DistributedRuntime, triton_worker
+from triton_distributed.runtime import RemoteOperator as RemoteFunction
+
+from .protocol import Request, Response
 
 
 async def do_one(client, prompt, max_tokens, temperature):
-    stream = await client.generate(
+    stream = client.call(
         Request(
             prompt=prompt,
             sampling_params={
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             },
-        ).model_dump_json()
+        ),
+        return_type=Response,
     )
 
     # process response
@@ -41,27 +46,26 @@ async def do_one(client, prompt, max_tokens, temperature):
         print(resp)
 
 
-@triton_worker()
-async def worker(
-    runtime: DistributedRuntime,
+async def main(
     prompt: str,
     max_tokens: int,
     temperature: float,
-    request_count: int,
+    request_count,
+    use_zmq_response_path,
 ):
     """
     Instantiate a `backend` client and call the `generate` endpoint
     """
     start_time = time.time()
 
-    # get endpoint
-    endpoint = runtime.namespace("triton-init").component("vllm").endpoint("generate")
+    request_plane = NatsRequestPlane(use_zmq_response_path=use_zmq_response_path)
+    await request_plane.connect()
 
-    # create client
-    client = await endpoint.client()
+    data_plane = UcpDataPlane()
+    data_plane.connect()
 
-    # list the endpoints
-    print(client.endpoint_ids())
+    client = RemoteFunction("vllm_generate", request_plane, data_plane)
+
     tasks = []
     for i in range(request_count):
         tasks.append(
@@ -83,15 +87,21 @@ async def worker(
 
 if __name__ == "__main__":
     uvloop.install()
-
-    parser = argparse.ArgumentParser()
+    parser = FlexibleArgumentParser()
     parser.add_argument("--prompt", type=str, default="what is the capital of france?")
     parser.add_argument("--max-tokens", type=int, default=10)
     parser.add_argument("--temperature", type=float, default=0.5)
     parser.add_argument("--request-count", type=int, default=10)
+    parser.add_argument("--use-zmq-response-path", action="store_true", default=False)
 
     args = parser.parse_args()
 
     asyncio.run(
-        worker(args.prompt, args.max_tokens, args.temperature, args.request_count)
+        main(
+            args.prompt,
+            args.max_tokens,
+            args.temperature,
+            args.request_count,
+            args.use_zmq_response_path,
+        )
     )

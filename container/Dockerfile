@@ -136,6 +136,24 @@ RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
         source /opt/triton/venv/bin/activate && \
         bash /tmp/deps/vllm/install.sh --patch /tmp/deps/vllm/${VLLM_PATCH} --ref ${VLLM_REF} --install-cmd "uv pip install --editable" --use-precompiled --installation-dir /opt/vllm ; \
     fi
+COPY icp /workspace/icp
+
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION}
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION}
+RUN source /opt/triton/venv/bin/activate && \
+    export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} && \
+    export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} && \
+    uv pip install -e /workspace/icp/python && \
+    uv pip install -e /workspace/runtime/python && \
+    find /opt/tritonserver/python -maxdepth 1 -type f -name \
+    "tritonserver-*.whl" | xargs -I {} uv pip install --force-reinstall --upgrade {}[all] && \
+    uv pip install ucx-py-cu12 && \
+    uv pip uninstall pynvml && \
+    uv pip install grpcio-tools==1.66.0 && \
+    uv pip install nats-py && \
+    uv pip install msgspec && \
+    uv pip install zmq && \
+    uv pip install vllm==0.7.2
 
 
 # Install triton_distributed_rs wheel globally in container for tests that
@@ -143,7 +161,7 @@ RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
 # TODO: In future, we may use a virtualenv for everything and remove this.
 RUN pip install runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl
 
-COPY icp /workspace/icp
+
 RUN /workspace/icp/protos/gen_python.sh
 
 # Install python packages

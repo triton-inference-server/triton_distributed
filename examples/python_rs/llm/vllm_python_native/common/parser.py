@@ -13,20 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[build-system]
-requires = ["setuptools>=65.0", "setuptools-scm>=8"]
-build-backend = "setuptools.build_meta"
 
-[project]
-name = "triton_distributed.icp"
-dynamic = ["version"]
+from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.utils import FlexibleArgumentParser
 
-[tool.setuptools_scm]
-version_file = "src/triton_distributed/icp/_version.py"
-root = "../.."
-fallback_version="0.0.1.dev+unknown"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["triton_distributed.icp*"]
-namespaces= true
+def parse_vllm_args() -> AsyncEngineArgs:
+    parser = FlexibleArgumentParser()
+    parser = AsyncEngineArgs.add_cli_args(parser)
+    args = parser.parse_args()
+    return AsyncEngineArgs.from_cli_args(args)

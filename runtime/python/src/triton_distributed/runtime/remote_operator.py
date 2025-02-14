@@ -17,7 +17,9 @@
 
 import asyncio
 import uuid
-from typing import Optional
+from typing import Optional, TypeVar
+
+import msgspec
 
 from triton_distributed.icp.data_plane import DataPlane
 from triton_distributed.icp.request_plane import RequestPlane
@@ -67,6 +69,32 @@ class RemoteOperator:
             _model_infer_request=None,
             **kwargs,
         )
+
+    async def call(
+        self,
+        arg,
+        return_type: Optional[TypeVar] = None,
+        raise_on_error=True,
+    ):
+        inference_request = RemoteInferenceRequest(
+            model_name=self.name,
+            model_version=self.version,
+            data_plane=self.data_plane,
+            _request_plane=None,
+            _model_infer_request=None,
+        )
+
+        inference_request.inputs["arg"] = [msgspec.msgpack.encode(arg)]
+        inference_request.store_inputs_in_request.add("arg")
+        async for response in await self.async_infer(
+            inference_request=inference_request, raise_on_error=raise_on_error
+        ):
+            if "result" in response.outputs:
+                yield msgspec.msgpack.decode(
+                    response.outputs["result"].to_bytes_array()[0], type=return_type
+                )
+            elif not response.final:
+                yield None
 
     async def async_infer(
         self,
