@@ -108,7 +108,7 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<String
     log::debug!("key: {}", key);
 
     let model_name = key.trim_start_matches(&state.prefix);
-    let model_entry = serde_json::from_slice::<ModelEntry>(&kv.value())?;
+    let model_entry = serde_json::from_slice::<ModelEntry>(kv.value())?;
 
     // this means there is an entry in etcd that breaks the contract that the key
     // in the models path must match the model name in the entry.

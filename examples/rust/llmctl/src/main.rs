@@ -143,7 +143,7 @@ async fn handle_command(runtime: Runtime, namespace: String, command: Commands) 
                     let etcd_client = distributed.etcd_client();
 
                     etcd_client
-                        .kv_create(path, serde_json::to_vec_pretty(&model)?.into(), None)
+                        .kv_create(path, serde_json::to_vec_pretty(&model)?, None)
                         .await?;
 
                     println!("Model {} added to namespace {}", model_name, namespace);
@@ -176,7 +176,7 @@ async fn handle_command(runtime: Runtime, namespace: String, command: Commands) 
                     for kv in kvs {
                         match (
                             kv.key_str(),
-                            serde_json::from_slice::<ModelEntry>(&kv.value()),
+                            serde_json::from_slice::<ModelEntry>(kv.value()),
                         ) {
                             (Ok(key), Ok(model)) => {
                                 models.push(ModelRow {
