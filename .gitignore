@@ -1,7 +1,6 @@
 .idea
 .vs/
 .vscode/
-[Bb][Ii][Nn]/
 [Bb]inlog/
 [Bb][Uu][Ii][Ll][Dd]/
 [Cc][Mm][Aa][Kk][Ee]/
@@ -11,7 +10,6 @@
 
 **/.idea
 **/.vscode/
-**/[Bb][Ii][Nn]/
 **/[Bb]inlog/
 **/[Dd]ebug/
 **/[Oo][Bb][Jj]/
