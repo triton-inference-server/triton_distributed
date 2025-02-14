@@ -119,6 +119,13 @@ COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
 
+COPY llm/rust /workspace/llm/rust
+COPY examples/rust /workspace/examples/rust
+RUN cd examples/rust && \
+    cargo build --release && \
+    cp target/release/http /usr/local/bin/ && \
+    cp target/release/llmctl /usr/local/bin/
+
 # Install uv and create virtualenv for general use
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
