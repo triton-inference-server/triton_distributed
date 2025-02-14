@@ -22,5 +22,6 @@ class Request(BaseModel):
     sampling_params: dict
     streaming: bool = True
 
+
 class Response(BaseModel):
     text: str
