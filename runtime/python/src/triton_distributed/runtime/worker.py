@@ -19,6 +19,8 @@ import os
 import pathlib
 import signal
 import sys
+
+# import time
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
@@ -251,6 +253,7 @@ class Worker:
 
     async def _request_handler(self, operator, name, version):
         while not self._stop_requested:
+            # print(time.time_ns())
             async with self._completion_conds[operator]:
                 # TODO: Instead of pulling a fixed number of requests try
                 # querying the model status to understand whether or not

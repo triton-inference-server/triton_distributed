@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import multiprocessing
 import time
 
 import uvloop
@@ -17,11 +18,10 @@ async def do_one(client):
     # print(time.time_ns())
 
 
-async def main(args):
+async def run_client(request_count, use_zmq_response_path):
     """
     Instantiate a `backend` client and call the `generate` endpoint
     """
-    start_time = time.time()
     # get endpoint
     #    endpoint = runtime.namespace(ns).component("backend").endpoint("generate")
 
@@ -34,7 +34,7 @@ async def main(args):
     # issue 1000 concurrent requests
     # the task should issue the request and process the response
 
-    request_plane = NatsRequestPlane(use_zmq_response_path=args.use_zmq_response_path)
+    request_plane = NatsRequestPlane(use_zmq_response_path=use_zmq_response_path)
     await request_plane.connect()
 
     data_plane = UcpDataPlane()
@@ -43,7 +43,7 @@ async def main(args):
     client = RemoteFunction("generate", request_plane, data_plane)
 
     tasks = []
-    for i in range(args.request_count):
+    for i in range(request_count):
         tasks.append(asyncio.create_task(do_one(client)))
 
     await asyncio.gather(*tasks)
@@ -56,15 +56,38 @@ async def main(args):
 
     assert error_count == 0, f"expected 0 errors, got {error_count}"
 
-    print(f"time: {time.time()-start_time}")
+
+def main(request_count, use_zmq_response_path):
+    asyncio.run(run_client(request_count, use_zmq_response_path))
 
 
 if __name__ == "__main__":
     uvloop.install()
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--request-count", type=int, default=5000)
+    parser.add_argument("--process-count", type=int, default=8)
     parser.add_argument("--use-zmq-response-path", action="store_true", default=False)
-
     args = parser.parse_args()
 
-    asyncio.run(main(args))
+    request_count = args.request_count
+    process_count = args.process_count
+    use_zmq_response_path = args.use_zmq_response_path
+    assert request_count % process_count == 0
+
+    start_time = time.time()
+
+    processes = []
+    for i in range(process_count):
+        processes.append(
+            multiprocessing.Process(
+                target=main,
+                args=(request_count // process_count, use_zmq_response_path),
+            )
+        )
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join()
+
+    print(f"time: {time.time()-start_time}")
