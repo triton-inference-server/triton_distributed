@@ -75,26 +75,28 @@ WORKDIR /workspace
 
 COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
-    cargo build --release --locked && cargo doc --no-deps
+cargo build --release --locked && cargo doc --no-deps
 
 # Generate C bindings. Note that this is required for TRTLLM backend re-build
-RUN cd runtime/rust/libtriton_llm && \
-    cargo build --release --locked && cargo doc --no-deps
+COPY llm /workspace/llm
+RUN cd llm/rust/ && \
+cargo build --release --locked && cargo doc --no-deps
 
 # Install uv and create virtualenv for general use
+COPY python-wheel /workspace/python-wheel
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
-    cd runtime/rust/python-wheel && \
+    cd python-wheel && \
     uv build && \
     uv pip install dist/triton_distributed_rs*cp312*.whl
 
 # Package the bindings
 RUN mkdir -p /opt/triton/llm_binding/wheels && mkdir /opt/triton/llm_binding/lib
-RUN cp runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/.
-RUN cp runtime/rust/libtriton_llm/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/.
-RUN cp -r runtime/rust/libtriton_llm/include /opt/triton/llm_binding/.
+RUN cp python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/.
+RUN cp llm/rust/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/.
+RUN cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
 
 # Backend & Framework Specific Installation
 ARG FRAMEWORK="STANDARD"
