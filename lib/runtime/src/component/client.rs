@@ -244,10 +244,8 @@ where
                 .map(|id| weights.get(id).unwrap_or(&0.))
                 .collect::<Vec<_>>();
 
-            let total_weight = endpoint_weights.iter().copied().sum::<f32>();
-
-            if total_weight == 0. {
-                // None of the provided endpoints exist. Fall back to random selection.
+            if !endpoint_weights.iter().any(|&w| *w > 0.) {
+                // None of the provided endpoints have a weight. Fall back to random selection.
                 return self.random(request).await;
             }
 
