@@ -118,6 +118,24 @@ ENV LD_LIBRARY_PATH=${FRAMEWORK_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
 ENV TENSORRTLLM_BACKEND_REPO_TAG=$TENSORRTLLM_BACKEND_REPO_TAG
 ENV TRTLLM_USE_MPI_KVCACHE=${TENSORRTLLM_FRAMEWORK:+"1"}
 
+# TODO set VLLM Version
+# ENV VLLM_VERSION
+ARG VLLM_FRAMEWORK
+# DEFAULT VLLM VARIABLES
+# ENV VLLM_ATTENTION_BACKEND=${VLLM_FRAMEWORK:+FLASHINFER}
+ENV VLLM_WORKER_MULTIPROC_METHOD=${VLLM_FRAMEWORK:+spawn}
+ENV VLLM_TORCH_HOST=${VLLM_FRAMEWORK:+localhost}
+ENV VLLM_TORCH_PORT=${VLLM_FRAMEWORK:+36183}
+ENV VLLM_DATA_PLANE_BACKEND=${VLLM_FRAMEWORK:+nccl}
+ENV VLLM_BASELINE_WORKERS=${VLLM_FRAMEWORK:+0}
+ENV VLLM_CONTEXT_WORKERS=${VLLM_FRAMEWORK:+1}
+ENV VLLM_GENERATE_WORKERS=${VLLM_FRAMEWORK:+1}
+ENV VLLM_BASELINE_TP_SIZE=${VLLM_FRAMEWORK:+1}
+ENV VLLM_CONTEXT_TP_SIZE=${VLLM_FRAMEWORK:+1}
+ENV VLLM_GENERATE_TP_SIZE=${VLLM_FRAMEWORK:+1}
+ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
+ENV PYTHONUNBUFFERED=1
+
 # Install NATS - pointing toward NATS github instead of binaries.nats.dev due to server instability
 RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
 
@@ -146,7 +164,7 @@ RUN apt-get install tmux -y
 
 # Install patched vllm
 ARG VLLM_REF="v0.7.2"
-ARG VLLM_PATCH="vllm_v0.7.2.patch"
+ARG VLLM_PATCH="kv_vllm.patch"
 RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
     if [[ "$FRAMEWORK" == "VLLM" ]]; then \
         source /opt/triton/venv/bin/activate && \

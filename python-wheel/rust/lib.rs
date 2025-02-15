@@ -27,6 +27,7 @@ use triton_distributed::{
     self as rs,
     pipeline::{EngineStream, ManyOut, SingleIn},
     protocols::annotated::Annotated as RsAnnotated,
+    traits::DistributedRuntimeProvider,
 };
 
 use triton_llm::{self as llm_rs};
@@ -191,6 +192,10 @@ impl Component {
             Ok(())
         })
     }
+
+    fn event_subject(&self, name: String) -> String {
+        self.inner.event_subject(name)
+    }
 }
 
 #[pymethods]
@@ -221,6 +226,10 @@ impl Endpoint {
                 .map_err(to_pyerr)?;
             Ok(Client { inner: client })
         })
+    }
+
+    fn lease_id(&self) -> i64 {
+        self.inner.drt().primary_lease().id()
     }
 }
 
