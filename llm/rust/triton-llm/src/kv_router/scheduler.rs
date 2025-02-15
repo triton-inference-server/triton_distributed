@@ -21,7 +21,7 @@ use tracing as log;
 use uuid::Uuid;
 
 use crate::kv_router::indexer::OverlapScores;
-pub use crate::kv_router::protocols::ForwardPassMetrics;
+pub use crate::kv_router::protocols::{ForwardPassMetrics, KV_BLOCK_SIZE};
 use crate::kv_router::scoring::ProcessedEndpoints;
 
 #[derive(Debug, thiserror::Error)]
@@ -71,8 +71,6 @@ pub struct Service {
     pub started: String,
     pub endpoints: Vec<Endpoint>,
 }
-
-pub const BLOCK_SIZE: usize = 64;
 
 pub struct SchedulingRequest {
     isl_tokens: usize,
@@ -236,7 +234,7 @@ pub fn select_worker(
 
         let worker_id = workers.worker_ids[i];
         let overlap_score = request.overlap.scores.get(&worker_id).map_or(0, |x| *x);
-        let overlap_score = overlap_score as usize * BLOCK_SIZE;
+        let overlap_score = overlap_score as usize * KV_BLOCK_SIZE;
 
         let new_tokens = request.isl_tokens.saturating_sub(overlap_score);
         let normalized_new_tokens = new_tokens as f64 / request.isl_tokens as f64;
@@ -264,7 +262,7 @@ pub fn select_worker(
     }
 
     if let Some(best_index) = best_index {
-        let total_blocks = min(request.isl_tokens / BLOCK_SIZE, 1);
+        let total_blocks = min(request.isl_tokens / KV_BLOCK_SIZE, 1);
 
         workers.endpoints[best_index].data.request_active_slots += 1;
         workers.endpoints[best_index].data.kv_active_blocks += total_blocks as u64;

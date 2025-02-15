@@ -31,8 +31,8 @@ use triton_distributed::{
 
 use triton_llm::{self as llm_rs};
 
-mod llm;
 mod engine;
+mod llm;
 
 type JsonServerStreamingIngress =
     Ingress<SingleIn<serde_json::Value>, ManyOut<RsAnnotated<serde_json::Value>>>;

@@ -13,28 +13,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use triton_distributed::{component::Component, DistributedRuntime};
 use anyhow::Result;
 use futures::stream::StreamExt;
 use std::{sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 use tracing as log;
+use triton_distributed::{component::Component, DistributedRuntime};
 
 pub mod indexer;
 pub mod protocols;
 pub mod publisher;
+// [WIP] enable service_builder() through worker for metrics reporting
+// pub mod worker;
 mod scheduler;
 mod scoring;
 
 use crate::kv_router::{
     indexer::{KvIndexer, KvIndexerInterface, RouterEvent},
-    scheduler::{Endpoint, KvScheduler, Service, BLOCK_SIZE},
+    protocols::KV_BLOCK_SIZE,
+    scheduler::{Endpoint, KvScheduler, Service},
     scoring::ProcessedEndpoints,
 };
 
 // this should be discovered from the backend
-pub const KV_BLOCK_SIZE: u64 = 64;
-
 pub const KV_EVENT_SUBJECT: &str = "kv_events";
 
 pub struct KvRouter {
@@ -130,7 +131,7 @@ impl KvRouter {
         // let worker_subject = self.scheduler.schedule(overlap_scores, isl_tokens).await?;
         let mut selected_worker_subject = Option::<String>::None;
         for (worker_subject, overlap_score) in &overlap_scores.scores {
-            if ((*overlap_score as usize * BLOCK_SIZE) as f64 / isl_tokens as f64) >= 0.5 {
+            if ((*overlap_score as usize * KV_BLOCK_SIZE) as f64 / isl_tokens as f64) >= 0.5 {
                 selected_worker_subject = Some(worker_subject.to_string());
             }
         }

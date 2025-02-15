@@ -19,10 +19,10 @@ use once_cell::sync::OnceCell;
 use std::ffi::CStr;
 use uuid::Uuid;
 
+use triton_distributed::{DistributedRuntime, Worker};
 use triton_llm::kv_router::{
     indexer::compute_block_hash_for_seq, protocols::*, publisher::KvPublisher,
 };
-use triton_distributed::{DistributedRuntime, Worker};
 static WK: OnceCell<Worker> = OnceCell::new();
 static DRT: AsyncOnceCell<DistributedRuntime> = AsyncOnceCell::new();
 // [FIXME] shouldn't the publisher be instance passing between API calls?
@@ -149,7 +149,7 @@ fn kv_event_create_stored_block_from_parts(
     num_tokens: usize,
     _lora_id: u64,
 ) -> KvCacheStoredBlockData {
-    assert!(num_tokens <= 64);
+    assert!(num_tokens <= KV_BLOCK_SIZE);
     let tokens_hash =
         compute_block_hash_for_seq(unsafe { std::slice::from_raw_parts(token_ids, num_tokens) })[0];
     KvCacheStoredBlockData {
@@ -174,8 +174,8 @@ fn kv_event_create_stored_from_parts(
         let block_hash = unsafe { *block_ids.offset(block_idx.try_into().unwrap()) };
         let tokens = unsafe { token_ids.offset(token_offset.try_into().unwrap()) };
         let num_toks = unsafe { *num_block_tokens.offset(block_idx.try_into().unwrap()) };
-        // compute hash only apply to full block (64 token) [FIXME] 64 => KV_TOKEN_SIZE
-        if num_toks < 64 {
+        // compute hash only apply to full block (KV_BLOCK_SIZE token)
+        if num_toks < KV_BLOCK_SIZE {
             break;
         }
         token_offset += num_toks;

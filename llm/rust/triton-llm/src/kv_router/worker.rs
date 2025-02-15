@@ -15,17 +15,16 @@
 
 use std::sync::Arc;
 
-pub use crate::protocols::ForwardPassMetrics;
+pub use crate::kv_router::protocols::ForwardPassMetrics;
 
 use anyhow::Result;
 use derive_builder::Builder;
-use nim_llm_pipeline::network::{
+use triton_distributed::pipeline::network::{
     ingress::push_endpoint::PushEndpoint,
-    nats::{self, ServiceExt},
     PushWorkHandler,
 };
-// [FIXME] used new nats?
-// use nova_distributed::transports::nats;
+
+use triton_distributed::transports::nats::{self, ServiceExt};
 
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;

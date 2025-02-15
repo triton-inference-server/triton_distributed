@@ -26,10 +26,12 @@ impl KvRouter {
     fn new(drt: DistributedRuntime, component: Component) -> PyResult<Self> {
         let runtime = pyo3_async_runtimes::tokio::get_runtime();
         runtime.block_on(async {
-            let inner =
-                llm_rs::kv_router::KvRouter::from_runtime(drt.inner.clone(), component.inner.clone())
-                    .await
-                    .map_err(to_pyerr)?;
+            let inner = llm_rs::kv_router::KvRouter::from_runtime(
+                drt.inner.clone(),
+                component.inner.clone(),
+            )
+            .await
+            .map_err(to_pyerr)?;
             Ok(Self { inner })
         })
     }
