@@ -17,6 +17,7 @@ use crate::kv_router::{indexer::RouterEvent, protocols::KvCacheEvent, KV_EVENT_S
 use tokio::sync::mpsc;
 use triton_distributed::{component::Component, DistributedRuntime, Result};
 use uuid::Uuid;
+use tracing as log;
 
 pub struct KvPublisher {
     tx: mpsc::UnboundedSender<KvCacheEvent>,
@@ -32,6 +33,7 @@ impl KvPublisher {
     }
 
     pub fn publish(&self, event: KvCacheEvent) -> Result<(), mpsc::error::SendError<KvCacheEvent>> {
+        log::debug!("Publish event: {:?}", event);
         self.tx.send(event)
     }
 }
@@ -46,6 +48,8 @@ fn start_publish_task(
     // [FIXME] service name is for metrics polling?
     // let service_name = backend.service_name();
     let kv_subject = backend.event_subject(KV_EVENT_SUBJECT);
+    log::info!("Publishing KV Events to subject: {}", kv_subject);
+
     _ = drt.runtime().secondary().spawn(async move {
         while let Some(event) = rx.recv().await {
             let router_event = RouterEvent::new(worker_id, event);
