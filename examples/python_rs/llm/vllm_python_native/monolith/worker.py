@@ -29,7 +29,9 @@ from vllm.logger import logger as vllm_logger
 from triton_distributed.icp import NatsServer
 from triton_distributed.runtime import CallableOperator
 from triton_distributed.runtime import OperatorConfig as FunctionConfig
-from triton_distributed.runtime import Worker
+
+# from triton_distributed.runtime import Worker
+from triton_distributed.runtime.mp_worker import MPWorker
 
 
 class VllmEngine:
@@ -68,7 +70,8 @@ def worker(engine_args: AsyncEngineArgs):
         max_inflight_requests=10000,
     )
 
-    Worker(operators=[vllm_engine], log_level=1).start()
+    # Worker(operators=[vllm_engine], log_level=1).start()
+    MPWorker(operators=[vllm_engine], log_level=1).start()
 
 
 if __name__ == "__main__":

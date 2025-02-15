@@ -38,7 +38,7 @@ async def do_one(client, prompt, max_tokens, temperature):
 
     # process response
     async for resp in stream:
-        print(resp)
+        pass  # print(resp)
 
 
 @triton_worker()

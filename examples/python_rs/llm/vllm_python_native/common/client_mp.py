@@ -15,6 +15,7 @@
 
 
 import asyncio
+import multiprocessing
 import time
 
 import uvloop
@@ -46,18 +47,12 @@ async def do_one(client, prompt, max_tokens, temperature):
         pass  # print(resp)
 
 
-async def main(
-    prompt: str,
-    max_tokens: int,
-    temperature: float,
-    request_count,
-    use_zmq_response_path,
+async def run_client(
+    prompt, max_tokens, temperature, request_count, use_zmq_response_path
 ):
     """
-    Instantiate a `backend` client and call the `generate` endpoint
+    Instantiate a client and process requests
     """
-    start_time = time.time()
-
     request_plane = NatsRequestPlane(use_zmq_response_path=use_zmq_response_path)
     await request_plane.connect()
 
@@ -82,7 +77,14 @@ async def main(
 
     assert error_count == 0, f"expected 0 errors, got {error_count}"
 
-    print(f"time: {time.time()-start_time}")
+
+def main(prompt, max_tokens, temperature, request_count, use_zmq_response_path):
+    """Process runner function"""
+    asyncio.run(
+        run_client(
+            prompt, max_tokens, temperature, request_count, use_zmq_response_path
+        )
+    )
 
 
 if __name__ == "__main__":
@@ -92,16 +94,41 @@ if __name__ == "__main__":
     parser.add_argument("--max-tokens", type=int, default=10)
     parser.add_argument("--temperature", type=float, default=0.5)
     parser.add_argument("--request-count", type=int, default=10)
+    parser.add_argument("--process-count", type=int, default=8)
     parser.add_argument("--use-zmq-response-path", action="store_true", default=False)
 
     args = parser.parse_args()
 
-    asyncio.run(
-        main(
-            args.prompt,
-            args.max_tokens,
-            args.temperature,
-            args.request_count,
-            args.use_zmq_response_path,
+    # Ensure request count is divisible by process count
+    assert (
+        args.request_count % args.process_count == 0
+    ), "request_count must be divisible by process_count"
+
+    start_time = time.time()
+
+    # Create and start processes
+    processes = []
+    requests_per_process = args.request_count // args.process_count
+
+    for i in range(args.process_count):
+        process = multiprocessing.Process(
+            target=main,
+            args=(
+                args.prompt,
+                args.max_tokens,
+                args.temperature,
+                requests_per_process,
+                args.use_zmq_response_path,
+            ),
         )
-    )
+        processes.append(process)
+
+    # Start all processes
+    for process in processes:
+        process.start()
+
+    # Wait for all processes to complete
+    for process in processes:
+        process.join()
+
+    print(f"Total time: {time.time() - start_time}")
