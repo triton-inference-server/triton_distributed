@@ -2512,6 +2512,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "tracing-subscriber",
  "triton-distributed",
  "triton-llm",
  "uuid 1.13.1",

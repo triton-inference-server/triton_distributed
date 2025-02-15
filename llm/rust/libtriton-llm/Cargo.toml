@@ -44,3 +44,4 @@ tracing = "0"
 libc = "0.2"
 uuid = { version = "1", features = ["v4", "serde"] }
 async-once-cell = "0.5.4"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }

@@ -18,6 +18,8 @@ use libc::c_char;
 use once_cell::sync::OnceCell;
 use std::ffi::CStr;
 use uuid::Uuid;
+use std::sync::atomic::{AtomicU32, Ordering};
+use tracing as log;
 
 use triton_distributed::{DistributedRuntime, Worker};
 use triton_llm::kv_router::{
@@ -27,6 +29,19 @@ static WK: OnceCell<Worker> = OnceCell::new();
 static DRT: AsyncOnceCell<DistributedRuntime> = AsyncOnceCell::new();
 // [FIXME] shouldn't the publisher be instance passing between API calls?
 static KV_PUB: OnceCell<KvPublisher> = OnceCell::new();
+
+fn initialize_tracing() {
+    // Sets up RUST_LOG environment variable for logging while KV Publishing
+    // Example: os.environ["RUST_LOG"] = "debug"
+    let subscriber = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
+
+    log::debug!("Tracing initialized");
+}
 
 #[repr(u32)]
 pub enum TritonLlmResult {
@@ -41,6 +56,7 @@ pub unsafe extern "C" fn triton_llm_init(
     model_name_c_str: *const c_char,
     worker_id_c_str: *const c_char,
 ) -> TritonLlmResult {
+    initialize_tracing();
     let wk = match WK.get_or_try_init(Worker::from_settings) {
         Ok(wk) => wk.clone(),
         Err(e) => {
@@ -131,6 +147,7 @@ fn triton_create_kv_publisher(
     model_name: String,
     worker_id: Uuid,
 ) -> Result<KvPublisher, anyhow::Error> {
+    log::info!("Creating KV Publisher for model: {}", model_name);
     match DRT
         .get()
         .ok_or(anyhow::Error::msg("Could not get Distributed Runtime"))
@@ -149,7 +166,6 @@ fn kv_event_create_stored_block_from_parts(
     num_tokens: usize,
     _lora_id: u64,
 ) -> KvCacheStoredBlockData {
-    assert!(num_tokens <= KV_BLOCK_SIZE);
     let tokens_hash =
         compute_block_hash_for_seq(unsafe { std::slice::from_raw_parts(token_ids, num_tokens) })[0];
     KvCacheStoredBlockData {
@@ -157,6 +173,7 @@ fn kv_event_create_stored_block_from_parts(
         tokens_hash,
     }
 }
+static WARN_COUNT: AtomicU32 = AtomicU32::new(0);
 
 fn kv_event_create_stored_from_parts(
     event_id: u64,
@@ -175,7 +192,13 @@ fn kv_event_create_stored_from_parts(
         let tokens = unsafe { token_ids.offset(token_offset.try_into().unwrap()) };
         let num_toks = unsafe { *num_block_tokens.offset(block_idx.try_into().unwrap()) };
         // compute hash only apply to full block (KV_BLOCK_SIZE token)
-        if num_toks < KV_BLOCK_SIZE {
+        if num_toks != 64 {
+            if WARN_COUNT.fetch_update(
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+                |c| if c < 3 { Some(c + 1) } else { None }).is_ok() {
+                log::warn!("Block size must be 64 tokens to be published. Block size is: {}", num_toks);
+            }
             break;
         }
         token_offset += num_toks;
