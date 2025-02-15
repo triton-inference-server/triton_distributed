@@ -69,6 +69,12 @@ class Component:
         """
         ...
 
+    def event_subject(self, name: str) -> str:
+        """
+        Create an event subject
+        """
+        ...
+
 class Endpoint:
     """
     An Endpoint is a single API endpoint
@@ -86,6 +92,12 @@ class Endpoint:
     async def client() -> Client:
         """
         Create a `Client` capable of calling served instances of this endpoint
+        """
+        ...
+
+    async def lease_id(self) -> int:
+        """
+        Return primary lease id. Currently, cannot set a different lease id.
         """
         ...
 

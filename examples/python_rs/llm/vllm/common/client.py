@@ -25,19 +25,22 @@ from .protocol import Request
 
 @triton_worker()
 async def worker(
-    runtime: DistributedRuntime, prompt: str, max_tokens: int, temperature: float
+    runtime: DistributedRuntime,
+    component: str,
+    prompt: str,
+    max_tokens: int,
+    temperature: float,
 ):
     """
     Instantiate a `backend` client and call the `generate` endpoint
     """
     # get endpoint
-    endpoint = runtime.namespace("triton-init").component("vllm").endpoint("generate")
+    endpoint = (
+        runtime.namespace("triton-init").component(component).endpoint("generate")
+    )
 
     # create client
     client = await endpoint.client()
-
-    # list the endpoints
-    print(client.endpoint_ids())
 
     # issue request
     tasks = []
@@ -66,9 +69,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--prompt", type=str, default="what is the capital of france?")
+    parser.add_argument("--component", type=str, default="vllm")
     parser.add_argument("--max-tokens", type=int, default=10)
     parser.add_argument("--temperature", type=float, default=0.5)
 
     args = parser.parse_args()
 
-    asyncio.run(worker(args.prompt, args.max_tokens, args.temperature))
+    asyncio.run(worker(args.component, args.prompt, args.max_tokens, args.temperature))

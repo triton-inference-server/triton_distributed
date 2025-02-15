@@ -1182,17 +1182,17 @@ mod tests {
     #[test]
     fn test_compute_block_hash_for_seq() {
         // create a sequence of 64 elements
-        let sequence = (0..KV_BLOCK_SIZE).collect::<Vec<u32>>();
+        let sequence = (0..KV_BLOCK_SIZE).map(|i| i as u32).collect::<Vec<u32>>();
         let hashes = compute_block_hash_for_seq(&sequence);
         assert_eq!(hashes.len(), 1);
 
         // create a sequence of 65 elements
-        let sequence = (0..(KV_BLOCK_SIZE + 1)).collect::<Vec<u32>>();
+        let sequence = (0..(KV_BLOCK_SIZE + 1)).map(|i| i as u32).collect::<Vec<u32>>();
         let hashes = compute_block_hash_for_seq(&sequence);
         assert_eq!(hashes.len(), 1);
 
         // create a sequence of 129 elements
-        let sequence = (0..(2 * KV_BLOCK_SIZE + 1)).collect::<Vec<u32>>();
+        let sequence = (0..(2 * KV_BLOCK_SIZE + 1)).map(|i| i as u32).collect::<Vec<u32>>();
         let hashes = compute_block_hash_for_seq(&sequence);
         assert_eq!(hashes.len(), 2);
     }
