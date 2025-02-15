@@ -17,6 +17,7 @@
 # A script to download a Python wheel, patch it, copy additional files,
 # repackage it, and optionally install the new wheel.
 
+set -xe
 
 ###############################################################################
 #  CONFIGURATION & DEFAULTS
@@ -214,10 +215,10 @@ if [[ ! -d "$PATCH_TARGET_DIR" ]]; then
 fi
 
 info_log "Applying patch '$PATCH_FILE' to '$PATCH_TARGET_DIR'..."
-debug_log "Executing: (cd \"$PATCH_TARGET_DIR\" && patch -p1 < \"../../$PATCH_FILE\")"
+debug_log "Executing: (cd \"$PATCH_TARGET_DIR\" && patch -p2 < \"../../$PATCH_FILE\")"
 (
   cd "$PATCH_TARGET_DIR"
-  patch -p1 < "../../$PATCH_FILE"
+  patch -p2 < "../../$PATCH_FILE"
 )
 
 # ---------------------------------------------------------------------------

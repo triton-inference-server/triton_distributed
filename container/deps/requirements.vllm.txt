@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Necessary for vLLM engine.
---extra-index-url https://flashinfer.ai/whl/cu121/torch2.5
+--extra-index-url https://flashinfer.ai/whl/cu124/torch2.5
 flashinfer-python==0.2.0.post2
 # Necessary for vLLM engine.
 ninja==1.11.1.3
