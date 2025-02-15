@@ -40,7 +40,6 @@ use std::{sync::Mutex, time::Duration};
 use tokio::{signal, task::JoinHandle};
 
 static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
-static INIT: OnceCell<Mutex<Option<tokio::task::JoinHandle<Result<()>>>>> = OnceCell::new();
 
 const SHUTDOWN_MESSAGE: &str =
     "Application received shutdown signal; attempting to gracefully shutdown";
@@ -100,10 +99,6 @@ impl Worker {
         F: FnOnce(Runtime) -> Fut + Send + 'static,
         Fut: Future<Output = Result<()>> + Send + 'static,
     {
-        let runtime = self.runtime;
-        let primary = runtime.primary();
-        let secondary = runtime.secondary.clone();
-
         let timeout = std::env::var(TRITON_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
             .ok()
             .and_then(|s| s.parse::<u64>().ok())
@@ -115,62 +110,55 @@ impl Worker {
                 }
             });
 
-        INIT.set(Mutex::new(Some(secondary.spawn(async move {
+        self.runtime.tokio_runtime().block_on(async move {
             // start signal handler
-            tokio::spawn(signal_handler(runtime.cancellation_token.clone()));
+            tokio::spawn(signal_handler(self.runtime.cancellation_token.clone()));
 
-            let cancel_token = runtime.child_token();
+            let cancel_token = self.runtime.child_token();
             let (mut app_tx, app_rx) = tokio::sync::oneshot::channel::<()>();
 
             // spawn a task to run the application
-            let task: JoinHandle<Result<()>> = primary.spawn(async move {
+            let task: JoinHandle<Result<()>> = tokio::spawn(async move {
                 let _rx = app_rx;
-                f(runtime).await
+                f(self.runtime).await
             });
 
             tokio::select! {
                 _ = cancel_token.cancelled() => {
-                    eprintln!("{}", SHUTDOWN_MESSAGE);
-                    eprintln!("{} {} seconds", SHUTDOWN_TIMEOUT_MESSAGE, timeout);
+                    tracing::error!("{}", SHUTDOWN_MESSAGE);
+                    tracing::error!("{} {} seconds", SHUTDOWN_TIMEOUT_MESSAGE, timeout);
                 }
 
                 _ = app_tx.closed() => {
                 }
             };
 
-            let result = tokio::select! {
+            let maybe_result = tokio::select! {
                 result = task => {
                     result
                 }
-
                 _ = tokio::time::sleep(tokio::time::Duration::from_secs(timeout)) => {
-                    eprintln!("Application did not shutdown in time; terminating");
+                    tracing::error!("Application did not shutdown in time; terminating");
                     std::process::exit(911);
                 }
-            }?;
-
-            match &result {
-                Ok(_) => {
-                    tracing::info!("Application shutdown successfully");
+            };
+            let result = match maybe_result {
+                Ok(r) => r,
+                Err(err) => {
+                    tracing::error!(%err, "Join error waiting for main task");
+                    return;
                 }
-                Err(e) => {
-                    tracing::error!("Application shutdown with error: {:?}", e);
+            };
+            match result {
+                Ok(_) => {
+                    tracing::debug!("Application shutdown successfully");
+                }
+                Err(err) => {
+                    tracing::error!(%err,"Application shutdown with error");
                 }
             }
-
-            result
-        }))))
-        .map_err(|e| error!("Failed to spawn application task: {:?}", e))?;
-
-        let task = INIT
-            .get()
-            .expect("Application task not initialized")
-            .lock()
-            .unwrap()
-            .take()
-            .expect("Application initialized; but another thread is awaiting it; Worker.execute() can only be called once");
-
-        secondary.block_on(task)?
+        });
+        Ok(())
     }
 }
 

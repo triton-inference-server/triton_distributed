@@ -37,7 +37,7 @@ use lease::*;
 #[derive(Clone)]
 pub struct Client {
     client: etcd_client::Client,
-    primary_lease: i64,
+    lease: i64,
     runtime: Runtime,
 }
 
@@ -56,9 +56,9 @@ impl Lease {
         self.id
     }
 
-    /// Get the primary [`CancellationToken`] associated with the lease.
+    /// Get the [`CancellationToken`] associated with the lease.
     /// This token will revoke the lease if canceled.
-    pub fn primary_token(&self) -> CancellationToken {
+    pub fn token(&self) -> CancellationToken {
         self.cancel_token.clone()
     }
 
@@ -81,22 +81,19 @@ impl Client {
 
     /// Create a new discovery client
     ///
-    /// This will establish a connection to the etcd server, create a primary lease,
+    /// This will establish a connection to the etcd server, create a lease,
     /// and spawn a task to keep the lease alive and tie the lifetime of the [`Runtime`]
     /// to the lease.
     ///
     /// If the lease expires, the [`Runtime`] will be shutdown.
     /// If the [`Runtime`] is shutdown, the lease will be revoked.
     pub async fn new(config: ClientOptions, runtime: Runtime) -> Result<Self> {
-        runtime
-            .secondary()
-            .spawn(Self::create(config, runtime.clone()))
-            .await?
+        Self::create(config, runtime.clone()).await
     }
 
-    /// Create a new etcd client and tie the primary [`CancellationToken`] to the primary etcd lease.
+    /// Create a new etcd client and tie the [`CancellationToken`] to the etcd lease.
     async fn create(config: ClientOptions, runtime: Runtime) -> Result<Self> {
-        let token = runtime.primary_token();
+        let token = runtime.token();
         let client =
             etcd_client::Client::connect(config.etcd_url, config.etcd_connect_options).await?;
 
@@ -105,7 +102,7 @@ impl Client {
 
             let lease = create_lease(lease_client, 10, token)
                 .await
-                .context("creating primary lease")?;
+                .context("creating lease")?;
 
             lease.id
         } else {
@@ -114,7 +111,7 @@ impl Client {
 
         Ok(Client {
             client,
-            primary_lease: lease_id,
+            lease: lease_id,
             runtime,
         })
     }
@@ -124,16 +121,16 @@ impl Client {
         &self.client
     }
 
-    /// Get the primary lease ID.
+    /// Get the lease ID.
     pub fn lease_id(&self) -> i64 {
-        self.primary_lease
+        self.lease
     }
 
-    /// Primary [`Lease`]
-    pub fn primary_lease(&self) -> Lease {
+    /// Get the [`Lease`]
+    pub fn lease(&self) -> Lease {
         Lease {
-            id: self.primary_lease,
-            cancel_token: self.runtime.primary_token(),
+            id: self.lease,
+            cancel_token: self.runtime.token(),
         }
     }
 
@@ -142,10 +139,7 @@ impl Client {
     pub async fn create_lease(&self, ttl: i64) -> Result<Lease> {
         let token = self.runtime.child_token();
         let lease_client = self.client.lease_client();
-        self.runtime
-            .secondary()
-            .spawn(create_lease(lease_client, ttl, token))
-            .await?
+        create_lease(lease_client, ttl, token).await
     }
 
     pub async fn kv_create(
@@ -207,7 +201,7 @@ impl Client {
 
         let (tx, rx) = mpsc::channel(32);
 
-        self.runtime.secondary().spawn(async move {
+        tokio::spawn(async move {
             for kv in kvs {
                 if tx.send(WatchEvent::Put(kv)).await.is_err() {
                     // receiver is closed
@@ -268,7 +262,7 @@ pub struct ClientOptions {
     #[builder(default)]
     etcd_connect_options: Option<ConnectOptions>,
 
-    /// If true, the client will attach a lease to the primary [`CancellationToken`].
+    /// If true, the client will attach a lease to the [`CancellationToken`].
     #[builder(default = "true")]
     attach_lease: bool,
 }

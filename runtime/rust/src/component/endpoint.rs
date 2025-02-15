@@ -41,7 +41,7 @@ impl EndpointConfigBuilder {
 
     pub async fn start(self) -> Result<()> {
         let (endpoint, lease, handler) = self.build_internal()?.dissolve();
-        let lease = lease.unwrap_or(endpoint.component.drt.primary_lease());
+        let lease = lease.unwrap_or(endpoint.component.drt.lease());
 
         tracing::debug!(
             "Starting endpoint: {}",
@@ -75,7 +75,7 @@ impl EndpointConfigBuilder {
             .build()
             .map_err(|e| anyhow::anyhow!("Failed to build push endpoint: {e}"))?;
 
-        // launch in primary runtime
+        // launch!
         let task = tokio::spawn(push_endpoint.start(service_endpoint));
 
         // tracing::debug!(worker_id, "endpoint subject: {}", subject);

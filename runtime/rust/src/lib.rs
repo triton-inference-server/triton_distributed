@@ -55,8 +55,7 @@ enum RuntimeType {
 #[derive(Debug, Clone)]
 pub struct Runtime {
     id: Arc<String>,
-    primary: RuntimeType,
-    secondary: Arc<tokio::runtime::Runtime>,
+    tokio_runtime: RuntimeType,
     cancellation_token: CancellationToken,
 }
 

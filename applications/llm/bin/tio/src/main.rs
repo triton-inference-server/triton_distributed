@@ -81,11 +81,5 @@ async fn tio_wrapper(runtime: triton_distributed::Runtime) -> anyhow::Result<()>
     // Wraps the Runtime (which wraps two tokio runtimes) and adds etcd and nats clients
     let d_runtime = triton_distributed::DistributedRuntime::new(runtime, dt_config).await?;
 
-    tio::run(
-        in_opt,
-        out_opt,
-        nio_flags,
-        d_runtime.runtime().primary_token(),
-    )
-    .await
+    tio::run(in_opt, out_opt, nio_flags, d_runtime.runtime().token()).await
 }

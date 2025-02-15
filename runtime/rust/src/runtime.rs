@@ -16,7 +16,7 @@
 //! The [Runtime] module is the interface for [crate::component::Component]
 //! to access shared resources. These include thread pool, memory allocators and other shared resources.
 //!
-//! The [Runtime] holds the primary [`CancellationToken`] which can be used to terminate all attached
+//! The [Runtime] holds the [`CancellationToken`] which can be used to terminate all attached
 //! [`crate::component::Component`].
 //!
 //! We expect in the future to offer topologically aware thread and memory resources, but for now the
@@ -36,20 +36,15 @@ use tokio::{signal, task::JoinHandle};
 pub use tokio_util::sync::CancellationToken;
 
 impl Runtime {
-    fn new(runtime: RuntimeType) -> Result<Runtime> {
+    fn new(tokio_runtime: RuntimeType) -> Result<Runtime> {
         // worker id
         let id = Arc::new(uuid::Uuid::new_v4().to_string());
 
         // create a cancellation token
         let cancellation_token = CancellationToken::new();
-
-        // secondary runtime for background ectd/nats tasks
-        let secondary = RuntimeConfig::single_threaded().create_runtime()?;
-
         Ok(Runtime {
             id,
-            primary: runtime,
-            secondary: Arc::new(secondary),
+            tokio_runtime,
             cancellation_token,
         })
     }
@@ -67,7 +62,7 @@ impl Runtime {
         Runtime::new(owned)
     }
 
-    /// Create a [`Runtime`] with a single-threaded primary async tokio runtime
+    /// Create a [`Runtime`] with a single-threaded async tokio runtime
     pub fn single_threaded() -> Result<Runtime> {
         let config = config::RuntimeConfig::single_threaded();
         let owned = RuntimeType::Shared(Arc::new(config.create_runtime()?));
@@ -79,18 +74,13 @@ impl Runtime {
         &self.id
     }
 
-    /// Returns a [`tokio::runtime::Handle`] for the primary/application thread pool
-    pub fn primary(&self) -> tokio::runtime::Handle {
-        self.primary.handle()
+    /// Returns the current [`tokio::runtime::Handle`]
+    pub fn tokio_runtime(&self) -> tokio::runtime::Handle {
+        self.tokio_runtime.handle()
     }
 
-    /// Returns a [`tokio::runtime::Handle`] for the secondary/background thread pool
-    pub fn secondary(&self) -> &Arc<tokio::runtime::Runtime> {
-        &self.secondary
-    }
-
-    /// Access the primary [`CancellationToken`] for the [`Runtime`]
-    pub fn primary_token(&self) -> CancellationToken {
+    /// Access the [`CancellationToken`] for the [`Runtime`]
+    pub fn token(&self) -> CancellationToken {
         self.cancellation_token.clone()
     }
 

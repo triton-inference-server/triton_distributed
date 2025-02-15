@@ -79,12 +79,10 @@ where
 
         let (watch_tx, watch_rx) = tokio::sync::watch::channel(vec![]);
 
-        let secondary = endpoint.component.drt.runtime.secondary().clone();
-
         // this task should be included in the registry
         // currently this is created once per client, but this object/task should only be instantiated
         // once per worker/instance
-        secondary.spawn(async move {
+        tokio::spawn(async move {
             tracing::debug!("Starting endpoint watcher for prefix: {}", prefix);
             let mut map = HashMap::new();
 
@@ -116,15 +114,15 @@ where
                             break;
                         }
                     }
-                    WatchEvent::Delete(kv) => {
-                        match String::from_utf8(kv.key().to_vec()) {
-                            Ok(key) => { map.remove(&key); }
-                            Err(_) => {
-                                tracing::error!("Unable to parse delete endpoint event; shutting down endpoint watcher for prefix: {}", prefix);
-                                break;
-                            }
+                    WatchEvent::Delete(kv) => match String::from_utf8(kv.key().to_vec()) {
+                        Ok(key) => {
+                            map.remove(&key);
                         }
-                    }
+                        Err(_) => {
+                            tracing::error!("Unable to parse delete endpoint event; shutting down endpoint watcher for prefix: {}", prefix);
+                            break;
+                        }
+                    },
                 }
 
                 let endpoint_ids: Vec<i64> = map.values().cloned().collect();
@@ -133,7 +131,6 @@ where
                     tracing::debug!("Unable to send watch updates; shutting down endpoint watcher for prefix: {}", prefix);
                     break;
                 }
-
             }
 
             tracing::debug!("Completed endpoint watcher for prefix: {}", prefix);

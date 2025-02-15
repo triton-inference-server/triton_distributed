@@ -29,32 +29,21 @@ use figment::error;
 
 impl DistributedRuntime {
     pub async fn new(runtime: Runtime, config: DistributedConfig) -> Result<Self> {
-        let secondary = runtime.secondary();
         let (etcd_config, nats_config) = config.dissolve();
 
         let runtime_clone = runtime.clone();
 
-        let etcd_client = secondary
-            .spawn(async move {
-                let client = etcd::Client::new(etcd_config.clone(), runtime_clone)
-                    .await
-                    .context(format!(
-                        "Failed to connect to etcd server with config {:?}",
-                        etcd_config
-                    ))?;
-                OK(client)
-            })
-            .await??;
+        let etcd_client = etcd::Client::new(etcd_config.clone(), runtime_clone)
+            .await
+            .context(format!(
+                "Failed to connect to etcd server with config {:?}",
+                etcd_config
+            ))?;
 
-        let nats_client = secondary
-            .spawn(async move {
-                let client = nats_config.clone().connect().await.context(format!(
-                    "Failed to connect to NATS server with config {:?}",
-                    nats_config
-                ))?;
-                anyhow::Ok(client)
-            })
-            .await??;
+        let nats_client = nats_config.clone().connect().await.context(format!(
+            "Failed to connect to NATS server with config {:?}",
+            nats_config
+        ))?;
 
         Ok(Self {
             runtime,
@@ -74,8 +63,8 @@ impl DistributedRuntime {
         &self.runtime
     }
 
-    pub fn primary_lease(&self) -> etcd::Lease {
-        self.etcd_client.primary_lease()
+    pub fn lease(&self) -> etcd::Lease {
+        self.etcd_client.lease()
     }
 
     pub fn shutdown(&self) {

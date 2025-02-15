@@ -107,18 +107,17 @@ impl DistributedRuntime {
     fn new(event_loop: PyObject) -> PyResult<Self> {
         let rt = rs::Worker::from_settings().map_err(to_pyerr)?;
         INIT.get_or_try_init(|| {
-            let primary = rt.tokio_runtime()?;
-            pyo3_async_runtimes::tokio::init_with_runtime(primary)
+            let rt = rt.tokio_runtime()?;
+            pyo3_async_runtimes::tokio::init_with_runtime(rt)
                 .map_err(|e| rs::error!("failed to initialize pyo3 static runtime: {:?}", e))?;
             rs::OK(())
         })
         .map_err(to_pyerr)?;
 
         let runtime = rt.runtime().clone();
-
         let inner = rt
-            .runtime()
-            .secondary()
+            .tokio_runtime()
+            .map_err(to_pyerr)?
             .block_on(rs::DistributedRuntime::from_settings(runtime))
             .map_err(to_pyerr)?;
 
@@ -132,8 +131,9 @@ impl DistributedRuntime {
         })
     }
 
+    // TODO: Rename, but watch for related python changes
     fn primary_token(&self) -> CancellationToken {
-        let inner = self.inner.runtime().primary_token();
+        let inner = self.inner.runtime().token();
         CancellationToken { inner }
     }
 
