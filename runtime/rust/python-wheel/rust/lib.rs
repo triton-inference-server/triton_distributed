@@ -338,7 +338,16 @@ async fn process_stream(
     let mut stream = stream;
     while let Some(response) = stream.next().await {
         // Convert the response to a PyObject using Python's GIL
-        let annotated: RsAnnotated<serde_json::Value> = serde_json::from_value(response).unwrap();
+        // TODO: Remove the clone, but still log the full JSON string on error. But how?
+        let annotated: RsAnnotated<serde_json::Value> = match serde_json::from_value(
+            response.clone(),
+        ) {
+            Ok(a) => a,
+            Err(err) => {
+                tracing::error!(%err, %response, "process_stream: Failed de-serializing JSON into RsAnnotated");
+                break;
+            }
+        };
 
         let annotated: RsAnnotated<PyObject> = annotated.map_data(|data| {
             let result = Python::with_gil(|py| match pythonize::pythonize(py, &data) {

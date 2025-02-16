@@ -42,17 +42,13 @@ The example is designed to run in a containerized environment using Triton Distr
 
 ```bash
 # Build image
-./container/build.sh
+./container/build.sh --framework VLLM
 ```
 
 ## Launching the Environment
 ```
 # Run image interactively
-./container/run.sh -it
-
-# Add vllm into the python virtual environment
-source /opt/triton/venv/bin/activate
-uv pip install vllm==0.7.2
+./container/run.sh --framework VLLM -it
 ```
 
 ## Deployment Options
@@ -113,11 +109,12 @@ source /opt/triton/venv/bin/activate
 
 # Launch prefill worker
 cd /workspace/examples/python_rs/llm/vllm
-CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
+VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
     --gpu-memory-utilization 0.8 \
     --enforce-eager \
+    --tensor-parallel-size 1 \
     --kv-transfer-config \
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2}'
 ```
@@ -129,11 +126,12 @@ source /opt/triton/venv/bin/activate
 
 # Launch decode worker
 cd /workspace/examples/python_rs/llm/vllm
-CUDA_VISIBLE_DEVICES=1 python3 -m disaggregated.decode_worker \
+VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggregated.decode_worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --max-model-len 100 \
     --gpu-memory-utilization 0.8 \
     --enforce-eager \
+    --tensor-parallel-size 2 \
     --kv-transfer-config \
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2}'
 ```
@@ -174,6 +172,11 @@ For disaggregated deployment, you will also need to pass the `kv_ip` and `kv_por
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":<rank>,"kv_parallel_size":2,"kv_ip":<master_node_ip>,"kv_port":<kv_port>}'
 ```
 
+### 4. Known Issues and Limitations
 
+- vLLM is not working well with the `fork` method for multiprocessing and TP > 1. This is a known issue and a workaround is to use the `spawn` method instead. See [vLLM issue](https://github.com/vllm-project/vllm/issues/6152).
+- `kv_rank` of `kv_producer` must be smaller than of `kv_consumer`.
+- Instances with the same `kv_role` must have the same `--tensor-parallel-size`.
+- Currently only `--pipeline-parallel-size 1` is supported for XpYd disaggregated deployment.
 
 

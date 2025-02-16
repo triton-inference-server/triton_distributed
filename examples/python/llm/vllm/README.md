@@ -17,6 +17,9 @@ limitations under the License.
 
 # Disaggregated Serving with VLLM
 
+> **Warning**
+> This example is currently not tested and might not work as expected. For working disaggregated serving examples, please see the [vLLM example](/examples/python_rs/llm/vllm/).
+
 This example demonstrates **disaggregated serving** [^1] using Triton Distributed together with vLLM engines. Disaggregated serving decouples the prefill (prompt encoding) and the decode (token generation) stages of large language model (LLM) inference into separate processes. This separation allows you to independently scale, optimize, and distribute resources for each stage.
 
 In this example, you will deploy:

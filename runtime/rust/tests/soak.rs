@@ -19,19 +19,21 @@ mod integration {
     pub const DEFAULT_NAMESPACE: &str = "triton-init";
 
     use futures::StreamExt;
-    use std::sync::Arc;
+    use std::{sync::Arc, time::Duration};
+    use tokio::time::Instant;
     use triton_distributed::{
+        logging,
         pipeline::{
             async_trait, network::Ingress, AsyncEngine, AsyncEngineContextProvider, Error, ManyOut,
             ResponseStream, SingleIn,
         },
         protocols::annotated::Annotated,
-        DistributedRuntime, Result, Runtime, Worker,
+        DistributedRuntime, ErrorContext, Result, Runtime, Worker,
     };
 
     #[test]
     fn main() -> Result<()> {
-        env_logger::init();
+        logging::init();
         let worker = Worker::from_settings()?;
         worker.execute(app)
     }
@@ -97,6 +99,14 @@ mod integration {
     }
 
     async fn client(runtime: DistributedRuntime) -> Result<()> {
+        // get the run duration from env
+        let run_duration = std::env::var("TRD_SOAK_RUN_DURATION").unwrap_or("1m".to_string());
+        let run_duration =
+            humantime::parse_duration(&run_duration).unwrap_or(Duration::from_secs(60));
+
+        let batch_load = std::env::var("TRD_SOAK_BATCH_LOAD").unwrap_or("10000".to_string());
+        let batch_load: usize = batch_load.parse().unwrap_or(10000);
+
         let client = runtime
             .namespace(DEFAULT_NAMESPACE)?
             .component("backend")?
@@ -107,19 +117,42 @@ mod integration {
         client.wait_for_endpoints().await?;
         let client = Arc::new(client);
 
-        // spawn 20000 tasks to put load on the server
-        let mut tasks = Vec::new();
-        for _ in 0..20000 {
-            let client = client.clone();
-            tasks.push(tokio::spawn(async move {
-                let mut stream = client.random("hello world".to_string().into()).await?;
-                while let Some(_resp) = stream.next().await {}
-                Ok::<(), Error>(())
-            }));
-        }
+        let start = Instant::now();
+        let mut count = 0;
 
-        for task in tasks.into_iter() {
-            task.await??;
+        loop {
+            let mut tasks = Vec::new();
+            for _ in 0..batch_load {
+                let client = client.clone();
+                tasks.push(tokio::spawn(async move {
+                    let mut stream = tokio::time::timeout(
+                        Duration::from_secs(30),
+                        client.random("hello world".to_string().into()),
+                    )
+                    .await
+                    .context("request timed out")??;
+
+                    while let Some(_resp) =
+                        tokio::time::timeout(Duration::from_secs(30), stream.next())
+                            .await
+                            .context("stream timed out")?
+                    {}
+                    Ok::<(), Error>(())
+                }));
+            }
+
+            for task in tasks.into_iter() {
+                task.await??;
+            }
+
+            let elapsed = start.elapsed();
+            count += batch_load;
+            println!("elapsed: {:?}; count: {}", elapsed, count);
+
+            if elapsed > run_duration {
+                println!("done");
+                break;
+            }
         }
 
         Ok(())
