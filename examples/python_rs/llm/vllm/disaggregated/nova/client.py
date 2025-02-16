@@ -1,6 +1,8 @@
 import vllm
 from vllm.utils import FlexibleArgumentParser
 from vllm.engine.arg_utils import AsyncEngineArgs
+import json
+from typing import Annotated
 
 # from nova_init.decorators import nova_endpoint, nova_service, nova_depends, nova_api
 from compoundai import depends, nova_endpoint, service, api
@@ -30,5 +32,14 @@ class Client:
             }
         )
         async for response in decgen:
-            print("response")
-            yield response
+            # Get the actual value from the Annotated object
+            if isinstance(response, type(Annotated)):
+                # Access the data as an attribute, not a method
+                response_data = getattr(response, 'data', response)
+            else:
+                response_data = response
+                
+            print("client response_data:", response_data)
+            
+            # Yield the actual data value
+            yield response_data
