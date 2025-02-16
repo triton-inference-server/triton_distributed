@@ -117,7 +117,7 @@ class KvAwareRoutingOperator(TritonCoreOperator):
         except Exception as e:
             if "No worker found" in str(e):
                 self._generate.component_id = None
-                self._logger.debug(f"no elgible worker")
+                self._logger.debug("no eligible worker")
             else:
                 self._logger.exception(f"Error during selecting worker: {e}")
 
