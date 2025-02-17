@@ -13,24 +13,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-fastapi==0.115.6
-ftfy
-grpcio-tools==1.66.0
-httpx
-msgspec
-mypy
-numpy
-opentelemetry-api
-opentelemetry-sdk
-pre-commit
-protobuf==5.27.3
-pydantic==2.7.1
-pyright
-pytest-md-report
-pytest-mypy
-sentencepiece
-transformers
-tritonclient==2.53.0
-# TODO: See whether TRT-LLM installs a different version of UCX. Need to revisit and track this dependency.
-ucx-py-cu12
-uvicorn
+import argparse
+
+from triton_distributed.icp.nats_event_plane import DEFAULT_EVENTS_PORT
+
+
+def parse_args(args=None):
+    parser = argparse.ArgumentParser(description="Event Plane Example")
+
+    parser.add_argument(
+        "--nats-port",
+        type=int,
+        default=DEFAULT_EVENTS_PORT,
+        help="Nats server port",
+    )
+
+    parser.add_argument(
+        "--publisher-count",
+        type=int,
+        default=1,
+        help="Number of publishers to deploy",
+    )
+
+    parser.add_argument(
+        "--subscriber-count",
+        type=int,
+        default=10,
+        help="Number of subscribers to deploy",
+    )
+
+    args = parser.parse_args(args)
+
+    return args
