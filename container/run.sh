@@ -38,6 +38,8 @@ MOUNT_WORKSPACE=
 ENVIRONMENT_VARIABLES=
 REMAINING_ARGS=
 INTERACTIVE=
+DETACH=
+COMMAND=
 
 get_options() {
     while :; do
@@ -130,6 +132,9 @@ get_options() {
 	-it)
 	    INTERACTIVE=" -it "
 	    ;;
+    -d)
+        DETACH=" -d "
+        ;;
 	--mount-workspace)
 	    MOUNT_WORKSPACE=TRUE
 	    ;;
@@ -273,6 +278,6 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-${RUN_PREFIX} docker run ${GPU_STRING} ${INTERACTIVE} ${RM_STRING} --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 ${ENVIRONMENT_VARIABLES} ${VOLUME_MOUNTS} -w /workspace --cap-add CAP_SYS_PTRACE --ipc host ${PRIVILEGED_STRING} ${NAME_STRING} ${IMAGE} "${REMAINING_ARGS[@]}"
+${RUN_PREFIX} docker run ${GPU_STRING} ${INTERACTIVE} ${DETACH} ${RM_STRING} --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 ${ENVIRONMENT_VARIABLES} ${VOLUME_MOUNTS} -w /workspace --cap-add CAP_SYS_PTRACE --ipc host ${PRIVILEGED_STRING} ${NAME_STRING} ${IMAGE} ${COMMAND} "${REMAINING_ARGS[@]}"
 
 { set +x; } 2>/dev/null
