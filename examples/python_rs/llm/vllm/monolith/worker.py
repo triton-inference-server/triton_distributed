@@ -20,8 +20,12 @@ import uuid
 import uvloop
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
-from triton_distributed_rs import DistributedRuntime, triton_worker
+from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.entrypoints.openai.protocol import (
+    ChatCompletionRequest,
+    ChatCompletionStreamResponse,
+)
 from vllm.logger import logger as vllm_logger
 
 
@@ -33,6 +37,7 @@ class VllmEngine(BaseVllmEngine):
     def __init__(self, engine_args: AsyncEngineArgs):
         super().__init__(engine_args)
 
+    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):
         vllm_logger.debug(f"Got raw request: {raw_request}")
         (
