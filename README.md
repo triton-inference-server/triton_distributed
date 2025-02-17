@@ -109,7 +109,7 @@ in the Hello World example. In this example, we demonstrate
 [Disaggregated Serving](https://arxiv.org/abs/2401.09670) as an
 application of the components defined in Triton Distributed.
 
-## Python Native Distributed Runtime
+<!-- ## Python Native Distributed Runtime
 
 Triton distributed has a python native based distributed runtime with
 implementation under development. Please note the APIs are subject to
@@ -137,7 +137,7 @@ as an application of the components defined in Triton Distributed.
 An intermediate example expanding further on the concepts indroduced
 in the Hello World example. In this example, we demonstrate
 [Disaggregated Serving](https://arxiv.org/abs/2401.09670)
-as an application of the components defined in Triton Distributed.
+as an application of the components defined in Triton Distributed. -->
 
 
 # Disclaimers
