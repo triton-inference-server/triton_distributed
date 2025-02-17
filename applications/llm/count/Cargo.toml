@@ -11,3 +11,20 @@ triton-llm = { path = "../../../llm/rust/triton-llm" }
 # workspace - todo
 
 # crates.io
+serde = { version = "1", features = ["derive"] }
+
+# tmp
+#anyhow = { version = "1" }
+#async-stream = { version = "0.3" }
+#async-trait = { version = "0.1" }
+#bytes = "1"
+#derive_builder = "0.20"
+#futures = "0.3"
+#serde_json = { version = "1" }
+#thiserror = { version = "2.0.11" }
+#tokio = { version = "1", features = ["full"] }
+#tokio-stream = { version = "0.1" }
+#tokio-util = { version = "0.7", features = ["codec", "net"] }
+#tracing = { version = "0.1" }
+#validator = { version = "0.20.0", features = ["derive"] }
+#uuid = { version = "1", features = ["v4", "serde"] }
