@@ -80,7 +80,7 @@ RUN mkdir /opt/triton && \
 
 # Install patched vllm
 ARG VLLM_REF="v0.7.2"
-ARG VLLM_PATCH="vllm_v0.7.2.patch"
+ARG VLLM_PATCH="vllm_${VLLM_REF}.patch"
 RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
     source /opt/triton/venv/bin/activate && \
     bash /tmp/deps/vllm/install.sh --patch /tmp/deps/vllm/${VLLM_PATCH} --ref ${VLLM_REF} --install-cmd "uv pip install --editable" --use-precompiled --installation-dir /opt/vllm
