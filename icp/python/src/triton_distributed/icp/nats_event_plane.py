@@ -246,7 +246,7 @@ class NatsEventPlane:
         self,
         payload: bytes | Any,
         event_type: Optional[str] = None,
-        event_topic: Optional[EventTopic] = None,
+        event_topic: Optional[EventTopic | str | List[str]] = None,
         timestamp: Optional[datetime.datetime] = datetime.datetime.now(datetime.UTC),
         event_id: Optional[uuid.UUID] = uuid.uuid4(),
     ) -> Event:
@@ -271,6 +271,9 @@ class NatsEventPlane:
         if event_id is None:
             event_id = uuid.uuid4()
 
+        if event_topic is not None and not isinstance(event_topic, EventTopic):
+            event_topic = EventTopic(event_topic)
+
         event_metadata = EventMetadata(
             event_id=event_id,
             event_topic=event_topic,
@@ -290,7 +293,6 @@ class NatsEventPlane:
 
         subject = self._compose_publish_subject(event_metadata)
         await self._nc.publish(subject, message)
-
         event_with_metadata = OnDemandEvent(
             payload, metadata_serialized, event_metadata
         )
