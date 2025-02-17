@@ -72,6 +72,10 @@ impl Lease {
     pub fn revoke(&self) {
         self.cancel_token.cancel();
     }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel_token.is_cancelled()
+    }
 }
 
 impl Client {

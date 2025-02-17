@@ -45,7 +45,7 @@ use crate::discovery::Lease;
 
 use super::{error, traits::*, transports::nats::Slug, DistributedRuntime, Result, Runtime};
 
-use crate::pipeline::network::{ingress::push_endpoint::PushEndpoint, PushWorkHandler};
+use crate::pipeline::network::{ingress::push_endpoint::PushEndpoint, IngressHandler};
 use async_nats::{
     rustls::quic,
     service::{Service, ServiceExt},

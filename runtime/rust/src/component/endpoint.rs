@@ -31,7 +31,7 @@ pub struct EndpointConfig {
 
     /// Endpoint handler
     #[educe(Debug(ignore))]
-    handler: Arc<dyn PushWorkHandler>,
+    handler: Arc<dyn IngressHandler>,
 }
 
 impl EndpointConfigBuilder {
