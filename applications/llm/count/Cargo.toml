@@ -1,0 +1,13 @@
+[package]
+name = "count"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# local
+triton-distributed = { path = "../../../runtime/rust" }
+triton-llm = { path = "../../../llm/rust/triton-llm" }
+
+# workspace - todo
+
+# crates.io
