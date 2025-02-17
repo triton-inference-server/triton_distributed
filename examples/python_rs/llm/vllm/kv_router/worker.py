@@ -16,6 +16,7 @@
 import asyncio
 import os
 import uuid
+from typing import Optional
 
 import uvloop
 import vllm
@@ -30,6 +31,7 @@ from triton_distributed_rs import (
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.inputs import TokensPrompt
 from vllm.logger import logger as vllm_logger
+from vllm.transformers_utils.tokenizer import AnyTokenizer
 
 vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
@@ -42,14 +44,15 @@ class VllmEngine:
     def __init__(self, engine_args: AsyncEngineArgs, router: KvRouter):
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
         self.router = router
-        self.tokenizer = None
+        self.tokenizer: Optional[AnyTokenizer] = None
 
+    # Pattern to initialize async object as python __init__ is not async
     async def init(self):
         self.tokenizer = await self.engine.get_tokenizer()
         return self
 
     @triton_endpoint(TokenizedRequest, Response)
-    async def generate(self, request):
+    async def generate_from_tokens(self, request):
         tokens_prompt = TokensPrompt(prompt_token_ids=request.tokens)
 
         sampling_params = vllm.SamplingParams(**request.sampling_params)
@@ -60,7 +63,18 @@ class VllmEngine:
             yield response.outputs[0].text
 
     @triton_endpoint(Request, Response)
+    async def generate_from_prompt(self, request):
+        sampling_params = vllm.SamplingParams(**request.sampling_params)
+        request_id = str(uuid.uuid4())
+        async for response in self.engine.generate(
+            request.prompt, sampling_params, request_id
+        ):
+            yield response.outputs[0].text
+
+    @triton_endpoint(Request, Response)
     async def preprocess(self, request):
+        if self.tokenizer is None:
+            raise RuntimeError("Tokenizer not initialized. Must run init().")
         tokens = self.tokenizer.encode(request.prompt)
 
         engine_generator = await self.router.generate(
@@ -90,11 +104,12 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
         .client()
     )
 
-    worker_endpoint = worker_component.endpoint("generate")
+    worker_from_tokens_endpoint = worker_component.endpoint("generate_from_tokens")
+    worker_from_prompt_endpoint = worker_component.endpoint("generate")
     preprocess_endpoint = preprocess_component.endpoint("generate")
 
     # TODO Hack until we unify lease_id and worker_id
-    VLLM_WORKER_ID = uuid.UUID(int=worker_endpoint.lease_id())
+    VLLM_WORKER_ID = uuid.UUID(int=worker_from_tokens_endpoint.lease_id())
     os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
     vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
 
@@ -102,7 +117,8 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     vllm_engine = await vllm_engine.init()
 
     await asyncio.gather(
-        worker_endpoint.serve_endpoint(vllm_engine.generate),
+        worker_from_tokens_endpoint.serve_endpoint(vllm_engine.generate_from_tokens),
+        worker_from_prompt_endpoint.serve_endpoint(vllm_engine.generate_from_prompt),
         preprocess_endpoint.serve_endpoint(vllm_engine.preprocess),
     )
 

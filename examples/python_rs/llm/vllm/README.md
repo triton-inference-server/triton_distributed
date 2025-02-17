@@ -177,6 +177,31 @@ For disaggregated deployment, you will also need to pass the `kv_ip` and `kv_por
 
 The KV Router is a component that aggregates KV Events from all the workers and maintains a prefix tree of the cached tokens. It makes decisions on which worker to route requests to based on the length of the prefix match and the load on the workers.
 
+You can run the router and workers in separate terminal sessions or use the `kv-router-run.sh` script to launch them all at once in their own tmux sessions.
+
+#### Deploying using tmux
+
+The helper script `kv-router-run.sh` will launch the router and workers in their own tmux sessions.
+kv-router-run.sh <number_of_workers> <routing_strategy> Optional[<model_name>]
+
+Example:
+```bash
+# Launch 8 workers with prefix routing strategy and use deepseek-ai/DeepSeek-R1-Distill-Llama-8B as the model
+/workspace/examples/python_rs/llm/vllm/kv-router-run.sh 8 prefix deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+
+# List tmux sessions
+tmux ls
+
+# Attach to the tmux sessions
+tmux a -t v-1 # worker 1 - use cmd + b, d to detach
+tmux a -t v-router # kv router - use cmd + b, d to detach
+
+# Close the tmux sessions
+tmux ls | grep 'v-' | cut -d: -f1 | xargs -I{} tmux kill-session -t {}
+```
+
+#### Deploying using separate terminals
+
 **Terminal 1 - Router:**
 ```bash
 # Activate virtual environment

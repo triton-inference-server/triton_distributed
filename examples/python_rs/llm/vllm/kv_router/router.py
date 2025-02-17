@@ -94,12 +94,22 @@ async def worker(runtime: DistributedRuntime, args: Namespace):
     workers_client = (
         await runtime.namespace("triton-init")
         .component("vllm")
-        .endpoint("generate")
+        .endpoint("generate_from_tokens")
         .client()
     )
     vllm_logger.info("Waiting for workers to be ready")
     await workers_client.wait_for_endpoints()
-    vllm_logger.info("A worker is ready")
+
+    while len(workers_client.endpoint_ids()) < args.min_workers:
+        vllm_logger.info(
+            f"Waiting for more workers... Current: {len(workers_client.endpoint_ids())}, Required: {args.min_workers}"
+        )
+        await asyncio.sleep(5)
+
+    vllm_logger.info(
+        f"Required number of workers ({args.min_workers}) are ready:\n"
+        + "\n".join(f"id: {id}" for id in workers_client.endpoint_ids())
+    )
 
     # TODO Router is a fixed namespace separate from the others
     kv_listener = runtime.namespace("router").component(
@@ -132,6 +142,12 @@ if __name__ == "__main__":
         default=RoutingStrategy.PREFIX,
         choices=list(RoutingStrategy),
         help="Routing strategy to use",
+    )
+    parser.add_argument(
+        "--min-workers",
+        type=int,
+        default=1,
+        help="Minimum number of workers required before proceeding",
     )
     args = parser.parse_args()
 
