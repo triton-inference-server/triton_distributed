@@ -125,9 +125,13 @@ impl Component {
         format!("{}/components/{}", self.namespace, self.name)
     }
 
-    fn slug(&self) -> Slug {
-        Slug::from_string(self.etcd_path())
+    pub fn service_name(&self) -> String {
+        Slug::from_string(format!("{}|{}", self.namespace, self.name)).to_string()
     }
+
+    // fn slug(&self) -> Slug {
+    //     Slug::from_string(self.etcd_path())
+    // }
 
     pub fn endpoint(&self, endpoint: impl Into<String>) -> Endpoint {
         Endpoint {
@@ -201,8 +205,13 @@ impl Endpoint {
         format!("{}-{:x}", self.name, lease_id)
     }
 
-    pub fn subject(&self, lease_id: i64) -> String {
-        format!("{}.{}", self.component.slug(), self.name_with_id(lease_id))
+    /// Subject to an instance of the [Endpoint] with a specific lease id
+    pub fn subject_to(&self, lease_id: i64) -> String {
+        format!(
+            "{}.{}",
+            self.component.service_name(),
+            self.name_with_id(lease_id)
+        )
     }
 
     pub async fn client<Req, Resp>(&self) -> Result<client::Client<Req, Resp>>

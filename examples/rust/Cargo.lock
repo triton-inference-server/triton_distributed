@@ -2234,6 +2234,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "service_metrics"
+version = "0.2.0"
+dependencies = [
+ "futures",
+ "tokio",
+ "triton-distributed",
+]
+
+[[package]]
 name = "sha2"
 version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -86,7 +86,7 @@ impl ServiceClient {
     }
 
     pub async fn collect_services(&self, service_name: &str) -> Result<ServiceSet> {
-        let mut sub = self.nats_client.service_subscriber(service_name).await?;
+        let mut sub = self.nats_client.scrape_service(service_name).await?;
         let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
 
         let services: Vec<Result<ServiceInfo>> = try_stream! {

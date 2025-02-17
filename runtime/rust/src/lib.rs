@@ -36,6 +36,7 @@ pub mod protocols;
 pub mod runtime;
 pub mod service;
 pub mod transports;
+pub mod utils;
 pub mod worker;
 
 pub mod distributed;
