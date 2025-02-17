@@ -1,10 +1,9 @@
 #!/bin/bash
 
 local_ip="216.86.169.7"
-remote_ips=()
 remote_ips=("216.86.169.29")
 
-# num_p/d_engines per node, lenth should be remote_ips[@] + 1
+# num_p/d_engines in each remote node, length should be remote_ips[@] + 1
 num_p=(1 0)
 num_d=(0 1)
 
