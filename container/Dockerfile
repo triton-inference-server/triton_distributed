@@ -164,7 +164,7 @@ RUN apt-get install tmux -y
 
 # Install patched vllm
 ARG VLLM_REF="v0.7.2"
-ARG VLLM_PATCH="kv_vllm.patch"
+ARG VLLM_PATCH="vllm_v0.7.2-triton-kv-disagg-patch.patch"
 RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
     if [[ "$FRAMEWORK" == "VLLM" ]]; then \
         source /opt/triton/venv/bin/activate && \
