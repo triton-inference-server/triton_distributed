@@ -40,7 +40,7 @@ mod tests {
 
     // todo - make a distributed runtime fixture
     // todo - two options - fully mocked or integration test
-    #[cfg(feature = "integration-tests")]
+    #[cfg(feature = "integration")]
     #[tokio::test]
     async fn test_publish() {
         // todo - use rtest - make fixtures
