@@ -61,6 +61,7 @@ mod client;
 mod endpoint;
 mod registry;
 mod service;
+mod namespace;
 
 pub use client::Client;
 

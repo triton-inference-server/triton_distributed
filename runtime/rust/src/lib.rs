@@ -30,6 +30,7 @@ pub use config::RuntimeConfig;
 pub mod component;
 pub mod discovery;
 pub mod engine;
+pub mod icp;
 pub mod logging;
 pub mod pipeline;
 pub mod protocols;
