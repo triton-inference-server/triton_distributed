@@ -3100,6 +3100,7 @@ dependencies = [
 name = "triton_distributed_py3"
 version = "0.2.0"
 dependencies = [
+ "bytes",
  "futures",
  "once_cell",
  "pyo3",

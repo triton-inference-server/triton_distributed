@@ -21,7 +21,7 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Builder)]
 pub struct PushEndpoint {
-    pub service_handler: Arc<dyn PushWorkHandler>,
+    pub service_handler: Arc<dyn IngressHandler>,
     pub cancellation_token: CancellationToken,
 }
 
