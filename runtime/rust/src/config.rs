@@ -58,12 +58,12 @@ impl Default for WorkerConfig {
 #[derive(Serialize, Deserialize, Validate, Debug, Builder, Clone)]
 #[builder(build_fn(private, name = "build_internal"), derive(Debug, Serialize))]
 pub struct RuntimeConfig {
-    /// Maximum number of async worker threads
+    /// Number of async worker threads
     /// If set to 1, the runtime will run in single-threaded mode
     #[validate(range(min = 1))]
     #[builder(default = "16")]
     #[builder_field_attr(serde(skip_serializing_if = "Option::is_none"))]
-    pub max_worker_threads: usize,
+    pub num_worker_threads: usize,
 
     /// Maximum number of blocking threads
     /// Blocking threads are used for blocking operations, this value must be greater than 0.
@@ -89,6 +89,7 @@ impl RuntimeConfig {
     /// Load the runtime configuration from the environment and configuration files
     /// Configuration is priorities in the following order, where the last has the lowest priority:
     /// 1. Environment variables (top priority)
+    /// TO DO: Add documentation for configuration files. Paths should be configurable.
     /// 2. /opt/triton/etc/runtime.toml
     /// 3. /opt/triton/defaults/runtime.toml (lowest priority)
     ///
@@ -101,7 +102,7 @@ impl RuntimeConfig {
 
     pub fn single_threaded() -> Self {
         RuntimeConfig {
-            max_worker_threads: 1,
+            num_worker_threads: 1,
             max_blocking_threads: 1,
         }
     }
@@ -109,7 +110,7 @@ impl RuntimeConfig {
     /// Create a new default runtime configuration
     pub(crate) fn create_runtime(&self) -> Result<tokio::runtime::Runtime> {
         Ok(tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(self.max_worker_threads)
+            .worker_threads(self.num_worker_threads)
             .max_blocking_threads(self.max_blocking_threads)
             .enable_all()
             .build()?)
@@ -119,7 +120,7 @@ impl RuntimeConfig {
 impl Default for RuntimeConfig {
     fn default() -> Self {
         Self {
-            max_worker_threads: 16,
+            num_worker_threads: 16,
             max_blocking_threads: 16,
         }
     }
@@ -160,4 +161,62 @@ pub fn jsonl_logging_enabled() -> bool {
 /// Set the `TRD_SDK_DISABLE_ANSI_LOGGING` environment variable a [`is_truthy`] value
 pub fn disable_ansi_logging() -> bool {
     env_is_truthy("TRD_SDK_DISABLE_ANSI_LOGGING")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_runtime_config_with_env_vars() -> Result<()> {
+        temp_env::with_vars(
+            vec![
+                ("TRITON_RUNTIME_NUM_WORKER_THREADS", Some("24")),
+                ("TRITON_RUNTIME_MAX_BLOCKING_THREADS", Some("32")),
+            ],
+            || {
+                let config = RuntimeConfig::from_settings()?;
+                assert_eq!(config.num_worker_threads, 24);
+                assert_eq!(config.max_blocking_threads, 32);
+                Ok(())
+            },
+        )
+    }
+
+    #[test]
+    fn test_runtime_config_defaults() -> Result<()> {
+        temp_env::with_vars(
+            vec![
+                ("TRITON_RUNTIME_NUM_WORKER_THREADS", None::<&str>),
+                ("TRITON_RUNTIME_MAX_BLOCKING_THREADS", None::<&str>),
+            ],
+            || {
+                let config = RuntimeConfig::from_settings()?;
+
+                let default_config = RuntimeConfig::default();
+                assert_eq!(config.num_worker_threads, default_config.num_worker_threads);
+                assert_eq!(config.max_blocking_threads, default_config.max_blocking_threads);
+                Ok(())
+            },
+        )
+    }
+
+    #[test]
+    fn test_runtime_config_rejects_invalid_thread_count() -> Result<()> {
+        temp_env::with_vars(
+            vec![
+                ("TRITON_RUNTIME_NUM_WORKER_THREADS", Some("0")),
+                ("TRITON_RUNTIME_MAX_BLOCKING_THREADS", Some("0")),
+            ],
+            || {
+                let result = RuntimeConfig::from_settings();
+                assert!(result.is_err());
+                if let Err(e) = result {
+                    assert!(e.to_string().contains("num_worker_threads: Validation error"));
+                    assert!(e.to_string().contains("max_blocking_threads: Validation error"));
+                }
+                Ok(())
+            },
+        )
+    }
 }
