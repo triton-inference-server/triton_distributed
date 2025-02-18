@@ -41,9 +41,11 @@
 //!
 //! TODO: Top-level Overview of Endpoints/Functions
 
-use crate::discovery::Lease;
+use crate::{discovery::Lease, service::ServiceSet};
 
-use super::{error, traits::*, transports::nats::Slug, DistributedRuntime, Result, Runtime};
+use super::{
+    error, traits::*, transports::nats::Slug, utils::Duration, DistributedRuntime, Result, Runtime,
+};
 
 use crate::pipeline::network::{ingress::push_endpoint::PushEndpoint, PushWorkHandler};
 use async_nats::{
@@ -59,6 +61,7 @@ use validator::{Validate, ValidationError};
 
 mod client;
 mod endpoint;
+mod namespace;
 mod registry;
 mod service;
 
@@ -125,20 +128,17 @@ impl Component {
         format!("{}/components/{}", self.namespace, self.name)
     }
 
+    pub fn service_name(&self) -> String {
+        Slug::from_string(format!("{}|{}", self.namespace, self.name)).to_string()
+    }
+
+    // todo - move to EventPlane
+    pub fn event_subject(&self, name: impl AsRef<str>) -> String {
+        format!("{}.events.{}", self.service_name(), name.as_ref())
+    }
+
     pub fn drt(&self) -> &DistributedRuntime {
         &self.drt
-    }
-
-    fn slug(&self) -> Slug {
-        Slug::from_string(self.etcd_path())
-    }
-
-    pub fn service_name(&self) -> String {
-        self.slug().to_string()
-    }
-
-    pub fn event_subject(&self, name: impl AsRef<str>) -> String {
-        format!("{}.events.{}", self.slug(), name.as_ref())
     }
 
     pub fn endpoint(&self, endpoint: impl Into<String>) -> Endpoint {
@@ -152,6 +152,14 @@ impl Component {
     /// set of unique endpoints.
     pub async fn list_endpoints(&self) -> Vec<Endpoint> {
         unimplemented!("endpoints")
+    }
+
+    pub async fn scrape_stats(&self, duration: Duration) -> Result<ServiceSet> {
+        let service_name = self.service_name();
+        let service_client = self.drt().service_client();
+        service_client
+            .collect_services(&service_name, duration)
+            .await
     }
 
     /// TODO
@@ -217,8 +225,17 @@ impl Endpoint {
         format!("{}-{:x}", self.name, lease_id)
     }
 
-    pub fn subject(&self, lease_id: i64) -> String {
-        format!("{}.{}", self.component.slug(), self.name_with_id(lease_id))
+    pub fn subject(&self) -> String {
+        format!("{}.{}", self.component.service_name(), self.name)
+    }
+
+    /// Subject to an instance of the [Endpoint] with a specific lease id
+    pub fn subject_to(&self, lease_id: i64) -> String {
+        format!(
+            "{}.{}",
+            self.component.service_name(),
+            self.name_with_id(lease_id)
+        )
     }
 
     pub async fn client<Req, Resp>(&self) -> Result<client::Client<Req, Resp>>
@@ -272,6 +289,10 @@ impl Namespace {
             .name(name)
             .namespace(self.name.clone())
             .build()?)
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }
 

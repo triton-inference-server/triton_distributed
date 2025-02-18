@@ -32,6 +32,7 @@ pub use config::RuntimeConfig;
 pub mod component;
 pub mod discovery;
 pub mod engine;
+pub mod icp;
 pub mod logging;
 pub mod pipeline;
 pub mod protocols;
@@ -39,6 +40,7 @@ pub mod runnable;
 pub mod runtime;
 pub mod service;
 pub mod transports;
+pub mod utils;
 pub mod worker;
 
 pub mod distributed;

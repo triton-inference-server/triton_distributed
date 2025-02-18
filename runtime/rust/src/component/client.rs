@@ -184,7 +184,7 @@ where
             endpoints[offset as usize]
         };
 
-        let subject = self.endpoint.subject(endpoint_id);
+        let subject = self.endpoint.subject_to(endpoint_id);
         let request = request.map(|req| AddressedRequest::new(req, subject));
 
         self.router.generate(request).await
@@ -206,7 +206,7 @@ where
             endpoints[offset as usize]
         };
 
-        let subject = self.endpoint.subject(endpoint_id);
+        let subject = self.endpoint.subject_to(endpoint_id);
         let request = request.map(|req| AddressedRequest::new(req, subject));
 
         self.router.generate(request).await
@@ -227,7 +227,7 @@ where
             ));
         }
 
-        let subject = self.endpoint.subject(endpoint_id);
+        let subject = self.endpoint.subject_to(endpoint_id);
         let request = request.map(|req| AddressedRequest::new(req, subject));
 
         self.router.generate(request).await

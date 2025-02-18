@@ -45,6 +45,7 @@ pub struct KvRouter {
 
     cancellation_token: CancellationToken,
 
+    #[allow(dead_code)]
     scheduler: KvScheduler,
 
     indexer: KvIndexer,
