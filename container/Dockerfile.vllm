@@ -78,6 +78,14 @@ COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
 
+# Build OpenAI HTTP Service binaries
+COPY llm/rust /workspace/llm/rust
+COPY examples/rust /workspace/examples/rust
+RUN cd examples/rust && \
+    cargo build --release && \
+    cp target/release/http /usr/local/bin/ && \
+    cp target/release/llmctl /usr/local/bin/
+
 # Generate C bindings for kv cache routing in vLLM
 COPY llm /workspace/llm
 RUN cd llm/rust/ && \
@@ -94,6 +102,8 @@ RUN mkdir -p /opt/triton/llm_binding/wheels && mkdir /opt/triton/llm_binding/lib
 RUN cp python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/.
 RUN cp llm/rust/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/.
 RUN cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
+# Tell vllm to use the Triton LLM C API for KV Cache Routing
+ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
 
 # Install patched vllm
 ARG VLLM_REF="v0.7.2"
@@ -118,8 +128,6 @@ COPY . /workspace
 # Environment setup
 ENV PYTHONPATH="${PYTHONPATH}:/workspace/examples/python:/opt/tritonserver/python/openai/openai_frontend"
 ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
-# Tell vllm to use the Triton LLM C API for KV Cache Routing
-ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
 
 CMD []
 ENTRYPOINT ["/opt/nvidia/nvidia_entrypoint.sh"]
