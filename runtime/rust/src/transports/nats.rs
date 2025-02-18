@@ -92,7 +92,7 @@ impl Client {
     /// extract the details.
     ///
     /// Note: Because each endpoint will only reply once, the caller must drop the subscription after
-    /// some time or it will await forever.s
+    /// some time or it will await forever.
     pub async fn scrape_service(&self, service_name: &str) -> Result<Subscriber> {
         let subject = format!("$SRV.STATS.{}", service_name);
         let reply_subject = format!("_INBOX.{}", nuid::next());
