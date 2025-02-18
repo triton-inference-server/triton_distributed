@@ -109,24 +109,28 @@ async fn app(runtime: Runtime) -> Result<()> {
     let target_endpoint = target.endpoint(&config.endpoint_name);
 
     let service_name = target.service_name();
-    let subject = target_endpoint.subject();
+    let service_subject = target_endpoint.subject();
 
-    log::debug!("Scraping service {service_name} and filtering on subject {subject}");
+    log::debug!("Scraping service {service_name} and filtering on subject {service_subject}");
     let token = drt.primary_lease().child_token();
 
     let address = format!("{}.{}", config.component_name, config.endpoint_name,);
-    let subject = format!("l2c.{}", address);
+    let event_name = format!("l2c.{}", address);
 
     loop {
         // TODO - make this configurable
         let next = Instant::now() + Duration::from_secs(2);
+
+        // collect stats from each backend
         let stream = target.scrape_stats(Duration::from_secs(1)).await?;
 
+        // filter the stats by the service subject
         let endpoints = stream
             .into_endpoints()
-            .filter(|e| e.subject.starts_with(&subject))
+            .filter(|e| e.subject.starts_with(&service_subject))
             .collect::<Vec<_>>();
 
+        // extract the custom data from the stats and try to decode it as LLMWorkerLoadCapacity
         let metrics = endpoints
             .iter()
             .filter_map(|e| match e.data.clone() {
@@ -138,6 +142,7 @@ async fn app(runtime: Runtime) -> Result<()> {
         // parse the endpoint ids
         // the ids are the last part of the subject in hexadecimal
         // form a list of tuples (kv_blocks_total - kv_blocks_active, requests_total_slots - requests_active_slots, id)
+        // this tuple represent the remaining capacity of each endpoint
         let capacity_with_ids = metrics
             .iter()
             .zip(endpoints.iter())
@@ -170,7 +175,7 @@ async fn app(runtime: Runtime) -> Result<()> {
         };
 
         // publish using the namespace event plane
-        namespace.publish(&subject, &processed).await?;
+        namespace.publish(&event_name, &processed).await?;
 
         // wait until cancelled or the next tick
         match tokio::time::timeout_at(next, token.cancelled()).await {
