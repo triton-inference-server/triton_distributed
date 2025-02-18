@@ -115,7 +115,6 @@ async fn app(runtime: Runtime) -> Result<()> {
     let token = drt.primary_lease().child_token();
 
     let address = format!("{}.{}", config.component_name, config.endpoint_name,);
-
     let subject = format!("l2c.{}", address);
 
     loop {
@@ -170,18 +169,16 @@ async fn app(runtime: Runtime) -> Result<()> {
             address: address.clone(),
         };
 
+        // publish using the namespace event plane
         namespace.publish(&subject, &processed).await?;
 
-        // publish using the namespace event plane
-
-        if token.is_cancelled() {
-            break;
-        }
-
-        tokio::time::sleep_until(next).await;
-
-        if token.is_cancelled() {
-            break;
+        // wait until cancelled or the next tick
+        match tokio::time::timeout_at(next, token.cancelled()).await {
+            Ok(_) => break,
+            Err(_) => {
+                // timeout, we continue
+                continue;
+            }
         }
     }
 
