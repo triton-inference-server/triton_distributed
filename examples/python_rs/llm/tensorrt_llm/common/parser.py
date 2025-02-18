@@ -44,6 +44,7 @@ LLM_ENGINE_KEYS = {
     "tokenizer_revision",
     "speculative_model",
     "enable_chunked_prefill",
+    "disagg_config",
 }
 
 

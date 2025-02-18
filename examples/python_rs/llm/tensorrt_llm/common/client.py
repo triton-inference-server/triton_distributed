@@ -36,7 +36,7 @@ async def worker(
     """
     # get endpoint
     endpoint = (
-        runtime.namespace("triton-init").component("tensorrt-llm").endpoint("generate")
+        runtime.namespace("triton-init").component("router").endpoint("generate")
     )
 
     # create client

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+from tensorrt_llm.llmapi import DisaggregatedParams
 from pydantic import BaseModel
 
 
@@ -21,7 +21,9 @@ class Request(BaseModel):
     prompt: str
     sampling_params: dict
     streaming: bool = True
+    disaggregated_params: DisaggregatedParams = {}
 
 
 class Response(BaseModel):
     text: str
+    disaggregated_params: DisaggregatedParams = {}
