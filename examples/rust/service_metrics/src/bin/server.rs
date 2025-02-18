@@ -65,8 +65,8 @@ async fn backend(runtime: DistributedRuntime) -> Result<()> {
     // attach an ingress to an engine
     let ingress = Ingress::for_engine(RequestHandler::new())?;
 
-    // // make the ingress discoverable via a component service
-    // // we must first create a service, then we can attach one more more endpoints
+    // make the ingress discoverable via a component service
+    // we must first create a service, then we can attach one more more endpoints
     runtime
         .namespace(DEFAULT_NAMESPACE)?
         .component("backend")?

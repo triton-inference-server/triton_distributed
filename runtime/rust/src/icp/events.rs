@@ -24,7 +24,7 @@ use crate::Result;
 //     async fn publish(&self, event: &(impl Serialize + Send + Sync)) -> Result<()>;
 // }
 
-/// A [EventPlane] is a component that can publish and/or subscribe to events on the event plane.
+/// A [EventPlane] is a component that can publish and/or subscribe to events.
 ///
 /// Each implementation of [EventPlane] will define the root subject.
 #[async_trait]
