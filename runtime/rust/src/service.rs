@@ -19,7 +19,7 @@
 // we will want to associate the components cancellation token with the
 // component's "service state"
 
-use crate::{transports::nats, utils::stream, Result};
+use crate::{error, transports::nats, utils::stream, Result};
 
 use async_nats::Message;
 use async_stream::try_stream;
@@ -62,6 +62,17 @@ pub struct EndpointInfo {
     pub data: Option<Metrics>,
 }
 
+impl EndpointInfo {
+    pub fn id(&self) -> Result<i64> {
+        let id = self
+            .subject
+            .split('-')
+            .last()
+            .ok_or_else(|| error!("No id found in subject"))?;
+
+        i64::from_str_radix(id, 16).map_err(|e| error!("Invalid id format: {}", e))
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize, Dissolve)]
 pub struct Metrics(pub serde_json::Value);
 

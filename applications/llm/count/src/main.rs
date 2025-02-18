@@ -35,19 +35,19 @@ use triton_distributed::{
 
 use tracing as log;
 
-enum MetricTypes {
-    LLMWorkerLoadCapacity(LLMWorkerLoadCapacityConfig),
-}
+// enum MetricTypes {
+//     LLMWorkerLoadCapacity(LLMWorkerLoadCapacityConfig),
+// }
 
 fn get_config() -> Result<LLMWorkerLoadCapacityConfig> {
-    let component_name = std::env::var("NOVA_COUNT_SCRAPE_COMPONENT")?;
+    let component_name = std::env::var("TRD_COUNT_SCRAPE_COMPONENT")?;
     if component_name.is_empty() {
-        return Err(error!("NOVA_COUNT_SCRAPE_COMPONENT is not set"));
+        return Err(error!("TRD_COUNT_SCRAPE_COMPONENT is not set"));
     }
 
-    let endpoint_name = std::env::var("NOVA_COUNT_SCRAPE_ENDPOINT")?;
+    let endpoint_name = std::env::var("TRD_COUNT_SCRAPE_ENDPOINT")?;
     if endpoint_name.is_empty() {
-        return Err(error!("NOVA_COUNT_SCRAPE_ENDPOINT is not set"));
+        return Err(error!("TRD_COUNT_SCRAPE_ENDPOINT is not set"));
     }
 
     Ok(LLMWorkerLoadCapacityConfig {
@@ -79,6 +79,7 @@ fn main() -> Result<()> {
     worker.execute(app)
 }
 
+// TODO - refactor much of this back into the library
 async fn app(runtime: Runtime) -> Result<()> {
     // we will start by assuming that there is no oscar and no planner
     // to that end, we will use an env to get a singular config for scraping a single backend
@@ -87,7 +88,7 @@ async fn app(runtime: Runtime) -> Result<()> {
     let drt = DistributedRuntime::from_settings(runtime.clone()).await?;
 
     // todo move to distributed and standardize and move into file/env/cli config
-    let namespace = std::env::var("NOVA_NAMESPACE").unwrap_or("default".to_string());
+    let namespace = std::env::var("TRD_NAMESPACE").unwrap_or("default".to_string());
 
     let namespace = drt.namespace(namespace)?;
     let component = namespace.component("count")?;
@@ -118,13 +119,13 @@ async fn app(runtime: Runtime) -> Result<()> {
     let subject = format!("l2c.{}", address);
 
     loop {
+        // TODO - make this configurable
         let next = Instant::now() + Duration::from_secs(2);
-
         let stream = target.scrape_stats(Duration::from_secs(1)).await?;
 
         let endpoints = stream
             .into_endpoints()
-            .filter(|e| e.subject == subject)
+            .filter(|e| e.subject.starts_with(&subject))
             .collect::<Vec<_>>();
 
         let metrics = endpoints
@@ -142,17 +143,13 @@ async fn app(runtime: Runtime) -> Result<()> {
             .iter()
             .zip(endpoints.iter())
             .filter_map(|(m, e)| {
-                e.subject
-                    .split('-')
-                    .last()
-                    .and_then(|s| i64::from_str_radix(s, 16).ok())
-                    .map(|id| {
-                        (
-                            m.kv_blocks_total - m.kv_blocks_active,
-                            m.requests_total_slots - m.requests_active_slots,
-                            id,
-                        )
-                    })
+                e.id().ok().map(|id| {
+                    (
+                        m.kv_blocks_total - m.kv_blocks_active,
+                        m.requests_total_slots - m.requests_active_slots,
+                        id,
+                    )
+                })
             })
             .collect::<Vec<_>>();
 
