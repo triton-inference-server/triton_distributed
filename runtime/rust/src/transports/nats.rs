@@ -88,11 +88,11 @@ impl Client {
 
     /// Issues a broadcast request for all services with the provided `service_name` to report their
     /// current stats. Each service will only respond once. The service may have customized the reply
-    /// so the caller should select which endpoint and what concretely data model should be used to
+    /// so the caller should select which endpoint and what concrete data model should be used to
     /// extract the details.
     ///
     /// Note: Because each endpoint will only reply once, the caller must drop the subscription after
-    /// some time or it will await forever.s
+    /// some time or it will await forever.
     pub async fn scrape_service(&self, service_name: &str) -> Result<Subscriber> {
         let subject = format!("$SRV.STATS.{}", service_name);
         let reply_subject = format!("_INBOX.{}", nuid::next());
