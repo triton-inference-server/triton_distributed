@@ -62,7 +62,7 @@ mpirun --allow-run-as-root -n 2 python3 -m disagg.worker --engine_args model.jso
 
 Run router. This is still a WIP. It needs information about which endpoints are ctx/gen.
 ```bash
-python3 -m disagg.router
+python3 -m disagg.router &
 ```
 
 Run client

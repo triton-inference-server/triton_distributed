@@ -17,12 +17,15 @@
 import argparse
 import asyncio
 import copy
+import os
 import uvloop
 from triton_distributed_rs import DistributedRuntime, triton_worker
 from tensorrt_llm.llmapi import DisaggregatedParams
 from tensorrt_llm.logger import logger
 from tensorrt_llm.llmapi.disagg_utils import (CtxGenServerConfig,
-                                              parse_disagg_config_file)
+                                              parse_disagg_config_file,
+                                              split_world_comm)
+from tensorrt_llm._utils import set_mpi_comm
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 
 from common.protocol import Request, Response
@@ -102,12 +105,11 @@ async def worker(
     component = runtime.namespace("triton-init").component("router")
     await component.create_service()
 
-    client = await runtime.namespace("triton-init").component("tensorrt-llm").endpoint("generate").client()
-    # TODO: need information about which endpoints are ctx/gen
-    print("client endpoints: ", client.endpoint_ids())
+    ctx_client = await runtime.namespace("triton-init").component("tensorrt-llm-ctx").endpoint("generate").client()
+    gen_client = await runtime.namespace("triton-init").component("tensorrt-llm-gen").endpoint("generate").client()
 
     endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(Router(client).generate)
+    await endpoint.serve_endpoint(Router(ctx_client, gen_client).generate)
 
 if __name__ == "__main__":
     uvloop.install()
@@ -117,6 +119,7 @@ if __name__ == "__main__":
                         default="disagg/disagg_config.yaml")
     args = parser.parse_args()
     disagg_config = parse_disagg_config_file(args.disagg_config)
-    ctx_server_urls, gen_server_urls = get_server_urls(disagg_config.server_configs)
+    
+    os.environ['TRTLLM_USE_MPI_KVCACHE'] = "1"
 
     asyncio.run(worker())

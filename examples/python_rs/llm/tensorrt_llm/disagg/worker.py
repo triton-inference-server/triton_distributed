@@ -45,17 +45,15 @@ class TensorrtLLMEngine:
     """
 
     def __init__(self, engine_args: Tuple[Dict[str, Any], Dict[str, Any]], 
-                    disagg_config: CtxGenServerConfig, instance_idx: int, sub_comm):
+                    server_config: CtxGenServerConfig, sub_comm):
         self.pytorch_config_args, self.llm_engine_args = engine_args
-        self.disagg_config = disagg_config
-        self.instance_idx = instance_idx
-        self.mpi_session = MpiCommSession(sub_comm)
+        self.server_config = server_config
+        self.mpi_session = MpiCommSession(sub_comm, n_workers=sub_comm.Get_size())
         self._init_engine()
 
     def _init_engine(self):
         logger.info("Initializing engine")
         
-        os.environ['TRTLLM_USE_MPI_KVCACHE'] = "1"
         # Run the engine in a separate thread running the AsyncIO event loop.
         self._llm_engine = None
         self._llm_engine_start_cv = threading.Condition()
@@ -97,7 +95,7 @@ class TensorrtLLMEngine:
                         pipeline_parallel_size=1,
                         gpus_per_node=None,
                         trust_remote_code=True,
-                        mpi_session=self.mpi_session,
+                        _mpi_session=self.mpi_session,
                         kv_cache_config=KvCacheConfig(free_gpu_memory_fraction=0.25),
                         pytorch_backend_config=pytorch_config,
                         backend="pytorch"
@@ -173,35 +171,39 @@ class TensorrtLLMEngine:
 async def worker(
     runtime: DistributedRuntime, 
     engine_args: Tuple[Dict[str, Any], Dict[str, Any]], 
-    disagg_config: CtxGenServerConfig, 
-    instance_idx: int, 
+    server_config: CtxGenServerConfig, 
     sub_comm
 ):
     """
     Instantiate a `backend` component and serve the `generate` endpoint
     A `Component` can serve multiple endpoints
     """
-    component = runtime.namespace("triton-init").component("tensorrt-llm")
+    server_type = server_config.type
+    logger.info(f"Starting {server_type} server")
+
+    component = runtime.namespace("triton-init").component(f"tensorrt-llm-{server_type}")
     await component.create_service()
 
     endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(TensorrtLLMEngine(engine_args, disagg_config, instance_idx, sub_comm).generate)
+    await endpoint.serve_endpoint(TensorrtLLMEngine(engine_args, server_config, sub_comm).generate)
 
 
 if __name__ == "__main__":
     uvloop.install()
-    args, engine_args = parse_tensorrt_llm_args()
+    engine_args = parse_tensorrt_llm_args()
     disagg_config = parse_disagg_config_file(engine_args[1].pop('disagg_config'))
 
     logger.info(f"disagg_config: {disagg_config}")
 
     is_leader, instance_idx, sub_comm = split_world_comm(disagg_config.server_configs)
+    os.environ['TRTLLM_USE_MPI_KVCACHE'] = "1"
+    set_mpi_comm(sub_comm)
+    
     logger.info(f"is_leader: {is_leader}, instance_idx: {instance_idx}")
 
     if is_leader:
-        asyncio.run(worker(engine_args, disagg_config, instance_idx, sub_comm))    
+        asyncio.run(worker(engine_args, disagg_config.server_configs[instance_idx], sub_comm))    
     else:
-        set_mpi_comm(sub_comm)
         with MPICommExecutor(sub_comm) as executor:
             if not is_leader and executor is not None:
                 raise RuntimeError(f"rank{COMM_WORLD} should not have executor")
