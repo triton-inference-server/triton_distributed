@@ -195,7 +195,10 @@ mod tests {
 
                 let default_config = RuntimeConfig::default();
                 assert_eq!(config.num_worker_threads, default_config.num_worker_threads);
-                assert_eq!(config.max_blocking_threads, default_config.max_blocking_threads);
+                assert_eq!(
+                    config.max_blocking_threads,
+                    default_config.max_blocking_threads
+                );
                 Ok(())
             },
         )
@@ -212,8 +215,12 @@ mod tests {
                 let result = RuntimeConfig::from_settings();
                 assert!(result.is_err());
                 if let Err(e) = result {
-                    assert!(e.to_string().contains("num_worker_threads: Validation error"));
-                    assert!(e.to_string().contains("max_blocking_threads: Validation error"));
+                    assert!(e
+                        .to_string()
+                        .contains("num_worker_threads: Validation error"));
+                    assert!(e
+                        .to_string()
+                        .contains("max_blocking_threads: Validation error"));
                 }
                 Ok(())
             },
