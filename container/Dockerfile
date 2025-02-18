@@ -70,34 +70,6 @@ RUN find /opt/tritonserver/python -maxdepth 1 -type f -name \
 ARG GENAI_PERF_TAG="r25.01"
 RUN pip install "git+https://github.com/triton-inference-server/perf_analyzer.git@${GENAI_PERF_TAG}#subdirectory=genai-perf"
 
-# Working directory
-WORKDIR /workspace
-
-COPY runtime /workspace/runtime
-RUN cd runtime/rust && \
-cargo build --release --locked && cargo doc --no-deps
-
-# Generate C bindings. Note that this is required for TRTLLM backend re-build
-COPY llm /workspace/llm
-RUN cd llm/rust/ && \
-cargo build --release --locked && cargo doc --no-deps
-
-# Install uv and create virtualenv for general use
-COPY python-wheel /workspace/python-wheel
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-RUN mkdir /opt/triton && \
-    uv venv /opt/triton/venv --python 3.12 && \
-    source /opt/triton/venv/bin/activate && \
-    cd python-wheel && \
-    uv build && \
-    uv pip install dist/triton_distributed_rs*cp312*.whl
-
-# Package the bindings
-RUN mkdir -p /opt/triton/llm_binding/wheels && mkdir /opt/triton/llm_binding/lib
-RUN cp python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/.
-RUN cp llm/rust/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/.
-RUN cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
-
 # Backend & Framework Specific Installation
 ARG FRAMEWORK="STANDARD"
 ARG TENSORRTLLM_BACKEND_REPO_TAG=
@@ -153,38 +125,42 @@ RUN rm -rf /etc/nginx/sites-enabled/default
 RUN apt-get install nvtop -y
 RUN apt-get install tmux -y
 
-##########################################################
-# Tokenizers                                             #
-##########################################################
-
-# Todo Pull in from network and not local to repo
-#
-# RUN --mount=type=bind,source=./container/deps/llama3-tok.tgz,target=/tmp/llama3-tok.tgz \
-#    mkdir -p /genai-perf/tokenizers && cd /genai-perf/tokenizers && tar -xzf /tmp/llama3-tok.tgz
-
 # Working directory
 WORKDIR /workspace
+
+COPY icp /workspace/icp
+RUN /workspace/icp/protos/gen_python.sh
 
 COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Install uv and create virtualenv for general use
+# Generate C bindings. Note that this is required for TRTLLM backend re-build
+COPY llm /workspace/llm
+RUN cd llm/rust/ && \
+    cargo build --release --locked && cargo doc --no-deps
+
+# Install uv, create virtualenv for general use, and build triton_distributed_rs wheel
+COPY python-wheel /workspace/python-wheel
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
-    cd runtime/rust/python-wheel && \
+    cd python-wheel && \
     uv build && \
     uv pip install dist/triton_distributed_rs*cp312*.whl
+
+# Package the bindings
+RUN mkdir -p /opt/triton/llm_binding/wheels && \
+    mkdir /opt/triton/llm_binding/lib && \
+    cp python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/. && \
+    cp llm/rust/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/. && \
+    cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
 
 # Install triton_distributed_rs wheel globally in container for tests that
 # currently run without virtual environment activated.
 # TODO: In future, we may use a virtualenv for everything and remove this.
 RUN pip install /opt/triton/llm_binding/wheels/triton_distributed_rs*cp312*.whl
-
-COPY icp /workspace/icp
-RUN /workspace/icp/protos/gen_python.sh
 
 # Install python packages
 ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown
