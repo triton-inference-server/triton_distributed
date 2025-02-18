@@ -24,6 +24,7 @@ pub struct EndpointConfig {
     #[builder(private)]
     endpoint: Endpoint,
 
+    // todo: move lease to component/service
     /// Lease
     #[educe(Debug(ignore))]
     #[builder(default)]
@@ -41,7 +42,7 @@ impl EndpointConfigBuilder {
 
     pub async fn start(self) -> Result<()> {
         let (endpoint, lease, handler) = self.build_internal()?.dissolve();
-        let lease = lease.unwrap_or(endpoint.component.drt.primary_lease());
+        let lease = lease.unwrap_or(endpoint.drt().primary_lease());
 
         tracing::debug!(
             "Starting endpoint: {}",

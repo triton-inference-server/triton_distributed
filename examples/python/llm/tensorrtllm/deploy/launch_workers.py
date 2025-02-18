@@ -43,50 +43,51 @@ for sig in signals:
 
 
 def _launch_mpi_workers(args):
-    if (
-        args.context_worker_count == 1
-        or args.generate_worker_count == 1
-        or args.aggregate_worker_count == 1
-    ):
-        command = [
-            "mpiexec",
-            "--allow-run-as-root",
-            "--oversubscribe",
-            "--display-map",
-            "--verbose",
-        ]
+    command = [
+        "mpiexec",
+        "--allow-run-as-root",
+        "--oversubscribe",
+        "--display-map",
+        "--verbose",
+    ]
 
-        if args.log_dir:
-            WORKER_LOG_DIR = str(Path(args.log_dir) / "workers")
-            command += ["--output-filename", WORKER_LOG_DIR]
+    if args.log_dir:
+        WORKER_LOG_DIR = str(Path(args.log_dir) / "workers")
+        command += ["--output-filename", WORKER_LOG_DIR]
 
-        aggregate_gpus = args.context_worker_count + args.generate_worker_count
+    aggregate_gpus = 0
 
-        for index in range(args.context_worker_count):
-            starting_gpu = index * aggregate_gpus
-            command.extend(_context_cmd(args, starting_gpu))
-            command.append(":")
+    # [TODO] below placements assume model to be TP/PP 1
+    gpu_count_per_context_worker = 1
+    gpu_count_per_generate_worker = 1
+    gpu_count_per_aggreate_worker = 1
 
-        for index in range(args.generate_worker_count):
-            starting_gpu = index * aggregate_gpus + args.context_worker_count
-            command.extend(_generate_cmd(args, starting_gpu))
-            command.append(":")
+    for index in range(args.context_worker_count):
+        starting_gpu = aggregate_gpus
+        command.extend(_context_cmd(args, index, starting_gpu))
+        command.append(":")
+        aggregate_gpus += gpu_count_per_context_worker
 
-        for index in range(args.aggregate_worker_count):
-            starting_gpu = index * aggregate_gpus + args.context_worker_count
-            command.extend(_aggregate_cmd(args, starting_gpu))
-            command.append(":")
+    for index in range(args.generate_worker_count):
+        starting_gpu = aggregate_gpus
+        command.extend(_generate_cmd(args, index, starting_gpu))
+        command.append(":")
+        aggregate_gpus += gpu_count_per_generate_worker
 
-        command = command[0:-1]
-        print(" ".join(command))
+    for index in range(args.aggregate_worker_count):
+        starting_gpu = aggregate_gpus
+        command.extend(_aggregate_cmd(args, index, starting_gpu))
+        command.append(":")
+        aggregate_gpus += gpu_count_per_aggreate_worker
 
-        if args.dry_run:
-            return
+    command = command[0:-1]
+    print(" ".join(command))
 
-        env = os.environ.copy()
-        return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
-    else:
-        raise ValueError("Only supporting 1 worker each for now")
+    if args.dry_run:
+        return
+
+    env = os.environ.copy()
+    return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
 
 
 def _launch_disagg_model(args):
@@ -104,21 +105,43 @@ def _launch_disagg_model(args):
     return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
 
 
+def _launch_kv_aware_model(args):
+    if not args.kv_aware_routing:
+        return
+
+    starting_gpu = 0
+    env = os.environ.copy()
+    command = _kv_aware_routing_cmd(args, starting_gpu)
+    print(" ".join(command))
+
+    if args.dry_run:
+        return
+
+    return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
+
+
 def _launch_workers(args):
     # Launch nats-server if requested by user for convenience, otherwise
     # it can be started separately beforehand.
     if args.initialize_request_plane:
         _launch_nats_server(args)
+        # [FIXME] not really related to request plane
+        _launch_etcd(args)
 
     # Launch TRT-LLM models via mpiexec in the same MPI WORLD
     _launch_mpi_workers(args)
 
+    # [FIXME] below should be "one of" or merged together
     # Launch disaggregated serving "workflow" model to interface
     # client-facing requests with Triton Distributed deployment.
     _launch_disagg_model(args)
 
+    # Launch KV aware routing "workflow" model to interface
+    # client-facing requests with Triton Distributed deployment.
+    _launch_kv_aware_model(args)
 
-def _context_cmd(args, starting_gpu):
+
+def _context_cmd(args, index, starting_gpu):
     # Hard-coded worker name for internal communication,
     # see tensorrtllm.deploy script
     worker_name = "context"
@@ -141,7 +164,7 @@ def _context_cmd(args, starting_gpu):
         "--gpu-device-id",
         f"{starting_gpu}",
         "--metrics-port",
-        "50000",
+        str(50100 + index),
         "--initialize-request-plane",
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
@@ -150,7 +173,7 @@ def _context_cmd(args, starting_gpu):
     return command
 
 
-def _generate_cmd(args, starting_gpu):
+def _generate_cmd(args, index, starting_gpu):
     # Hard-coded worker name for internal communication
     # see tensorrtllm.deploy script
     worker_name = "generate"
@@ -173,7 +196,7 @@ def _generate_cmd(args, starting_gpu):
         "--gpu-device-id",
         f"{starting_gpu}",
         "--metrics-port",
-        "50001",
+        str(50200 + index),
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
     ]
@@ -181,7 +204,7 @@ def _generate_cmd(args, starting_gpu):
     return command
 
 
-def _aggregate_cmd(args, starting_gpu):
+def _aggregate_cmd(args, index, starting_gpu):
     # Hard-coded worker name for internal communication
     # see tensorrtllm.deploy script
     worker_name = "aggregate"
@@ -204,7 +227,7 @@ def _aggregate_cmd(args, starting_gpu):
         "--gpu-device-id",
         f"{starting_gpu}",
         "--metrics-port",
-        "50001",
+        str(50300 + index),
         "--request-plane-uri",
         f"{os.getenv('HOSTNAME')}:{args.nats_port}",
     ]
@@ -239,6 +262,33 @@ def _disaggregated_serving_cmd(args, starting_gpu):
     return command
 
 
+def _kv_aware_routing_cmd(args, starting_gpu):
+    # NOTE: This worker gets the args --worker-name because it will
+    # receive the API-serving facing requests, and internally handle
+    # the disaggregation. So this worker name should match the one
+    # registered to the API Server.
+    command = [
+        # FIXME: Does this model need a GPU assigned to it?
+        # "-x",
+        # f"CUDA_VISIBLE_DEVICES={starting_gpu}",
+        "python3",
+        "-m",
+        "llm.tensorrtllm.deploy",
+        "--worker-type",
+        "kv-aware-routing",
+        "--metrics-port",
+        "50002",
+        "--model",
+        args.model,
+        "--worker-name",
+        args.worker_name,
+        "--request-plane-uri",
+        f"{os.getenv('HOSTNAME')}:{args.nats_port}",
+    ]
+
+    return command
+
+
 def _launch_nats_server(args, clear_store=True):
     # FIXME: Use NatsServer object defined in icp package
     store_dir = "/tmp/nats_store"
@@ -252,6 +302,19 @@ def _launch_nats_server(args, clear_store=True):
         str(args.nats_port),
         "--store_dir",
         store_dir,
+    ]
+
+    print(" ".join(command))
+    if args.dry_run:
+        return
+
+    env = os.environ.copy()
+    return subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL)
+
+
+def _launch_etcd(args):
+    command = [
+        "/usr/local/bin/etcd",
     ]
 
     print(" ".join(command))

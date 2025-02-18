@@ -61,8 +61,8 @@ addopts = [
     "--ignore-glob=*model.py",
     # FIXME: Get relative/generic blob paths to work here
     # Ignore rust<->python bindings until python package is built/installed in environment
-    "--ignore-glob=/workspace/runtime/rust/python-wheel/python/triton_distributed_rs/*.py",
-    "--ignore-glob=/workspace/runtime/rust/python-wheel/python/triton_distributed_rs/*.pyi",
+    "--ignore-glob=/workspace/python-wheel/python/triton_distributed_rs/*.py",
+    "--ignore-glob=/workspace/python-wheel/python/triton_distributed_rs/*.pyi",
 ]
 xfail_strict = true
 log_cli_level = "INFO"
@@ -82,6 +82,9 @@ markers = [
 # Same as Black.
 line-length = 88
 indent-width = 4
+
+[tool.ruff.lint.extend-per-file-ignores]
+"icp/tests/**/test_*.py" = ["F811", "F401"]
 
 [tool.mypy]
 

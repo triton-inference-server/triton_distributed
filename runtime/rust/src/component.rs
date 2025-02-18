@@ -43,7 +43,7 @@
 
 use crate::discovery::Lease;
 
-use super::{error, transports::nats::Slug, DistributedRuntime, Result};
+use super::{error, traits::*, transports::nats::Slug, DistributedRuntime, Result, Runtime};
 
 use crate::pipeline::network::{ingress::push_endpoint::PushEndpoint, PushWorkHandler};
 use async_nats::{
@@ -108,13 +108,37 @@ pub struct Component {
     namespace: String,
 }
 
+impl DistributedRuntimeProvider for Component {
+    fn drt(&self) -> &DistributedRuntime {
+        &self.drt
+    }
+}
+
+impl RuntimeProvider for Component {
+    fn rt(&self) -> &Runtime {
+        self.drt.rt()
+    }
+}
+
 impl Component {
     pub fn etcd_path(&self) -> String {
         format!("{}/components/{}", self.namespace, self.name)
     }
 
+    pub fn drt(&self) -> &DistributedRuntime {
+        &self.drt
+    }
+
     fn slug(&self) -> Slug {
         Slug::from_string(self.etcd_path())
+    }
+
+    pub fn service_name(&self) -> String {
+        self.slug().to_string()
+    }
+
+    pub fn event_subject(&self, name: impl AsRef<str>) -> String {
+        format!("{}.events.{}", self.slug(), name.as_ref())
     }
 
     pub fn endpoint(&self, endpoint: impl Into<String>) -> Endpoint {
@@ -160,9 +184,25 @@ pub struct Endpoint {
     name: String,
 }
 
+impl DistributedRuntimeProvider for Endpoint {
+    fn drt(&self) -> &DistributedRuntime {
+        self.component.drt()
+    }
+}
+
+impl RuntimeProvider for Endpoint {
+    fn rt(&self) -> &Runtime {
+        self.component.rt()
+    }
+}
+
 impl Endpoint {
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn component(&self) -> &Component {
+        &self.component
     }
 
     pub fn etcd_path(&self) -> String {
@@ -204,6 +244,18 @@ pub struct Namespace {
 
     #[validate()]
     name: String,
+}
+
+impl DistributedRuntimeProvider for Namespace {
+    fn drt(&self) -> &DistributedRuntime {
+        &self.runtime
+    }
+}
+
+impl RuntimeProvider for Namespace {
+    fn rt(&self) -> &Runtime {
+        self.runtime.rt()
+    }
 }
 
 impl Namespace {

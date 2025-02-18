@@ -243,3 +243,45 @@ Zhang. Distserve: Disaggregating prefill and decoding for goodput-optimized larg
 model serving. *arXiv:2401.09670v3 [cs.DC]*, 2024.
 
 For more details on Triton Distributed, see the [Hello World example](../../hello_world/) and [Triton Inference Server documentation](https://github.com/triton-inference-server/server).
+
+# KV Aware Routing with TensorRT-LLM
+
+This example also showcase smart routing based on worker KV usage, in aggregated scenario.
+To start a KV aware deployment with 2 decode workers:
+
+```bash
+export HOSTNAME=localhost
+export MODEL_NAME="llama-3.1-8b-instruct"
+python3 /workspace/examples/python/llm/tensorrtllm/deploy/launch_workers.py \
+  --generate-worker-count 2 \
+  --model ${MODEL_NAME} \
+  --initialize-request-plane \
+  --kv-aware-routing \
+  --request-plane-uri ${HOSTNAME}:4222 &
+```
+
+```bash
+python3 -m llm.api_server \
+  --tokenizer meta-llama/Llama-3.1-8B-Instruct \
+  --request-plane-uri ${HOSTNAME}:4222 \
+  --api-server-host ${HOSTNAME} \
+  --model-name ${MODEL_NAME} &
+```
+
+```bash
+curl ${HOSTNAME}:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "llama-3.1-8b-instruct",
+    "messages": [
+      {"role": "user", "content": "Why is Roger Federer the greatest tennis player of all time? Roger Federer is widely regarded as one of the greatest tennis players of all time, and many consider him the greatest."}
+    ],
+    "temperature": 0,
+    "top_p": 0.95,
+    "max_tokens": 25,
+    "stream": true,
+    "n": 1,
+    "frequency_penalty": 0.0,
+    "stop": []
+  }'
+```

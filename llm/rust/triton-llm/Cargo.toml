@@ -21,6 +21,11 @@ authors.workspace = true
 license.workspace = true
 homepage.workspace = true
 
+[features]
+mistralrs = ["dep:mistralrs"]
+metal = ["mistralrs/metal"]
+cuda = ["mistralrs/cuda"]
+
 [dependencies]
 
 # repo
@@ -41,6 +46,7 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 validator = { workspace = true }
 uuid = { workspace = true }
+xxhash-rust = { workspace = true }
 
 # protocols
 chrono = { version = "0.4" }
@@ -52,8 +58,13 @@ unicode-segmentation = "1.12"
 axum = "0.8"
 prometheus = { version = "0.13" }
 
+# mistralrs
+either = { version = "1.13" }
+indexmap = { version = "2.6" }
+mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "5e689c9", optional = true }
 
 [dev-dependencies]
 insta = { version = "1.41", features = ["glob", "json", "redactions"]}
 proptest = "1.5.0"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+rstest = "0.18.2"
