@@ -20,6 +20,9 @@ import uuid
 from typing import Optional
 
 from triton_distributed.icp.data_plane import DataPlane
+from triton_distributed.icp.nats_request_plane import (  # noqa: F401 DEFAULT_REQUESTS_URI is part of public API
+    DEFAULT_REQUESTS_URI,
+)
 from triton_distributed.icp.request_plane import RequestPlane
 from triton_distributed.runtime.remote_request import RemoteInferenceRequest
 from triton_distributed.runtime.remote_response import AsyncRemoteResponseIterator

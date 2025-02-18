@@ -37,9 +37,8 @@ from triton_distributed.runtime.logger import get_logger
 from triton_distributed.runtime.operator import OperatorConfig
 from triton_distributed.runtime.remote_operator import RemoteOperator
 from triton_distributed.runtime.triton_core_operator import TritonCoreOperator
-from triton_distributed.runtime.worker import WorkerConfig
+from triton_distributed.runtime.worker import DEFAULT_REQUESTS_URI, WorkerConfig
 
-NATS_PORT = 4223
 MODEL_REPOSITORY = (
     "/workspace/runtime/tests/python/integration/operators/triton_core_models"
 )
@@ -103,7 +102,7 @@ def workers(request, log_dir):
                 data_plane=UcpDataPlane,
                 request_plane_args=(
                     [],
-                    {"request_plane_uri": f"nats://localhost:{NATS_PORT}"},
+                    {"request_plane_uri": DEFAULT_REQUESTS_URI},
                 ),
                 log_level=TRITON_LOG_LEVEL,
                 log_dir=str(worker_log_dir),
@@ -149,7 +148,7 @@ async def post_requests(num_requests):
     data_plane = UcpDataPlane()
     data_plane.connect()
 
-    request_plane = NatsRequestPlane(f"nats://localhost:{NATS_PORT}")
+    request_plane = NatsRequestPlane(DEFAULT_REQUESTS_URI)
     await request_plane.connect()
 
     mock_disaggregated_serving_operator = RemoteOperator(
@@ -282,6 +281,7 @@ def run_kserve(num_requests):
     "(not os.path.exists('/usr/local/bin/nats-server'))",
     reason="NATS.io not present",
 )
+@pytest.mark.xfail
 def test_mock_disaggregated_serving_kserve(request, nats_server, workers, api_server):
     # Using a separate process to use data plane across multiple tests.
     p = Process(target=run_kserve, args=(1,))

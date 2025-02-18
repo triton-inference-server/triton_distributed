@@ -27,7 +27,10 @@ from llm.api_server.connector import (
 from llm.api_server.remote_connector import RemoteConnector
 from tritonserver import DataType
 
-from triton_distributed.runtime.remote_operator import RemoteOperator
+from triton_distributed.runtime.remote_operator import (  # noqa: F401 DEFAULT_REQUESTS_URI is part of public API
+    DEFAULT_REQUESTS_URI,
+    RemoteOperator,
+)
 
 
 class RemoteModelConnector(BaseTriton3Connector):
@@ -35,7 +38,7 @@ class RemoteModelConnector(BaseTriton3Connector):
 
     def __init__(
         self,
-        nats_url: str,
+        request_plane_uri: str,
         model_name: str,
         model_version: Optional[str] = None,
         data_plane_host: Optional[str] = None,
@@ -45,7 +48,7 @@ class RemoteModelConnector(BaseTriton3Connector):
         """Initialize Triton 3 connector.
 
         Args:
-            nats_url: NATS URL (e.g. "localhost:4222").
+            request_plane_uri: NATS URL (e.g. "localhost:4222").
             model_name: Model name.
             model_version: Model version. Default is "1".
             data_plane_host: Data plane host (e.g. "localhost").
@@ -54,7 +57,7 @@ class RemoteModelConnector(BaseTriton3Connector):
 
         Example:
             remote_model_connector = RemoteModelConnector(
-                nats_url="localhost:4222",
+                request_plane_uri="localhost:4222",
                 data_plane_host="localhost",
                 data_plane_port=8001,
                 model_name="model_name",
@@ -66,7 +69,7 @@ class RemoteModelConnector(BaseTriton3Connector):
                     print(response.outputs)
         """
         self._connector = RemoteConnector(
-            nats_url,
+            request_plane_uri,
             data_plane_host,
             data_plane_port,
             keep_dataplane_endpoints_open=keep_dataplane_endpoints_open,

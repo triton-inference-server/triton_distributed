@@ -31,7 +31,7 @@ parameters: {
 parameters: {
   key: "request_plane_uri"
   value: {
-    string_value: "nats://localhost:4223"
+    string_value: "nats://localhost:4222"
   }
 }
 

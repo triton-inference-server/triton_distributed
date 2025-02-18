@@ -29,7 +29,7 @@ def main(args):
 
     # Wrap Triton Distributed in an interface-conforming "LLMEngine"
     engine: TritonDistributedEngine = TritonDistributedEngine(
-        nats_url=args.request_plane_uri,
+        request_plane_uri=args.request_plane_uri,
         data_plane_host=args.data_plane_host,
         data_plane_port=args.data_plane_port,
         model_name=args.model_name,

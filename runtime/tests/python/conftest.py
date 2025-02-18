@@ -28,8 +28,9 @@ from triton_distributed.icp.nats_request_plane import NatsServer
 logger = logging.getLogger(__name__)
 
 
-NATS_PORT = 4223
-TEST_API_SERVER_MODEL_REPO_PATH = "integration/api_server/models"
+TEST_API_SERVER_MODEL_REPO_PATH = (
+    "/workspace/worker/tests/python/integration/api_server/models"
+)
 
 
 def pytest_addoption(parser):

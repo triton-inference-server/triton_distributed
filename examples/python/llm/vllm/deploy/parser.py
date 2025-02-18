@@ -15,6 +15,8 @@
 
 import argparse
 
+from triton_distributed.runtime.worker import DEFAULT_REQUESTS_URI
+
 
 # FIXME: Remove unused args if any
 def parse_args():
@@ -34,7 +36,7 @@ def parse_args():
     parser.add_argument(
         "--request-plane-uri",
         type=str,
-        default="nats://localhost:4223",
+        default=DEFAULT_REQUESTS_URI,
         help="URI of request plane",
     )
 
@@ -82,14 +84,6 @@ def parse_args():
         required=False,
         default=0,
         help="Number of generate workers",
-    )
-
-    parser.add_argument(
-        "--nats-url",
-        type=str,
-        required=False,
-        default="nats://localhost:4223",
-        help="URL of NATS server",
     )
 
     parser.add_argument(
