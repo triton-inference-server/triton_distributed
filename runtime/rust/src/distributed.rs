@@ -141,4 +141,15 @@ impl DistributedConfig {
             nats_config: nats::ClientOptions::default(),
         }
     }
+
+    pub fn for_cli() -> DistributedConfig {
+        let mut config = DistributedConfig {
+            etcd_config: etcd::ClientOptions::default(),
+            nats_config: nats::ClientOptions::default(),
+        };
+
+        config.etcd_config.attach_lease = false;
+
+        config
+    }
 }

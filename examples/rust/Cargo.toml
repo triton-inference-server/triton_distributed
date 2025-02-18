@@ -16,6 +16,8 @@
 [workspace]
 members = [
     "hello_world",
+    "http",
+    "llmctl",
 ]
 resolver = "2"
 

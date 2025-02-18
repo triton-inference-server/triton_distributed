@@ -56,7 +56,7 @@ use tracing_subscriber::{filter::Directive, fmt};
 const FILTER_ENV: &str = "TRD_LOG";
 
 /// Default log level
-const DEFAULT_FILTER_LEVEL: &str = "info";
+const DEFAULT_FILTER_LEVEL: &str = "error";
 
 /// ENV used to set the path to the logging configuration file
 const CONFIG_PATH_ENV: &str = "TRD_LOGGING_CONFIG_PATH";
@@ -73,7 +73,13 @@ impl Default for LoggingConfig {
     fn default() -> Self {
         LoggingConfig {
             log_level: DEFAULT_FILTER_LEVEL.to_string(),
-            log_filters: HashMap::new(),
+            log_filters: HashMap::from([
+                ("h2".to_string(), "error".to_string()),
+                ("tower".to_string(), "error".to_string()),
+                ("hyper_util".to_string(), "error".to_string()),
+                ("neli".to_string(), "error".to_string()),
+                ("async_nats".to_string(), "error".to_string()),
+            ]),
         }
     }
 }
