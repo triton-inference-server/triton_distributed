@@ -52,6 +52,7 @@ use crate::{
 
 pub mod bridge;
 pub mod endpoint;
+pub mod proxy;
 
 type Frame = Vec<Message>;
 
