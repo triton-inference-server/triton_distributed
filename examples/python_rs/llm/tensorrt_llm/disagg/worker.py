@@ -195,13 +195,11 @@ if __name__ == "__main__":
 
     logger.info(f"disagg_config: {disagg_config}")
 
-    is_leader, instance_idx, sub_comm = split_world_comm(
-        disagg_config.server_configs)
+    is_leader, instance_idx, sub_comm = split_world_comm(disagg_config.server_configs)
     logger.info(f"is_leader: {is_leader}, instance_idx: {instance_idx}")
 
     if is_leader:
-        asyncio.run(worker(engine_args, component_type, disagg_config, instance_idx, sub_comm))
-    
+        asyncio.run(worker(engine_args, disagg_config, instance_idx, sub_comm))    
     else:
         set_mpi_comm(sub_comm)
         with MPICommExecutor(sub_comm) as executor:
