@@ -77,15 +77,9 @@ async fn tio_wrapper(runtime: triton_distributed::Runtime) -> anyhow::Result<()>
 
     // etcd and nats addresses, from env vars ETCD_ENDPOINTS and NATS_SERVER with localhost
     // defaults
-    let dt_config = triton_distributed::distributed::DistributedConfig::from_settings();
+    //let dt_config = triton_distributed::distributed::DistributedConfig::from_settings();
     // Wraps the Runtime (which wraps two tokio runtimes) and adds etcd and nats clients
-    let d_runtime = triton_distributed::DistributedRuntime::new(runtime, dt_config).await?;
+    //let d_runtime = triton_distributed::DistributedRuntime::new(runtime, dt_config).await?;
 
-    tio::run(
-        in_opt,
-        out_opt,
-        nio_flags,
-        d_runtime.runtime().primary_token(),
-    )
-    .await
+    tio::run(in_opt, out_opt, nio_flags, runtime.primary_token()).await
 }
