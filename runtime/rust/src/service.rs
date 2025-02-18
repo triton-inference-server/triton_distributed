@@ -91,8 +91,11 @@ impl ServiceClient {
         duration: Duration,
     ) -> Result<ServiceSet> {
         let sub = self.nats_client.scrape_service(service_name).await?;
-        if duration.is_zero() || duration > Duration::from_secs(10) {
-            tracing::warn!("collect_services: duration is zero or greater than 10 seconds");
+        if duration.is_zero() {
+            tracing::warn!("collect_services: duration is zero");
+        }
+        if duration > Duration::from_secs(10) {
+            tracing::warn!("collect_services: duration is greater than 10 seconds");
         }
         let deadline = tokio::time::Instant::now() + duration;
 
