@@ -20,11 +20,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "triton_distributed-icp"
 dynamic = ["version"]
+# Minimum dependencies to import triton_distributed.icp
+# TODO: Expand this list to include all dependencies and remove duplicates from container/deps.
 dependencies = [
     "cupy-cuda12x",
     "nats-py",
     "msgspec",
-    # TODO: See whether TRT-LLM installs a different version of UCX. Need to revisit and track this dependency.
     "ucx-py-cu12",
     "protobuf==5.27.3",
     "grpcio-tools==1.66.0",
