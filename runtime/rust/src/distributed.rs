@@ -107,7 +107,7 @@ impl DistributedRuntime {
         ServiceClient::new(self.nats_client.clone())
     }
 
-    pub(crate) async fn tcp_server(&self) -> Result<Arc<tcp::server::TcpStreamServer>> {
+    pub async fn tcp_server(&self) -> Result<Arc<tcp::server::TcpStreamServer>> {
         Ok(self
             .tcp_server
             .get_or_try_init(async move {
@@ -140,5 +140,16 @@ impl DistributedConfig {
             etcd_config: etcd::ClientOptions::default(),
             nats_config: nats::ClientOptions::default(),
         }
+    }
+
+    pub fn for_cli() -> DistributedConfig {
+        let mut config = DistributedConfig {
+            etcd_config: etcd::ClientOptions::default(),
+            nats_config: nats::ClientOptions::default(),
+        };
+
+        config.etcd_config.attach_lease = false;
+
+        config
     }
 }

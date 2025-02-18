@@ -32,6 +32,7 @@
 
 mod openai;
 
+pub mod discovery;
 pub mod error;
 pub mod metrics;
 pub mod service_v2;

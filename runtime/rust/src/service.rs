@@ -34,8 +34,7 @@ pub struct ServiceClient {
 }
 
 impl ServiceClient {
-    #[allow(dead_code)]
-    pub(crate) fn new(nats_client: nats::Client) -> Self {
+    pub fn new(nats_client: nats::Client) -> Self {
         ServiceClient { nats_client }
     }
 }

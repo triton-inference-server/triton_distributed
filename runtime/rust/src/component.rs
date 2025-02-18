@@ -132,9 +132,14 @@ impl Component {
         Slug::from_string(format!("{}|{}", self.namespace, self.name)).to_string()
     }
 
-    // fn slug(&self) -> Slug {
-    //     Slug::from_string(self.etcd_path())
-    // }
+    // todo - move to EventPlane
+    pub fn event_subject(&self, name: impl AsRef<str>) -> String {
+        format!("{}.events.{}", self.service_name(), name.as_ref())
+    }
+
+    pub fn drt(&self) -> &DistributedRuntime {
+        &self.drt
+    }
 
     pub fn endpoint(&self, endpoint: impl Into<String>) -> Endpoint {
         Endpoint {
@@ -202,6 +207,10 @@ impl RuntimeProvider for Endpoint {
 impl Endpoint {
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn component(&self) -> &Component {
+        &self.component
     }
 
     pub fn etcd_path(&self) -> String {

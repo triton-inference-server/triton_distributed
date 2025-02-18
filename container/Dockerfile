@@ -29,6 +29,10 @@ RUN apt-get update; apt-get install -y gdb protobuf-compiler
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
+# 'etcd' is runtime dependency
+RUN wget https://github.com/etcd-io/etcd/releases/download/v3.5.18/etcd-v3.5.18-linux-amd64.tar.gz && tar -xzf etcd-v3.5.18-linux-amd64.tar.gz
+RUN cp ./etcd-v3.5.18-linux-amd64/etcd* /usr/local/bin/.
+
 # Install OpenAI-compatible frontend and its dependencies from triton server
 # repository. These are used to have a consistent interface, schema, and FastAPI
 # app between Triton Core and Triton Distributed implementations.
@@ -73,7 +77,7 @@ ARG TENSORRTLLM_BACKEND_REBUILD=
 ENV FRAMEWORK=${FRAMEWORK}
 RUN --mount=type=bind,source=./container/deps/requirements.tensorrtllm.txt,target=/tmp/requirements.txt \
     --mount=type=bind,source=./container/deps/clone_tensorrtllm.sh,target=/tmp/clone_tensorrtllm.sh \
-    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-repo-tag ${TENSORRTLLM_BACKEND_REPO_TAG} --tensorrtllm-backend-rebuild ${TENSORRTLLM_BACKEND_REBUILD} ; fi
+    if [[ "$FRAMEWORK" == "TENSORRTLLM" ]] ; then pip install --timeout=2000 -r /tmp/requirements.txt; /tmp/clone_tensorrtllm.sh --tensorrtllm-backend-repo-tag ${TENSORRTLLM_BACKEND_REPO_TAG} --tensorrtllm-backend-rebuild ${TENSORRTLLM_BACKEND_REBUILD} --triton-llm-path /opt/triton/llm_binding ; fi
 
 
 RUN --mount=type=bind,source=./container/deps/requirements.standard.txt,target=/tmp/requirements.txt \
@@ -85,6 +89,24 @@ ENV FRAMEWORK_LD_LIBRARY_PATH=${TENSORRTLLM_FRAMEWORK:+/opt/tritonserver/backend
 ENV LD_LIBRARY_PATH=${FRAMEWORK_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
 ENV TENSORRTLLM_BACKEND_REPO_TAG=$TENSORRTLLM_BACKEND_REPO_TAG
 ENV TRTLLM_USE_MPI_KVCACHE=${TENSORRTLLM_FRAMEWORK:+"1"}
+
+# TODO set VLLM Version
+# ENV VLLM_VERSION
+ARG VLLM_FRAMEWORK
+# DEFAULT VLLM VARIABLES
+# ENV VLLM_ATTENTION_BACKEND=${VLLM_FRAMEWORK:+FLASHINFER}
+ENV VLLM_WORKER_MULTIPROC_METHOD=${VLLM_FRAMEWORK:+spawn}
+ENV VLLM_TORCH_HOST=${VLLM_FRAMEWORK:+localhost}
+ENV VLLM_TORCH_PORT=${VLLM_FRAMEWORK:+36183}
+ENV VLLM_DATA_PLANE_BACKEND=${VLLM_FRAMEWORK:+nccl}
+ENV VLLM_BASELINE_WORKERS=${VLLM_FRAMEWORK:+0}
+ENV VLLM_CONTEXT_WORKERS=${VLLM_FRAMEWORK:+1}
+ENV VLLM_GENERATE_WORKERS=${VLLM_FRAMEWORK:+1}
+ENV VLLM_BASELINE_TP_SIZE=${VLLM_FRAMEWORK:+1}
+ENV VLLM_CONTEXT_TP_SIZE=${VLLM_FRAMEWORK:+1}
+ENV VLLM_GENERATE_TP_SIZE=${VLLM_FRAMEWORK:+1}
+ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
+ENV PYTHONUNBUFFERED=1
 
 # Install NATS - pointing toward NATS github instead of binaries.nats.dev due to server instability
 RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
@@ -103,48 +125,42 @@ RUN rm -rf /etc/nginx/sites-enabled/default
 RUN apt-get install nvtop -y
 RUN apt-get install tmux -y
 
-##########################################################
-# Tokenizers                                             #
-##########################################################
-
-# Todo Pull in from network and not local to repo
-#
-# RUN --mount=type=bind,source=./container/deps/llama3-tok.tgz,target=/tmp/llama3-tok.tgz \
-#    mkdir -p /genai-perf/tokenizers && cd /genai-perf/tokenizers && tar -xzf /tmp/llama3-tok.tgz
-
 # Working directory
 WORKDIR /workspace
+
+COPY icp /workspace/icp
+RUN /workspace/icp/protos/gen_python.sh
 
 COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Install uv and create virtualenv for general use
+# Generate C bindings. Note that this is required for TRTLLM backend re-build
+COPY llm /workspace/llm
+RUN cd llm/rust/ && \
+    cargo build --release --locked && cargo doc --no-deps
+
+# Install uv, create virtualenv for general use, and build triton_distributed_rs wheel
+COPY python-wheel /workspace/python-wheel
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
-    cd runtime/rust/python-wheel && \
+    cd python-wheel && \
     uv build && \
     uv pip install dist/triton_distributed_rs*cp312*.whl
 
-# Install patched vllm
-ARG VLLM_REF="v0.7.2"
-ARG VLLM_PATCH="vllm_v0.7.2.patch"
-RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
-    if [[ "$FRAMEWORK" == "VLLM" ]]; then \
-        source /opt/triton/venv/bin/activate && \
-        bash /tmp/deps/vllm/install.sh --patch /tmp/deps/vllm/${VLLM_PATCH} --ref ${VLLM_REF} --install-cmd "uv pip install --editable" --use-precompiled --installation-dir /opt/vllm ; \
-    fi
-
+# Package the bindings
+RUN mkdir -p /opt/triton/llm_binding/wheels && \
+    mkdir /opt/triton/llm_binding/lib && \
+    cp python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/. && \
+    cp llm/rust/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/. && \
+    cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
 
 # Install triton_distributed_rs wheel globally in container for tests that
 # currently run without virtual environment activated.
 # TODO: In future, we may use a virtualenv for everything and remove this.
-RUN pip install runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl
-
-COPY icp /workspace/icp
-RUN /workspace/icp/protos/gen_python.sh
+RUN pip install /opt/triton/llm_binding/wheels/triton_distributed_rs*cp312*.whl
 
 # Install python packages
 ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown

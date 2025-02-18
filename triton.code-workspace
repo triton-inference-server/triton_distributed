@@ -9,7 +9,7 @@
             "applications/llm/count/Cargo.toml",
             "llm/rust/Cargo.toml",
             "runtime/rust/Cargo.toml",
-            "runtime/rust/python-wheel/Cargo.toml",
+            "python-wheel/Cargo.toml",
             "examples/rust/Cargo.toml"
         ],
         "rust-analyzer.procMacro.enable": true,

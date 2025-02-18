@@ -22,6 +22,14 @@ class Request(BaseModel):
     sampling_params: dict
 
 
+class Tokens(BaseModel):
+    tokens: list[int]
+
+
+class TokenizedRequest(Request, Tokens):
+    pass
+
+
 class PrefillRequest(Request):
     request_id: str
 

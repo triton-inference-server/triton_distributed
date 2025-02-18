@@ -74,3 +74,5 @@ rand = { version = "0.8"}
 
 [dev-dependencies]
 assert_matches = "1.5.0"
+env_logger = "0.11"
+rstest = "0.23.0"

@@ -15,7 +15,10 @@
 
 [workspace]
 members = [
-    "hello_world", "service_metrics",
+    "hello_world",
+    "http",
+    "llmctl",
+    "service_metrics",
 ]
 resolver = "2"
 

@@ -20,7 +20,9 @@
 
 use std::sync::{Arc, Mutex};
 
-pub use anyhow::{anyhow as error, Context as ErrorContext, Error, Ok as OK, Result};
+pub use anyhow::{
+    anyhow as error, bail as raise, Context as ErrorContext, Error, Ok as OK, Result,
+};
 
 use async_once_cell::OnceCell;
 
@@ -34,6 +36,7 @@ pub mod icp;
 pub mod logging;
 pub mod pipeline;
 pub mod protocols;
+pub mod runnable;
 pub mod runtime;
 pub mod service;
 pub mod transports;
