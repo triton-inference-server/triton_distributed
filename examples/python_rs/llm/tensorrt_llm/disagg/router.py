@@ -82,7 +82,8 @@ class Router:
         logger.info(f"Request to ctx server: {request}")
 
         async for ctx_resp in await ctx_client.generate(request.model_dump_json()):
-            gen_req.disaggregated_params = ctx_resp.disaggregated_params
+            logger.info(f"Received response from ctx server: {ctx_resp}")
+            gen_req.disaggregated_params = disaggregated_params
             gen_req.disaggregated_params.request_type = "generation_only"
             break
 
@@ -119,7 +120,5 @@ if __name__ == "__main__":
                         default="disagg/disagg_config.yaml")
     args = parser.parse_args()
     disagg_config = parse_disagg_config_file(args.disagg_config)
-    
-    os.environ['TRTLLM_USE_MPI_KVCACHE'] = "1"
 
     asyncio.run(worker())

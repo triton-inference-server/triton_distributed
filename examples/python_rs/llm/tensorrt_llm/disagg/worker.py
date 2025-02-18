@@ -19,6 +19,7 @@ import os
 import threading
 from contextlib import asynccontextmanager
 from typing import Any, Dict, Tuple
+from dataclasses import asdict
 
 import uvloop
 from common.parser import parse_tensorrt_llm_args
@@ -162,8 +163,10 @@ class TensorrtLLMEngine:
             disaggregated_params=request.disaggregated_params
         ):
             logger.info(f"Generated response: {response}")
-            yield Response(text=response.outputs[0].text, 
-                            disaggregated_params=response.outputs[0].disaggregated_params)
+            if self.server_config.type == "ctx":
+                yield Response(text=response.outputs[0].text, disaggregated_params=response.outputs[0].disaggregated_params)
+            else:
+                yield response.outputs[0].text
         self._ongoing_request_count -= 1
 
 
