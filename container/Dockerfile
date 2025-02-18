@@ -162,14 +162,21 @@ RUN apt-get install tmux -y
 # RUN --mount=type=bind,source=./container/deps/llama3-tok.tgz,target=/tmp/llama3-tok.tgz \
 #    mkdir -p /genai-perf/tokenizers && cd /genai-perf/tokenizers && tar -xzf /tmp/llama3-tok.tgz
 
-# Install patched vllm
-ARG VLLM_REF="v0.7.2"
-ARG VLLM_PATCH="vllm_v0.7.2-triton-kv-disagg-patch.patch"
-RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
-    if [[ "$FRAMEWORK" == "VLLM" ]]; then \
-        source /opt/triton/venv/bin/activate && \
-        bash /tmp/deps/vllm/install.sh --patch /tmp/deps/vllm/${VLLM_PATCH} --ref ${VLLM_REF} --install-cmd "uv pip install --editable" --use-precompiled --installation-dir /opt/vllm ; \
-    fi
+# Working directory
+WORKDIR /workspace
+
+COPY runtime /workspace/runtime
+RUN cd runtime/rust && \
+    cargo build --release --locked && cargo doc --no-deps
+
+# Install uv and create virtualenv for general use
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN mkdir /opt/triton && \
+    uv venv /opt/triton/venv --python 3.12 && \
+    source /opt/triton/venv/bin/activate && \
+    cd runtime/rust/python-wheel && \
+    uv build && \
+    uv pip install dist/triton_distributed_rs*cp312*.whl
 
 # Install triton_distributed_rs wheel globally in container for tests that
 # currently run without virtual environment activated.

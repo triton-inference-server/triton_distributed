@@ -53,7 +53,9 @@ jobs:
       with:
         filters: |
           vllm:
+            - 'container/Dockerfile.vllm'
             - 'examples/python/llm/**'
+            - 'examples/python_rs/llm/**'
             - 'container/deps/requirements.vllm.txt'
             - 'container/deps/vllm/**'
     - name: Trigger Pipeline
