@@ -281,6 +281,10 @@ impl Namespace {
             .namespace(self.name.clone())
             .build()?)
     }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 // Custom validator function

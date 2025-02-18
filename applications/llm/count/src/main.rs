@@ -26,8 +26,10 @@
 use serde::{Deserialize, Serialize};
 
 use triton_distributed::{
-    error, logging,
-    utils::{stream, Duration, Instant},
+    error,
+    icp::events::EventPlane,
+    logging,
+    utils::{Duration, Instant},
     DistributedRuntime, ErrorContext, Result, Runtime, Worker,
 };
 
@@ -111,19 +113,67 @@ async fn app(runtime: Runtime) -> Result<()> {
     log::debug!("Scraping service {service_name} and filtering on subject {subject}");
     let token = drt.primary_lease().child_token();
 
+    let address = format!("{}.{}", config.component_name, config.endpoint_name,);
+
+    let subject = format!("l2c.{}", address);
+
     loop {
         let next = Instant::now() + Duration::from_secs(2);
+
         let stream = target.scrape_stats(Duration::from_secs(1)).await?;
+
         let endpoints = stream
             .into_endpoints()
             .filter(|e| e.subject == subject)
-            .filter_map(|e| match e.data {
+            .collect::<Vec<_>>();
+
+        let metrics = endpoints
+            .iter()
+            .filter_map(|e| match e.data.clone() {
                 Some(metrics) => metrics.decode::<LLMWorkerLoadCapacity>().ok(),
                 None => None,
             })
             .collect::<Vec<_>>();
 
+        // parse the endpoint ids
+        // the ids are the last part of the subject in hexadecimal
+        // form a list of tuples (kv_blocks_total - kv_blocks_active, requests_total_slots - requests_active_slots, id)
+        let capacity_with_ids = metrics
+            .iter()
+            .zip(endpoints.iter())
+            .filter_map(|(m, e)| {
+                e.subject
+                    .split('-')
+                    .last()
+                    .and_then(|s| i64::from_str_radix(s, 16).ok())
+                    .map(|id| {
+                        (
+                            m.kv_blocks_total - m.kv_blocks_active,
+                            m.requests_total_slots - m.requests_active_slots,
+                            id,
+                        )
+                    })
+            })
+            .collect::<Vec<_>>();
+
         // compute mean / std of LLMWorkerLoadCapacity
+        let load_values: Vec<f64> = metrics.iter().map(|x| x.kv_blocks_active as f64).collect();
+        let load_avg = load_values.iter().sum::<f64>() / load_values.len() as f64;
+        let variance = load_values
+            .iter()
+            .map(|&x| (x - load_avg).powi(2))
+            .sum::<f64>()
+            / load_values.len() as f64;
+        let load_std = variance.sqrt();
+
+        let processed = ProcessedEndpoints {
+            capacity_with_ids,
+            load_avg,
+            load_std,
+            address: address.clone(),
+        };
+
+        namespace.publish(&subject, &processed).await?;
 
         // publish using the namespace event plane
 
@@ -139,4 +189,19 @@ async fn app(runtime: Runtime) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessedEndpoints {
+    /// (kv_blocks_total - kv_blocks_active, requests_total_slots - requests_active_slots, id)
+    pub capacity_with_ids: Vec<(u32, u32, i64)>,
+
+    /// kv_blocks_active average
+    pub load_avg: f64,
+
+    /// kv_blocks_active standard deviation
+    pub load_std: f64,
+
+    /// {component}.{endpoint}
+    pub address: String,
 }
