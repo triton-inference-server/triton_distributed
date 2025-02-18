@@ -28,7 +28,7 @@ on:
     paths:
     - 'runtime/rust/**'
     - 'llm/rust/**'
-    - 'applications/llm/bin/tio/**'
+    - 'applications/llm/tio/**'
     - '**.rs'
     - 'Cargo.toml'
     - 'Cargo.lock'
@@ -60,7 +60,7 @@ jobs:
       working-directory: runtime/rust
       run: cargo check --locked
     - name: Run Cargo Check on tio
-      working-directory: applications/llm/bin/tio
+      working-directory: applications/llm/tio
       run: cargo check --locked
     - name: Verify Code Formatting
       working-directory: runtime/rust
@@ -69,7 +69,7 @@ jobs:
       working-directory: runtime/rust
       run: cargo clippy --no-deps --all-targets -- -D warnings
     - name: Run Clippy Checks on tio
-      working-directory: applications/llm/bin/tio
+      working-directory: applications/llm/tio
       run: cargo clippy --no-deps --all-targets -- -D warnings
     - name: Install and Run cargo-deny
       working-directory: runtime/rust
