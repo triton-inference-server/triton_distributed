@@ -129,7 +129,7 @@ RUN apt-get install tmux -y
 WORKDIR /workspace
 
 COPY icp /workspace/icp
-RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
 RUN /workspace/icp/protos/gen_python.sh
 
 COPY runtime /workspace/runtime
