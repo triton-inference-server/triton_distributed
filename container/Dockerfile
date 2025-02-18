@@ -171,7 +171,7 @@ RUN cd runtime/rust && \
 
 # Install uv and create virtualenv for general use
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-RUN mkdir /opt/triton && \
+RUN mkdir -p /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
     cd runtime/rust/python-wheel && \
