@@ -77,7 +77,6 @@ In a separate terminal run the vllm worker:
 cd /workspace/examples/python_rs/llm/vllm
 python3 -m monolith.worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
-    --max-model-len 100 \
     --enforce-eager
 ```
 
@@ -91,7 +90,6 @@ This deployment option splits the model serving across prefill and decode worker
 cd /workspace/examples/python_rs/llm/vllm
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
-    --max-model-len 100 \
     --gpu-memory-utilization 0.8 \
     --enforce-eager \
     --tensor-parallel-size 1 \
@@ -105,7 +103,6 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregat
 cd /workspace/examples/python_rs/llm/vllm
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggregated.decode_worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
-    --max-model-len 100 \
     --gpu-memory-utilization 0.8 \
     --enforce-eager \
     --tensor-parallel-size 2 \
