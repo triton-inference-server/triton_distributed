@@ -32,7 +32,7 @@ impl<S: Stream + Unpin> Stream for DeadlineStream<S> {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // First, check if our sleep future has completed
-        if let Poll::Ready(_) = Pin::new(&mut self.sleep).poll(cx) {
+        if Pin::new(&mut self.sleep).poll(cx).is_ready() {
             // The deadline expired; end the stream now
             return Poll::Ready(None);
         }
