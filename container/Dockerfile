@@ -128,10 +128,6 @@ RUN apt-get install tmux -y
 # Working directory
 WORKDIR /workspace
 
-COPY icp /workspace/icp
-RUN SETUPTOOLS_SCM_PRETEND_VERSION=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
-RUN /workspace/icp/protos/gen_python.sh
-
 COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
@@ -171,7 +167,9 @@ ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown
 #
 # Normally SCM version is taken directly from .git but this is not available in the Dockerfile
 # and so we pass in via a buildarg
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
 RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/runtime/python
+RUN /workspace/icp/protos/gen_python.sh
 
 # Copy everything in after install steps to avoid re-running build/install
 # commands on unrelated changes in other dirs.
