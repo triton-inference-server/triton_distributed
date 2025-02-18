@@ -19,13 +19,13 @@
 // we will want to associate the components cancellation token with the
 // component's "service state"
 
-use crate::{transports::nats, Result};
+use crate::{transports::nats, utils::stream, Result};
 
 use async_nats::Message;
 use async_stream::try_stream;
 use bytes::Bytes;
 use derive_getters::Dissolve;
-use futures::stream::StreamExt;
+use futures::stream::{StreamExt, TryStreamExt};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::time::Duration;
 
@@ -59,14 +59,14 @@ pub struct EndpointInfo {
     pub subject: String,
 
     #[serde(flatten)]
-    pub data: Metrics,
+    pub data: Option<Metrics>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Dissolve)]
 pub struct Metrics(pub serde_json::Value);
 
 impl Metrics {
-    pub fn decode<T: DeserializeOwned>(self) -> Result<T> {
+    pub fn decode<T: for<'de> Deserialize<'de>>(self) -> Result<T> {
         serde_json::from_value(self.0).map_err(Into::into)
     }
 }
@@ -85,33 +85,32 @@ impl ServiceClient {
         Ok(response)
     }
 
-    pub async fn collect_services(&self, service_name: &str) -> Result<ServiceSet> {
-        let mut sub = self.nats_client.scrape_service(service_name).await?;
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
+    pub async fn collect_services(
+        &self,
+        service_name: &str,
+        duration: Duration,
+    ) -> Result<ServiceSet> {
+        let sub = self.nats_client.scrape_service(service_name).await?;
+        if duration.is_zero() || duration > Duration::from_secs(10) {
+            tracing::warn!("collect_services: duration is zero or greater than 10 seconds");
+        }
+        let deadline = tokio::time::Instant::now() + duration;
 
-        let services: Vec<Result<ServiceInfo>> = try_stream! {
-            while let Ok(Some(message)) = tokio::time::timeout_at(deadline, sub.next()).await {
-                if message.payload.is_empty() {
-                    continue;
+        let services = stream::until_deadline(sub, deadline)
+            .map(|message| serde_json::from_slice::<ServiceInfo>(&message.payload))
+            .filter_map(|info| async move {
+                match info {
+                    Ok(info) => Some(info),
+                    Err(e) => {
+                        log::debug!("error decoding service info: {:?}", e);
+                        None
+                    }
                 }
-                let service = serde_json::from_slice::<ServiceInfo>(&message.payload)?;
-                tracing::trace!("service: {:?}", service);
-                yield service;
-            }
-        }
-        .collect()
-        .await;
+            })
+            .collect()
+            .await;
 
-        // split ok and error results
-        let (ok, err): (Vec<_>, Vec<_>) = services.into_iter().partition(Result::is_ok);
-
-        if !err.is_empty() {
-            tracing::error!("failed to collect services: {:?}", err);
-        }
-
-        Ok(ServiceSet {
-            services: ok.into_iter().map(Result::unwrap).collect(),
-        })
+        Ok(ServiceSet { services })
     }
 }
 
@@ -140,12 +139,12 @@ mod tests {
                     EndpointInfo {
                         name: "endpoint1".to_string(),
                         subject: "subject1".to_string(),
-                        data: Metrics(serde_json::json!({"key": "value1"})),
+                        data: Some(Metrics(serde_json::json!({"key": "value1"}))),
                     },
                     EndpointInfo {
                         name: "endpoint2-foo".to_string(),
                         subject: "subject2".to_string(),
-                        data: Metrics(serde_json::json!({"key": "value1"})),
+                        data: Some(Metrics(serde_json::json!({"key": "value1"}))),
                     },
                 ],
             },
@@ -158,12 +157,12 @@ mod tests {
                     EndpointInfo {
                         name: "endpoint1".to_string(),
                         subject: "subject1".to_string(),
-                        data: Metrics(serde_json::json!({"key": "value1"})),
+                        data: Some(Metrics(serde_json::json!({"key": "value1"}))),
                     },
                     EndpointInfo {
                         name: "endpoint2-bar".to_string(),
                         subject: "subject2".to_string(),
-                        data: Metrics(serde_json::json!({"key": "value2"})),
+                        data: Some(Metrics(serde_json::json!({"key": "value2"}))),
                     },
                 ],
             },

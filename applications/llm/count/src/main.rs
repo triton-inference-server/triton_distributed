@@ -25,21 +25,45 @@
 
 use serde::{Deserialize, Serialize};
 
-use triton_distributed::{logging, DistributedRuntime, Result, Runtime, Worker};
+use triton_distributed::{
+    error, logging,
+    utils::{stream, Duration, Instant},
+    DistributedRuntime, ErrorContext, Result, Runtime, Worker,
+};
+
+use tracing as log;
 
 enum MetricTypes {
     LLMWorkerLoadCapacity(LLMWorkerLoadCapacityConfig),
+}
+
+fn get_config() -> Result<LLMWorkerLoadCapacityConfig> {
+    let component_name = std::env::var("NOVA_COUNT_SCRAPE_COMPONENT")?;
+    if component_name.is_empty() {
+        return Err(error!("NOVA_COUNT_SCRAPE_COMPONENT is not set"));
+    }
+
+    let endpoint_name = std::env::var("NOVA_COUNT_SCRAPE_ENDPOINT")?;
+    if endpoint_name.is_empty() {
+        return Err(error!("NOVA_COUNT_SCRAPE_ENDPOINT is not set"));
+    }
+
+    Ok(LLMWorkerLoadCapacityConfig {
+        component_name,
+        endpoint_name,
+    })
 }
 
 // we will scrape the service_name and extract the endpoint_name metrics
 // we will bcast them as {namespace}.events.l2c.{service_name}.{endpoint_name}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LLMWorkerLoadCapacityConfig {
-    service_name: String,
-    endpoint_name: Vec<String>,
+    component_name: String,
+    endpoint_name: String,
 }
 
 /// LLM Worker Load Capacity Metrics
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LLMWorkerLoadCapacity {
     pub requests_active_slots: u32,
     pub requests_total_slots: u32,
@@ -54,24 +78,65 @@ fn main() -> Result<()> {
 }
 
 async fn app(runtime: Runtime) -> Result<()> {
-    let distributed = DistributedRuntime::from_settings(runtime.clone()).await?;
+    // we will start by assuming that there is no oscar and no planner
+    // to that end, we will use an env to get a singular config for scraping a single backend
+    let config = get_config()?;
+
+    let drt = DistributedRuntime::from_settings(runtime.clone()).await?;
 
     // todo move to distributed and standardize and move into file/env/cli config
     let namespace = std::env::var("NOVA_NAMESPACE").unwrap_or("default".to_string());
 
-    let namespace = distributed.namespace(namespace)?;
+    let namespace = drt.namespace(namespace)?;
     let component = namespace.component("count")?;
 
     // there should only be one count
     // check {component.etcd_path()}/instance for existing instances
-    // if not, present, atomically create one
-    // if present, error
+    let key = format!("{}/instance", component.etcd_path());
+    drt.etcd_client()
+        .kv_create(
+            key,
+            serde_json::to_vec_pretty(&config)?,
+            Some(drt.primary_lease().id()),
+        )
+        .await
+        .context("Unable to create unique instance of Count; possibly one already exists")?;
 
-    // read and watch {component.etcd_path()}/config for the set of data we will aggregate
-    // for now, just wait until the config is present or use the current value
-    // longer term, adapt to updates to the config file
+    let target = namespace.component(&config.component_name)?;
+    let target_endpoint = target.endpoint(&config.endpoint_name);
 
-    // for each metric type, kick of the collection task
+    let service_name = target.service_name();
+    let subject = target_endpoint.subject();
+
+    log::debug!("Scraping service {service_name} and filtering on subject {subject}");
+    let token = drt.primary_lease().child_token();
+
+    loop {
+        let next = Instant::now() + Duration::from_secs(2);
+        let stream = target.scrape_stats(Duration::from_secs(1)).await?;
+        let endpoints = stream
+            .into_endpoints()
+            .filter(|e| e.subject == subject)
+            .filter_map(|e| match e.data {
+                Some(metrics) => metrics.decode::<LLMWorkerLoadCapacity>().ok(),
+                None => None,
+            })
+            .collect::<Vec<_>>();
+
+        // compute mean / std of LLMWorkerLoadCapacity
+
+        // publish using the namespace event plane
+
+        if token.is_cancelled() {
+            break;
+        }
+
+        tokio::time::sleep_until(next).await;
+
+        if token.is_cancelled() {
+            break;
+        }
+    }
 
     Ok(())
 }

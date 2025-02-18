@@ -41,9 +41,11 @@
 //!
 //! TODO: Top-level Overview of Endpoints/Functions
 
-use crate::discovery::Lease;
+use crate::{discovery::Lease, service::ServiceSet};
 
-use super::{error, traits::*, transports::nats::Slug, DistributedRuntime, Result, Runtime};
+use super::{
+    error, traits::*, transports::nats::Slug, utils::Duration, DistributedRuntime, Result, Runtime,
+};
 
 use crate::pipeline::network::{ingress::push_endpoint::PushEndpoint, PushWorkHandler};
 use async_nats::{
@@ -59,9 +61,9 @@ use validator::{Validate, ValidationError};
 
 mod client;
 mod endpoint;
+mod namespace;
 mod registry;
 mod service;
-mod namespace;
 
 pub use client::Client;
 
@@ -147,6 +149,14 @@ impl Component {
         unimplemented!("endpoints")
     }
 
+    pub async fn scrape_stats(&self, duration: Duration) -> Result<ServiceSet> {
+        let service_name = self.service_name();
+        let service_client = self.drt().service_client();
+        service_client
+            .collect_services(&service_name, duration)
+            .await
+    }
+
     /// TODO
     ///
     /// This method will scrape the stats for all available services
@@ -204,6 +214,10 @@ impl Endpoint {
 
     pub fn name_with_id(&self, lease_id: i64) -> String {
         format!("{}-{:x}", self.name, lease_id)
+    }
+
+    pub fn subject(&self) -> String {
+        format!("{}.{}", self.component.service_name(), self.name)
     }
 
     /// Subject to an instance of the [Endpoint] with a specific lease id

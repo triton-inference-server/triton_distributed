@@ -12,6 +12,9 @@ triton-llm = { path = "../../../llm/rust/triton-llm" }
 
 # crates.io
 serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1" }
+tokio = { version = "1", features = ["full"] }
+tracing = { version = "0.1" }
 
 # tmp
 #anyhow = { version = "1" }
