@@ -14,5 +14,6 @@
 # limitations under the License.
 
 from llm.tensorrtllm.operators.disaggregated_serving import DisaggregatedServingOperator
+from llm.tensorrtllm.operators.kv_aware_routing import KvAwareRoutingOperator
 
-__all__ = ["DisaggregatedServingOperator"]
+__all__ = ["DisaggregatedServingOperator", "KvAwareRoutingOperator"]

@@ -24,6 +24,7 @@ pub struct EndpointConfig {
     #[builder(private)]
     endpoint: Endpoint,
 
+    // todo: move lease to component/service
     /// Lease
     #[educe(Debug(ignore))]
     #[builder(default)]

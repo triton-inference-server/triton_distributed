@@ -18,32 +18,47 @@ import asyncio
 import uuid
 
 import uvloop
-import vllm
+from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
-from common.protocol import Request, Response
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.entrypoints.openai.protocol import (
+    ChatCompletionRequest,
+    ChatCompletionStreamResponse,
+)
 from vllm.logger import logger as vllm_logger
 
 
-class VllmEngine:
+class VllmEngine(BaseVllmEngine):
     """
     Request handler for the generate endpoint
     """
 
     def __init__(self, engine_args: AsyncEngineArgs):
-        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
+        super().__init__(engine_args)
 
-    @triton_endpoint(Request, Response)
-    async def generate(self, request):
-        vllm_logger.debug(f"Received request: {request}")
-        sampling_params = vllm.SamplingParams(**request.sampling_params)
+    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
+    async def generate(self, raw_request):
+        vllm_logger.debug(f"Got raw request: {raw_request}")
+        (
+            request,
+            conversation,
+            _,
+            engine_prompt,
+            sampling_params,
+        ) = await self._parse_raw_request(raw_request)
         request_id = str(uuid.uuid4())
-        async for response in self.engine.generate(
-            request.prompt, sampling_params, request_id
+
+        vllm_logger.debug(
+            f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
+        )
+        generator = self.engine.generate(engine_prompt, sampling_params, request_id)
+
+        async for response in await self._stream_response(
+            request, generator, request_id, conversation
         ):
             vllm_logger.debug(f"Generated response: {response}")
-            yield response.outputs[0].text
+            yield response
 
 
 @triton_worker()

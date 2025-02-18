@@ -20,6 +20,7 @@ from typing import Any, AsyncGenerator, Callable, Type
 
 from pydantic import BaseModel, ValidationError
 from triton_distributed_rs._core import DistributedRuntime
+from triton_distributed_rs._core import KvRouter as KvRouter
 
 
 def triton_worker():
@@ -63,7 +64,12 @@ def triton_endpoint(
             try:
                 if len(args) in [1, 2]:
                     args = list(args)
-                    args[-1] = request_model.parse_raw(args[-1])
+                    if isinstance(args[-1], str):
+                        args[-1] = request_model.parse_raw(args[-1])
+                    elif isinstance(args[-1], dict):
+                        args[-1] = request_model.parse_obj(args[-1])
+                    else:
+                        raise ValueError(f"Invalid request: {args[-1]}")
             except ValidationError as e:
                 raise ValueError(f"Invalid request: {e}")
 

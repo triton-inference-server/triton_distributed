@@ -23,7 +23,7 @@ from gpu_info import get_gpu_product_name
 from huggingface_hub import snapshot_download
 from known_models import KNOWN_MODELS
 
-TARGET_DIR = "/workspace/examples/llm/tensorrtllm/operators"
+TARGET_DIR = "/workspace/examples/python/llm/tensorrtllm/operators"
 
 TENSORRTLLM_EXAMPLE_DIR = "/tensorrtllm_backend/tensorrt_llm/examples"
 

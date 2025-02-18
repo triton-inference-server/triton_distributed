@@ -18,6 +18,7 @@ import asyncio
 
 import uvloop
 import vllm
+from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
 from common.protocol import PrefillRequest, PrefillResponse
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
@@ -25,7 +26,7 @@ from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 
 
-class VllmPrefillEngine:
+class VllmPrefillEngine(BaseVllmEngine):
     """
     Request handler for the generate endpoint
     """
@@ -34,7 +35,7 @@ class VllmPrefillEngine:
         assert (
             engine_args.kv_transfer_config.is_kv_producer
         ), "Prefill worker must be a KV producer"
-        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
+        super().__init__(engine_args)
         self.kv_rank = self.engine.engine.vllm_config.kv_transfer_config.kv_rank
 
     @triton_endpoint(PrefillRequest, PrefillResponse)

@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 
 from llm.tensorrtllm.operators.disaggregated_serving import DisaggregatedServingOperator
+from llm.tensorrtllm.operators.kv_aware_routing import KvAwareRoutingOperator
 from llm.tensorrtllm.scripts.gpu_info import get_gpu_product_name
 
 from triton_distributed.runtime import (
@@ -62,6 +63,18 @@ def _create_disaggregated_serving_op(name, args, max_inflight_requests):
     )
 
 
+def _create_kv_aware_routing_op(name, args, max_inflight_requests):
+    model_repository = str(
+        Path(args.operator_repository) / "triton_core_models"
+    )  # stores our simple pre/post processing
+    return OperatorConfig(
+        name=name,
+        implementation=KvAwareRoutingOperator,
+        max_inflight_requests=int(max_inflight_requests),
+        repository=model_repository,
+    )
+
+
 def _create_triton_core_op(
     name,
     max_inflight_requests,
@@ -86,6 +99,7 @@ def _create_triton_core_op(
                 "parameters": {
                     "participant_ids": {"string_value": f"{args.gpu_device_id}"},
                     "gpu_device_ids": {"string_value": f"{args.gpu_device_id}"},
+                    "event_buffer_max_size": {"string_value": "1024"},
                 }
             },
         },
@@ -159,6 +173,22 @@ def main(args):
             request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
         )
         worker_configs.append(prefill_decode)
+    elif args.worker_type == "kv-aware-routing":
+        print("Creating KvAwareRouting Operator")
+        router_op = _create_kv_aware_routing_op(
+            name=args.model,
+            max_inflight_requests=1000,
+            args=args,
+        )
+
+        router = WorkerConfig(
+            operators=[router_op],
+            name=args.worker_name,
+            log_level=args.log_level,
+            metrics_port=args.metrics_port,
+            request_plane_args=([], {"request_plane_uri": args.request_plane_uri}),
+        )
+        worker_configs.append(router)
 
     print("Starting Worker")
     for worker_config in worker_configs:

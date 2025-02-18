@@ -1,0 +1,133 @@
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+ARG BASE_IMAGE="nvcr.io/nvidia/tritonserver"
+ARG BASE_IMAGE_TAG="25.01-py3"
+
+FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS triton-distributed
+
+USER root
+
+# Rust build/dev dependencies
+RUN apt-get update; apt-get install -y gdb protobuf-compiler
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install uv and create virtualenv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN mkdir /opt/triton && \
+    uv venv /opt/triton/venv --python 3.12
+
+# Activate virtual environment
+ENV VIRTUAL_ENV=/opt/triton/venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+
+# Install OpenAI-compatible frontend
+# TODO: can this be removed since we have rust http server?
+ARG OPENAI_SERVER_TAG="r25.01"
+RUN mkdir -p /opt/tritonserver/python && \
+    cd /opt/tritonserver/python && \
+    rm -rf openai && \
+    git clone -b ${OPENAI_SERVER_TAG} --single-branch https://github.com/triton-inference-server/server.git && \
+    cd server && \
+    git checkout ${SERVER_OPENAI_COMMIT} && \
+    cd .. && \
+    mv server/python/openai openai && \
+    chown -R root:root openai && \
+    chmod 755 openai && \
+    chmod -R go-w openai && \
+    rm -rf server && \
+    uv pip install -r openai/requirements.txt
+
+# Common dependencies
+RUN --mount=type=bind,source=./container/deps/requirements.txt,target=/tmp/requirements.txt \
+    uv pip install --requirement /tmp/requirements.txt
+RUN --mount=type=bind,source=./container/deps/requirements.nats.txt,target=/tmp/requirements.txt \
+    uv pip install --requirement /tmp/requirements.txt
+RUN --mount=type=bind,source=./container/deps/requirements.test.txt,target=/tmp/requirements.txt \
+    uv pip install --requirement /tmp/requirements.txt
+
+# Finish pyright install
+RUN pyright --help > /dev/null 2>&1
+
+# In Process Python API Install
+RUN find /opt/tritonserver/python -maxdepth 1 -type f -name \
+    "tritonserver-*.whl" | xargs -I {} uv pip install --force-reinstall --upgrade {}[all]
+
+# GENAI Perf Install
+ARG GENAI_PERF_TAG="r25.01"
+RUN uv pip install "git+https://github.com/triton-inference-server/perf_analyzer.git@${GENAI_PERF_TAG}#subdirectory=genai-perf"
+
+# Install NATS
+RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
+
+# Enable Git operations in the /workspace directory
+RUN printf "[safe]\n      directory=/workspace\n" > /root/.gitconfig
+
+RUN ln -sf /bin/bash /bin/sh
+
+# Install NGINX and utilities
+# TODO: can this be removed since we do not use the nginx?
+RUN apt-get install nginx nvtop tmux -y
+RUN rm -rf /etc/nginx/sites-enabled/default
+
+# Working directory
+WORKDIR /workspace
+
+COPY runtime /workspace/runtime
+RUN cd runtime/rust && \
+    cargo build --release --locked && cargo doc --no-deps
+
+# Build OpenAI HTTP Service binaries
+COPY llm/rust /workspace/llm/rust
+COPY examples/rust /workspace/examples/rust
+RUN cd examples/rust && \
+    cargo build --release && \
+    cp target/release/http /usr/local/bin/ && \
+    cp target/release/llmctl /usr/local/bin/
+
+# Generate C bindings for kv cache routing in vLLM
+COPY llm /workspace/llm
+RUN cd llm/rust/ && \
+cargo build --release --locked && cargo doc --no-deps
+
+# Build triton_distributed_rs wheel
+COPY python-wheel /workspace/python-wheel
+RUN cd python-wheel && \
+    uv build && \
+    uv pip install dist/triton_distributed_rs*cp312*.whl
+
+# Package the bindings
+RUN mkdir -p /opt/triton/llm_binding/wheels && mkdir /opt/triton/llm_binding/lib
+RUN cp python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/.
+RUN cp llm/rust/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/.
+RUN cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
+# Tell vllm to use the Triton LLM C API for KV Cache Routing
+ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
+
+# Install patched vllm
+ARG VLLM_REF="v0.7.2"
+ARG VLLM_PATCH="vllm_${VLLM_REF}-triton-kv-disagg-patch.patch"
+RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
+    bash /tmp/deps/vllm/install.sh --patch /tmp/deps/vllm/${VLLM_PATCH} --ref ${VLLM_REF} --install-cmd "uv pip install --editable" --use-precompiled --installation-dir /opt/vllm
+
+# Install triton_distributed_rs wheel globally
+# RUN pip install runtime/rust/python-wheel/dist/triton_distributed_rs*cp312*.whl
+
+COPY icp /workspace/icp
+RUN /workspace/icp/protos/gen_python.sh
+
+# Install python packages
+ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} uv pip install -e /workspace/icp/python
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} uv pip install -e /workspace/runtime/python
+
+# Copy remaining files
+COPY . /workspace
+
+# Environment setup
+ENV PYTHONPATH="${PYTHONPATH}:/workspace/examples/python:/opt/tritonserver/python/openai/openai_frontend"
+ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
+
+CMD []
+ENTRYPOINT ["/opt/nvidia/nvidia_entrypoint.sh"]
