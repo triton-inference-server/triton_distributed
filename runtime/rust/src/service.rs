@@ -40,6 +40,7 @@ impl ServiceClient {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceSet {
     services: Vec<ServiceInfo>,
 }

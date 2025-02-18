@@ -48,17 +48,8 @@ async fn app(runtime: Runtime) -> Result<()> {
         println!("{:?}", resp);
     }
 
-    let metrics = distributed
-        .nats_client()
-        .scrape_service(&component.service_name())
-        .await?;
-
-    let deadline = Instant::now() + Duration::from_millis(200);
-    let mut metrics = stream::until_deadline(metrics, deadline);
-
-    while let Some(metric) = metrics.next().await {
-        println!("{:?}", metric);
-    }
+    let service_set = component.scrape_stats(Duration::from_millis(100)).await?;
+    println!("{:?}", service_set);
 
     runtime.shutdown();
 
