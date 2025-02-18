@@ -129,6 +129,7 @@ RUN apt-get install tmux -y
 WORKDIR /workspace
 
 COPY icp /workspace/icp
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
 RUN /workspace/icp/protos/gen_python.sh
 
 COPY runtime /workspace/runtime
@@ -170,7 +171,6 @@ ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown
 #
 # Normally SCM version is taken directly from .git but this is not available in the Dockerfile
 # and so we pass in via a buildarg
-RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
 RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/runtime/python
 
 # Copy everything in after install steps to avoid re-running build/install
