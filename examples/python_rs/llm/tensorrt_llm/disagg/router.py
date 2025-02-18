@@ -32,17 +32,6 @@ from common.protocol import Request, Response
 
 logger.set_level("info")
 
-def get_server_urls(server_configs):
-    ctx_server_urls = []
-    gen_server_urls = []
-    for cfg in server_configs:
-        if cfg.type == "ctx":
-            ctx_server_urls.append(f"http://{cfg.hostname}:{cfg.port}")
-        else:
-            gen_server_urls.append(f"http://{cfg.hostname}:{cfg.port}")
-
-    return ctx_server_urls, gen_server_urls
-
 
 class Router:
     def __init__(self, ctx_client, gen_client):
@@ -74,26 +63,23 @@ class Router:
 
         # Pick a context server
         ctx_client = self.get_next_server(self.ctx_clients, "ctx")
-        logger.info(f"Sending request to ctx server: {ctx_client}")
 
         # Send request to context server
         request.sampling_params["max_tokens"] = 1
         request.disaggregated_params = DisaggregatedParams(request_type="context_only")
-        logger.info(f"Request to ctx server: {request}")
+        logger.debug(f"Sending request {request} to ctx server: {ctx_client}")
 
         async for ctx_resp in await ctx_client.generate(request.model_dump_json()):
-            logger.info(f"Received response from ctx server: {ctx_resp}")
-            gen_req.disaggregated_params = disaggregated_params
+            gen_req.disaggregated_params = Response.parse_raw(ctx_resp.data()).disaggregated_params
             gen_req.disaggregated_params.request_type = "generation_only"
             break
 
         # Pick a generation server
         gen_client = self.get_next_server(self.gen_clients, "gen")
-        logger.info(f"Sending request to gen server: {gen_client}")
-        logger.info(f"Request to gen server: {gen_req}")
+        logger.debug(f"Sending request {gen_req} to gen server: {gen_client}")
         
         async for response in await gen_client.generate(gen_req.model_dump_json()):
-            yield response
+            yield response.data()
 
 @triton_worker()
 async def worker(

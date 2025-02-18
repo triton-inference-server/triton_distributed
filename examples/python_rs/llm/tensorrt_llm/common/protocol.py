@@ -21,7 +21,7 @@ class Request(BaseModel):
     prompt: str
     sampling_params: dict
     streaming: bool = True
-    disaggregated_params: DisaggregatedParams = {}
+    disaggregated_params: dict = {}
 
 
 class Response(BaseModel):

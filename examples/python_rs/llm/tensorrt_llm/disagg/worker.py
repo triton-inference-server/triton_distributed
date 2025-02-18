@@ -150,21 +150,23 @@ class TensorrtLLMEngine:
         self._llm_engine = None
         logger.info("Shutdown complete")
 
-    @triton_endpoint(Request, Response)
     async def generate(self, request):
         self._ongoing_request_count += 1
-        logger.info(f"Received request: {request}")
+        logger.debug(f"Received request: {request}")
+        request = Request.parse_raw(request)
         sampling_params = SamplingParams(**request.sampling_params)
+        disaggregated_params = DisaggregatedParams(**request.disaggregated_params)
         
-        assert request.disaggregated_params is not None
+        if disaggregated_params.opaque_state is not None:
+            disaggregated_params.opaque_state = disaggregated_params.opaque_state.encode('utf-8').decode('unicode_escape').encode('latin1')
         
         async for response in self._llm_engine.generate_async(
             request.prompt, sampling_params, streaming=request.streaming,
-            disaggregated_params=request.disaggregated_params
+            disaggregated_params=disaggregated_params
         ):
-            logger.info(f"Generated response: {response}")
+            logger.debug(f"Generated response: {response}")
             if self.server_config.type == "ctx":
-                yield Response(text=response.outputs[0].text, disaggregated_params=response.outputs[0].disaggregated_params)
+                yield Response(text=response.outputs[0].text, disaggregated_params=response.outputs[0].disaggregated_params).model_dump_json()
             else:
                 yield response.outputs[0].text
         self._ongoing_request_count -= 1
