@@ -124,6 +124,31 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggreg
 
 The disaggregated deployment utilizes separate GPUs for prefill and decode operations, allowing for optimized resource allocation and improved performance. For more details on the disaggregated deployment, please refer to the [vLLM documentation](https://docs.vllm.ai/en/latest/features/disagg_prefill.html).
 
+**Convenient Scripts:**
+There are two convenient script to start disaggregated workers on a single node and multiple nodes. On a single node with etcd and nats service started, start the triton docker image normally, within the virtual environment, run
+
+```
+./disagg_single_node.sh \
+    --model <model> \
+    --p_tensor_parallel_size <size> \
+    --d_tensor_parallel_size <size> \
+    --max_model_len <len> \
+    --max_num_batched_tokens <tokens> \
+    --max_num_seqs <seqs> \
+    --gpu_memory_utilization <utilization> \
+    --enable_chunked_prefill <True/False> \
+    --kv_ip <ip> \
+    --kv_port <port> \
+    --num_p <p> \
+    --num_d <d> 
+```
+
+To start the workers on multiple nodes, use the `disagg_multi_node.sh`. This script will start etcd and nats service on all nodes, copy the triton docker image from master to all remote nodes, start the docker containers and call the `disagg_single_node.sh` script inside the docker container in each node. Since parsing array in bash script is inconvenient, please first modify the parameters from line 1-20 in the script. Also make sure the master node have direct ssh access to all remote nodes (i.e., ssh-key setup for `ssh <remote_node_ip>`). Then, simply run the script to start the workers:
+
+```
+./disagg_multi_node.sh
+```
+
 
 ### 3. Client
 
