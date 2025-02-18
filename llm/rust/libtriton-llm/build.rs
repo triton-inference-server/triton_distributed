@@ -13,13 +13,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Triton LLM
-//!
-//! The `triton-llm` crate is a Rust library that provides a set of traits and types for building
-//! distributed LLM inference solutions.
+use std::env;
+use std::path::Path;
 
-pub mod engines;
-pub mod http;
-pub mod kv_router;
-pub mod protocols;
-pub mod types;
+fn main() {
+    let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    let header_path = Path::new(&crate_dir)
+        .join("include")
+        .join("nvidia")
+        .join("triton_llm")
+        .join("llm_engine.h");
+
+    cbindgen::generate(crate_dir)
+        .expect("Unable to generate bindings")
+        .write_to_file(header_path);
+}

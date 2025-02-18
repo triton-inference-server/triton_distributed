@@ -17,6 +17,7 @@ import asyncio
 import json
 
 import numpy
+from triton_distributed_rs import DistributedRuntime, KvRouter
 
 from triton_distributed.runtime import (
     RemoteInferenceRequest,
@@ -25,7 +26,7 @@ from triton_distributed.runtime import (
 )
 
 
-class DisaggregatedServingOperator(TritonCoreOperator):
+class KvAwareRoutingOperator(TritonCoreOperator):
     def __init__(
         self,
         name,
@@ -37,8 +38,11 @@ class DisaggregatedServingOperator(TritonCoreOperator):
         logger,
         triton_core,
     ):
-        self._prefill = RemoteOperator("context", request_plane, data_plane)
-        self._decode = RemoteOperator("generate", request_plane, data_plane)
+        loop = asyncio.get_running_loop()
+        self._runtime = DistributedRuntime(loop)
+        backend = self._runtime.namespace("router").component("generate")
+        self._router = KvRouter(self._runtime, backend)
+        self._generate = RemoteOperator("generate", request_plane, data_plane)
 
         self._repository = repository
         self._triton_core = triton_core
@@ -49,7 +53,7 @@ class DisaggregatedServingOperator(TritonCoreOperator):
         self._store_outputs_in_response = True
 
     async def execute(self, requests: list[RemoteInferenceRequest]):
-        self._logger.debug("Executing DisaggregatedServing Request")
+        self._logger.debug("Executing KvAwareRouting Request")
         background_tasks = []
         for request in requests:
             task = asyncio.create_task(self._execute_request(request))
@@ -71,7 +75,6 @@ class DisaggregatedServingOperator(TritonCoreOperator):
 
     async def _execute_request(self, request: RemoteInferenceRequest):
         background_tasks = []
-        prefill_inputs = {}
         sampling_params = {}
 
         response_sender = request.response_sender()
@@ -100,62 +103,44 @@ class DisaggregatedServingOperator(TritonCoreOperator):
                 [[sampling_params["max_tokens"]]], dtype=numpy.int32
             )
 
-        streaming = request.parameters.get("streaming", False)
         input_ids, input_lengths = await self._preprocess(query)
         self._logger.debug(input_ids, input_lengths)
-        prefill_inputs["input_ids"] = input_ids
-        prefill_inputs["input_lengths"] = input_lengths
-        prefill_inputs["request_output_len"] = request_output_len
 
-        """Prefill"""
-        prefill_parameters = {}
-        prefill_parameters["request_type"] = "context_only"
-        self._logger.debug(
-            f"Executing request on context worker with inputs: {prefill_inputs}"
-        )
+        # [FIXME] not rate limiting due to metric polling is not supported
+        # KV aware routing
+        lora_id = 0
+        try:
+            self._generate.component_id = await self._router.schedule(
+                input_ids[0], lora_id
+            )
+            self._logger.debug(f"worker selected: {self._generate.component_id}")
+        except Exception as e:
+            if "No worker found" in str(e):
+                self._generate.component_id = None
+                self._logger.debug("no eligible worker")
+            else:
+                self._logger.exception(f"Error during selecting worker: {e}")
 
-        async for prefill_response in await self._prefill.async_infer(
-            inputs=prefill_inputs,
-            parameters=prefill_parameters,
+        # [TODO] add disaggregated example
+        """llm"""
+        llm_inputs = {}
+        llm_inputs["input_ids"] = input_ids
+        llm_inputs["input_lengths"] = input_lengths
+        llm_inputs["request_output_len"] = request_output_len
+
+        async for llm_response in await self._generate.async_infer(
+            inputs=llm_inputs,
         ):
-            self._logger.debug(f"Prefill response completed: {prefill_response}")
-            output_ids = numpy.from_dlpack(prefill_response.outputs["output_ids"])
-            self._logger.debug(f"Output IDs: {output_ids}")
-            if streaming:
-                tasks = asyncio.create_task(
+            self._logger.debug(f"llm response completed: {llm_response}")
+            background_tasks.append(
+                asyncio.create_task(
                     self._send_llm_response(
-                        prefill_response, response_sender, final=False
+                        llm_response,
+                        response_sender,
+                        final=llm_response.final,
                     )
                 )
-                background_tasks.append(tasks)
-
-            """Decode"""
-            decode_parameters = {}
-            decode_parameters["request_type"] = "generation_only"
-            decode_inputs = {}
-
-            decode_inputs["context_phase_params"] = prefill_response.outputs[
-                "context_phase_params"
-            ]
-
-            decode_inputs["input_ids"] = input_ids
-            decode_inputs["input_lengths"] = input_lengths
-            decode_inputs["request_output_len"] = request_output_len
-
-            async for decode_response in await self._decode.async_infer(
-                inputs=decode_inputs,
-                parameters=decode_parameters,
-            ):
-                self._logger.debug(f"Decode response completed: {decode_response}")
-                background_tasks.append(
-                    asyncio.create_task(
-                        self._send_llm_response(
-                            decode_response,
-                            response_sender,
-                            final=decode_response.final,
-                        )
-                    )
-                )
+            )
 
         try:
             results = await asyncio.gather(*background_tasks, return_exceptions=True)
@@ -169,9 +154,7 @@ class DisaggregatedServingOperator(TritonCoreOperator):
         except Exception as e:
             self._logger.exception(f"Error during response sending: {e}")
 
-        for output in prefill_response.outputs:
-            del output
-        for output in decode_response.outputs:
+        for output in llm_response.outputs:
             del output
 
     async def _preprocess(self, query):

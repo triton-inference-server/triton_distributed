@@ -14,8 +14,8 @@
 # limitations under the License.
 
 [package]
-name = "triton_distributed_py3"
-version = "0.2.0"
+name = "libtriton-llm"
+version = "0.1.1"
 edition = "2021"
 authors = ["NVIDIA"]
 license = "Apache-2.0"
@@ -23,39 +23,25 @@ homepage = "https://github.com/triton-inference-server/triton_distributed"
 repository = "https://github.com/triton-inference-server/triton_distributed"
 
 [lib]
-path = "rust/lib.rs"
-name = "_core"
-# "cdylib" is necessary to produce a shared library for Python to import from.
+name = "triton_llm_capi"
 crate-type = ["cdylib"]
 
+[build-dependencies]
+cbindgen = "0.27"
 
 [dependencies]
-triton-distributed = { path = "../" }
+triton-llm = { path = "../triton-llm" }
+triton-distributed = { workspace = true }
 
+anyhow = { version = "1" }
 futures = "0.3"
-once_cell = "1.20.3"
+once_cell = "1"
 serde = "1"
 serde_json = "1.0.138"
-thiserror = "2.0"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0"
 tracing = "0"
-
-# "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
-# "abi3-py39" tells pyo3 (and maturin) to build using the stable ABI with minimum Python version 3.9
-pyo3 = { version = "0.23.4", default-features = false, features = [
-  "macros",
-  "experimental-async",
-  "experimental-inspect",
-  "extension-module",
-  "py-clone",
-] }
-
-pyo3-async-runtimes = { version = "0.23.0", default-features = false, features = [
-  "attributes",
-  "testing",
-  "tokio-runtime",
-  "unstable-streams",
-] }
-
-pythonize = "0.23"
+libc = "0.2"
+uuid = { version = "1", features = ["v4", "serde"] }
+async-once-cell = "0.5.4"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }

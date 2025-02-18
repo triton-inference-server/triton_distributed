@@ -59,9 +59,6 @@ Run the server and client components in separate terminal sessions:
 
 **Terminal 1 - Server:**
 ```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
 # Launch worker
 cd /workspace/examples/python_rs/llm/vllm
 python3 -m monolith.worker \
@@ -72,9 +69,6 @@ python3 -m monolith.worker \
 
 **Terminal 2 - Client:**
 ```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
 # Run client
 cd /workspace/examples/python_rs/llm/vllm
 python3 -m common.client \
@@ -104,9 +98,6 @@ This deployment option splits the model serving across prefill and decode worker
 
 **Terminal 1 - Prefill Worker:**
 ```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
 # Launch prefill worker
 cd /workspace/examples/python_rs/llm/vllm
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
@@ -121,9 +112,6 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregat
 
 **Terminal 2 - Decode Worker:**
 ```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
 # Launch decode worker
 cd /workspace/examples/python_rs/llm/vllm
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggregated.decode_worker \
@@ -138,9 +126,6 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggreg
 
 **Terminal 3 - Client:**
 ```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
-
 # Run client
 cd /workspace/examples/python_rs/llm/vllm
 python3 -m common.client \
@@ -172,7 +157,87 @@ For disaggregated deployment, you will also need to pass the `kv_ip` and `kv_por
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":<rank>,"kv_parallel_size":2,"kv_ip":<master_node_ip>,"kv_port":<kv_port>}'
 ```
 
-### 4. Known Issues and Limitations
+
+### 4. KV Router Deployment
+
+The KV Router is a component that aggregates KV Events from all the workers and maintains a prefix tree of the cached tokens. It makes decisions on which worker to route requests to based on the length of the prefix match and the load on the workers.
+
+You can run the router and workers in separate terminal sessions or use the `kv-router-run.sh` script to launch them all at once in their own tmux sessions.
+
+#### Deploying using tmux
+
+The helper script `kv-router-run.sh` will launch the router and workers in their own tmux sessions.
+kv-router-run.sh <number_of_workers> <routing_strategy> Optional[<model_name>]
+
+Example:
+```bash
+# Launch 8 workers with prefix routing strategy and use deepseek-ai/DeepSeek-R1-Distill-Llama-8B as the model
+/workspace/examples/python_rs/llm/vllm/kv-router-run.sh 8 prefix deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+
+# List tmux sessions
+tmux ls
+
+# Attach to the tmux sessions
+tmux a -t v-1 # worker 1 - use cmd + b, d to detach
+tmux a -t v-router # kv router - use cmd + b, d to detach
+
+# Close the tmux sessions
+tmux ls | grep 'v-' | cut -d: -f1 | xargs -I{} tmux kill-session -t {}
+```
+
+#### Deploying using separate terminals
+
+**Terminal 1 - Router:**
+```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
+# Launch prefill worker
+cd /workspace/examples/python_rs/llm/vllm
+RUST_LOG=info python3 -m kv_router.router \
+    --routing-strategy prefix
+```
+
+You can choose between different routing strategies:
+- `prefix`: Route requests to the worker that has the longest prefix match.
+- `round_robin`: Route requests to the worker in a round-robin manner.
+- `random`: Route requests to a random worker.
+
+**Terminal 2 and 3 - Workers:**
+```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
+# Launch Worker 1 and Worker 2 with same command
+cd /workspace/examples/python_rs/llm/vllm
+RUST_LOG=info python3 -m kv_router.worker \
+    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --tokenizer deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --enable-prefix-caching \
+    --block-size 64 \
+    --max-model-len 16384
+```
+
+Note: Must enable prefix caching for KV Router to work
+Note: block-size must be 64, otherwise Router won't work (accepts only 64 tokens)
+
+**Terminal 3 - Client:**
+```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
+# Run client
+# We use a long prompt to populate a few KV Blocks (64 tokens each)
+# Try running it a few times to see where the router is sending the request
+cd /workspace/examples/python_rs/llm/vllm
+python3 -m common.client \
+    --prompt "In the heart of Eldoria, an ancient land of boundless magic and mysterious creatures, lies the long-forgotten city of Aeloria. Once a beacon of knowledge and power, Aeloria was buried beneath the shifting sands of time, lost to the world for centuries. You are an intrepid explorer, known for your unparalleled curiosity and courage, who has stumbled upon an ancient map hinting at ests that Aeloria holds a secret so profound that it has the potential to reshape the very fabric of reality. Your journey will take you through treacherous deserts, enchanted forests, and across perilous mountain ranges. Your Task: Character Background: Develop a detailed background for your character. Describe their motivations for seeking out Aeloria, their skills and weaknesses, and any personal connections to the ancient city or its legends. Are they driven by a quest for knowledge, a search for lost familt clue is hidden." \
+    --component preprocess \
+    --max-tokens 10 \
+    --temperature 0.5
+```
+
+### 5. Known Issues and Limitations
 
 - vLLM is not working well with the `fork` method for multiprocessing and TP > 1. This is a known issue and a workaround is to use the `spawn` method instead. See [vLLM issue](https://github.com/vllm-project/vllm/issues/6152).
 - `kv_rank` of `kv_producer` must be smaller than of `kv_consumer`.

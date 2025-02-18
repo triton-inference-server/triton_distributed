@@ -13,30 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from pydantic import BaseModel
-
-
-class Request(BaseModel):
-    prompt: str
-    sampling_params: dict
+language = "C++"
+cpp_compat = true
+include_guard = "__NVIDIA_TRITON_LLM_API__"
 
 
-class Tokens(BaseModel):
-    tokens: list[int]
+[enum]
+rename_variants = "none"
+prefix_with_name = false
+enum_class = false
 
 
-class TokenizedRequest(Request, Tokens):
-    pass
+[export]
+include = ["TritonLlmResult", "triton_llm_init", "triton_llm_shutdown"]
 
-
-class PrefillRequest(Request):
-    request_id: str
-
-
-class Response(BaseModel):
-    text: str
-
-
-class PrefillResponse(BaseModel):
-    prefilled: bool
+[export.rename]
+"TritonLlmResult" = "triton_llm_result_t"
