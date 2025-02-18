@@ -72,7 +72,7 @@ class VllmDecodeEngine(BaseVllmEngine):
             sampling_params=prefill_sampling_params,
             request_id=request_id,
         )
-        print(prefill_request)
+        vllm_logger.debug(f"Prefill request: {prefill_request}")
         self.prefills[prefill_rank].generate(
             prefill_request.model_dump_json(),
         )
