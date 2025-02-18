@@ -16,7 +16,6 @@
 use futures::StreamExt;
 use service_metrics::DEFAULT_NAMESPACE;
 
-// use tokio::time::{Duration, Instant};
 use triton_distributed::{
     logging,
     protocols::annotated::Annotated,
