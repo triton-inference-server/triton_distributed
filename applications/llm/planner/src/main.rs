@@ -69,7 +69,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing as log;
 use trd::{error, logging, DistributedRuntime, ErrorContext, Result, Runtime, Worker};
-use triton_distributed::{self as trd, engine::async_trait};
+use triton_distributed::{self as trd, engine::async_trait, service::Action};
+use triton_llm::http::service::actions::{
+    HttpModelReadyAction, HttpModelRemoveAction, HttpModelUnavailableAction,
+};
 
 fn main() -> Result<()> {
     logging::init();
@@ -98,53 +101,6 @@ pub struct BasicInitGraph {
     /// will also be monitored.
     components: HashMap<String, Vec<String>>,
 }
-
-// TODO - refactor into either LLM or Distributed library
-/// Action to be performed on a state transition
-#[async_trait]
-pub trait Action {
-    /// Execute a predefined action on a state transition
-    async fn perform(&self) -> Result<()>;
-}
-
-// TODO - standardize this with the http services data model for which it is watching etcd
-// TODO - Make an Action trait, register the action with Overwatch, for each state transition
-//        perform all actions in a strict sequence ordering
-//
-// Custom actions can be created by implementing the Action trait and registering it with Overwatch
-// The library will have a default set of actions common for LLMs.
-//
-/// HttpModelReadyAction is an action that will register a model with the http ingress and mark it as
-/// ready.
-pub struct HttpModelReadyAction {
-    // The model name to register
-    model_name: String,
-
-    // The namespace of the pipeline
-    namespace: String,
-
-    // The component name of the frontend
-    component: String,
-
-    // The endpoint name of the generation endpoint
-    endpoint: String,
-}
-
-/// HttpModelUnavailableAction is an action that will mark a model from the http ingress as unavailable
-/// returning a 503 Service Unavailable error.
-///
-/// The model will appear in the /v1/models list
-///
-/// The custom endpoint, non-oai, detailing the model's state will show it in an unhealthy state.
-pub struct HttpModelUnavailableAction {}
-
-/// HttpModelRemoveAction is an action that will remove a model from the http ingress.
-///
-/// This action will immediately remove the model from the http ingress.
-///
-/// This action is idempotent. Calling it multiple times will not error if the model is already
-/// removed from the http ingress.
-pub struct HttpModelRemoveAction {}
 
 /// Action triggered on Setup
 /// This action will process the InitGraph and perform the coordindated bringup of all component
