@@ -22,9 +22,6 @@ from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.entrypoints.openai.api_server import (
-    build_async_engine_client_from_engine_args,
-)
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
@@ -37,8 +34,8 @@ class VllmEngine(BaseVllmEngine):
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs, engine_client):
-        super().__init__(engine_args, engine_client)
+    def __init__(self, engine_args: AsyncEngineArgs):
+        super().__init__(engine_args)
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):
@@ -77,8 +74,8 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
     endpoint = component.endpoint("generate")
 
-    async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
-        await endpoint.serve_endpoint(VllmEngine(engine_args, engine_client).generate)
+    async with VllmEngine(engine_args) as engine:
+        await endpoint.serve_endpoint(engine.generate)
 
 
 if __name__ == "__main__":

@@ -25,9 +25,6 @@ from common.parser import parse_vllm_args
 from common.protocol import PrefillRequest
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.entrypoints.openai.api_server import (
-    build_async_engine_client_from_engine_args,
-)
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
@@ -40,11 +37,11 @@ class VllmDecodeEngine(BaseVllmEngine):
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs, engine_client):
+    def __init__(self, engine_args: AsyncEngineArgs):
         assert (
             engine_args.kv_transfer_config.is_kv_consumer
         ), "Decode worker must be a KV consumer"
-        super().__init__(engine_args, engine_client)
+        super().__init__(engine_args)
         self.prefills: list = []
 
         self.kv_transfer_config = engine_args.create_engine_config().kv_transfer_config
@@ -107,8 +104,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
 
-    async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
-        decode_engine = VllmDecodeEngine(engine_args, engine_client)
+    async with VllmDecodeEngine(engine_args) as decode_engine:
         for i in range(decode_engine.num_prefill_workers):
             prefill = (
                 await runtime.namespace("triton-init")

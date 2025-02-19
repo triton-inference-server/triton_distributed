@@ -23,9 +23,6 @@ from common.parser import parse_vllm_args
 from common.protocol import PrefillRequest, PrefillResponse
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.entrypoints.openai.api_server import (
-    build_async_engine_client_from_engine_args,
-)
 from vllm.logger import logger as vllm_logger
 
 
@@ -34,11 +31,11 @@ class VllmPrefillEngine(BaseVllmEngine):
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs, engine_client):
+    def __init__(self, engine_args: AsyncEngineArgs):
         assert (
             engine_args.kv_transfer_config.is_kv_producer
         ), "Prefill worker must be a KV producer"
-        super().__init__(engine_args, engine_client)
+        super().__init__(engine_args)
         self.kv_transfer_config = engine_args.create_engine_config().kv_transfer_config
         self.kv_rank = self.kv_transfer_config.kv_rank
 
@@ -62,8 +59,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("prefill")
     await component.create_service()
 
-    async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
-        prefill_engine = VllmPrefillEngine(engine_args, engine_client)
+    async with VllmPrefillEngine(engine_args) as prefill_engine:
         endpoint = component.endpoint(f"generate_kv_rank_{prefill_engine.kv_rank}")
         await endpoint.serve_endpoint(prefill_engine.generate)
 
