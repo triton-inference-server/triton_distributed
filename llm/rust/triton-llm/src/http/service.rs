@@ -32,6 +32,7 @@
 
 mod openai;
 
+pub mod actions;
 pub mod discovery;
 pub mod error;
 pub mod metrics;

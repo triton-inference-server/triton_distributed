@@ -19,15 +19,27 @@
 // we will want to associate the components cancellation token with the
 // component's "service state"
 
+// TODO for Planner/Overwatch
+// - define the action trait here
+// - define the states and allow transitions here
+
 use crate::{transports::nats, Result};
 
 use async_nats::Message;
 use async_stream::try_stream;
+use async_trait::async_trait;
 use bytes::Bytes;
 use derive_getters::Dissolve;
 use futures::stream::StreamExt;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::time::Duration;
+
+/// Action to be performed when a [Service] transitions to a new [ServiceState]
+#[async_trait]
+pub trait Action {
+    /// Execute a predefined action on a state transition
+    async fn perform(&self) -> Result<()>;
+}
 
 pub struct ServiceClient {
     nats_client: nats::Client,
