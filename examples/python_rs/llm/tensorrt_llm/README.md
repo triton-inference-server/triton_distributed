@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# TensorRT-LLM Integration with Triton Distributed
+# TensorRT-LLM Integration with Triton Distributed [WIP]
 
 This example demonstrates how to use Triton Distributed to serve large language models with the tensorrt_llm engine, enabling efficient model serving with monolithic option.
 
@@ -59,6 +59,8 @@ TODO: Work on better instructions for building the container with latest tensorr
 
 ### 1. Monolithic Deployment
 
+#### Option 1: Single-node, single-GPU
+
 Run the server and client components in separate terminal sessions:
 
 **Server:**
@@ -85,6 +87,34 @@ Upon successful launch, the output should look similar to:
 [02/14/2025-09:38:53] [TRT-LLM] [I] max_seq_len=131072, max_num_requests=2048, max_num_tokens=8192
 [02/14/2025-09:38:53] [TRT-LLM] [I] Engine loaded and ready to serve...
 ```
+
+#### Option 2: Single-node, multi-GPU
+
+Change the `tensor_parallel_size` in the `model.json` file to the number of GPUs you want to use on the node.
+
+**Server:**
+
+```bash
+# Run worker
+mpirun -n 1 --oversubscribe --allow-run-as-root python3 -m monolith.worker --engine_args model.json &
+```
+
+This should load the model on specified many GPUs.
+
+#### Option 3: Multi-node, multi-GPU
+
+We will use a wrapper script to launch the server on multiple nodes within the same mpi comm world on slurm cluster.
+
+**Server [SLURM]:**
+
+```bash
+# Allocate 2 nodes
+salloc -A coreai_tritoninference_triton3 -N2 -p batch -J coreai_tritoninference_triton3-test:test -t 04:00:00
+# Run worker
+mpirun -n 1 --oversubscribe --allow-run-as-root python3 -m monolith.worker --engine_args model.json &
+```
+
+Used EOS to test the multi-node, multi-GPU deployment.
 
 **Client:**
 
@@ -113,9 +143,10 @@ Annotated(data=', Paris, in terms of its history, culture', event=None, comment=
 
 Next steps:
 - Building container with latest tensorrt_llm wheel.
-- Support and test TP>1: single-node , multi-GPU
+- Support and test TP>1: single-node , multi-GPU - Done
 - Support and test TP>1: multi-node, multi-GPU
 - Support and test dissagregated serving: single-node
 - Support and test dissagregated serving: multi-node
 
 NOTE: For multi-node deployment we need to handle the MPI_WORLD setup.
+
