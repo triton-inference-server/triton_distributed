@@ -38,7 +38,7 @@ center scale without sacrificing performance or ease of use.
 
 ## Building Triton Distributed
 
-Triton Distributed development and examples are contqainer based.
+Triton Distributed development and examples are container based.
 
 You can build the Triton Distributed container using the build scripts
 in `container/` (or directly with `docker build`).
