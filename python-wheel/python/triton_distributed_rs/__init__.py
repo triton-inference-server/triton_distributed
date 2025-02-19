@@ -19,9 +19,9 @@ from functools import wraps
 from typing import Any, AsyncGenerator, Callable, Type
 
 from pydantic import BaseModel, ValidationError
+from triton_distributed_rs._core import DisaggregatedRouter as DisaggregatedRouter
 from triton_distributed_rs._core import DistributedRuntime
 from triton_distributed_rs._core import KvRouter as KvRouter
-from triton_distributed_rs._core import DisaggregatedRouter as DisaggregatedRouter
 
 
 def triton_worker():
