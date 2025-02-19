@@ -45,9 +45,7 @@ class VllmDecodeEngine(BaseVllmEngine):
         self.prefills: list = []
 
         self.kv_transfer_config = engine_args.create_engine_config().kv_transfer_config
-        self.num_prefill_workers = (
-            1  # self.kv_transfer_config.kv_producers_parallel_size
-        )
+        self.num_prefill_workers = 1  # self.kv_transfer_config.kv_producers_parallel_size # TODO: fix this after using zmq for kv pipe signaling
         self.kv_rank = self.kv_transfer_config.kv_rank
 
     def add_prefill(self, prefill):
