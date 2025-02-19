@@ -52,7 +52,9 @@ class VllmEngine(BaseVllmEngine):
         vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
         )
-        generator = self.engine.generate(engine_prompt, sampling_params, request_id)
+        generator = self.engine_client.generate(
+            engine_prompt, sampling_params, request_id
+        )
 
         async for response in await self._stream_response(
             request, generator, request_id, conversation
@@ -71,7 +73,9 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     await component.create_service()
 
     endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(VllmEngine(engine_args).generate)
+
+    async with VllmEngine(engine_args) as engine:
+        await endpoint.serve_endpoint(engine.generate)
 
 
 if __name__ == "__main__":
