@@ -138,16 +138,20 @@ Define disagg config file as shown below. The only important sections are the mo
 
 ```yaml
 model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+##################
+# The following fields are unused in this example.
+# They are only needed for the TRT-LLM when using TRT-LLM's disagg server which we do not use here.
 hostname: localhost
 port: 8000
 backend: "pytorch"
-context_servers:
-  num_instances: 1
+##################
+context_servers: # servers is a list of servers
+  num_instances: 1 # The number of servers to launch
   gpu_fraction: 0.25
-  tp_size: 1
-  pp_size: 1
+  tp_size: 1 # each server will be a TP=1 instance
+  pp_size: 1 # each server will be a PP=1 instance
   urls:
-      - "localhost:8001"
+      - "localhost:8001" # The URL of the server.
 generation_servers:
   num_instances: 1
   gpu_fraction: 0.25
@@ -155,7 +159,28 @@ generation_servers:
   pp_size: 1
   urls:
       - "localhost:8002"
+```
 
+Consider the following example for 1 TP2 context server and 2 TP1 generation servers.
+
+```yaml
+model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+...
+context_servers:
+  num_instances: 1
+  gpu_fraction: 0.25
+  tp_size: 2
+  pp_size: 1
+  urls:
+      - "localhost:8001"
+generation_servers:
+  num_instances: 2
+  gpu_fraction: 0.25
+  tp_size: 1
+  pp_size: 1
+  urls:
+      - "localhost:8002"
+      - "localhost:8003"
 ```
 
 **Launch the servers**
