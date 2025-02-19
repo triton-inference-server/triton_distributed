@@ -71,13 +71,14 @@ class VllmDecodeEngine(BaseVllmEngine):
 
         prefill_sampling_params = {**msgspec.to_builtins(sampling_params)}
         prefill_sampling_params["max_tokens"] = 1
+        prefill_sampling_params["min_tokens"] = 1
         prefill_request = PrefillRequest(
             prompt=request_prompt,  # TODO: we should use engine prompt to avoid extra tokenization
             sampling_params=prefill_sampling_params,
             request_id=request_id,
         )
         vllm_logger.debug(f"Prefill request: {prefill_request}")
-        self.prefills[prefill_rank].generate(
+        prefill_output = self.prefills[prefill_rank].generate(
             prefill_request.model_dump_json(),
         )
 
@@ -93,6 +94,8 @@ class VllmDecodeEngine(BaseVllmEngine):
         ):
             vllm_logger.debug(f"Generated response: {response}")
             yield response
+
+        await prefill_output
 
 
 @triton_worker()

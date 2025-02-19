@@ -44,12 +44,12 @@ class VllmPrefillEngine(BaseVllmEngine):
 
     @triton_endpoint(PrefillRequest, PrefillResponse)
     async def generate(self, request):
-        vllm_logger.info(f"Received prefill request: {request}")
+        vllm_logger.debug(f"Received prefill request: {request}")
         sampling_params = vllm.SamplingParams(**request.sampling_params)
         async for response in self.engine_client.generate(
             request.prompt, sampling_params, request.request_id
         ):
-            vllm_logger.info(f"Generated response: {response}")
+            vllm_logger.debug(f"Generated response: {response}")
             yield True
 
 
