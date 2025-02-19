@@ -21,7 +21,7 @@ build-backend = "setuptools.build_meta"
 name = "triton-distributed-runtime"
 dynamic = ["version"]
 authors = [
-    { name="NVIDIA Inc.", email="sw-dl-triton@nvidia.com" },
+    { name = "NVIDIA Inc.", email = "sw-dl-triton@nvidia.com" },
 ]
 license = { text = "Apache-2.0" }
 
@@ -34,4 +34,7 @@ root = "../.."
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["triton_distributed.runtime*"]
-namespaces= true
+namespaces = true
+
+[tool.setuptools]
+license-files = ["../../LICENSE"]

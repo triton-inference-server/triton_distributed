@@ -21,7 +21,7 @@ build-backend = "setuptools.build_meta"
 name = "triton-distributed-icp"
 dynamic = ["version"]
 authors = [
-    { name="NVIDIA Inc.", email="sw-dl-triton@nvidia.com" },
+    { name = "NVIDIA Inc.", email = "sw-dl-triton@nvidia.com" },
 ]
 license = { text = "Apache-2.0" }
 
@@ -44,3 +44,6 @@ root = "../.."
 where = ["src"]
 include = ["triton_distributed.icp*"]
 namespaces = true
+
+[tool.setuptools]
+license-files = ["../../LICENSE"]
