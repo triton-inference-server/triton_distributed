@@ -23,11 +23,12 @@ from vllm.entrypoints.openai.protocol import (
     RequestResponseMetadata,
 )
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
+from vllm.transformers_utils.tokenizer import AnyTokenizer
 
 
 class ChatProcessor:
-    def __init__(self, engine_client: vllm.AsyncLLMEngine, model_config: ModelConfig):
-        self.engine_client = engine_client
+    def __init__(self, tokenizer: AnyTokenizer, model_config: ModelConfig):
+        self.tokenizer = tokenizer
         self.model_config = model_config
         self.openai_serving = OpenAIServingChat(
             engine_client=None,
@@ -44,7 +45,6 @@ class ChatProcessor:
 
     async def preprocess(self, raw_request: dict):
         request = self.parse_raw_request(raw_request)
-        tokenizer = await self.engine_client.get_tokenizer()
 
         (
             conversation,
@@ -52,9 +52,9 @@ class ChatProcessor:
             engine_prompts,
         ) = await self.openai_serving._preprocess_chat(
             request,
-            tokenizer,
+            self.tokenizer,
             request.messages,
-            chat_template=request.chat_template or tokenizer.chat_template,
+            chat_template=request.chat_template or self.tokenizer.chat_template,
             chat_template_content_format=self.openai_serving.chat_template_content_format,
             add_generation_prompt=request.add_generation_prompt,
             continue_final_message=request.continue_final_message,
@@ -75,7 +75,6 @@ class ChatProcessor:
         request_id: str,
         conversation: List,
     ):
-        tokenizer = await self.engine_client.get_tokenizer()
         request_metadata = RequestResponseMetadata(request_id=request_id)
         assert request.stream, "Only stream is supported"
         async for raw_response in self.openai_serving.chat_completion_stream_generator(
@@ -84,7 +83,7 @@ class ChatProcessor:
             request_id,
             request.model,
             conversation,
-            tokenizer,
+            self.tokenizer,
             request_metadata,
         ):
             if raw_response.startswith("data: [DONE]"):

@@ -18,6 +18,8 @@ import abc
 import vllm
 from common.chat_processor import ChatProcessor
 from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.transformers_utils.tokenizer import AnyTokenizer
+from transformers import AutoTokenizer
 
 
 class BaseVllmEngine:
@@ -27,9 +29,24 @@ class BaseVllmEngine:
 
     def __init__(self, engine_args: AsyncEngineArgs):
         self.model_config = engine_args.create_model_config()
-        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        self.chat_processor = ChatProcessor(self.engine, self.model_config)
+        self.tokenizer = self._create_tokenizer(engine_args)
+        self.chat_processor = ChatProcessor(self.tokenizer, self.model_config)
+        
 
+    def _create_tokenizer(self, engine_args: AsyncEngineArgs) -> AnyTokenizer:
+        """Create a TokenizerGroup using engine arguments similar to VLLM's approach"""
+        model_path = engine_args.model
+
+        # Create the base tokenizer with VLLM's typical settings
+        base_tokenizer = AutoTokenizer.from_pretrained(
+            model_path,
+            trust_remote_code=True,
+            padding_side="left",
+            truncation_side="left",
+            # use_fast=True  # VLLM might use the fast tokenizer for efficiency
+        )
+        return base_tokenizer
+    
     async def _parse_raw_request(self, raw_request):
         request = self.chat_processor.parse_raw_request(raw_request)
         (

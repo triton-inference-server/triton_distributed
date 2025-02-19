@@ -36,6 +36,7 @@ WORKDIR="/workspace/examples/python_rs/llm/vllm"
 INIT_CMD="source /opt/triton/venv/bin/activate && cd $WORKDIR"
 
 ROUTER_CMD="RUST_LOG=info python3 -m kv_router.router \
+    --model $MODEL_NAME \
     --routing-strategy $ROUTING_STRATEGY \
     --min-workers $NUM_WORKERS "
 

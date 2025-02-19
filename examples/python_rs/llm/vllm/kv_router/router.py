@@ -18,9 +18,10 @@ import asyncio
 import uuid
 from argparse import Namespace
 from enum import Enum
+import json
 
 import uvloop
-from common.protocol import Response, TokenizedRequest
+from common.protocol import Response, TokenizedRequest, MyRequestOutput
 from triton_distributed_rs import (
     DistributedRuntime,
     KvRouter,
@@ -54,7 +55,7 @@ class Router:
         self.workers_client = workers_client
         self.routing_strategy = routing_strategy
 
-    @triton_endpoint(TokenizedRequest, Response)
+    @triton_endpoint(TokenizedRequest, MyRequestOutput)
     async def generate(self, request):
         lora_id = 0
         worker_id = ""
@@ -70,6 +71,9 @@ class Router:
 
             vllm_logger.info(f"Scheduling to worker_id: {worker_id}")
 
+
+
+        # Get kv scheduler response
         if self.routing_strategy == RoutingStrategy.ROUND_ROBIN:
             engine_generator = await self.workers_client.round_robin(
                 request.model_dump_json()
@@ -84,9 +88,13 @@ class Router:
                 request.model_dump_json(), uuid.UUID(worker_id).int
             )
 
-        async for resp in engine_generator:
-            resp = resp.data() if hasattr(resp, "data") else resp
-            yield resp
+        vllm_logger.info(f"engine_generator: {engine_generator}")
+
+        async for json_resp in engine_generator:
+            vllm_logger.info(f"json_resp: {json_resp}")
+            json_string = json_resp.data()
+            vllm_logger.info(f"json_string: {json_string}")
+            yield json.loads(json_string)
 
 
 @triton_worker()
@@ -97,6 +105,7 @@ async def worker(runtime: DistributedRuntime, args: Namespace):
         .endpoint("generate_from_tokens")
         .client()
     )
+
     vllm_logger.info("Waiting for workers to be ready")
     await workers_client.wait_for_endpoints()
 
@@ -112,9 +121,7 @@ async def worker(runtime: DistributedRuntime, args: Namespace):
     )
 
     # TODO Router is a fixed namespace separate from the others
-    kv_listener = runtime.namespace("router").component(
-        "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-    )
+    kv_listener = runtime.namespace("router").component(args.model_name)
     await kv_listener.create_service()
 
     router_component = runtime.namespace("triton-init").component("router")
@@ -148,6 +155,12 @@ if __name__ == "__main__":
         type=int,
         default=1,
         help="Minimum number of workers required before proceeding",
+    )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+        help="Model that is being served",
     )
     args = parser.parse_args()
 

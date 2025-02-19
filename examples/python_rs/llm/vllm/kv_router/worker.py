@@ -21,7 +21,7 @@ from typing import Optional
 import uvloop
 import vllm
 from common.parser import parse_vllm_args
-from common.protocol import Request, Response, TokenizedRequest
+from common.protocol import Request, Response, TokenizedRequest, MyRequestOutput
 from triton_distributed_rs import (
     DistributedRuntime,
     KvRouter,
@@ -51,17 +51,34 @@ class VllmEngine:
         self.tokenizer = await self.engine.get_tokenizer()
         return self
 
-    @triton_endpoint(TokenizedRequest, Response)
+    @triton_endpoint(TokenizedRequest, MyRequestOutput)
     async def generate_from_tokens(self, request):
+        vllm_logger.info(f"Got request: {request}")
         tokens_prompt = TokensPrompt(prompt_token_ids=request.tokens)
 
         sampling_params = vllm.SamplingParams(**request.sampling_params)
         request_id = str(uuid.uuid4())
-        async for response in self.engine.generate(
-            tokens_prompt, sampling_params, request_id
-        ):
-            yield response.outputs[0].text
 
+        vllm_logger.info(
+            f"Running generate with engine_prompt: {tokens_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
+        )
+
+        response = self.engine.generate(tokens_prompt, sampling_params, request_id)
+
+
+        async for resp in response:
+            my_request_output = MyRequestOutput(
+                request_id=request_id,
+                prompt=resp.prompt,
+                prompt_token_ids=resp.prompt_token_ids,
+                prompt_logprobs=resp.prompt_logprobs,
+                outputs=resp.outputs,
+                finished=resp.finished
+            )
+
+            vllm_logger.info(f"MyRequestOutput: {my_request_output.json()}")
+            yield my_request_output.json()
+            
     @triton_endpoint(Request, Response)
     async def generate_from_prompt(self, request):
         sampling_params = vllm.SamplingParams(**request.sampling_params)
