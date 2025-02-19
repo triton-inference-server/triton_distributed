@@ -9,12 +9,16 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     "click>=8.1.8",
+    "compoundai",
     "pydantic>=2.10.6",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+compoundai = { path = "../../BentoML" }
 
 [project.scripts]
 nova = "nova.cli:main"

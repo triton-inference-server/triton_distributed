@@ -6,10 +6,11 @@ class ServiceDecorator(BaseModel):
     num_replicas: int
     resources: "Resources"
 
+# TODO: Add support for req and resp
 class EndpointDecorator(BaseModel):
     name: str
-    request: BaseModel
-    response: BaseModel
+    # request: BaseModel
+    # response: BaseModel
 
 class NovaConfig(BaseModel):
     enabled: bool
