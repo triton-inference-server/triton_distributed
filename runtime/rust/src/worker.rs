@@ -25,10 +25,10 @@
 //! the signal handler used to trap `SIGINT` and `SIGTERM` signals and trigger a graceful shutdown.
 //!
 //! On termination, the user application is given a graceful shutdown period of controlled by
-//! the [TRITON_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT] environment variable. If the application does not
+//! the [TRD_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT] environment variable. If the application does not
 //! shutdown in time, the worker will terminate the application with an exit code of 911.
 //!
-//! The default values of `TRITON_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT` differ between the development
+//! The default values of [TRD_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT] differ between the development
 //! and release builds. In development, the default is [DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_DEBUG] and
 //! in release, the default is [DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_RELEASE].
 
@@ -45,10 +45,10 @@ static INIT: OnceCell<Mutex<Option<tokio::task::JoinHandle<Result<()>>>>> = Once
 const SHUTDOWN_MESSAGE: &str =
     "Application received shutdown signal; attempting to gracefully shutdown";
 const SHUTDOWN_TIMEOUT_MESSAGE: &str =
-    "Use TRITON_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT to control the graceful shutdown timeout";
+    "Use TRD_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT to control the graceful shutdown timeout";
 
 /// Environment variable to control the graceful shutdown timeout
-pub const TRITON_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT: &str = "TRITON_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT";
+pub const TRD_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT: &str = "TRD_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT";
 
 /// Default graceful shutdown timeout in seconds in debug mode
 pub const DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_DEBUG: u64 = 5;
@@ -105,7 +105,7 @@ impl Worker {
         let primary = runtime.primary();
         let secondary = runtime.secondary.clone();
 
-        let timeout = std::env::var(TRITON_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
+        let timeout = std::env::var(TRD_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
             .ok()
             .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or({

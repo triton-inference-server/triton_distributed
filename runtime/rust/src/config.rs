@@ -35,7 +35,7 @@ impl WorkerConfig {
         // All calls should be global and thread safe.
         Figment::new()
             .merge(Serialized::defaults(Self::default()))
-            .merge(Env::prefixed("TRITON_WORKER_"))
+            .merge(Env::prefixed("TRD_WORKER_"))
             .extract()
             .unwrap() // safety: Called on startup, so panic is reasonable
     }
@@ -83,7 +83,14 @@ impl RuntimeConfig {
             .merge(Serialized::defaults(RuntimeConfig::default()))
             .merge(Toml::file("/opt/triton/defaults/runtime.toml"))
             .merge(Toml::file("/opt/triton/etc/runtime.toml"))
-            .merge(Env::prefixed("TRITON_RUNTIME_"))
+            .merge(Env::prefixed("TRD_RUNTIME_").filter_map(|k| {
+                let full_key = format!("TRD_RUNTIME_{}", k.as_str());
+                // filters out empty environment variables
+                match std::env::var(&full_key) {
+                    Ok(v) if !v.is_empty() => Some(k.into()),
+                    _ => None,
+                }
+            }))
     }
 
     /// Load the runtime configuration from the environment and configuration files
@@ -93,7 +100,7 @@ impl RuntimeConfig {
     /// 2. /opt/triton/etc/runtime.toml
     /// 3. /opt/triton/defaults/runtime.toml (lowest priority)
     ///
-    /// Environment variables are prefixed with `TRITON_RUNTIME_`
+    /// Environment variables are prefixed with `TRD_RUNTIME_`
     pub fn from_settings() -> Result<RuntimeConfig> {
         let config: RuntimeConfig = Self::figment().extract()?;
         config.validate()?;
@@ -171,8 +178,8 @@ mod tests {
     fn test_runtime_config_with_env_vars() -> Result<()> {
         temp_env::with_vars(
             vec![
-                ("TRITON_RUNTIME_NUM_WORKER_THREADS", Some("24")),
-                ("TRITON_RUNTIME_MAX_BLOCKING_THREADS", Some("32")),
+                ("TRD_RUNTIME_NUM_WORKER_THREADS", Some("24")),
+                ("TRD_RUNTIME_MAX_BLOCKING_THREADS", Some("32")),
             ],
             || {
                 let config = RuntimeConfig::from_settings()?;
@@ -187,8 +194,8 @@ mod tests {
     fn test_runtime_config_defaults() -> Result<()> {
         temp_env::with_vars(
             vec![
-                ("TRITON_RUNTIME_NUM_WORKER_THREADS", None::<&str>),
-                ("TRITON_RUNTIME_MAX_BLOCKING_THREADS", None::<&str>),
+                ("TRD_RUNTIME_NUM_WORKER_THREADS", None::<&str>),
+                ("TRD_RUNTIME_MAX_BLOCKING_THREADS", Some("")),
             ],
             || {
                 let config = RuntimeConfig::from_settings()?;
@@ -208,8 +215,8 @@ mod tests {
     fn test_runtime_config_rejects_invalid_thread_count() -> Result<()> {
         temp_env::with_vars(
             vec![
-                ("TRITON_RUNTIME_NUM_WORKER_THREADS", Some("0")),
-                ("TRITON_RUNTIME_MAX_BLOCKING_THREADS", Some("0")),
+                ("TRD_RUNTIME_NUM_WORKER_THREADS", Some("0")),
+                ("TRD_RUNTIME_MAX_BLOCKING_THREADS", Some("0")),
             ],
             || {
                 let result = RuntimeConfig::from_settings();
