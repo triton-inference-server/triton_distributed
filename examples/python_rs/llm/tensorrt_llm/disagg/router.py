@@ -24,9 +24,7 @@ from triton_distributed_rs import DistributedRuntime, triton_worker
 from tensorrt_llm.llmapi import DisaggregatedParams
 from tensorrt_llm.logger import logger
 from tensorrt_llm.llmapi.disagg_utils import (CtxGenServerConfig,
-                                              parse_disagg_config_file,
-                                              split_world_comm)
-from tensorrt_llm._utils import set_mpi_comm
+                                              parse_disagg_config_file)
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 
 from common.protocol import DisaggregatedRequest, DisaggregatedResponse
@@ -35,13 +33,11 @@ logger.set_level("info")
 
 
 class Router:
-    def __init__(self, ctx_client, gen_client):
+    def __init__(self, ctx_clients, gen_clients):
         self.ctx_server_idx = 0
         self.gen_server_idx = 0
-        # TODO: Add support for multiple clients
-        # would need a different way of obtaining endpoints from a component
-        self.ctx_clients = [ctx_client]
-        self.gen_clients = [gen_client]
+        self.ctx_clients = ctx_clients
+        self.gen_clients = gen_clients
         logger.info("INITIALIZED ROUTER")
 
     def get_next_server(self, servers, server_type):
@@ -89,6 +85,7 @@ class Router:
 @triton_worker()
 async def worker(
     runtime: DistributedRuntime,
+    server_configs: list[CtxGenServerConfig]
 ):
     """
     Instantiate a `backend` component and serve the `generate` endpoint
@@ -97,11 +94,21 @@ async def worker(
     component = runtime.namespace("triton-init").component("router")
     await component.create_service()
 
-    ctx_client = await runtime.namespace("triton-init").component("tensorrt-llm-ctx").endpoint("generate").client()
-    gen_client = await runtime.namespace("triton-init").component("tensorrt-llm-gen").endpoint("generate").client()
+    ctx_clients = []
+    gen_clients = []
+
+    for i, server_config in enumerate(server_configs):
+        if server_config.type == "ctx":
+            ctx_client = await runtime.namespace("triton-init").component(f"tensorrt-llm-ctx-{i}").endpoint("generate").client()
+            ctx_clients.append(ctx_client)
+        elif server_config.type == "gen":
+            gen_client = await runtime.namespace("triton-init").component(f"tensorrt-llm-gen-{i}").endpoint("generate").client()
+            gen_clients.append(gen_client)
+        else:
+            raise ValueError(f"Invalid server type: {server_config.type}")
 
     endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(Router(ctx_client, gen_client).generate)
+    await endpoint.serve_endpoint(Router(ctx_clients, gen_clients).generate)
 
 if __name__ == "__main__":
     uvloop.install()
@@ -111,5 +118,6 @@ if __name__ == "__main__":
                         default="disagg/disagg_config.yaml")
     args = parser.parse_args()
     disagg_config = parse_disagg_config_file(args.disagg_config)
+    server_configs = disagg_config.server_configs
 
-    asyncio.run(worker())
+    asyncio.run(worker(server_configs))

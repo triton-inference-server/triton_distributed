@@ -185,6 +185,7 @@ generation_servers:
 
 **Launch the servers**
 Launch context and generation servers.
+Here, WORLD_SIZE is the total number of servers along with the distributed config of each server. For example, if we have 1 TP 1 context server and 2 TP2 generation servers, WORLD_SIZE = 5.
 
 ```bash
 cd /workspace/examples/python_rs/llm/tensorrt_llm/
@@ -205,7 +206,8 @@ cd /workspace/examples/python_rs/llm/tensorrt_llm/
 python3 -m common.client \
     --prompt "Describe the capital of France" \
     --max-tokens 10 \
-    --temperature 0.5
+    --temperature 0.5 \
+    --component router
 ```
 
 For more details on the disaggregated deployment, please refer to the [TRT-LLM documentation](https://gitlab-master.nvidia.com/ftp/tekit/-/tree/main/examples/disaggregated?ref_type=heads).

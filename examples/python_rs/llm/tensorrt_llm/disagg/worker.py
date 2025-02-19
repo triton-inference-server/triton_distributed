@@ -46,9 +46,13 @@ class TensorrtLLMEngine:
     """
 
     def __init__(self, engine_args: Tuple[Dict[str, Any], Dict[str, Any]], 
-                    server_config: CtxGenServerConfig, sub_comm):
+                    disagg_config: Dict[str, Any], 
+                    instance_idx: int, 
+                    sub_comm):
         self.pytorch_config_args, self.llm_engine_args = engine_args
-        self.server_config = server_config
+        self.disagg_config = disagg_config
+        self.instance_idx = instance_idx
+        self.server_config: CtxGenServerConfig = disagg_config.server_configs[instance_idx]
         self.mpi_session = MpiCommSession(sub_comm, n_workers=sub_comm.Get_size())
         self._init_engine()
 
@@ -87,17 +91,17 @@ class TensorrtLLMEngine:
             loop = asyncio.get_running_loop()
             try:
                 pytorch_config = PyTorchConfig(**self.pytorch_config_args)
+                # TODO: maybe add build config
                 llm = await loop.run_in_executor(
                     None,
                     lambda: LLM(
                         **self.llm_engine_args, 
-                        # TODO: no hardcode
-                        tensor_parallel_size=1,
-                        pipeline_parallel_size=1,
+                        tensor_parallel_size=self.server_config.tp_size,
+                        pipeline_parallel_size=self.server_config.pp_size,
                         gpus_per_node=None,
                         trust_remote_code=True,
                         _mpi_session=self.mpi_session,
-                        kv_cache_config=KvCacheConfig(free_gpu_memory_fraction=0.25),
+                        kv_cache_config=KvCacheConfig(free_gpu_memory_fraction=self.server_config.gpu_fraction),
                         pytorch_backend_config=pytorch_config,
                         backend="pytorch"
                     ),
@@ -176,21 +180,22 @@ class TensorrtLLMEngine:
 async def worker(
     runtime: DistributedRuntime, 
     engine_args: Tuple[Dict[str, Any], Dict[str, Any]], 
-    server_config: CtxGenServerConfig, 
+    disagg_config: Dict[str, Any], 
+    instance_idx: int, 
     sub_comm
 ):
     """
     Instantiate a `backend` component and serve the `generate` endpoint
     A `Component` can serve multiple endpoints
     """
-    server_type = server_config.type
+    server_type = disagg_config.server_configs[instance_idx].type
     logger.info(f"Starting {server_type} server")
 
-    component = runtime.namespace("triton-init").component(f"tensorrt-llm-{server_type}")
+    component = runtime.namespace("triton-init").component(f"tensorrt-llm-{server_type}-{instance_idx}")
     await component.create_service()
 
     endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(TensorrtLLMEngine(engine_args, server_config, sub_comm).generate)
+    await endpoint.serve_endpoint(TensorrtLLMEngine(engine_args, disagg_config, instance_idx, sub_comm).generate)
 
 
 if __name__ == "__main__":
@@ -207,7 +212,7 @@ if __name__ == "__main__":
     logger.info(f"is_leader: {is_leader}, instance_idx: {instance_idx}")
 
     if is_leader:
-        asyncio.run(worker(engine_args, disagg_config.server_configs[instance_idx], sub_comm))    
+        asyncio.run(worker(engine_args, disagg_config, instance_idx, sub_comm))    
     else:
         with MPICommExecutor(sub_comm) as executor:
             if not is_leader and executor is not None:
