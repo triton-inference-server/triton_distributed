@@ -13,15 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Triton LLM
-//!
-//! The `triton-llm` crate is a Rust library that provides a set of traits and types for building
-//! distributed LLM inference solutions.
+use triton_llm::model_card::model::ModelDeploymentCard;
 
-pub mod engines;
-pub mod http;
-pub mod kv_router;
-pub mod protocols;
-pub mod types;
-pub mod model_card;
-pub mod common;
+#[tokio::test]
+async fn test_model_info_from_hf_like_local_repo() {
+    let path = "tests/data/sample-models/mock-llama-3.1-8b-instruct";
+    let mdc = ModelDeploymentCard::from_local_path(path).await.unwrap();
+    let info = mdc.model_info.get_model_info().await.unwrap();
+    assert_eq!(info.model_type(), "llama");
+    assert_eq!(info.bos_token_id(), 128000);
+    assert_eq!(info.eos_token_ids(), vec![128009]);
+    assert_eq!(info.max_position_embeddings(), 8192);
+    assert_eq!(info.vocab_size(), 128256);
+}
