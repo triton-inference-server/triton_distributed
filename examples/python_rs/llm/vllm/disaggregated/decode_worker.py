@@ -15,7 +15,7 @@
 
 
 import asyncio
-import random
+import socket
 import uuid
 
 import msgspec
@@ -37,19 +37,15 @@ class VllmDecodeEngine(BaseVllmEngine):
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs):
+    def __init__(self, engine_args: AsyncEngineArgs, prefill):
         assert (
             engine_args.kv_transfer_config.is_kv_consumer
         ), "Decode worker must be a KV consumer"
         super().__init__(engine_args)
-        self.prefills: list = []
+        self.prefill = prefill
 
         self.kv_transfer_config = engine_args.create_engine_config().kv_transfer_config
-        self.num_prefill_workers = 1  # self.kv_transfer_config.kv_producers_parallel_size # TODO: fix this after using zmq for kv pipe signaling
         self.kv_rank = self.kv_transfer_config.kv_rank
-
-    def add_prefill(self, prefill):
-        self.prefills.append(prefill)
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):
@@ -61,8 +57,9 @@ class VllmDecodeEngine(BaseVllmEngine):
             engine_prompt,
             sampling_params,
         ) = await self._parse_raw_request(raw_request)
-        prefill_rank = random.choice(range(self.num_prefill_workers))
-        request_id = f"{uuid.uuid4()}___prefill_kv_rank_{prefill_rank}___decode_kv_rank_{self.kv_rank}"
+
+        # TODO: pass decode info through a separate request param
+        request_id = f"{uuid.uuid4()}___decode_hostname_{socket.gethostname()}___decode_kv_rank_{self.kv_rank}"
 
         prefill_sampling_params = {**msgspec.to_builtins(sampling_params)}
         prefill_sampling_params["max_tokens"] = 1
@@ -73,7 +70,7 @@ class VllmDecodeEngine(BaseVllmEngine):
             request_id=request_id,
         )
         vllm_logger.debug(f"Prefill request: {prefill_request}")
-        prefill_output = self.prefills[prefill_rank].generate(
+        prefill_output = self.prefill.generate(
             prefill_request.model_dump_json(),
         )
 
@@ -102,16 +99,13 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
 
-    async with VllmDecodeEngine(engine_args) as decode_engine:
-        for i in range(decode_engine.num_prefill_workers):
-            prefill = (
-                await runtime.namespace("triton-init")
-                .component("prefill")
-                .endpoint(f"generate_kv_rank_{i}")
-                .client()
-            )
-            decode_engine.add_prefill(prefill)
-
+    prefill = (
+        await runtime.namespace("triton-init")
+        .component("prefill")
+        .endpoint("generate")
+        .client()
+    )
+    async with VllmDecodeEngine(engine_args, prefill) as decode_engine:
         endpoint = component.endpoint("generate")
         await endpoint.serve_endpoint(decode_engine.generate)
 

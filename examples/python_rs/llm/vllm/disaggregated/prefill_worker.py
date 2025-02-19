@@ -60,7 +60,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     await component.create_service()
 
     async with VllmPrefillEngine(engine_args) as prefill_engine:
-        endpoint = component.endpoint(f"generate_kv_rank_{prefill_engine.kv_rank}")
+        endpoint = component.endpoint("generate")
         await endpoint.serve_endpoint(prefill_engine.generate)
 
 
