@@ -15,7 +15,6 @@
 
 import abc
 
-import vllm
 from common.chat_processor import ChatProcessor
 from vllm.engine.arg_utils import AsyncEngineArgs
 
@@ -25,10 +24,10 @@ class BaseVllmEngine:
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs):
+    def __init__(self, engine_args: AsyncEngineArgs, engine_client):
         self.model_config = engine_args.create_model_config()
-        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        self.chat_processor = ChatProcessor(self.engine, self.model_config)
+        self.engine_client = engine_client
+        self.chat_processor = ChatProcessor(self.engine_client, self.model_config)
 
     async def _parse_raw_request(self, raw_request):
         request = self.chat_processor.parse_raw_request(raw_request)
