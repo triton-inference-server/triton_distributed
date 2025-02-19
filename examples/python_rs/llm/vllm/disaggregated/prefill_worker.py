@@ -46,11 +46,14 @@ class VllmPrefillEngine(BaseVllmEngine):
 
         vllm_logger.debug(f"Received prefill request: {request}")
         sampling_params = vllm.SamplingParams(**request.sampling_params)
-        async for response in self.engine_client.generate(
-            request.prompt, sampling_params, request.request_id
-        ):
-            vllm_logger.debug(f"Generated response: {response}")
-            yield True
+        if self.engine_client is None:
+            raise RuntimeError("Engine client not initialized")
+        else:
+            async for response in self.engine_client.generate(
+                request.prompt, sampling_params, request.request_id
+            ):
+                vllm_logger.debug(f"Generated response: {response}")
+                yield True
 
 
 @triton_worker()
