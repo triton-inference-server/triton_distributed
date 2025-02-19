@@ -135,8 +135,16 @@ COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
 
+# Build OpenAI HTTP Service binaries
+COPY llm/rust /workspace/llm/rust
+COPY examples/rust /workspace/examples/rust
+RUN cd examples/rust && \
+    cargo build --release && \
+    cp target/release/http /usr/local/bin/ && \
+    cp target/release/llmctl /usr/local/bin/
+
 # Generate C bindings. Note that this is required for TRTLLM backend re-build
-COPY llm /workspace/llm
+COPY llm/rust /workspace/llm/rust
 RUN cd llm/rust/ && \
     cargo build --release --locked && cargo doc --no-deps
 
