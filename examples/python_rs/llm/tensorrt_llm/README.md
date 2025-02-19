@@ -104,6 +104,8 @@ This should load the model on specified many GPUs.
 #### Option 3: Multi-node, multi-GPU
 
 We will use a wrapper script to launch the server on multiple nodes within the same mpi comm world on slurm cluster.
+Change the `tensor_parallel_size` in the `model.json` file to 16. Each node in EOS has 8 GPUs. Setting the number of
+tasks to 16 will use all the GPUs on both the nodes.
 
 **Server [SLURM]:**
 
@@ -111,12 +113,55 @@ We will use a wrapper script to launch the server on multiple nodes within the s
 # Allocate 2 nodes
 salloc -A coreai_tritoninference_triton3 -N2 -p batch -J coreai_tritoninference_triton3-test:test -t 04:00:00
 # Run worker
-mpirun -n 1 --oversubscribe --allow-run-as-root python3 -m monolith.worker --engine_args model.json &
+srun --mpi pmix -N 2 --ntasks 16 --ntasks-per-node=8 --container-image gitlab-master.nvidia.com#tanmayv/triton-3:trtllm-18-2 --container-mounts "/lustre/fsw/coreai_tritoninference_triton3/tanmayv/triton_distributed:/workspace"  bash -c 'cd /workspace/examples/python_rs/llm/tensorrt_llm && ./trtllm_worker_launch.sh python3 -m monolith.worker --engine_args model.json' &
+
 ```
 
-Used EOS to test the multi-node, multi-GPU deployment.
+Used EOS to test the multi-node, multi-GPU deployment. After the worker is launched, the output should look similar to:
+
+```
+tanmayv@eos0302:/lustre/fsw/coreai_tritoninference_triton3/tanmayv/triton_distributed/examples/python_rs/llm/tensorrt_llm$ pyxis: imported docker image: gitlab-master.nvidia.com#tanmayv/triton-3:trtllm-18-2
+pyxis: imported docker image: gitlab-master.nvidia.com#tanmayv/triton-3:trtllm-18-2
+mpi_rank: 5
+5 launch worker ...
+mpi_rank: 7
+7 launch worker ...
+mpi_rank: 2
+2 launch worker ...
+mpi_rank: 6
+6 launch worker ...
+mpi_rank: 1
+1 launch worker ...
+mpi_rank: 0
+0 run python3 -m monolith.worker --engine_args model.json ...
+mpi_rank: 3
+mpi_rank: 4
+3 launch worker ...
+4 launch worker ...
+mpi_rank: 11
+11 launch worker ...
+mpi_rank: 13
+13 launch worker ...
+mpi_rank: 8
+8 launch worker ...
+mpi_rank: 10
+10 launch worker ...
+mpi_rank: 9
+9 launch worker ...
+mpi_rank: 14
+14 launch worker ...
+mpi_rank: 12
+12 launch worker ...
+mpi_rank: 15
+15 launch worker ...
+```
+
+NOTE: These instructions just allow us to launch the worker on multiple nodes and load the model on TP16.
+WIP: Launching the client, etcd, nats server on a separate node.
 
 **Client:**
+
+NOTE: The client is not yet implemented for multi-node, multi-GPU deployment.
 
 ```bash
 
