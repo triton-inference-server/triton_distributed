@@ -6,6 +6,7 @@
     ],
     "settings": {
         "rust-analyzer.linkedProjects": [
+            "applications/llm/planner/Cargo.toml",
             "llm/rust/Cargo.toml",
             "runtime/rust/Cargo.toml",
             "python-wheel/Cargo.toml",

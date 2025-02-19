@@ -99,6 +99,14 @@ pub struct BasicInitGraph {
     components: HashMap<String, Vec<String>>,
 }
 
+// TODO - refactor into either LLM or Distributed library
+/// Action to be performed on a state transition
+#[async_trait]
+pub trait Action {
+    /// Execute a predefined action on a state transition
+    async fn perform(&self) -> Result<()>;
+}
+
 // TODO - standardize this with the http services data model for which it is watching etcd
 // TODO - Make an Action trait, register the action with Overwatch, for each state transition
 //        perform all actions in a strict sequence ordering
@@ -120,14 +128,6 @@ pub struct HttpModelReadyAction {
 
     // The endpoint name of the generation endpoint
     endpoint: String,
-}
-
-// TODO - refactor into either LLM or Distributed library
-/// Action to be performed on a state transition
-#[async_trait]
-pub trait Action {
-    /// Execute a predefined action on a state transition
-    async fn perform(&self) -> Result<()>;
 }
 
 /// HttpModelUnavailableAction is an action that will mark a model from the http ingress as unavailable
