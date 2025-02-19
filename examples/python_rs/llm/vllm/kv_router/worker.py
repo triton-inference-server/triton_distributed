@@ -16,12 +16,12 @@
 import asyncio
 import os
 import uuid
-from typing import Optional
+from typing import AsyncIterator
 
 import uvloop
 import vllm
 from common.parser import parse_vllm_args
-from common.protocol import Request, Response, TokenizedRequest, MyRequestOutput
+from common.protocol import MyRequestOutput, vLLMGenerateRequest
 from triton_distributed_rs import (
     DistributedRuntime,
     KvRouter,
@@ -29,7 +29,6 @@ from triton_distributed_rs import (
     triton_worker,
 )
 from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.inputs import TokensPrompt
 from vllm.logger import logger as vllm_logger
 from vllm.transformers_utils.tokenizer import AnyTokenizer
 
@@ -41,65 +40,26 @@ class VllmEngine:
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs, router: KvRouter):
+    def __init__(self, engine_args: AsyncEngineArgs):
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        self.router = router
-        self.tokenizer: Optional[AnyTokenizer] = None
-
-    # Pattern to initialize async object as python __init__ is not async
-    async def init(self):
-        self.tokenizer = await self.engine.get_tokenizer()
-        return self
-
-    @triton_endpoint(TokenizedRequest, MyRequestOutput)
-    async def generate_from_tokens(self, request):
-        vllm_logger.info(f"Got request: {request}")
-        tokens_prompt = TokensPrompt(prompt_token_ids=request.tokens)
-
-        sampling_params = vllm.SamplingParams(**request.sampling_params)
-        request_id = str(uuid.uuid4())
-
-        vllm_logger.info(
-            f"Running generate with engine_prompt: {tokens_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
-        )
-
-        response = self.engine.generate(tokens_prompt, sampling_params, request_id)
-
-
-        async for resp in response:
-            my_request_output = MyRequestOutput(
-                request_id=request_id,
-                prompt=resp.prompt,
-                prompt_token_ids=resp.prompt_token_ids,
-                prompt_logprobs=resp.prompt_logprobs,
-                outputs=resp.outputs,
-                finished=resp.finished
-            )
-
-            vllm_logger.info(f"MyRequestOutput: {my_request_output.json()}")
-            yield my_request_output.json()
+        
             
-    @triton_endpoint(Request, Response)
-    async def generate_from_prompt(self, request):
-        sampling_params = vllm.SamplingParams(**request.sampling_params)
-        request_id = str(uuid.uuid4())
+    @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
+    async def generate(self, request) -> AsyncIterator[MyRequestOutput]:
         async for response in self.engine.generate(
-            request.prompt, sampling_params, request_id
+            request.engine_prompt, request.sampling_params, request.request_id
         ):
-            yield response.outputs[0].text
-
-    @triton_endpoint(Request, Response)
-    async def preprocess(self, request):
-        if self.tokenizer is None:
-            raise RuntimeError("Tokenizer not initialized. Must run init().")
-        tokens = self.tokenizer.encode(request.prompt)
-
-        engine_generator = await self.router.generate(
-            TokenizedRequest(tokens=tokens, **request.model_dump()).model_dump_json()
-        )
-
-        async for resp in engine_generator:
-            yield resp.data()
+            vllm_logger.info(f"Response: {response}")
+            my_request_output = MyRequestOutput(
+                request_id=response.request_id,
+                prompt=response.prompt,
+                prompt_token_ids=response.prompt_token_ids,
+                prompt_logprobs=response.prompt_logprobs,
+                outputs=response.outputs,
+                finished=response.finished,
+            )
+            vllm_logger.info(f"MyRequestOutput: {my_request_output.model_dump_json()}")
+            yield my_request_output.model_dump_json()
 
 
 @triton_worker()
@@ -111,32 +71,32 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     worker_component = runtime.namespace("triton-init").component("vllm")
     await worker_component.create_service()
 
-    preprocess_component = runtime.namespace("triton-init").component("preprocess")
-    await preprocess_component.create_service()
+    # preprocess_component = runtime.namespace("triton-init").component("preprocess")
+    # await preprocess_component.create_service()
 
-    router_client = (
-        await runtime.namespace("triton-init")
-        .component("router")
-        .endpoint("generate")
-        .client()
-    )
+    # router_client = (
+    #     await runtime.namespace("triton-init")
+    #     .component("router")
+    #     .endpoint("generate")
+    #     .client()
+    # )
 
-    worker_from_tokens_endpoint = worker_component.endpoint("generate_from_tokens")
-    worker_from_prompt_endpoint = worker_component.endpoint("generate")
-    preprocess_endpoint = preprocess_component.endpoint("generate")
+    # worker_from_tokens_endpoint = worker_component.endpoint("generate_from_tokens")
+    worker_endpoint = worker_component.endpoint("generate")
+    # preprocess_endpoint = preprocess_component.endpoint("generate")
 
     # TODO Hack until we unify lease_id and worker_id
-    VLLM_WORKER_ID = uuid.UUID(int=worker_from_tokens_endpoint.lease_id())
+    VLLM_WORKER_ID = uuid.UUID(int=worker_endpoint.lease_id())
     os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
     vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
 
-    vllm_engine = VllmEngine(engine_args, router_client)
-    vllm_engine = await vllm_engine.init()
+    vllm_engine = VllmEngine(engine_args)
+    # vllm_engine = await vllm_engine.init()
 
     await asyncio.gather(
-        worker_from_tokens_endpoint.serve_endpoint(vllm_engine.generate_from_tokens),
-        worker_from_prompt_endpoint.serve_endpoint(vllm_engine.generate_from_prompt),
-        preprocess_endpoint.serve_endpoint(vllm_engine.preprocess),
+        # worker_from_tokens_endpoint.serve_endpoint(vllm_engine.generate_from_tokens),
+        worker_endpoint.serve_endpoint(vllm_engine.generate),
+        # preprocess_endpoint.serve_endpoint(vllm_engine.preprocess),
     )
 
 

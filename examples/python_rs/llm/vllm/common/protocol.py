@@ -14,13 +14,17 @@
 # limitations under the License.
 
 
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List
+from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, field_validator
+from pydantic_core import core_schema
+import json
+
+from typing import Optional, List, Any
+from typing_extensions import NotRequired
+import msgspec
 
 from vllm import CompletionOutput
 from vllm.sequence import PromptLogprobs, RequestMetrics
-from vllm.lora.request import LoRARequest
-from vllm.multimodal import MultiModalPlaceholderDict
+from vllm import TokensPrompt, SamplingParams
 
 
 class Request(BaseModel):
@@ -31,10 +35,39 @@ class Request(BaseModel):
 class Tokens(BaseModel):
     tokens: list[int]
 
+# Hack to override the type of multi_modal_data in TokensPrompt
+# as pydantic doesn't understand generic typess
+# TokensPrompt.__annotations__["multi_modal_data"] = Optional[Any]
+class PatchedTokensPrompt(TokensPrompt):
+    multi_modal_data: NotRequired[Optional[Any]]
 
-class TokenizedRequest(Request, Tokens):
-    pass
+# Monkey-patch the SamplingParams type to add a dummy core schema.
+# def sampling_params_schema(cls, source: type[Any], handler: GetCoreSchemaHandler):
+#     return core_schema.any_schema()
 
+SamplingParams.__get_pydantic_core_schema__ = classmethod(
+    lambda cls, source, handler: core_schema.any_schema()
+)
+
+
+class vLLMGenerateRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    engine_prompt: PatchedTokensPrompt
+    sampling_params: SamplingParams
+    request_id: str
+
+    @field_validator("sampling_params", mode="before")
+    @classmethod
+    def parse_sampling_params(cls, v: any) -> SamplingParams:
+        if isinstance(v, str):
+            v = json.loads(v)
+        if isinstance(v, dict):
+            return SamplingParams(**v)
+        return v
+
+    model_config = ConfigDict(
+        json_encoders={SamplingParams: lambda v: msgspec.json.encode(v)}
+    )
 
 class PrefillRequest(Request):
     request_id: str
@@ -70,7 +103,6 @@ class MyRequestOutput(BaseModel):
         num_cached_tokens: The number of tokens with prefix cache hit.
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
 
     request_id: str
     prompt: Optional[str] = None

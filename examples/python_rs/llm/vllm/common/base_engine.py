@@ -20,6 +20,10 @@ from common.chat_processor import ChatProcessor
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.transformers_utils.tokenizer import AnyTokenizer
 from transformers import AutoTokenizer
+from vllm import TokensPrompt, SamplingParams
+from vllm.entrypoints.chat_utils import ConversationMessage
+from vllm.entrypoints.openai.serving_engine import RequestPrompt
+from vllm.entrypoints.openai.protocol import ChatCompletionRequest
 
 
 class BaseVllmEngine:
@@ -47,7 +51,7 @@ class BaseVllmEngine:
         )
         return base_tokenizer
     
-    async def _parse_raw_request(self, raw_request):
+    async def _parse_raw_request(self, raw_request) -> tuple[ChatCompletionRequest, ConversationMessage, RequestPrompt, TokensPrompt, SamplingParams]:
         request = self.chat_processor.parse_raw_request(raw_request)
         (
             conversation,
