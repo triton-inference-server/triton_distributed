@@ -49,6 +49,9 @@ class VllmDecodeEngine(BaseVllmEngine):
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):
+        if self.engine_client is None:
+            await self.initialize()
+
         vllm_logger.debug(f"Got raw request: {raw_request}")
         (
             request,
@@ -77,9 +80,12 @@ class VllmDecodeEngine(BaseVllmEngine):
         vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
         )
-        generator = self.engine_client.generate(
-            engine_prompt, sampling_params, request_id
-        )
+        if self.engine_client is None:
+            raise RuntimeError("Engine client not initialized")
+        else:
+            generator = self.engine_client.generate(
+                engine_prompt, sampling_params, request_id
+            )
 
         async for response in await self._stream_response(
             request, generator, request_id, conversation
