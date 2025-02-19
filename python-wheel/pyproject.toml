@@ -16,12 +16,13 @@
 
 [project]
 name = "triton-distributed-rs"
-version = "0.2.0"
+version = "0.2.1"
 description = "Distributed LLM Framework"
-# readme = "README.md"
+readme = "README.md"
 authors = [
-    { name = "Ryan Olson", email = "rolson@nvidia.com" }
+    { name="NVIDIA Inc.", email="sw-dl-triton@nvidia.com" },
 ]
+license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
 dependencies = [
     "pydantic>=2.10.6",
