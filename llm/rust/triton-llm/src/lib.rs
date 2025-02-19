@@ -23,3 +23,4 @@ pub mod http;
 pub mod kv_router;
 pub mod protocols;
 pub mod types;
+pub mod disagg_router;
