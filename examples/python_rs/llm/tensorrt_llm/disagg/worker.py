@@ -23,7 +23,7 @@ from dataclasses import asdict
 
 import uvloop
 from common.parser import parse_tensorrt_llm_args
-from common.protocol import Request, Response
+from common.protocol import DisaggregatedRequest, DisaggregatedResponse
 from tensorrt_llm import SamplingParams
 from tensorrt_llm._torch import LLM
 from tensorrt_llm._utils import set_mpi_comm
@@ -153,7 +153,7 @@ class TensorrtLLMEngine:
     async def generate(self, request):
         self._ongoing_request_count += 1
         logger.debug(f"Received request: {request}")
-        request = Request.parse_raw(request)
+        request = DisaggregatedRequest.parse_raw(request)
         sampling_params = SamplingParams(**request.sampling_params)
         disaggregated_params = DisaggregatedParams(**request.disaggregated_params)
         
@@ -166,7 +166,7 @@ class TensorrtLLMEngine:
         ):
             logger.debug(f"Generated response: {response}")
             if self.server_config.type == "ctx":
-                yield Response(text=response.outputs[0].text, disaggregated_params=response.outputs[0].disaggregated_params).model_dump_json()
+                yield DisaggregatedResponse(text=response.outputs[0].text, disaggregated_params=response.outputs[0].disaggregated_params).model_dump_json()
             else:
                 yield response.outputs[0].text
         self._ongoing_request_count -= 1

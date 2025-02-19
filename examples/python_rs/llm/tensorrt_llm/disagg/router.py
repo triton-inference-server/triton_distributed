@@ -16,6 +16,7 @@
 
 import argparse
 import asyncio
+from dataclasses import asdict
 import copy
 import os
 import uvloop
@@ -28,7 +29,7 @@ from tensorrt_llm.llmapi.disagg_utils import (CtxGenServerConfig,
 from tensorrt_llm._utils import set_mpi_comm
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 
-from common.protocol import Request, Response
+from common.protocol import DisaggregatedRequest, DisaggregatedResponse
 
 logger.set_level("info")
 
@@ -57,8 +58,8 @@ class Router:
 
         return server
 
-    @triton_endpoint(Request, Response)
     async def generate(self, request):
+        request = DisaggregatedRequest.parse_raw(request)
         gen_req = copy.deepcopy(request)
 
         # Pick a context server
@@ -66,12 +67,16 @@ class Router:
 
         # Send request to context server
         request.sampling_params["max_tokens"] = 1
-        request.disaggregated_params = DisaggregatedParams(request_type="context_only")
+        request.disaggregated_params = asdict(DisaggregatedParams(request_type="context_only"))
         logger.debug(f"Sending request {request} to ctx server: {ctx_client}")
 
         async for ctx_resp in await ctx_client.generate(request.model_dump_json()):
-            gen_req.disaggregated_params = Response.parse_raw(ctx_resp.data()).disaggregated_params
+            ctx_resp_obj = DisaggregatedResponse.parse_raw(ctx_resp.data())
+            gen_req.disaggregated_params = ctx_resp_obj.disaggregated_params
             gen_req.disaggregated_params.request_type = "generation_only"
+            
+            if request.streaming:
+                yield ctx_resp_obj.text
             break
 
         # Pick a generation server
