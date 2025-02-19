@@ -17,6 +17,8 @@ from enum import IntEnum
 
 MemoryType = IntEnum("MemoryType", names=("CPU", "CPU_PINNED", "GPU"), start=0)
 
+# Is more touching necessary to trigger pipeline?
+
 
 def string_to_memory_type(memory_type_string: str) -> MemoryType:
     try:
