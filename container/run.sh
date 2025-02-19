@@ -33,6 +33,7 @@ HF_CACHE=
 DEFAULT_HF_CACHE=${SOURCE_DIR}/.cache/huggingface
 GPUS="all"
 PRIVILEGED=
+WORKING_DIRECTORY=/workspace
 VOLUME_MOUNTS=
 MOUNT_WORKSPACE=
 ENVIRONMENT_VARIABLES=
@@ -98,6 +99,14 @@ get_options() {
 	--privileged)
             if [ "$2" ]; then
                 PRIVILEGED=$2
+                shift
+            else
+		missing_requirement $1
+            fi
+            ;;
+    --workdir)
+            if [ "$2" ]; then
+                WORKING_DIRECTORY=$2
                 shift
             else
 		missing_requirement $1
@@ -202,7 +211,7 @@ get_options() {
 	ENVIRONMENT_VARIABLES+=" -e HF_TOKEN"
 
 	if [ ! -d "${SOURCE_DIR}/icp/src/python/tdist/icp/protos" ]; then
-	    $RUN_PREFIX docker run --rm -t -v ${SOURCE_DIR}/..:/workspace -w /workspace $IMAGE /workspace/icp/protos/gen_python.sh > /dev/null 2>&1
+	    $RUN_PREFIX docker run --rm -t -v ${SOURCE_DIR}/..:/workspace -w $WORKING_DIRECTORY $IMAGE /workspace/icp/protos/gen_python.sh > /dev/null 2>&1
 	fi
 	INTERACTIVE=" -it "
     fi
@@ -273,6 +282,6 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-${RUN_PREFIX} docker run ${GPU_STRING} ${INTERACTIVE} ${RM_STRING} --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 ${ENVIRONMENT_VARIABLES} ${VOLUME_MOUNTS} -w /workspace --cap-add CAP_SYS_PTRACE --ipc host ${PRIVILEGED_STRING} ${NAME_STRING} ${IMAGE} "${REMAINING_ARGS[@]}"
+${RUN_PREFIX} docker run ${GPU_STRING} ${INTERACTIVE} ${RM_STRING} --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 ${ENVIRONMENT_VARIABLES} ${VOLUME_MOUNTS} -w $WORKING_DIRECTORY --cap-add CAP_SYS_PTRACE --ipc host ${PRIVILEGED_STRING} ${NAME_STRING} ${IMAGE} "${REMAINING_ARGS[@]}"
 
 { set +x; } 2>/dev/null
