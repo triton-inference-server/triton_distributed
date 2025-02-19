@@ -39,6 +39,9 @@ class VllmEngine(BaseVllmEngine):
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):
+        if self.engine_client is None:
+            await self.initialize()
+
         vllm_logger.debug(f"Got raw request: {raw_request}")
         (
             request,

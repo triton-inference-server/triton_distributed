@@ -17,6 +17,7 @@
 import asyncio
 import random
 import uuid
+from typing import Any, Dict
 
 import msgspec
 import uvloop
@@ -42,17 +43,20 @@ class VllmDecodeEngine(BaseVllmEngine):
             engine_args.kv_transfer_config.is_kv_consumer
         ), "Decode worker must be a KV consumer"
         super().__init__(engine_args)
-        self.prefills: list = []
+        self.prefills: Dict[int, Any] = {}
 
         self.kv_transfer_config = engine_args.create_engine_config().kv_transfer_config
         self.num_prefill_workers = 1  # self.kv_transfer_config.kv_producers_parallel_size # TODO: fix this after using zmq for kv pipe signaling
         self.kv_rank = self.kv_transfer_config.kv_rank
 
     def add_prefill(self, prefill):
-        self.prefills.append(prefill)
+        self.prefills[prefill.kv_rank] = prefill
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):
+        if self.engine_client is None:
+            await self.initialize()
+
         vllm_logger.debug(f"Got raw request: {raw_request}")
         (
             request,
