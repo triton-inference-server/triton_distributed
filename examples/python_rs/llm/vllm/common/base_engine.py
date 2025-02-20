@@ -16,15 +16,14 @@
 import abc
 from typing import AsyncIterator
 
-import vllm
 from common.chat_processor import ChatProcessor
-from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.transformers_utils.tokenizer import AnyTokenizer
 from transformers import AutoTokenizer
-from vllm import TokensPrompt, SamplingParams
+from vllm import SamplingParams, TokensPrompt
+from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.chat_utils import ConversationMessage
-from vllm.entrypoints.openai.serving_engine import RequestPrompt
 from vllm.entrypoints.openai.protocol import ChatCompletionRequest
+from vllm.entrypoints.openai.serving_engine import RequestPrompt
+from vllm.transformers_utils.tokenizer import AnyTokenizer
 
 
 class BaseVllmEngine:
@@ -36,7 +35,6 @@ class BaseVllmEngine:
         self.model_config = engine_args.create_model_config()
         self.tokenizer = self._create_tokenizer(engine_args)
         self.chat_processor = ChatProcessor(self.tokenizer, self.model_config)
-        
 
     def _create_tokenizer(self, engine_args: AsyncEngineArgs) -> AnyTokenizer:
         """Create a TokenizerGroup using engine arguments similar to VLLM's approach"""
@@ -51,8 +49,16 @@ class BaseVllmEngine:
             # use_fast=True  # VLLM might use the fast tokenizer for efficiency
         )
         return base_tokenizer
-    
-    async def _parse_raw_request(self, raw_request) -> tuple[ChatCompletionRequest, ConversationMessage, RequestPrompt, TokensPrompt, SamplingParams]:
+
+    async def _parse_raw_request(
+        self, raw_request
+    ) -> tuple[
+        ChatCompletionRequest,
+        ConversationMessage,
+        RequestPrompt,
+        TokensPrompt,
+        SamplingParams,
+    ]:
         request = self.chat_processor.parse_raw_request(raw_request)
         (
             conversation,

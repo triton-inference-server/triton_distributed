@@ -16,16 +16,15 @@
 import json
 from typing import AsyncIterator, List
 
-import vllm
-from vllm.config import ModelConfig
 from vllm import TokensPrompt
+from vllm.config import ModelConfig
 from vllm.entrypoints.chat_utils import ConversationMessage
-from vllm.entrypoints.openai.serving_engine import RequestPrompt
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     RequestResponseMetadata,
 )
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
+from vllm.entrypoints.openai.serving_engine import RequestPrompt
 from vllm.transformers_utils.tokenizer import AnyTokenizer
 
 
@@ -46,7 +45,9 @@ class ChatProcessor:
     def parse_raw_request(self, raw_request: dict) -> ChatCompletionRequest:
         return ChatCompletionRequest.parse_obj(raw_request)
 
-    async def preprocess(self, raw_request: dict) -> tuple[ConversationMessage, RequestPrompt, TokensPrompt]:
+    async def preprocess(
+        self, raw_request: dict
+    ) -> tuple[ConversationMessage, RequestPrompt, TokensPrompt]:
         request = self.parse_raw_request(raw_request)
 
         (

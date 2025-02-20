@@ -14,17 +14,15 @@
 # limitations under the License.
 
 
-from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, field_validator
-from pydantic_core import core_schema
 import json
+from typing import Any, List, Optional
 
-from typing import Optional, List, Any
-from typing_extensions import NotRequired
 import msgspec
-
-from vllm import CompletionOutput
+from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic_core import core_schema
+from typing_extensions import NotRequired
+from vllm import CompletionOutput, SamplingParams, TokensPrompt
 from vllm.sequence import PromptLogprobs, RequestMetrics
-from vllm import TokensPrompt, SamplingParams
 
 
 class Request(BaseModel):

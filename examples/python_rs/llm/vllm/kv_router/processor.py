@@ -18,28 +18,19 @@ import uuid
 from typing import AsyncIterator
 
 import uvloop
-from common.parser import parse_vllm_args
-from common.protocol import Tokens, MyRequestOutput, vLLMGenerateRequest
 from common.base_engine import BaseVllmEngine
-
+from common.parser import parse_vllm_args
+from common.protocol import MyRequestOutput, Tokens, vLLMGenerateRequest
 from kv_router.router import WorkerId
-
-from triton_distributed_rs import (
-    DistributedRuntime,
-    triton_endpoint,
-    triton_worker,
-)
+from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from triton_distributed_rs._core import Client
-
 from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.logger import logger as vllm_logger
-from vllm.outputs import RequestOutput
-
-
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
 )
+from vllm.logger import logger as vllm_logger
+from vllm.outputs import RequestOutput
 
 
 class Processor(BaseVllmEngine):

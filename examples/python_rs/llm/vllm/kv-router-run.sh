@@ -15,7 +15,7 @@
 
 #!/bin/bash
 
-# LIMITATIONS: 
+# LIMITATIONS:
 # - Must use a single GPU for workers as CUDA_VISIBLE_DEVICES is set to a fixed value
 # - Must use a single node
 
@@ -49,7 +49,7 @@ tmux send-keys -t "$SESSION_NAME-http" "$INIT_CMD && $HTTP_CMD" C-m
 
 ########################################################
 # LLMCTL
-########################################################    
+########################################################
 LLMCTL_CMD="sleep 5 && llmctl http remove chat-model $MODEL_NAME && \
     llmctl http add chat-model $MODEL_NAME $ENDPOINT_NAME && \
     llmctl http list chat-model"
@@ -58,7 +58,7 @@ tmux send-keys -t "$SESSION_NAME-llmctl" "$INIT_CMD && $LLMCTL_CMD" C-m
 
 ########################################################
 # Processor
-########################################################    
+########################################################
 # For now processor gets same args as worker, need to have them communicate over etcd
 PROCESSOR_CMD="RUST_LOG=info python3 -m kv_router.processor \
     --model $MODEL_NAME \
