@@ -62,6 +62,7 @@ jobs:
       run: |
         #!/bin/bash -e
         declare -A ci_variables
+        echo "${{ github.event.push.push_options }}"
 
         # Check for vllm changes
         if [ "${{ steps.src_changes.outputs.vllm }}" == "true" ]; then
