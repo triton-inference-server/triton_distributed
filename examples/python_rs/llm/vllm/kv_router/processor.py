@@ -77,7 +77,6 @@ class Processor(BaseVllmEngine):
             engine_prompt,
             sampling_params,
         ) = await self._parse_raw_request(raw_request)
-
         worker_id_generator: AsyncIterator[WorkerId] = await self.router_client.generate(
             Tokens(tokens=engine_prompt["prompt_token_ids"]).model_dump_json()
         )

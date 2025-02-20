@@ -27,6 +27,7 @@ from vllm.entrypoints.openai.protocol import (
     ChatCompletionStreamResponse,
 )
 from vllm.logger import logger as vllm_logger
+import vllm
 
 
 class VllmEngine(BaseVllmEngine):
@@ -36,6 +37,8 @@ class VllmEngine(BaseVllmEngine):
 
     def __init__(self, engine_args: AsyncEngineArgs):
         super().__init__(engine_args)
+        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
+
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):

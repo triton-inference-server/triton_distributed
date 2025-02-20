@@ -30,8 +30,7 @@ from triton_distributed_rs import (
 )
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
-from vllm.transformers_utils.tokenizer import AnyTokenizer
-
+from vllm.sampling_params import RequestOutputKind
 vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
 
@@ -46,8 +45,13 @@ class VllmEngine:
             
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
     async def generate(self, request) -> AsyncIterator[MyRequestOutput]:
+
+        sampling_params = request.sampling_params
+        # rust HTTP requires Delta streaming
+        sampling_params.output_kind = RequestOutputKind.DELTA
+
         async for response in self.engine.generate(
-            request.engine_prompt, request.sampling_params, request.request_id
+            request.engine_prompt, sampling_params, request.request_id
         ):
             vllm_logger.info(f"Response: {response}")
             my_request_output = MyRequestOutput(

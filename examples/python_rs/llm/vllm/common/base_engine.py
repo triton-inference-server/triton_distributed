@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import abc
+from typing import AsyncIterator
 
 import vllm
 from common.chat_processor import ChatProcessor
@@ -69,7 +70,13 @@ class BaseVllmEngine:
         )
         return request, conversation, request_prompt, engine_prompt, sampling_params
 
-    async def _stream_response(self, request, generator, request_id, conversation):
+    async def _stream_response(
+        self,
+        request: ChatCompletionRequest,
+        generator: AsyncIterator,
+        request_id: str,
+        conversation: list,
+    ):
         return self.chat_processor.stream_response(
             request,
             generator,
