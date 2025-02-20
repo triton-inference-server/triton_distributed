@@ -18,6 +18,7 @@ from enum import IntEnum
 MemoryType = IntEnum("MemoryType", names=("CPU", "CPU_PINNED", "GPU"), start=0)
 
 # Is more touching necessary to trigger pipeline?
+# It is necessary to trigger changes in Python to force valid gitlab execution. 
 # Let's touch this file again to trigger tests.
 
 
