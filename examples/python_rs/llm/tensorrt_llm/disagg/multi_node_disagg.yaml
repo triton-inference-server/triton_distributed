@@ -1,0 +1,20 @@
+model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+hostname: localhost
+port: 8000
+backend: "pytorch"
+context_servers:
+  num_instances: 2
+  gpu_fraction: 0.25
+  tp_size: 2
+  pp_size: 1
+  urls:
+      - "node1:8001"
+      - "node1:8002"
+generation_servers:
+  num_instances: 2
+  gpu_fraction: 0.25
+  tp_size: 2
+  pp_size: 1
+  urls:
+      - "node2:8003"
+      - "node2:8004"

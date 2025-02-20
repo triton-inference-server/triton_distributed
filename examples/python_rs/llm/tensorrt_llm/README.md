@@ -125,12 +125,12 @@ NOTE: For multi-node deployment we need to handle the MPI_WORLD setup.
 
 **Environment**
 This is the latest image with tensorrt_llm supporting distributed serving with pytorch workflow in LLM API.
-# TODO: can use TRT-LLM main in dockerfile now.
-`nvcr.io/pfteb4cqjzrs/playground/tritondistributed:trtllm_disagg-shreyas`
+TODO: can use TRT-LLM main in dockerfile now.
+
 
 Run the container interactively with the following command:
 ```bash
-docker run -it --network host --shm-size=64G --ulimit memlock=-1 --ulimit stack=67108864 -e HF_HOME=/path/to/hf_cache --gpus=all -v .:/workspace nvcr.io/pfteb4cqjzrs/playground/tritondistributed:trtllm_disagg-shreyas
+docker run -it --network host --shm-size=64G --ulimit memlock=-1 --ulimit stack=67108864 -e HF_HOME=/path/to/hf_cache --gpus=all -v .:/workspace IMAGE
 ```
 
 **Disagg config file**
@@ -184,6 +184,7 @@ generation_servers:
 ```
 
 **Launch the servers**
+
 Launch context and generation servers.
 Here, WORLD_SIZE is the total number of servers along with the distributed config of each server. For example, if we have 1 TP 1 context server and 2 TP2 generation servers, WORLD_SIZE = 5.
 
@@ -210,5 +211,90 @@ python3 -m common.client \
     --component router
 ```
 
-For more details on the disaggregated deployment, please refer to the [TRT-LLM documentation](https://gitlab-master.nvidia.com/ftp/tekit/-/tree/main/examples/disaggregated?ref_type=heads).
+For more details on the disaggregated deployment, please refer to the [TRT-LLM example]().
 
+
+### 3. Multi-Node Deployment
+
+#### 3.1 Monolithic Deployment
+
+#### 3.2 Disaggregated Deployment
+
+To run the disaggregated deployment across multiple nodes, we need to launch the servers using MPI, pass the correct NATS and etcd endpoints to each server and update the disagg config file to use the correct endpoints.
+
+Export the correct NATS and etcd endpoints.
+```bash
+export NATS_SERVER="nats://host:port"
+export ETCD_ENDPOINTS="http://host1:port,http://host2:port"
+```
+
+Update the disagg config file to use the correct endpoints. In the following example, we have 2 TP2 context servers and 2 TP2 generation servers on different nodes.
+```yaml
+model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+...
+context_servers:
+  num_instances: 2
+  gpu_fraction: 0.25
+  tp_size: 2
+  pp_size: 1
+  urls:
+      - "node1:8001"
+      - "node2:8002"
+generation_servers:
+  num_instances: 2
+  gpu_fraction: 0.25
+  tp_size: 2
+  pp_size: 1
+  urls:
+      - "node2:8003"
+      - "node2:8004"
+```
+
+Launch the servers using MPI. In the following example, we use SLURM which has MPI integrated and enroot for containers.
+
+1. Allocate nodes
+```bash
+salloc -A ACCOUNT -N NUM_NODES -p batch -J JOB_NAME -t HH:MM:SS
+```
+
+2. Launch the workers from node1 or login node. WORLD_SIZE is similar to single node deployment. Update the `model.json` to point to the new disagg config file.
+```bash
+srun --mpi pmix -N NUM_NODES --ntasks WORLD_SIZE --ntasks-per-node=WORLD_SIZE --no-container-mount-home --overlap --container-image IMAGE --output batch_%x_%j.log --err batch_%x_%j.err --container-mounts PATH_TO_TRITON_DISTRIBUTED:/workspace --container-env=NATS_SERVER,ETCD_ENDPOINTS bash -c 'cd /workspace/examples/python_rs/llm/tensorrt_llm && python3 -m disagg.worker --engine_args model.json' &
+```
+
+Once the workers are launched, you should see the output similar to the following in the worker logs.
+```
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 18.88 GiB for max tokens in paged KV cache (1800032).
+[02/20/2025-07:10:33] [TRT-LLM] [I] max_seq_len=2048, max_num_requests=2048, max_num_tokens=8192
+[02/20/2025-07:10:33] [TRT-LLM] [I] Engine loaded and ready to serve...
+[02/20/2025-07:10:33] [TRT-LLM] [I] max_seq_len=2048, max_num_requests=2048, max_num_tokens=8192
+[TensorRT-LLM][INFO] Number of tokens per block: 32.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 18.88 GiB for max tokens in paged KV cache (1800032).
+[02/20/2025-07:10:33] [TRT-LLM] [I] max_seq_len=2048, max_num_requests=2048, max_num_tokens=8192
+[02/20/2025-07:10:33] [TRT-LLM] [I] Engine loaded and ready to serve...
+```
+
+3. Launch the router from node1 or login node.
+```bash
+srun --mpi pmix -N 1 --ntasks 1 --ntasks-per-node=1 --overlap --container-image IMAGE --output batch_router_%x_%j.log --err batch_router_%x_%j.err --container-mounts PATH_TO_TRITON_DISTRIBUTED:/workspace  --container-env=NATS_SERVER,ETCD_ENDPOINTS bash -c 'cd /workspace/examples/python_rs/llm/tensorrt_llm && python3 -m disagg.router --disagg-config disagg/disagg_config_multi_node.yaml' &
+```
+
+4. Send requests to the router.
+```bash
+srun --mpi pmix -N 1 --ntasks 1 --ntasks-per-node=1 --overlap --container-image IMAGE --output batch_client_%x_%j.log --err batch_client_%x_%j.err --container-mounts PATH_TO_TRITON_DISTRIBUTED:/workspace  --container-env=NATS_SERVER,ETCD_ENDPOINTS bash -c 'cd /workspace/examples/python_rs/llm/tensorrt_llm && python3 -m common.client --prompt "Describe the capital of France" --max-tokens 10 --temperature 0.5 --component router' &
+```
+
+Finally, you should see the output similar to the following in the client logs.
+
+```
+Annotated(data='and', event=None, comment=[], id=None)
+Annotated(data='and its', event=None, comment=[], id=None)
+Annotated(data='and its significance', event=None, comment=[], id=None)
+Annotated(data='and its significance in', event=None, comment=[], id=None)
+Annotated(data='and its significance in the', event=None, comment=[], id=None)
+Annotated(data='and its significance in the country', event=None, comment=[], id=None)
+Annotated(data="and its significance in the country'", event=None, comment=[], id=None)
+Annotated(data="and its significance in the country's", event=None, comment=[], id=None)
+Annotated(data="and its significance in the country's history", event=None, comment=[], id=None)
+Annotated(data="and its significance in the country's history.", event=None, comment=[], id=None)
+```
