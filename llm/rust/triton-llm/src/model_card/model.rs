@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # NIM LLM Model Deployment Card
+//! # Model Deployment Card
 //!
 //! The ModelDeploymentCard (MDC) is the primary model configuration structure that will be available to any
 //! component that needs to interact with the model or its dependent artifacts.
