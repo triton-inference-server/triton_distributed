@@ -27,15 +27,15 @@ use triton_llm::http::service::{
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Port number for the HTTP service
-    #[arg(short, long, default_value = "8080", env = "HTTP_SERVICE_PORT")]
+    #[arg(short, long, default_value = "8080")]
     port: u16,
 
     /// Namespace for the distributed component
-    #[arg(long, default_value = "public", env = "NAMESPACE")]
+    #[arg(long, default_value = "public")]
     namespace: String,
 
     /// Component name for the service
-    #[arg(long, default_value = "http", env = "COMPONENT")]
+    #[arg(long, default_value = "http")]
     component: String,
 }
 
