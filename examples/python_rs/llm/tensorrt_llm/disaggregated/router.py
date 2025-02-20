@@ -113,10 +113,11 @@ if __name__ == "__main__":
     uvloop.install()
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--disagg-config", type=str, 
-                        default="disagg/disagg_config.yaml")
+    parser.add_argument("--llmapi-disaggregated-config", '-c', type=str, 
+                        default="disaggregated/llmapi_disaggregated_configs/single_node_config.yaml", 
+                        help="Path to the llmapi disaggregated config file")
     args = parser.parse_args()
-    disagg_config = parse_disagg_config_file(args.disagg_config)
+    disagg_config = parse_disagg_config_file(args.llmapi_disaggregated_config)
     server_configs = disagg_config.server_configs
 
     asyncio.run(worker(server_configs))

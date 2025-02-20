@@ -200,10 +200,14 @@ async def worker(
 
 if __name__ == "__main__":
     uvloop.install()
-    engine_args = parse_tensorrt_llm_args()
-    disagg_config = parse_disagg_config_file(engine_args[1].pop('disagg_config'))
+    args, engine_args = parse_tensorrt_llm_args()
 
-    logger.info(f"disagg_config: {disagg_config}")
+    if args.llmapi_disaggregated_config is None or not os.path.exists(args.llmapi_disaggregated_config):
+        raise ValueError(f"llmapi_disaggregated_config file does not exist or not provided")
+
+    disagg_config = parse_disagg_config_file(args.llmapi_disaggregated_config)
+
+    logger.info(f"Parsed disaggregated config: {disagg_config}")
 
     is_leader, instance_idx, sub_comm = split_world_comm(disagg_config.server_configs)
     os.environ['TRTLLM_USE_MPI_KVCACHE'] = "1"

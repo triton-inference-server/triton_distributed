@@ -10,7 +10,6 @@
     "tokenizer_revision": null,
     "speculative_model": null,
     "enable_chunked_prefill": null,
-    "disagg_config": "disagg/disagg_config.yaml",
 
     "use_cuda_graph": null,
     "cuda_graph_batch_sizes": null,
