@@ -41,6 +41,11 @@ class VllmDecodeEngine(BaseVllmEngine):
         assert (
             engine_args.kv_transfer_config.is_kv_consumer
         ), "Decode worker must be a KV consumer"
+        if engine_args.enable_chunked_prefill is not False:
+            vllm_logger.info(
+                "Chunked prefill is not supported in disaggregated mode, disabling it"
+            )
+            engine_args.enable_chunked_prefill = False
         super().__init__(engine_args)
         self.prefill = prefill
 

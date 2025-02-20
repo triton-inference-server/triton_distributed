@@ -35,6 +35,11 @@ class VllmPrefillEngine(BaseVllmEngine):
         assert (
             engine_args.kv_transfer_config.is_kv_producer
         ), "Prefill worker must be a KV producer"
+        if engine_args.enable_chunked_prefill is not False:
+            vllm_logger.info(
+                "Chunked prefill is not supported in disaggregated mode, disabling it"
+            )
+            engine_args.enable_chunked_prefill = False
         super().__init__(engine_args)
         self.kv_transfer_config = engine_args.create_engine_config().kv_transfer_config
         self.kv_rank = self.kv_transfer_config.kv_rank
