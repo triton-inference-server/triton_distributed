@@ -33,6 +33,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              name: "documentation",
-              color: "abcdef"  # Optional: Set a label color
+              name: "documentation"
             })
