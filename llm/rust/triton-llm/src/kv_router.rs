@@ -119,14 +119,6 @@ impl KvRouter {
             .find_matches_for_request(token_ids.as_slice())
             .await?;
         log::debug!("KV router overlap_scores: {:?}", overlap_scores);
-        // [FIXME] Python binding results in "endpoint subscriber shutdown" error,
-        // need to investigate whether it happens in pure rust as well and then
-        // root cause it. Before that, not doing intelligent scheduling for rapid
-        // development..
-        // [FIXME] also need to fix that scheduler returns worker subject which is not
-        // the same as worker id (uuid). Seems like it adds additional annotation on top of uuid.
-        // Need to double check
-        // 'worker_subject' should be the same as worker id used for direct routing
         let worker_id = self.scheduler.schedule(overlap_scores, isl_tokens).await?;
         Ok(worker_id)
     }
@@ -155,7 +147,7 @@ async fn collect_endpoints(
             .unwrap();
 
         // [FIXME] Endpoint is parsed from nats stats handler which may not include 'data' field
-        // if the service hasn't registered the handler.
+        // if the service hasn't registered the handler. Need to be tolerant to this.
         // Another option is to make sure the router is configured properly that
         // it listens to the right subject (where other publisher has stats).
         let services: Vec<Service> = values

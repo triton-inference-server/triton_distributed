@@ -50,7 +50,7 @@ impl Endpoint {
                 .expect("invalid subject")
                 .to_string()
                 .as_str(),
-            16
+            16,
         )
         .expect("invalid worker id")
     }

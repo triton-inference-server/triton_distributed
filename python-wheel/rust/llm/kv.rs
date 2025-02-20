@@ -64,14 +64,23 @@ impl KvMetricsPublisher {
     #[new]
     fn new() -> PyResult<Self> {
         let inner = llm_rs::kv_router::publisher::KvMetricsPublisher::new().map_err(to_pyerr)?;
-        Ok(Self { inner: inner.into() })
+        Ok(Self {
+            inner: inner.into(),
+        })
     }
 
-    fn create_service<'p>(&self, py: Python<'p>, component: Component) -> PyResult<Bound<'p, PyAny>> {
+    fn create_service<'p>(
+        &self,
+        py: Python<'p>,
+        component: Component,
+    ) -> PyResult<Bound<'p, PyAny>> {
         let rs_publisher = self.inner.clone();
         let rs_component = component.inner.clone();
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let _ = rs_publisher.create_service(rs_component).await.map_err(to_pyerr)?;
+            let _ = rs_publisher
+                .create_service(rs_component)
+                .await
+                .map_err(to_pyerr)?;
             Ok(())
         })
     }
@@ -83,16 +92,17 @@ impl KvMetricsPublisher {
         request_total_slots: u64,
         kv_active_blocks: u64,
         kv_total_blocks: u64,
-        lease_id: i64,
     ) -> PyResult<()> {
-        self.inner.publish(
-            llm_rs::kv_router::protocols::ForwardPassMetrics {
-                request_active_slots,
-                request_total_slots,
-                kv_active_blocks,
-                kv_total_blocks,
-                lease_id,
-            }.into(),
-        ).map_err(to_pyerr)
+        self.inner
+            .publish(
+                llm_rs::kv_router::protocols::ForwardPassMetrics {
+                    request_active_slots,
+                    request_total_slots,
+                    kv_active_blocks,
+                    kv_total_blocks,
+                }
+                .into(),
+            )
+            .map_err(to_pyerr)
     }
 }

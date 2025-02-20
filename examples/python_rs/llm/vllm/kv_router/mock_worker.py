@@ -82,7 +82,9 @@ class MockEngine:
         self.kv_total_blocks = 4
         # [NOTE] Now that the component must has proper metrics reported
         # to be properly selected by the router
-        self.metrics_publisher.publish(self.request_active_slots, self.request_total_slots, self.kv_active_block, self.kv_total_blocks, worker_id)
+        self.metrics_publisher.publish(self.request_active_slots, self.request_total_slots, self.kv_active_block, self.kv_total_blocks)
+        self.event_id_counter = 0
+        self.tokens = [3] * 64
 
 
     @triton_endpoint(Request, Response)
@@ -90,17 +92,34 @@ class MockEngine:
         print(f"Received request: {request}")
         self.request_active_slots = min(self.request_active_slots + 1, self.request_total_slots)
         self.kv_active_block = min(self.kv_active_block + 1, self.kv_total_blocks)
-        self.metrics_publisher.publish(self.request_active_slots, self.request_total_slots, self.kv_active_block, self.kv_total_blocks, self.worker_id)
+        self.metrics_publisher.publish(self.request_active_slots, self.request_total_slots, self.kv_active_block, self.kv_total_blocks)
+        self.store_event()
         yield "Hello, World!"
+
+    def store_event(self):
+        parent_hash = (ctypes.c_uint64 * 1)(self.event_id_counter) if self.event_id_counter > 0 else None
+        result = self.lib.triton_kv_event_publish_stored(
+            self.event_id_counter,        # uint64_t event_id
+            (ctypes.c_uint32 * len(self.tokens))(*self.tokens),                # const uint32_t *token_ids
+            (ctypes.c_size_t * 1)(len(self.tokens)),             # const uintptr_t *num_block_tokens
+            (ctypes.c_uint64 * 1)(self.event_id_counter), # const uint64_t *block_ids
+            1,                            # uintptr_t num_blocks
+            parent_hash,                   # const uint64_t *parent_hash
+            0,                            # uint64_t lora_id
+        )
+        self.event_id_counter += 1
+
+        if result == TritonResult.OK:
+            vllm_logger.debug(f"Store - Published KV Event: {self.event_id_counter}")
+        else:
+            vllm_logger.debug(f"Store - Failed to Publish KV Event: {self.event_id_counter}")
 
     async def cooldown(self):
         while True:
             await asyncio.sleep(5)
             self.request_active_slots = max(0, self.request_active_slots - 1)
             self.kv_active_block = max(0, self.kv_active_block - 1)
-            # [FIXME] worker_id is not needed as endpoint collection
-            # contains the (lease) id
-            self.metrics_publisher.publish(self.request_active_slots, self.request_total_slots, self.kv_active_block, self.kv_total_blocks, self.worker_id)
+            self.metrics_publisher.publish(self.request_active_slots, self.request_total_slots, self.kv_active_block, self.kv_total_blocks)
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime):
