@@ -77,20 +77,20 @@ get_options() {
             show_help
             exit
             ;;
-	--platform)
+        --platform)
             if [ "$2" ]; then
                 PLATFORM=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
-	--framework)
+        --framework)
             if [ "$2" ]; then
                 FRAMEWORK=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --tensorrtllm-backend-repo-tag)
@@ -98,7 +98,7 @@ get_options() {
                 TRTLLM_BACKEND_COMMIT=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --tensorrtllm-backend-rebuild)
@@ -106,7 +106,7 @@ get_options() {
                 TRTLLM_BACKEND_REBUILD=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --base-image)
@@ -114,15 +114,15 @@ get_options() {
                 BASE_IMAGE=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
-	--base-image-tag)
+        --base-image-tag)
             if [ "$2" ]; then
                 BASE_IMAGE_TAG=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --target)
@@ -130,7 +130,7 @@ get_options() {
                 TARGET=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --build-arg)
@@ -138,7 +138,7 @@ get_options() {
                 BUILD_ARGS+="--build-arg $2 "
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --tag)
@@ -146,7 +146,7 @@ get_options() {
                 TAG="--tag $2"
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --dry-run)
@@ -157,15 +157,15 @@ get_options() {
             echo "=============================="
             echo ""
             ;;
-	--no-cache)
-	    NO_CACHE=" --no-cache"
+        --no-cache)
+            NO_CACHE=" --no-cache"
             ;;
-	--cache-from)
-	    if [ "$2" ]; then
+        --cache-from)
+            if [ "$2" ]; then
                 CACHE_FROM="--cache-from $2"
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --)
@@ -173,10 +173,10 @@ get_options() {
             break
             ;;
          -?*)
-	    error 'ERROR: Unknown option: ' $1
+            error 'ERROR: Unknown option: ' $1
             ;;
-	 ?*)
-	    error 'ERROR: Unknown option: ' $1
+         ?*)
+            error 'ERROR: Unknown option: ' $1
             ;;
         *)
             break
@@ -186,32 +186,32 @@ get_options() {
     done
 
     if [ -z "$FRAMEWORK" ]; then
-	FRAMEWORK=$DEFAULT_FRAMEWORK
+        FRAMEWORK=$DEFAULT_FRAMEWORK
     fi
 
     if [ ! -z "$FRAMEWORK" ]; then
-	FRAMEWORK=${FRAMEWORK^^}
+        FRAMEWORK=${FRAMEWORK^^}
 
-	if [[ ! -n "${FRAMEWORKS[$FRAMEWORK]}" ]]; then
-	    error 'ERROR: Unknown framework: ' $FRAMEWORK
-	fi
+        if [[ ! -n "${FRAMEWORKS[$FRAMEWORK]}" ]]; then
+            error 'ERROR: Unknown framework: ' $FRAMEWORK
+        fi
 
-	if [ -z $BASE_IMAGE_TAG ]; then
-	    BASE_IMAGE_TAG=${FRAMEWORK}_BASE_IMAGE_TAG
-	    BASE_IMAGE_TAG=${!BASE_IMAGE_TAG}
-	fi
+        if [ -z $BASE_IMAGE_TAG ]; then
+            BASE_IMAGE_TAG=${FRAMEWORK}_BASE_IMAGE_TAG
+            BASE_IMAGE_TAG=${!BASE_IMAGE_TAG}
+        fi
 
-	if [ -z $BASE_IMAGE ]; then
-	    BASE_IMAGE=${FRAMEWORK}_BASE_IMAGE
-	    BASE_IMAGE=${!BASE_IMAGE}
-	fi
+        if [ -z $BASE_IMAGE ]; then
+            BASE_IMAGE=${FRAMEWORK}_BASE_IMAGE
+            BASE_IMAGE=${!BASE_IMAGE}
+        fi
 
-	if [ -z $BASE_IMAGE ]; then
-        error "ERROR: Framework $FRAMEWORK without BASE_IMAGE"
-	fi
+        if [ -z $BASE_IMAGE ]; then
+            error "ERROR: Framework $FRAMEWORK without BASE_IMAGE"
+        fi
 
-	BASE_VERSION=${FRAMEWORK}_BASE_VERSION
-	BASE_VERSION=${!BASE_VERSION}
+        BASE_VERSION=${FRAMEWORK}_BASE_VERSION
+        BASE_VERSION=${!BASE_VERSION}
 
     fi
 
@@ -236,7 +236,7 @@ show_image_options() {
     echo "   Base: '${BASE_IMAGE}'"
     echo "   Base_Image_Tag: '${BASE_IMAGE_TAG}'"
     if [[ $FRAMEWORK == "TENSORRTLLM" ]]; then
-	    echo "   Tensorrtllm Backend Repo Tag: '${TENSORRTLLM_BACKEND_REPO_TAG}'"
+        echo "   Tensorrtllm Backend Repo Tag: '${TENSORRTLLM_BACKEND_REPO_TAG}'"
         echo "   Tensorrtllm Backend Rebuild: '${TENSORRTLLM_BACKEND_REBUILD}'"
     fi
     echo "   Build Context: '${BUILD_CONTEXT}'"
