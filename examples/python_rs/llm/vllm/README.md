@@ -59,7 +59,7 @@ Run the server logging (with debug level logging):
 ```bash
 TRD_LOG=DEBUG http
 ```
-By default the server will run on port 9992.
+By default the server will run on port 8080.
 
 Add model to the server:
 ```bash
@@ -116,7 +116,7 @@ The disaggregated deployment utilizes separate GPUs for prefill and decode opera
 ### 3. Client
 
 ```bash
-curl localhost:9992/v1/chat/completions \
+curl localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",

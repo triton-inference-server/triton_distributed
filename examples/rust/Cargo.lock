@@ -1127,6 +1127,7 @@ dependencies = [
 name = "http"
 version = "0.2.0"
 dependencies = [
+ "clap",
  "serde",
  "serde_json",
  "tokio",
