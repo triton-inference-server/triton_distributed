@@ -26,6 +26,10 @@ use triton_llm::http::service::{
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    /// Host for the HTTP service
+    #[arg(long, default_value = "0.0.0.0")]
+    host: String,
+
     /// Port number for the HTTP service
     #[arg(short, long, default_value = "8080")]
     port: u16,
@@ -51,7 +55,10 @@ async fn app(runtime: Runtime) -> Result<()> {
     let args = Args::parse();
 
     // create the http service and acquire the model manager
-    let http_service = HttpService::builder().port(args.port).build()?;
+    let http_service = HttpService::builder()
+        .port(args.port)
+        .host(args.host)
+        .build()?;
     let manager = http_service.model_manager().clone();
 
     // todo - use the IntoComponent trait to register the component
