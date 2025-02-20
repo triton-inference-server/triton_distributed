@@ -52,7 +52,7 @@ class PrefillResponse(BaseModel):
 # multi_modal_data is defined here: https://github.com/vllm-project/vllm/blob/main/vllm/multimodal/inputs.py#L103
 # ModalityData is defined here: https://github.com/vllm-project/vllm/blob/main/vllm/multimodal/inputs.py#L80
 class PatchedTokensPrompt(TokensPrompt):
-    multi_modal_data: NotRequired[Optional[Any]]
+    multi_modal_data: NotRequired[Optional[Any]]  # type: ignore
 
 
 # Monkey-patch the SamplingParams type to add a dummy core schema so pydantic can validate it
@@ -76,7 +76,7 @@ class vLLMGenerateRequest(BaseModel):
 
     @field_validator("sampling_params", mode="before")
     @classmethod
-    def parse_sampling_params(cls, v: any) -> SamplingParams:
+    def parse_sampling_params(cls, v: Any) -> SamplingParams:
         if isinstance(v, str):
             v = json.loads(v)
         if isinstance(v, dict):

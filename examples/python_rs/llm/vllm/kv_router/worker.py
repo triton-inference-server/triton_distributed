@@ -39,7 +39,7 @@ class VllmEngine:
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
 
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
-    async def generate(self, request) -> AsyncIterator[MyRequestOutput]:
+    async def generate(self, request) -> AsyncIterator:
         sampling_params = request.sampling_params
         # rust HTTP requires Delta streaming
         sampling_params.output_kind = RequestOutputKind.DELTA

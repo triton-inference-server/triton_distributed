@@ -36,6 +36,8 @@ class VllmPrefillEngine(BaseVllmEngine):
             engine_args.kv_transfer_config.is_kv_producer
         ), "Prefill worker must be a KV producer"
         super().__init__(engine_args)
+        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
+
         self.kv_rank = self.engine.engine.vllm_config.kv_transfer_config.kv_rank
 
     @triton_endpoint(PrefillRequest, PrefillResponse)

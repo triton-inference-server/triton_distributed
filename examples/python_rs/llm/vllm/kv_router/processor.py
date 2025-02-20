@@ -21,7 +21,6 @@ import uvloop
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
 from common.protocol import MyRequestOutput, Tokens, vLLMGenerateRequest
-from kv_router.router import WorkerId
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from triton_distributed_rs._core import Client
 from vllm.engine.arg_utils import AsyncEngineArgs
@@ -78,9 +77,7 @@ class Processor(BaseVllmEngine):
             engine_prompt,
             sampling_params,
         ) = await self._parse_raw_request(raw_request)
-        worker_id_generator: AsyncIterator[
-            WorkerId
-        ] = await self.router_client.generate(
+        worker_id_generator: AsyncIterator = await self.router_client.generate(
             Tokens(tokens=engine_prompt["prompt_token_ids"]).model_dump_json()
         )
 
@@ -91,9 +88,7 @@ class Processor(BaseVllmEngine):
         vllm_logger.info(f"Worker ID: {worker_id}")
 
         if worker_id == "":
-            engine_generator: AsyncIterator[
-                MyRequestOutput
-            ] = await self.workers_client.random(
+            engine_generator = await self.workers_client.random(
                 vLLMGenerateRequest(
                     engine_prompt=engine_prompt,
                     sampling_params=sampling_params,
@@ -101,9 +96,7 @@ class Processor(BaseVllmEngine):
                 ).model_dump_json()
             )
         else:
-            engine_generator: AsyncIterator[
-                MyRequestOutput
-            ] = await self.workers_client.direct(
+            engine_generator = await self.workers_client.direct(
                 vLLMGenerateRequest(
                     engine_prompt=engine_prompt,
                     sampling_params=sampling_params,

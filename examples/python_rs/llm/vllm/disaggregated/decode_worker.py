@@ -20,6 +20,7 @@ import uuid
 
 import msgspec
 import uvloop
+import vllm
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
 from common.protocol import PrefillRequest
@@ -44,6 +45,7 @@ class VllmDecodeEngine(BaseVllmEngine):
         super().__init__(engine_args)
         self.prefills: list = []
 
+        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
         self.num_prefill_workers = (
             self.engine.engine.vllm_config.kv_transfer_config.kv_producers_parallel_size
         )
