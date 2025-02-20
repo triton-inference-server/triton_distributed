@@ -203,15 +203,31 @@ source /opt/triton/venv/bin/activate
 # Launch prefill worker
 cd /workspace/examples/python_rs/llm/vllm
 RUST_LOG=info python3 -m kv_router.router \
-    --routing-strategy prefix
+    --routing-strategy prefix \
+    --model-name deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --min-workers 1
 ```
 
-You can choose between different routing strategies:
+You can choose only the prefix strategy for now:
 - `prefix`: Route requests to the worker that has the longest prefix match.
-- `round_robin`: Route requests to the worker in a round-robin manner.
-- `random`: Route requests to a random worker.
 
-**Terminal 2 and 3 - Workers:**
+**Terminal 2 - Processor:**
+```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
+# Processor must take the same args as the worker
+# This is temporary until we communicate the ModelDeploymentCard over etcd
+cd /workspace/examples/python_rs/llm/vllm
+RUST_LOG=info python3 -m kv_router.processor \
+    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --tokenizer deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --enable-prefix-caching \
+    --block-size 64 \
+    --max-model-len 16384
+```
+
+**Terminal 3 and 4 - Workers:**
 ```bash
 # Activate virtual environment
 source /opt/triton/venv/bin/activate
@@ -229,20 +245,45 @@ RUST_LOG=info python3 -m kv_router.worker \
 Note: Must enable prefix caching for KV Router to work
 Note: block-size must be 64, otherwise Router won't work (accepts only 64 tokens)
 
-**Terminal 3 - Client:**
+**Terminal 5 - Client:**
+Don't forget to add the model to the server:
 ```bash
-# Activate virtual environment
-source /opt/triton/venv/bin/activate
+llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B triton-init.process.chat/completions
+```
 
-# Run client
-# We use a long prompt to populate a few KV Blocks (64 tokens each)
-# Try running it a few times to see where the router is sending the request
-cd /workspace/examples/python_rs/llm/vllm
-python3 -m common.client \
-    --prompt "In the heart of Eldoria, an ancient land of boundless magic and mysterious creatures, lies the long-forgotten city of Aeloria. Once a beacon of knowledge and power, Aeloria was buried beneath the shifting sands of time, lost to the world for centuries. You are an intrepid explorer, known for your unparalleled curiosity and courage, who has stumbled upon an ancient map hinting at ests that Aeloria holds a secret so profound that it has the potential to reshape the very fabric of reality. Your journey will take you through treacherous deserts, enchanted forests, and across perilous mountain ranges. Your Task: Character Background: Develop a detailed background for your character. Describe their motivations for seeking out Aeloria, their skills and weaknesses, and any personal connections to the ancient city or its legends. Are they driven by a quest for knowledge, a search for lost familt clue is hidden." \
-    --component preprocess \
-    --max-tokens 10 \
-    --temperature 0.5
+```bash
+curl localhost:9992/v1/chat/completions   -H "Content-Type: application/json"   -d '{
+    "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+    "messages": [
+    {
+        "role": "user",
+        "content": "In the heart of Eldoria, an ancient land of boundless magic and mysterious creatures, lies the long-forgotten city of Aeloria. Once a beacon of knowledge and power, Aeloria was buried beneath the shifting sands of time, lost to the world for centuries. You are an intrepid explorer, known for your unparalleled curiosity and courage, who has stumbled upon an ancient map hinting at ests that Aeloria holds a secret so profound that it has the potential to reshape the very fabric of reality. Your journey will take you through treacherous deserts, enchanted forests, and across perilous mountain ranges. Your Task: Character Background: Develop a detailed background for your character. Describe their motivations for seeking out Aeloria, their skills and weaknesses, and any personal connections to the ancient city or its legends. Are they driven by a quest for knowledge, a search for lost familt clue is hidden."
+    }
+    ],
+    "stream":false,
+    "max_tokens": 30
+  }'
+```
+Expected output:
+```json
+{
+    "id": "f435d1aa-d423-40a0-a616-00bc428a3e32",
+    "choices": [
+        {
+            "message": {
+                "role": "assistant",
+                "content": "Alright, the user is playing a character in a D&D setting. They want a detailed background for their character, set in the world of Eldoria, particularly in the city of Aeloria. The user mentioned it's about an intrepid explorer"
+            },
+            "index": 0,
+            "finish_reason": "length"
+        }
+    ],
+    "created": 1740020570,
+    "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+    "object": "chat.completion",
+    "usage": null,
+    "system_fingerprint": null
+}
 ```
 
 ### 6. Known Issues and Limitations
