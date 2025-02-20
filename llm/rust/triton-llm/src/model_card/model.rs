@@ -15,9 +15,16 @@
 
 //! # NIM LLM Model Deployment Card
 //!
-//! This is the primary model configuration file that will be available to any
-//! microservice that needs to interact with the model or its dependent artifacts.
+//! The ModelDeploymentCard (MDC) is the primary model configuration structure that will be available to any
+//! component that needs to interact with the model or its dependent artifacts.
 //!
+//! The ModelDeploymentCard contains LLM model deployment configuration information:
+//! - Display name and service name for the model
+//! - Model information (ModelInfoType)
+//! - Tokenizer configuration (TokenizerKind)
+//! - Prompt formatter settings (PromptFormatterArtifact)
+//! - Various metadata like revision, publish time, etc.
+
 use anyhow::Result;
 use either::Either;
 use crate::protocols::TokenIdType;
