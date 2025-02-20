@@ -133,14 +133,14 @@ Run the container interactively with the following command:
 docker run -it --network host --shm-size=64G --ulimit memlock=-1 --ulimit stack=67108864 -e HF_HOME=/path/to/hf_cache --gpus=all -v .:/workspace IMAGE
 ```
 
-**Disagg config file**
-Define disagg config file as shown below. The only important sections are the model, context_servers and generation_servers.
+**TRTLLM LLMAPI Disaggregated config file**
+Define disaggregated config file as shown below. The only important sections are the model, context_servers and generation_servers.
 
 ```yaml
 model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
 ##################
 # The following fields are unused in this example.
-# They are only needed for the TRT-LLM when using TRT-LLM's disagg server which we do not use here.
+# They are only needed for the TRT-LLM when using TRT-LLM's disaggregated server which we do not use here.
 hostname: localhost
 port: 8000
 backend: "pytorch"
@@ -185,8 +185,9 @@ generation_servers:
 
 **Launch the servers**
 
-Launch context and generation servers.
-Here, WORLD_SIZE is the total number of servers along with the distributed config of each server. For example, if we have 1 TP 1 context server and 2 TP2 generation servers, WORLD_SIZE = 5.
+Launch context and generation servers.\
+WORLD_SIZE is the total number of workers covering all the servers described in disaggregated configuration.\
+Reason: 2 TP2 generation servers are 2 servers but 4 workers/mpi executor.
 
 ```bash
 cd /workspace/examples/python_rs/llm/tensorrt_llm/
@@ -211,7 +212,7 @@ python3 -m common.client \
     --component router
 ```
 
-For more details on the disaggregated deployment, please refer to the [TRT-LLM example]().
+For more details on the disaggregated deployment, please refer to the [TRT-LLM example](#TODO).
 
 
 ### 3. Multi-Node Deployment
@@ -220,15 +221,15 @@ For more details on the disaggregated deployment, please refer to the [TRT-LLM e
 
 #### 3.2 Disaggregated Deployment
 
-To run the disaggregated deployment across multiple nodes, we need to launch the servers using MPI, pass the correct NATS and etcd endpoints to each server and update the disagg config file to use the correct endpoints.
+To run the disaggregated deployment across multiple nodes, we need to launch the servers using MPI, pass the correct NATS and etcd endpoints to each server and update the LLMAPI disaggregated config file to use the correct endpoints.
 
-Export the correct NATS and etcd endpoints.
+1. Allocate nodes
+The following command allocates nodes for the job and returns the allocated nodes.
 ```bash
-export NATS_SERVER="nats://host:port"
-export ETCD_ENDPOINTS="http://host1:port,http://host2:port"
+salloc -A ACCOUNT -N NUM_NODES -p batch -J JOB_NAME -t HH:MM:SS
 ```
 
-Update the disagg config file to use the correct endpoints. In the following example, we have 2 TP2 context servers and 2 TP2 generation servers on different nodes.
+You can use `squeue -u $USER` to check the URLs of the allocated nodes. These URLs should be added to the TRTLLM LLMAPI disaggregated config file as shown below.
 ```yaml
 model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
 ...
@@ -250,14 +251,21 @@ generation_servers:
       - "node2:8004"
 ```
 
-Launch the servers using MPI. In the following example, we use SLURM which has MPI integrated and enroot for containers.
+2. Start the NATS and ETCD endpoints
 
-1. Allocate nodes
+Use the following commands. These commands will require downloading [NATS.io](https://docs.nats.io/running-a-nats-service/introduction/installation) and [ETCD](https://etcd.io/docs/v3.5/install/):
 ```bash
-salloc -A ACCOUNT -N NUM_NODES -p batch -J JOB_NAME -t HH:MM:SS
+./nats-server -js --trace
+./etcd --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://0.0.0.0:2379
 ```
 
-2. Launch the workers from node1 or login node. WORLD_SIZE is similar to single node deployment. Update the `model.json` to point to the new disagg config file.
+Export the correct NATS and etcd endpoints.
+```bash
+export NATS_SERVER="nats://node1:4222"
+export ETCD_ENDPOINTS="http://node1:2379,http://node2:2379"
+```
+
+3. Launch the workers from node1 or login node. WORLD_SIZE is similar to single node deployment. Update the `model.json` to point to the new disagg config file.
 ```bash
 srun --mpi pmix -N NUM_NODES --ntasks WORLD_SIZE --ntasks-per-node=WORLD_SIZE --no-container-mount-home --overlap --container-image IMAGE --output batch_%x_%j.log --err batch_%x_%j.err --container-mounts PATH_TO_TRITON_DISTRIBUTED:/workspace --container-env=NATS_SERVER,ETCD_ENDPOINTS bash -c 'cd /workspace/examples/python_rs/llm/tensorrt_llm && python3 -m disagg.worker --engine_args model.json' &
 ```
@@ -274,12 +282,12 @@ Once the workers are launched, you should see the output similar to the followin
 [02/20/2025-07:10:33] [TRT-LLM] [I] Engine loaded and ready to serve...
 ```
 
-3. Launch the router from node1 or login node.
+4. Launch the router from node1 or login node.
 ```bash
 srun --mpi pmix -N 1 --ntasks 1 --ntasks-per-node=1 --overlap --container-image IMAGE --output batch_router_%x_%j.log --err batch_router_%x_%j.err --container-mounts PATH_TO_TRITON_DISTRIBUTED:/workspace  --container-env=NATS_SERVER,ETCD_ENDPOINTS bash -c 'cd /workspace/examples/python_rs/llm/tensorrt_llm && python3 -m disagg.router --disagg-config disagg/disagg_config_multi_node.yaml' &
 ```
 
-4. Send requests to the router.
+5. Send requests to the router.
 ```bash
 srun --mpi pmix -N 1 --ntasks 1 --ntasks-per-node=1 --overlap --container-image IMAGE --output batch_client_%x_%j.log --err batch_client_%x_%j.err --container-mounts PATH_TO_TRITON_DISTRIBUTED:/workspace  --container-env=NATS_SERVER,ETCD_ENDPOINTS bash -c 'cd /workspace/examples/python_rs/llm/tensorrt_llm && python3 -m common.client --prompt "Describe the capital of France" --max-tokens 10 --temperature 0.5 --component router' &
 ```
