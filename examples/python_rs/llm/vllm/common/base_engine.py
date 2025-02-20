@@ -61,6 +61,7 @@ class BaseVllmEngine:
 
     async def __aenter__(self):
         await self.initialize()
+        """Initialize with context manager syntax."""
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
