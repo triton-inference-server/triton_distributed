@@ -62,7 +62,6 @@ class Router:
         ctx_client = self.get_next_server(self.ctx_clients, "ctx")
 
         # Send request to context server
-        request.sampling_params["max_tokens"] = 1
         request.disaggregated_params = asdict(DisaggregatedParams(request_type="context_only"))
         logger.debug(f"Sending request {request} to ctx server: {ctx_client}")
 
