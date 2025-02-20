@@ -109,6 +109,11 @@ def main(
 
                 # Then register all Nova endpoints
                 nova_endpoints = service.get_nova_endpoints()
+                if not nova_endpoints:
+                    error_msg = f"[{run_id}] FATAL ERROR: No Nova endpoints found in service {service.name}!"
+                    logger.error(error_msg)
+                    raise ValueError(error_msg)
+
                 print(f"[{run_id}] Nova endpoints: {nova_endpoints}")
                 for name, endpoint in nova_endpoints.items():
                     td_endpoint = component.endpoint(name)

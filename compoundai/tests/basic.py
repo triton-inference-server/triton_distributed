@@ -66,6 +66,7 @@ class Middle:
         text = f"{text}-mid"
         print(f"Middle received: {text}")
         async for response in self.backend.generate(text):
+            print(f"Middle received response: {response}")
             yield f"Middle: {response}"
 
 
