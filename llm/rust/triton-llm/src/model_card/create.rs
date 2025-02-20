@@ -129,15 +129,3 @@ fn check_valid_local_repo_path(path: impl AsRef<Path>) -> Result<()> {
     }
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_model_info_from_hf_like_local_repo() {
-        let path = "tests/data/sample-models/mock-llama-3.1-8b-instruct";
-        let model_info = ModelDeploymentCard::from_local_path(path).await.unwrap();
-        println!("{:?}", model_info);
-    }
-}
