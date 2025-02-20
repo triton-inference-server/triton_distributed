@@ -24,7 +24,8 @@ use triton_distributed::pipeline::network::{
     PushWorkHandler,
 };
 
-use triton_distributed::transports::nats::{self, ServiceExt};
+use triton_distributed::transports::nats::{self};
+use async_nats::service::ServiceExt;
 
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;

@@ -5281,6 +5281,7 @@ name = "triton-llm"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "async-nats",
  "async-stream",
  "async-trait",
  "axum 0.8.1",

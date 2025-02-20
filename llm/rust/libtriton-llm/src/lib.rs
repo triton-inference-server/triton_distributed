@@ -23,12 +23,12 @@ use uuid::Uuid;
 
 use triton_distributed::{DistributedRuntime, Worker};
 use triton_llm::kv_router::{
-    indexer::compute_block_hash_for_seq, protocols::*, publisher::KvPublisher,
+    indexer::compute_block_hash_for_seq, protocols::*, publisher::KvEventPublisher,
 };
 static WK: OnceCell<Worker> = OnceCell::new();
 static DRT: AsyncOnceCell<DistributedRuntime> = AsyncOnceCell::new();
 // [FIXME] shouldn't the publisher be instance passing between API calls?
-static KV_PUB: OnceCell<KvPublisher> = OnceCell::new();
+static KV_PUB: OnceCell<KvEventPublisher> = OnceCell::new();
 
 fn initialize_tracing() {
     // Sets up RUST_LOG environment variable for logging while KV Publishing
@@ -49,11 +49,12 @@ pub enum TritonLlmResult {
 }
 
 /// # Safety
-/// the model_name_c_str and worker_id_c_str are passed as pointers to C strings
+/// the namespace_c_str and component_c_str are passed as pointers to C strings
 #[no_mangle]
 pub unsafe extern "C" fn triton_llm_init(
-    model_name_c_str: *const c_char,
-    worker_id_c_str: *const c_char,
+    namespace_c_str: *const c_char,
+    component_c_str: *const c_char,
+    worker_id: i64,
 ) -> TritonLlmResult {
     initialize_tracing();
     let wk = match WK.get_or_try_init(Worker::from_settings) {
@@ -78,7 +79,7 @@ pub unsafe extern "C" fn triton_llm_init(
             }
         }
     });
-    let model_name = match unsafe { CStr::from_ptr(model_name_c_str) }.to_str() {
+    let namespace = match unsafe { CStr::from_ptr(namespace_c_str) }.to_str() {
         Ok(s) => s.to_string(),
         Err(e) => {
             eprintln!("Failed to convert C string to Rust string: {:?}", e);
@@ -86,24 +87,17 @@ pub unsafe extern "C" fn triton_llm_init(
         }
     };
 
-    let worker_id_str = match unsafe { CStr::from_ptr(worker_id_c_str) }.to_str() {
-        Ok(s) => s,
+    let component = match unsafe { CStr::from_ptr(component_c_str) }.to_str() {
+        Ok(s) => s.to_string(),
         Err(e) => {
             eprintln!("Failed to convert C string to Rust string: {:?}", e);
             return TritonLlmResult::ERR;
         }
     };
 
-    let worker_id_uuid = match Uuid::parse_str(worker_id_str) {
-        Ok(uuid) => uuid,
-        Err(e) => {
-            eprintln!("Failed to parse worker_id as UUID: {:?}", e);
-            return TritonLlmResult::ERR;
-        }
-    };
     match result {
         Ok(_) => match KV_PUB
-            .get_or_try_init(move || triton_create_kv_publisher(model_name, worker_id_uuid))
+            .get_or_try_init(move || triton_create_kv_publisher(namespace, component, worker_id))
         {
             Ok(_) => TritonLlmResult::OK,
             Err(e) => {
@@ -143,17 +137,18 @@ pub extern "C" fn triton_llm_load_publisher_create() -> TritonLlmResult {
 // c++ executor api
 
 fn triton_create_kv_publisher(
-    model_name: String,
-    worker_id: Uuid,
-) -> Result<KvPublisher, anyhow::Error> {
-    log::info!("Creating KV Publisher for model: {}", model_name);
+    namespace: String,
+    component: String,
+    worker_id: i64,
+) -> Result<KvEventPublisher, anyhow::Error> {
+    log::info!("Creating KV Publisher for model: {}", component);
     match DRT
         .get()
         .ok_or(anyhow::Error::msg("Could not get Distributed Runtime"))
     {
         Ok(drt) => {
-            let backend = drt.namespace("router")?.component(model_name)?;
-            KvPublisher::new(drt.clone(), backend, worker_id)
+            let backend = drt.namespace(namespace)?.component(component)?;
+            KvEventPublisher::new(drt.clone(), backend, worker_id)
         }
         Err(e) => Err(e),
     }

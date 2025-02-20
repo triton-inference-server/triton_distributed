@@ -28,6 +28,10 @@ pub struct ForwardPassMetrics {
     pub request_total_slots: u64,
     pub kv_active_blocks: u64,
     pub kv_total_blocks: u64,
+    // Currently a separate endpoint is created for KV related information
+    // [FIXME] outdated WAR, lease_id is not needed as endpoint collection
+    // contains the worker (lease) id
+    pub lease_id: i64,
 }
 
 /// A [`BlockHash`] is a hash computed from the tokens_ids, extra_token_ids and the optional
