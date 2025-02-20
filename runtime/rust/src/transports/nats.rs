@@ -38,8 +38,7 @@ use std::path::PathBuf;
 use tokio::time;
 use validator::{Validate, ValidationError};
 
-mod slug;
-pub use slug::Slug;
+pub use crate::slug::Slug;
 use tracing as log;
 
 #[derive(Clone)]

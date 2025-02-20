@@ -464,6 +464,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-targets",
 ]
@@ -3105,6 +3106,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "axum 0.8.1",
+ "blake3",
  "bytes",
  "chrono",
  "derive_builder",
