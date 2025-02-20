@@ -26,3 +26,9 @@ Cargo.toml @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12
 /LICENSE @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
 /ATTRIBUTIONS.md @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
 Cargo.lock @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv @ryanolson @grahamking @paulhendricks
+
+# Assign a role as a Code Owner to documentation updates:
+[Documentation]
+*.md @@admin
+**/*.md @@admin
+CODEOWNERS @@admin
