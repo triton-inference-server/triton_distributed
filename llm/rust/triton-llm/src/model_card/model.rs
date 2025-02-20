@@ -37,7 +37,7 @@ use std::time::Duration;
 
 use derive_builder::Builder;
 
-use crate::common::slug::Slug;
+use triton_distributed::slug::Slug;
 
 pub const BUCKET_NAME: &str = "mdc";
 
@@ -136,7 +136,7 @@ impl ModelDeploymentCard {
     /// Mostly human readable. a-z, 0-9, _ and - only.
     /// Pass the service_name.
     pub fn service_name_slug(s: &str) -> Slug {
-        Slug::slugify_unique(s)
+        Slug::from_string(s)
     }
 
     pub fn set_service_name(&mut self, service_name: &str) {

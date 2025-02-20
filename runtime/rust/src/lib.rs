@@ -40,9 +40,9 @@ pub mod runtime;
 pub mod service;
 pub mod transports;
 pub mod worker;
+pub mod slug;
 
 pub mod distributed;
-
 pub use futures::stream;
 pub use tokio_util::sync::CancellationToken;
 pub use worker::Worker;
