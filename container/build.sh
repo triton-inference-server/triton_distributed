@@ -126,6 +126,14 @@ get_options() {
 		missing_requirement $1
             fi
             ;;
+        --target)
+            if [ "$2" ]; then
+                TARGET=$2
+                shift
+            else
+		missing_requirement $1
+            fi
+            ;;
         --build-arg)
             if [ "$2" ]; then
                 BUILD_ARGS+="--build-arg $2 "
@@ -216,7 +224,9 @@ get_options() {
         PLATFORM="--platform ${PLATFORM}"
     fi
 
-
+    if [ ! -z "$TARGET" ]; then
+        TARGET="--target ${TARGET}"
+    fi
 }
 
 
@@ -293,12 +303,11 @@ LATEST_TAG="--tag triton-distributed:latest-${FRAMEWORK,,}"
 
 show_image_options
 
-
 if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker build -f $DOCKERFILE $PLATFORM $BUILD_ARGS $CACHE_FROM $TAG $LATEST_TAG $BUILD_CONTEXT $NO_CACHE
+$RUN_PREFIX docker build -f $DOCKERFILE $TARGET $PLATFORM $BUILD_ARGS $CACHE_FROM $TAG $LATEST_TAG $BUILD_CONTEXT $NO_CACHE
 
 { set +x; } 2>/dev/null
 
