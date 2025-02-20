@@ -25,7 +25,7 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body: `👋 Hi ${CONTRIBUTOR}! Thank you for contributing to ${REPOSITORY}.\n\n` +
-                `This change is made to a file that does not require full CI testing. A repository admin will review these changes and review the changes.\n\n` +
+                `This change is made to a file that does not require full CI testing. A repository admin will review these changes.\n\n` +
                 `Once verified, the reviewer will merge the PR. Thanks! \n\n` +
                 `🚀`
             })
