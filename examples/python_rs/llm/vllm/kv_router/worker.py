@@ -31,21 +31,20 @@ from triton_distributed_rs import (
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 from vllm.sampling_params import RequestOutputKind
+
 vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
 
 class VllmEngine:
     """
-    Request handler for the generate endpoint
+    vLLM Inference Engine
     """
 
     def __init__(self, engine_args: AsyncEngineArgs):
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        
-            
+
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
     async def generate(self, request) -> AsyncIterator[MyRequestOutput]:
-
         sampling_params = request.sampling_params
         # rust HTTP requires Delta streaming
         sampling_params.output_kind = RequestOutputKind.DELTA
@@ -53,55 +52,39 @@ class VllmEngine:
         async for response in self.engine.generate(
             request.engine_prompt, sampling_params, request.request_id
         ):
-            vllm_logger.info(f"Response: {response}")
-            my_request_output = MyRequestOutput(
+            # MyRequestOutput takes care of serializing the response as
+            # vLLM's RequestOutput is not serializable by default
+            yield MyRequestOutput(
                 request_id=response.request_id,
                 prompt=response.prompt,
                 prompt_token_ids=response.prompt_token_ids,
                 prompt_logprobs=response.prompt_logprobs,
                 outputs=response.outputs,
                 finished=response.finished,
-            )
-            vllm_logger.info(f"MyRequestOutput: {my_request_output.model_dump_json()}")
-            yield my_request_output.model_dump_json()
+            ).model_dump_json()
 
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     """
-    Instantiate a `backend` component and serve the `generate` endpoint
-    A `Component` can serve multiple endpoints
+    Serve the triton-init.vllm.generate endpoint.
     """
     worker_component = runtime.namespace("triton-init").component("vllm")
     await worker_component.create_service()
 
-    # preprocess_component = runtime.namespace("triton-init").component("preprocess")
-    # await preprocess_component.create_service()
-
-    # router_client = (
-    #     await runtime.namespace("triton-init")
-    #     .component("router")
-    #     .endpoint("generate")
-    #     .client()
-    # )
-
-    # worker_from_tokens_endpoint = worker_component.endpoint("generate_from_tokens")
     worker_endpoint = worker_component.endpoint("generate")
-    # preprocess_endpoint = preprocess_component.endpoint("generate")
 
-    # TODO Hack until we unify lease_id and worker_id
+    # KV Publisher and Aggregator requires a UUID (str)
+    # KV Router requires a lease_id (int)
+    # This allows us to please both, until they are unified
+    # If VLLM_WORKER_ID is not set, KV Routing will fail
     VLLM_WORKER_ID = uuid.UUID(int=worker_endpoint.lease_id())
     os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
     vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
 
     vllm_engine = VllmEngine(engine_args)
-    # vllm_engine = await vllm_engine.init()
 
-    await asyncio.gather(
-        # worker_from_tokens_endpoint.serve_endpoint(vllm_engine.generate_from_tokens),
-        worker_endpoint.serve_endpoint(vllm_engine.generate),
-        # preprocess_endpoint.serve_endpoint(vllm_engine.preprocess),
-    )
+    await worker_endpoint.serve_endpoint(vllm_engine.generate)
 
 
 if __name__ == "__main__":

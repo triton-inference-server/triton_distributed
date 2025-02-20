@@ -35,15 +35,31 @@ class Request(BaseModel):
 class Tokens(BaseModel):
     tokens: list[int]
 
+
+class PrefillRequest(Request):
+    request_id: str
+
+
+class Response(BaseModel):
+    text: str
+
+
+class PrefillResponse(BaseModel):
+    prefilled: bool
+
+
 # Hack to override the type of multi_modal_data in TokensPrompt
-# as pydantic doesn't understand generic typess
-# TokensPrompt.__annotations__["multi_modal_data"] = Optional[Any]
+# as pydantic doesn't understand generic types
+# TokensPrompt is defined here: https://github.com/vllm-project/vllm/blob/a4c402a756fa3213caf9d2cde0e4ceb2d57727f2/vllm/inputs/data.py#L38
+# multi_modal_data is defined here: https://github.com/vllm-project/vllm/blob/main/vllm/multimodal/inputs.py#L103
+# ModalityData is defined here: https://github.com/vllm-project/vllm/blob/main/vllm/multimodal/inputs.py#L80
 class PatchedTokensPrompt(TokensPrompt):
     multi_modal_data: NotRequired[Optional[Any]]
 
-# Monkey-patch the SamplingParams type to add a dummy core schema.
-# def sampling_params_schema(cls, source: type[Any], handler: GetCoreSchemaHandler):
-#     return core_schema.any_schema()
+
+# Monkey-patch the SamplingParams type to add a dummy core schema so pydantic can validate it
+# Sampling params is a mspspec struct
+# SamplingParams is defined here: https://github.com/vllm-project/vllm/blob/a4c402a756fa3213caf9d2cde0e4ceb2d57727f2/vllm/sampling_params.py#L88
 
 SamplingParams.__get_pydantic_core_schema__ = classmethod(
     lambda cls, source, handler: core_schema.any_schema()
@@ -51,6 +67,10 @@ SamplingParams.__get_pydantic_core_schema__ = classmethod(
 
 
 class vLLMGenerateRequest(BaseModel):
+    """
+    Serializable class of all the fields vLLM engine requires for inference
+    """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
     engine_prompt: PatchedTokensPrompt
     sampling_params: SamplingParams
@@ -69,39 +89,16 @@ class vLLMGenerateRequest(BaseModel):
         json_encoders={SamplingParams: lambda v: msgspec.json.encode(v)}
     )
 
-class PrefillRequest(Request):
-    request_id: str
-
-
-class Response(BaseModel):
-    text: str
-
-
-class PrefillResponse(BaseModel):
-    prefilled: bool
-
 
 class MyRequestOutput(BaseModel):
-    """The output data of a completion request to the LLM.
-    Args:
-        request_id: The unique ID of the request.
-        prompt: The prompt string of the request.
-                For encoder/decoder models, this is the
-                decoder input prompt.
-        prompt_token_ids: The token IDs of the prompt.
-                          For encoder/decoder models, this is the
-                          decoder input prompt token ids.
-        prompt_logprobs: The log probabilities to return per prompt token.
-        outputs: The output sequences of the request.
-        finished: Whether the whole request is finished.
-        metrics: Metrics associated with the request.
-        lora_request: The LoRA request that was used to generate the output.
-        encoder_prompt: The encoder prompt string of the request.
-                        None if decoder-only.
-        encoder_prompt_token_ids: The token IDs of the encoder prompt.
-                                  None if decoder-only.
-        num_cached_tokens: The number of tokens with prefix cache hit.
     """
+    RequestOutput from vLLM is not serializable by default
+    https://github.com/vllm-project/vllm/blob/a4c402a756fa3213caf9d2cde0e4ceb2d57727f2/vllm/outputs.py#L85
+
+    This class is used to serialize the RequestOutput and any recursively defined types
+    We can do this because PromptLogprobs, RequestMetrics, and CompletionOutput are all serializable dataclasses
+    """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     request_id: str

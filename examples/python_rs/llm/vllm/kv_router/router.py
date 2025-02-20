@@ -20,7 +20,7 @@ from enum import Enum
 from typing import AsyncIterator
 
 import uvloop
-from common.protocol import Response, Tokens
+from common.protocol import Tokens
 from triton_distributed_rs import (
     DistributedRuntime,
     KvRouter,
@@ -31,10 +31,12 @@ from vllm.logger import logger as vllm_logger
 
 WorkerId = str
 
+
 class RoutingStrategy(Enum):
     PREFIX = "prefix"
     ROUND_ROBIN = "round_robin"
     RANDOM = "random"
+
 
 class Router:
     """
@@ -69,14 +71,21 @@ class Router:
             vllm_logger.info(f"Scheduling to worker_id: {worker_id}")
 
             yield worker_id
-        
-        else:
-            raise NotImplementedError(f"Routing strategy {self.routing_strategy} not implemented")
 
+        else:
+            # TODO: Do we implement round_robin and random here?
+            # or just skip this router and directly enable in preprocess?
+            raise NotImplementedError(
+                f"Routing strategy {self.routing_strategy} not implemented"
+            )
 
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime, args: Namespace):
+    """
+    Set up the worker clients.
+    Serve the triton-init.router.generate endpoint.
+    """
     workers_client = (
         await runtime.namespace("triton-init")
         .component("vllm")
@@ -113,9 +122,7 @@ async def worker(runtime: DistributedRuntime, args: Namespace):
     router = KvRouter(runtime, kv_listener)
 
     endpoint = router_component.endpoint("generate")
-    await endpoint.serve_endpoint(
-        Router(router, args.routing_strategy).generate
-    )
+    await endpoint.serve_endpoint(Router(router, args.routing_strategy).generate)
 
 
 if __name__ == "__main__":
