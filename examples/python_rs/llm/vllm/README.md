@@ -59,7 +59,7 @@ Run the server logging (with debug level logging):
 ```bash
 TRD_LOG=DEBUG http
 ```
-By default the server will run on port 9992.
+By default the server will run on port 8080.
 
 Add model to the server:
 ```bash
@@ -94,7 +94,7 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregat
     --enforce-eager \
     --tensor-parallel-size 1 \
     --kv-transfer-config \
-    '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2}'
+    '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2}'
 ```
 
 **Terminal 2 - Decode Worker:**
@@ -107,7 +107,7 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggreg
     --enforce-eager \
     --tensor-parallel-size 2 \
     --kv-transfer-config \
-    '{"kv_connector":"PyNcclConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2}'
+    '{"kv_connector":"TritonNcclConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2}'
 ```
 
 The disaggregated deployment utilizes separate GPUs for prefill and decode operations, allowing for optimized resource allocation and improved performance. For more details on the disaggregated deployment, please refer to the [vLLM documentation](https://docs.vllm.ai/en/latest/features/disagg_prefill.html).
@@ -116,7 +116,7 @@ The disaggregated deployment utilizes separate GPUs for prefill and decode opera
 ### 3. Client
 
 ```bash
-curl localhost:9992/v1/chat/completions \
+curl localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",

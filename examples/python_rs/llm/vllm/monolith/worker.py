@@ -18,7 +18,6 @@ import asyncio
 import uuid
 
 import uvloop
-import vllm
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
@@ -37,10 +36,12 @@ class VllmEngine(BaseVllmEngine):
 
     def __init__(self, engine_args: AsyncEngineArgs):
         super().__init__(engine_args)
-        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):
+        if self.engine_client is None:
+            await self.initialize()
+
         vllm_logger.debug(f"Got raw request: {raw_request}")
         (
             request,
@@ -54,7 +55,12 @@ class VllmEngine(BaseVllmEngine):
         vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
         )
-        generator = self.engine.generate(engine_prompt, sampling_params, request_id)
+        if self.engine_client is None:
+            raise RuntimeError("Engine client not initialized")
+        else:
+            generator = self.engine_client.generate(
+                engine_prompt, sampling_params, request_id
+            )
 
         async for response in await self._stream_response(
             request, generator, request_id, conversation
@@ -73,7 +79,9 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     await component.create_service()
 
     endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(VllmEngine(engine_args).generate)
+
+    async with VllmEngine(engine_args) as engine:
+        await endpoint.serve_endpoint(engine.generate)
 
 
 if __name__ == "__main__":
