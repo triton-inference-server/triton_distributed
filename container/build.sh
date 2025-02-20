@@ -67,11 +67,9 @@ TENSORRTLLM_BACKEND_REPO_TAG=triton-llm/v0.17.0
 # trt-llm backend repo branch.
 TENSORRTLLM_BACKEND_REBUILD=1
 
-# vllm installation is done later in the Dockerfile so it will overwrite the
-# vllm version installed in the base image.
-VLLM_BASE_VERSION=25.01
-VLLM_BASE_IMAGE=nvcr.io/nvidia/tritonserver
-VLLM_BASE_IMAGE_TAG=${VLLM_BASE_VERSION}-py3
+# Default to base images defined in Dockerfile.vllm
+VLLM_BASE_IMAGE="ubuntu"
+VLLM_BASE_IMAGE_TAG="24.04"
 
 get_options() {
     while :; do
@@ -202,7 +200,7 @@ get_options() {
 	fi
 
 	if [ -z $BASE_IMAGE ]; then
-	    error "ERROR: Framework $FRAMEWORK without BASE_IMAGE"
+        error "ERROR: Framework $FRAMEWORK without BASE_IMAGE"
 	fi
 
 	BASE_VERSION=${FRAMEWORK}_BASE_VERSION

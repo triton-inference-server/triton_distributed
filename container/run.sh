@@ -87,9 +87,9 @@ get_options() {
 		missing_requirement $1
             fi
             ;;
-	--command)
+	--entrypoint)
             if [ "$2" ]; then
-                COMMAND=$2
+                ENTRYPOINT=$2
                 shift
             else
 		missing_requirement $1
@@ -186,6 +186,12 @@ get_options() {
 	NAME_STRING="--name ${NAME}"
     fi
 
+    if [[ ${ENTRYPOINT^^} == "" ]]; then
+	ENTRYPOINT_STRING=""
+    else
+	ENTRYPOINT_STRING="--entrypoint ${ENTRYPOINT}"
+    fi
+
     if [ ! -z "$MOUNT_WORKSPACE" ]; then
 	VOLUME_MOUNTS+=" -v ${SOURCE_DIR}/..:/workspace "
 	VOLUME_MOUNTS+=" -v /tmp:/tmp "
@@ -273,6 +279,6 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-${RUN_PREFIX} docker run ${GPU_STRING} ${INTERACTIVE} ${RM_STRING} --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 ${ENVIRONMENT_VARIABLES} ${VOLUME_MOUNTS} -w /workspace --cap-add CAP_SYS_PTRACE --ipc host ${PRIVILEGED_STRING} ${NAME_STRING} ${IMAGE} "${REMAINING_ARGS[@]}"
+${RUN_PREFIX} docker run ${GPU_STRING} ${INTERACTIVE} ${RM_STRING} --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 ${ENVIRONMENT_VARIABLES} ${VOLUME_MOUNTS} -w /workspace --cap-add CAP_SYS_PTRACE --ipc host ${PRIVILEGED_STRING} ${NAME_STRING} ${ENTRYPOINT_STRING} ${IMAGE} "${REMAINING_ARGS[@]}"
 
 { set +x; } 2>/dev/null

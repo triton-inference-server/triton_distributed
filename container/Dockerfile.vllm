@@ -1,12 +1,16 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ARG BASE_IMAGE="nvcr.io/nvidia/cuda"
-ARG BASE_IMAGE_TAG="12.8.0-cudnn-devel-ubuntu24.04"
+ARG BASE_IMAGE="ubuntu"
+ARG BASE_IMAGE_TAG="24.04"
 
-FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS triton-distributed
+FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS dev
 
 USER root
+
+# Install utilities
+RUN apt update -y && apt install git wget curl nvtop tmux -y
+RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
 
 ### VIRTUAL ENVIRONMENT SETUP ###
 
@@ -44,15 +48,14 @@ RUN printf "[safe]\n      directory=/workspace\n" > /root/.gitconfig
 
 RUN ln -sf /bin/bash /bin/sh
 
-# Install utilities
-RUN apt update -y && apt install nvtop tmux -y
-RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
-
 ### BUILDS ###
 
 # Rust build/dev dependencies
-RUN apt update -y && apt install -y gdb protobuf-compiler
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+RUN apt update -y && \
+    apt install -y \
+    build-essential \
+    protobuf-compiler && \
+    curl https://sh.rustup.rs -sSf | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Working directory
@@ -89,22 +92,46 @@ RUN cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
 # Tell vllm to use the Triton LLM C API for KV Cache Routing
 ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
 
-### FINALIZED CONTAINER SETUP ###
-
-# Copy remaining files
-COPY . /workspace
-
-# FIXME: Excludes can be removed after sorting out kept set of files
-RUN rm -r \
-  /workspace/icp \
-  /workspace/runtime/python \
-  /workspace/runtime/tests \
-  /workspace/examples/python
-
-# FIXME: Add multi-stage build for minified runtime image
-
-# Environment setup
-ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
+# FIXME: Determine if this is needed, and with a triton-distributed banner
+# ENTRYPOINT ["/opt/nvidia/nvidia_entrypoint.sh"]
+ENTRYPOINT ["/bin/bash"]
 
 CMD []
-ENTRYPOINT ["/opt/nvidia/nvidia_entrypoint.sh"]
+
+### Lean Runtime Image Stage ###
+
+# FIXME: Separate build and runtime images
+#FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS runtime
+#
+#USER root
+#
+## Copy binaries
+#COPY --from=dev /usr/local/bin/http /usr/local/bin/http
+#COPY --from=dev /usr/local/bin/llmctl /usr/local/bin/llmctl
+#COPY --from=dev /usr/bin/nats-server /usr/local/bin/nats-server
+#COPY --from=dev /bin/uv /usr/local/bin/uv
+#COPY --from=dev /bin/uvx /usr/local/bin/uvx
+#
+## Copy venv with installed packages
+#RUN uv python install 3.12
+#COPY --from=dev /opt/vllm /opt/vllm
+#COPY --from=dev /opt/triton/venv /opt/triton/venv
+#
+## Copy examples
+#COPY examples/python_rs/llm/vllm /workspace/examples/vllm
+#
+## Set environment variables
+#ENV VIRTUAL_ENV=/opt/triton/venv
+#ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+#ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
+## FIXME: Copy over minimal files and .so for kv routing
+#ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
+#
+## Create workspace directory for runtime files
+#WORKDIR /workspace
+#
+## FIXME: Determine if this is needed, and with a triton-distributed banner
+## ENTRYPOINT ["/opt/nvidia/nvidia_entrypoint.sh"]
+#ENTRYPOINT ["/bin/bash"]
+#
+#CMD []
