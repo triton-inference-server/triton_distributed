@@ -1,0 +1,4 @@
+include:
+  - project: ${TRITON_DISTRIBUTED_CI}
+    ref: ${CI_DEFAULT_BRANCH}
+    file: '.gitlab-ci.yml'
