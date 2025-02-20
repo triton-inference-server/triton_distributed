@@ -65,14 +65,17 @@ class Router:
         request.disaggregated_params = asdict(DisaggregatedParams(request_type="context_only"))
         logger.debug(f"Sending request {request} to ctx server: {ctx_client}")
 
-        async for ctx_resp in await ctx_client.generate(request.model_dump_json()):
-            ctx_resp_obj = DisaggregatedResponse.parse_raw(ctx_resp.data())
-            gen_req.disaggregated_params = ctx_resp_obj.disaggregated_params
-            gen_req.disaggregated_params.request_type = "generation_only"
-            
-            if request.streaming:
-                yield ctx_resp_obj.text
-            break
+        ctx_resp =[resp async for resp in await ctx_client.generate(request.model_dump_json())]
+        if len(ctx_resp) > 1:
+            raise ValueError("Context server returned more than one response. This is currently not supported in disaggregated server.")
+        
+        ctx_resp_obj = DisaggregatedResponse.parse_raw(ctx_resp[0].data())
+        if request.streaming:
+            # NOTE: this might change in the future if trtllm context server returns raw tokens
+            yield ctx_resp_obj.text
+
+        gen_req.disaggregated_params = ctx_resp_obj.disaggregated_params
+        gen_req.disaggregated_params.request_type = "generation_only"
 
         # Pick a generation server
         gen_client = self.get_next_server(self.gen_clients, "gen")
