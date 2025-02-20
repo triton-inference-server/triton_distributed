@@ -26,7 +26,50 @@ from vllm.entrypoints.openai.protocol import (
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 from vllm.entrypoints.openai.serving_engine import RequestPrompt
 from vllm.transformers_utils.tokenizer import AnyTokenizer
+from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.engine.protocol import EngineClient
+from typing import Protocol, runtime_checkable
 
+@runtime_checkable
+class ProcessMixInRequired(Protocol):
+    engine_args: AsyncEngineArgs
+    chat_processor: "ChatProcessor"
+    model_config: ModelConfig
+
+class ProcessMixIn:
+    """
+    Mixin for pre and post processing for vLLM
+    Requires engine_args, engine_client, chat_processor, model_config to be initialized
+    """
+
+    def __init__(self):
+        pass
+
+    async def _parse_raw_request(self, raw_request):
+        request = self.chat_processor.parse_raw_request(raw_request)
+        (
+            conversation,
+            request_prompt,
+            engine_prompt,
+        ) = await self.chat_processor.preprocess(raw_request)
+        default_max_tokens = self.model_config.max_model_len - len(
+            engine_prompt["prompt_token_ids"]
+        )
+        default_sampling_params = self.model_config.get_diff_sampling_param()
+        sampling_params = request.to_sampling_params(
+            default_max_tokens,
+            self.model_config.logits_processor_pattern,
+            default_sampling_params,
+        )
+        return request, conversation, request_prompt, engine_prompt, sampling_params
+
+    async def _stream_response(self, request, generator, request_id, conversation):
+        return self.chat_processor.stream_response(
+            request,
+            generator,
+            request_id,
+            conversation,
+        )
 
 class ChatProcessor:
     def __init__(self, tokenizer: AnyTokenizer, model_config: ModelConfig):

@@ -22,6 +22,7 @@ import uvloop
 import vllm
 from common.parser import parse_vllm_args
 from common.protocol import MyRequestOutput, vLLMGenerateRequest
+from common.base_engine import BaseVllmEngine
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
@@ -30,21 +31,25 @@ from vllm.sampling_params import RequestOutputKind
 vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
 
-class VllmEngine:
+class VllmEngine(BaseVllmEngine):
     """
     vLLM Inference Engine
     """
 
     def __init__(self, engine_args: AsyncEngineArgs):
-        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
+        self.engine_args = engine_args
+        super().__init__(engine_args)
 
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
     async def generate(self, request) -> AsyncIterator:
+        if self.engine_client is None:
+            await self.initialize()
+
         sampling_params = request.sampling_params
         # rust HTTP requires Delta streaming
         sampling_params.output_kind = RequestOutputKind.DELTA
 
-        async for response in self.engine.generate(
+        async for response in self.engine_client.generate(
             request.engine_prompt, sampling_params, request.request_id
         ):
             # MyRequestOutput takes care of serializing the response as

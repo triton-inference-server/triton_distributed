@@ -18,12 +18,15 @@ import uuid
 from typing import AsyncIterator
 
 import uvloop
-from common.base_engine import BaseVllmEngine
+from common.base_engine import ProcessMixIn
 from common.parser import parse_vllm_args
 from common.protocol import MyRequestOutput, Tokens, vLLMGenerateRequest
+from common.chat_processor import ChatProcessor
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from triton_distributed_rs._core import Client
+from transformers import AutoTokenizer
 from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.transformers_utils.tokenizer import AnyTokenizer
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
@@ -32,7 +35,7 @@ from vllm.logger import logger as vllm_logger
 from vllm.outputs import RequestOutput
 
 
-class Processor(BaseVllmEngine):
+class Processor(ProcessMixIn):
     """
     vLLM pre and post processing
     """
@@ -43,9 +46,27 @@ class Processor(BaseVllmEngine):
         router_client: Client,
         workers_client: Client,
     ):
-        super().__init__(engine_args)
+        self.engine_args = engine_args
+        self.model_config = self.engine_args.create_model_config()
+        self.tokenizer = self._create_tokenizer(engine_args)
+        self.chat_processor = ChatProcessor(self.tokenizer, self.model_config)
         self.router_client = router_client
         self.workers_client = workers_client
+    
+    def _create_tokenizer(self, engine_args: AsyncEngineArgs) -> AnyTokenizer:
+        """Create a TokenizerGroup using engine arguments similar to VLLM's approach"""
+        model_path = engine_args.model
+
+        # Create the base tokenizer with VLLM's typical settings
+        base_tokenizer = AutoTokenizer.from_pretrained(
+            model_path,
+            trust_remote_code=True,
+            padding_side="left",
+            truncation_side="left",
+            use_fast=True  # VLLM might use the fast tokenizer for efficiency
+        )
+        return base_tokenizer
+
 
     async def generate_responses(
         self, engine_generator
@@ -138,6 +159,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     preprocess_endpoint = preprocess_component.endpoint("chat/completions")
 
     processor = Processor(engine_args, router_client, workers_client)
+    assert isinstance(processor, ProcessMixIn)
     await preprocess_endpoint.serve_endpoint(processor.generate)
 
 
