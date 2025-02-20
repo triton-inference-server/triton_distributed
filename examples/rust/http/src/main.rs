@@ -14,12 +14,30 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use clap::Parser;
+use std::env;
 
 use triton_distributed::{logging, DistributedRuntime, Result, Runtime, Worker};
 use triton_llm::http::service::{
     discovery::{model_watcher, ModelWatchState},
     service_v2::HttpService,
 };
+
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Port number for the HTTP service
+    #[arg(short, long, default_value = "8080", env = "HTTP_SERVICE_PORT")]
+    port: u16,
+
+    /// Namespace for the distributed component
+    #[arg(long, default_value = "public", env = "NAMESPACE")]
+    namespace: String,
+
+    /// Component name for the service
+    #[arg(long, default_value = "http", env = "COMPONENT")]
+    component: String,
+}
 
 fn main() -> Result<()> {
     logging::init();
@@ -30,8 +48,10 @@ fn main() -> Result<()> {
 async fn app(runtime: Runtime) -> Result<()> {
     let distributed = DistributedRuntime::from_settings(runtime.clone()).await?;
 
+    let args = Args::parse();
+
     // create the http service and acquire the model manager
-    let http_service = HttpService::builder().port(9992).build()?;
+    let http_service = HttpService::builder().port(args.port).build()?;
     let manager = http_service.model_manager().clone();
 
     // todo - use the IntoComponent trait to register the component
@@ -42,7 +62,7 @@ async fn app(runtime: Runtime) -> Result<()> {
     // written to etcd
     // the cli when operating on an `http` component will validate the namespace.component is
     // registered with HttpServiceComponentDefinition
-    let component = distributed.namespace("public")?.component("http")?;
+    let component = distributed.namespace(&args.namespace)?.component(&args.component)?;
 
     let etcd_root = component.etcd_path();
     let etcd_path = format!("{}/models/chat/", etcd_root);
