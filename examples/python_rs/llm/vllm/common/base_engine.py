@@ -17,7 +17,7 @@
 import abc
 import logging
 
-from common.chat_processor import ChatProcessor, ProcessMixIn
+from common.chat_processor import ChatProcessor
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.api_server import (
     build_async_engine_client_from_engine_args,
@@ -35,12 +35,12 @@ class BaseVllmEngine:
         self.engine_args = engine_args
         self.model_config = self.engine_args.create_model_config()
         self.engine_client = None
-        self.chat_processor = None
+        self.chat_processor: ChatProcessor | None = None
         self._engine_context = None
 
     async def initialize(self):
         """Initialize the engine client and related components."""
-        print("Initializing engine client")
+        logger.info("Initializing engine client")
         self._engine_context = build_async_engine_client_from_engine_args(
             self.engine_args
         )

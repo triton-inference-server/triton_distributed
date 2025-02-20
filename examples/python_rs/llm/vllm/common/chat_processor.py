@@ -14,10 +14,11 @@
 # limitations under the License.
 
 import json
-from typing import AsyncIterator, List
+from typing import AsyncIterator, List, Protocol, runtime_checkable
 
 from vllm import TokensPrompt
 from vllm.config import ModelConfig
+from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.chat_utils import ConversationMessage
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
@@ -26,26 +27,31 @@ from vllm.entrypoints.openai.protocol import (
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 from vllm.entrypoints.openai.serving_engine import RequestPrompt
 from vllm.transformers_utils.tokenizer import AnyTokenizer
-from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.engine.protocol import EngineClient
-from typing import Protocol, runtime_checkable
+
 
 @runtime_checkable
 class ProcessMixInRequired(Protocol):
     engine_args: AsyncEngineArgs
-    chat_processor: "ChatProcessor"
+    chat_processor: "ChatProcessor | None"
     model_config: ModelConfig
 
-class ProcessMixIn:
+
+class ProcessMixIn(ProcessMixInRequired):
     """
     Mixin for pre and post processing for vLLM
     Requires engine_args, engine_client, chat_processor, model_config to be initialized
     """
 
+    engine_args: AsyncEngineArgs
+    chat_processor: "ChatProcessor | None"
+    model_config: ModelConfig
+
     def __init__(self):
         pass
 
     async def _parse_raw_request(self, raw_request):
+        if self.chat_processor is None:
+            raise RuntimeError("chat_processor has not been initialized")
         request = self.chat_processor.parse_raw_request(raw_request)
         (
             conversation,
@@ -64,12 +70,15 @@ class ProcessMixIn:
         return request, conversation, request_prompt, engine_prompt, sampling_params
 
     async def _stream_response(self, request, generator, request_id, conversation):
+        if self.chat_processor is None:
+            raise RuntimeError("chat_processor has not been initialized")
         return self.chat_processor.stream_response(
             request,
             generator,
             request_id,
             conversation,
         )
+
 
 class ChatProcessor:
     def __init__(self, tokenizer: AnyTokenizer, model_config: ModelConfig):

@@ -18,21 +18,20 @@ import uuid
 from typing import AsyncIterator
 
 import uvloop
-from common.base_engine import ProcessMixIn
+from common.chat_processor import ChatProcessor, ProcessMixIn
 from common.parser import parse_vllm_args
 from common.protocol import MyRequestOutput, Tokens, vLLMGenerateRequest
-from common.chat_processor import ChatProcessor
+from transformers import AutoTokenizer
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from triton_distributed_rs._core import Client
-from transformers import AutoTokenizer
 from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.transformers_utils.tokenizer import AnyTokenizer
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
 )
 from vllm.logger import logger as vllm_logger
 from vllm.outputs import RequestOutput
+from vllm.transformers_utils.tokenizer import AnyTokenizer
 
 
 class Processor(ProcessMixIn):
@@ -52,7 +51,7 @@ class Processor(ProcessMixIn):
         self.chat_processor = ChatProcessor(self.tokenizer, self.model_config)
         self.router_client = router_client
         self.workers_client = workers_client
-    
+
     def _create_tokenizer(self, engine_args: AsyncEngineArgs) -> AnyTokenizer:
         """Create a TokenizerGroup using engine arguments similar to VLLM's approach"""
         model_path = engine_args.model
@@ -63,10 +62,9 @@ class Processor(ProcessMixIn):
             trust_remote_code=True,
             padding_side="left",
             truncation_side="left",
-            use_fast=True  # VLLM might use the fast tokenizer for efficiency
+            use_fast=True,  # VLLM might use the fast tokenizer for efficiency
         )
         return base_tokenizer
-
 
     async def generate_responses(
         self, engine_generator
