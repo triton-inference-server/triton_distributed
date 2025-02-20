@@ -64,7 +64,7 @@ jobs:
     strategy:
       matrix:
         project: ['runtime', 'tio', 'llm']
-    if: ${{ needs.filter.outputs[matrix.project] == 'true' }}
+    if: ${{ needs.filter.outputs[format('{0}', matrix.project)] == 'true' }}
     steps:
     - name: Set working directory
       run: |
