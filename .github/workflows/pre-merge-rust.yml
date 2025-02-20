@@ -36,10 +36,28 @@ on:
     - '.github/workflows/rust-pre-merge-checks.yml'
 
 jobs:
-  setup:
+  rust-checks:
+    name: Rust pre-merge checks
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    strategy:
+      matrix:
+        package: [
+          {
+            path: 'runtime/rust',
+            name: 'runtime',
+            paths: ['runtime/rust/**']
+          },
+          {
+            path: 'applications/llm/bin/tio',
+            name: 'tio',
+            paths: ['applications/llm/bin/tio/**']
+          },
+          {
+            path: 'llm/rust',
+            name: 'llm',
+            paths: ['llm/rust/**']
+          }
+        ]
     steps:
     - uses: actions/checkout@v4
     - name: Set up system dependencies
@@ -64,35 +82,27 @@ jobs:
         cargo-deny --version || cargo install cargo-deny
         cargo-deny check --hide-inclusion-graph licenses
       timeout-minutes: 5
-
-  rust-checks:
-    needs: setup
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        package: [
-          { path: 'runtime/rust', name: 'runtime' },
-          { path: 'applications/llm/bin/tio', name: 'tio' },
-          { path: 'llm/rust', name: 'llm' }
-        ]
-    steps:
-    - uses: actions/checkout@v4
-    - name: Restore Cargo caches
-      uses: actions/cache/restore@v3
+    # Check if paths changed
+    - name: Check if paths changed
+      id: changed
+      uses: dorny/paths-filter@v2
       with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-tools-${{ github.head_ref || github.ref_name }}-${{ hashFiles('**/Cargo.lock') }}
+        filters: |
+          package: ${{ matrix.package.paths }}
+    # Rest of the steps
     - name: Run Cargo Check
+      if: steps.changed.outputs.package == 'true'
       working-directory: ${{ matrix.package.path }}
       run: cargo check --locked
     - name: Verify Code Formatting
+      if: steps.changed.outputs.package == 'true'
       working-directory: ${{ matrix.package.path }}
       run: cargo fmt -- --check
     - name: Run Clippy Checks
+      if: steps.changed.outputs.package == 'true'
       working-directory: ${{ matrix.package.path }}
       run: cargo clippy --no-deps --all-targets -- -D warnings
     - name: Run Unit Tests
+      if: steps.changed.outputs.package == 'true'
       working-directory: ${{ matrix.package.path }}
       run: cargo test --locked --all-targets
