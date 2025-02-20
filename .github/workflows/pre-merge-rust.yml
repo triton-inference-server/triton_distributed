@@ -20,6 +20,7 @@ on:
   push:
     branches:
     - main
+    - anants/*
 
   # Run this workflow on pull requests targeting main but only if files in runtime/rust change.
   pull_request:
