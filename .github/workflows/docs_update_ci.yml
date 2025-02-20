@@ -1,4 +1,4 @@
-name: Publish Docker
+name: Documentation update checker
 on:
   pull_request:
     paths:
