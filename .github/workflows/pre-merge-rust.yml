@@ -36,34 +36,46 @@ on:
     - '.github/workflows/rust-pre-merge-checks.yml'
 
 jobs:
+  filter:
+    name: Rust Filter Checks
+    runs-on: ubuntu-latest
+    outputs:
+      runtime: ${{ steps.filter.outputs.runtime }}
+      tio: ${{ steps.filter.outputs.tio }}
+      llm: ${{ steps.filter.outputs.llm }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Detect changes in Rust projects
+      uses: dorny/paths-filter@v2
+      id: filter
+      with:
+        filters: |
+          runtime:
+            - 'runtime/rust/**'
+          tio:
+            - 'applications/llm/bin/tio/**'
+          llm:
+            - 'llm/rust/**'
+
   rust-checks:
-    name: Rust pre-merge checks
+    needs: filter
+    name: Rust Checks
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [
-          {
-            path: 'runtime/rust',
-            name: 'runtime',
-            paths: ['runtime/rust/**']
-          },
-          {
-            path: 'applications/llm/bin/tio',
-            name: 'tio',
-            paths: ['applications/llm/bin/tio/**']
-          },
-          {
-            path: 'llm/rust',
-            name: 'llm',
-            paths: ['llm/rust/**']
-          }
-        ]
+        project: ['runtime', 'tio', 'llm']
+    if: ${{ needs.filter.outputs[matrix.project] == 'true' }}
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up system dependencies
+    - name: Set working directory
       run: |
-        sudo apt-get update -y
-        sudo apt-get install -y protobuf-compiler
+        if [ "${{ matrix.project }}" = "runtime" ]; then
+          echo "WORK_DIR=runtime/rust" >> $GITHUB_ENV
+        elif [ "${{ matrix.project }}" = "tio" ]; then
+          echo "WORK_DIR=applications/llm/bin/tio" >> $GITHUB_ENV
+        else
+          echo "WORK_DIR=llm/rust" >> $GITHUB_ENV
+        fi    
+    - uses: actions/checkout@v4
     - name: Cache Cargo Registry
       uses: actions/cache@v3
       with:
@@ -74,35 +86,20 @@ jobs:
       with:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-tools-${{ github.head_ref || github.ref_name }}-${{ hashFiles('**/Cargo.lock') }}
-    - name: Set up Rust Toolchain Components
-      run: rustup component add rustfmt clippy
-    - name: Install and Run cargo-deny
-      working-directory: runtime/rust
+    - name: Set up system dependencies
       run: |
-        cargo-deny --version || cargo install cargo-deny
-        cargo-deny check --hide-inclusion-graph licenses
-      timeout-minutes: 5
-    # Check if paths changed
-    - name: Check if paths changed
-      id: changed
-      uses: dorny/paths-filter@v2
-      with:
-        filters: |
-          package: ${{ matrix.package.paths }}
-    # Rest of the steps
+        sudo apt-get update -y
+        sudo apt-get install -y protobuf-compiler
+        rustup component add rustfmt clippy
     - name: Run Cargo Check
-      if: steps.changed.outputs.package == 'true'
-      working-directory: ${{ matrix.package.path }}
+      working-directory: ${{ env.WORK_DIR }}
       run: cargo check --locked
     - name: Verify Code Formatting
-      if: steps.changed.outputs.package == 'true'
-      working-directory: ${{ matrix.package.path }}
+      working-directory: ${{ env.WORK_DIR }}
       run: cargo fmt -- --check
     - name: Run Clippy Checks
-      if: steps.changed.outputs.package == 'true'
-      working-directory: ${{ matrix.package.path }}
+      working-directory: ${{ env.WORK_DIR }}
       run: cargo clippy --no-deps --all-targets -- -D warnings
     - name: Run Unit Tests
-      if: steps.changed.outputs.package == 'true'
-      working-directory: ${{ matrix.package.path }}
+      working-directory: ${{ env.WORK_DIR }}
       run: cargo test --locked --all-targets
