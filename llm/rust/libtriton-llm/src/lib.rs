@@ -36,8 +36,7 @@ fn initialize_tracing() {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     log::debug!("Tracing initialized");
 }
@@ -187,11 +186,20 @@ fn kv_event_create_stored_from_parts(
         let num_toks = unsafe { *num_block_tokens.offset(block_idx.try_into().unwrap()) };
         // compute hash only apply to full block (KV_BLOCK_SIZE token)
         if num_toks != 64 {
-            if WARN_COUNT.fetch_update(
-                Ordering::SeqCst,
-                Ordering::SeqCst,
-                |c| if c < 3 { Some(c + 1) } else { None }).is_ok() {
-                log::warn!("Block size must be 64 tokens to be published. Block size is: {}", num_toks);
+            if WARN_COUNT
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |c| {
+                    if c < 3 {
+                        Some(c + 1)
+                    } else {
+                        None
+                    }
+                })
+                .is_ok()
+            {
+                log::warn!(
+                    "Block size must be 64 tokens to be published. Block size is: {}",
+                    num_toks
+                );
             }
             break;
         }
