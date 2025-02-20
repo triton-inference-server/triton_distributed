@@ -15,16 +15,12 @@
 
 
 import asyncio
-import uuid
-from argparse import Namespace
-from enum import Enum
 
 import uvloop
-from common.protocol import Response, Request, TokenizedRequest
+from common.protocol import Request, Response
 from triton_distributed_rs import (
     DistributedRuntime,
     KvRouter,
-    KvMetricsPublisher,
     triton_endpoint,
     triton_worker,
 )
@@ -62,12 +58,12 @@ class Router:
         vllm_logger.info(f"Scheduling to worker_id: {worker_id}")
 
         if worker_id is None:
-            vllm_logger.info(f"randomly select worker")
+            vllm_logger.info("randomly select worker")
             engine_generator = await self.workers_client.random(
                 request.model_dump_json()
             )
         else:
-            vllm_logger.info(f"direclty select worker: {worker_id}")
+            vllm_logger.info(f"directly select worker: {worker_id}")
             engine_generator = await self.workers_client.direct(
                 request.model_dump_json(), worker_id
             )
@@ -81,7 +77,9 @@ class Router:
         print(f"Received request: {request}")
         yield "Hello, World!"
 
+
 ROUTE_SELF = True
+
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime):
@@ -111,14 +109,12 @@ async def worker(runtime: DistributedRuntime):
     # await endpoint.serve_endpoint(
     #     Router(router, workers_client).mock_generate
     # )
-    
+
     router_component = runtime.namespace("triton-init").component("frontend")
     await router_component.create_service()
 
     endpoint = router_component.endpoint("generate")
-    await endpoint.serve_endpoint(
-        Router(router, workers_client).generate
-    )
+    await endpoint.serve_endpoint(Router(router, workers_client).generate)
 
 
 if __name__ == "__main__":
