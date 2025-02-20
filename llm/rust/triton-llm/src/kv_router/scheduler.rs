@@ -18,8 +18,6 @@ use std::borrow::BorrowMut;
 use std::cmp::min;
 use tracing as log;
 
-use uuid::Uuid;
-
 use crate::kv_router::indexer::OverlapScores;
 pub use crate::kv_router::protocols::{ForwardPassMetrics, KV_BLOCK_SIZE};
 use crate::kv_router::scoring::ProcessedEndpoints;
@@ -50,16 +48,17 @@ pub struct Endpoint {
 }
 
 impl Endpoint {
-    pub fn worker_id(&self) -> Uuid {
-        Uuid::parse_str(
+    pub fn worker_id(&self) -> i64 {
+        i64::from_str_radix(
             self.subject
-                .split(".")
+                .split("-")
                 .last()
                 .expect("invalid subject")
                 .to_string()
                 .as_str(),
+            16
         )
-        .expect("invalid uuid")
+        .expect("invalid worker id")
     }
 }
 
@@ -75,11 +74,11 @@ pub struct Service {
 pub struct SchedulingRequest {
     isl_tokens: usize,
     overlap: OverlapScores,
-    resp_tx: tokio::sync::oneshot::Sender<String>,
+    resp_tx: tokio::sync::oneshot::Sender<i64>,
 }
 
 impl SchedulingRequest {
-    pub fn respond(self, worker_id: String) {
+    pub fn respond(self, worker_id: i64) {
         if self.resp_tx.send(worker_id).is_err() {
             log::trace!("failed to send response to requestor");
         }
@@ -179,7 +178,7 @@ impl KvScheduler {
         &self,
         overlap: OverlapScores,
         isl_tokens: usize,
-    ) -> Result<String, KvSchedulerError> {
+    ) -> Result<i64, KvSchedulerError> {
         let (resp_tx, resp_rx) = tokio::sync::oneshot::channel();
         let request = SchedulingRequest {
             isl_tokens,
@@ -204,7 +203,7 @@ impl KvScheduler {
 pub fn select_worker(
     workers: &mut ProcessedEndpoints,
     request: &SchedulingRequest,
-) -> Result<String, KvSchedulerError> {
+) -> Result<i64, KvSchedulerError> {
     // balance mode prioritizes balancing load across workers
     let balance_threshold: f64 = 0.1;
     let balance_mode = workers.load_std > balance_threshold * workers.load_avg;
@@ -272,10 +271,10 @@ pub fn select_worker(
         Some(i) => {
             log::info!(
                 "selected worker: {}; cost: {}",
-                workers.endpoints[i].subject,
+                workers.endpoints[i].worker_id(),
                 best_cost
             );
-            Ok(workers.endpoints[i].subject.clone())
+            Ok(workers.endpoints[i].worker_id())
         }
         None => {
             log::debug!("all workers busy");

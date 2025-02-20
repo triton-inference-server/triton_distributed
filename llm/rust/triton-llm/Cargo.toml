@@ -47,6 +47,7 @@ tracing = { workspace = true }
 validator = { workspace = true }
 uuid = { workspace = true }
 xxhash-rust = { workspace = true }
+async-nats = { workspace = true }
 
 blake3 = "1"
 
