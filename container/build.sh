@@ -67,9 +67,8 @@ TENSORRTLLM_BACKEND_REPO_TAG=triton-llm/v0.17.0
 # trt-llm backend repo branch.
 TENSORRTLLM_BACKEND_REBUILD=1
 
-# Default to base images defined in Dockerfile.vllm
-VLLM_BASE_IMAGE="ubuntu"
-VLLM_BASE_IMAGE_TAG="24.04"
+VLLM_BASE_IMAGE="nvcr.io/nvidia/cuda-dl-base"
+VLLM_BASE_IMAGE_TAG="25.01-cuda12.8-devel-ubuntu24.04"
 
 get_options() {
     while :; do

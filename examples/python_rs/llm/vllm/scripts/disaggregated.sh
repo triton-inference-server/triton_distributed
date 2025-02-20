@@ -71,6 +71,9 @@ CURL_CMD="curl localhost:9992/v1/chat/completions \
     \"stream\": true,
     \"max_tokens\": 10
   }'"
+# Prepare a curl command for a quick test, but don't execute it since the server
+# needs to spin up first.
+tmux send-keys "$CURL_CMD"
 
 ########################################################
 # Processor

@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ARG BASE_IMAGE="ubuntu"
-ARG BASE_IMAGE_TAG="24.04"
+ARG BASE_IMAGE="nvcr.io/nvidia/cuda-dl-base"
+ARG BASE_IMAGE_TAG="25.01-cuda12.8-devel-ubuntu24.04"
 
 FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS dev
 
@@ -137,8 +137,7 @@ ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
 
 WORKDIR /workspace
 
-# FIXME: Determine if this is needed, and with a triton-distributed banner
-# ENTRYPOINT ["/opt/nvidia/nvidia_entrypoint.sh"]
-ENTRYPOINT ["/bin/bash"]
+# FIXME: May want a modification with triton-distributed banner on entry
+ENTRYPOINT ["/opt/nvidia/nvidia_entrypoint.sh"]
 
 CMD []
