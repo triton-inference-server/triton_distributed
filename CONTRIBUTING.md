@@ -108,6 +108,19 @@ If a fix is implemented by a pre-commit hook, adding the file again
 and running `git commit` a second time will pass and successfully
 commit.
 
+# Running Github actions locally
+
+To run the Github actions locally, you can use the `act` tool.
+See [act usage](https://nektosact.com/introduction.html) for more information.
+
+For example, to run the pre-merge-rust workflow locally, you can use the following command from terminal:
+```
+act -j pre-merge-rust
+```
+
+Also you can use vscode extension [GitHub Local Actions](https://marketplace.visualstudio.com/items?itemName=SanjulaGanepola.github-local-actions) to run the workflows from vscode.
+
+
 # Developer Certificate of Origin
 
 Triton Distributed is an open source product released under
