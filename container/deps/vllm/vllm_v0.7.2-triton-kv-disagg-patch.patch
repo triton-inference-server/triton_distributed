@@ -181,36 +181,45 @@ index 1ca9e49d..b1591c0c 100644
  
          # Reuse the cached content hash
 diff --git a/vllm/core/block_manager.py b/vllm/core/block_manager.py
-index c5b3b04f..8a483aa2 100644
+index c5b3b04f..c72001f7 100644
 --- a/vllm/core/block_manager.py
 +++ b/vllm/core/block_manager.py
-@@ -9,10 +9,12 @@ from vllm.core.block.cpu_gpu_block_allocator import CpuGpuBlockAllocator
- from vllm.core.block.interfaces import Block
+@@ -10,7 +10,10 @@ from vllm.core.block.interfaces import Block
  from vllm.core.block.prefix_caching_block import (ComputedBlocksTracker,
                                                    LastAccessBlocksTracker)
-+from vllm.core.event_manager import KVCacheEventManager
  from vllm.core.block.utils import check_no_caching_or_swa_for_blockmgr_encdec
++from vllm.core.event_manager import KVCacheEventManager
  from vllm.core.interfaces import AllocStatus, BlockSpaceManager
++from vllm.envs import (VLLM_KV_CAPI_PATH, VLLM_KV_COMPONENT, VLLM_KV_NAMESPACE,
++                       VLLM_WORKER_ID)
  from vllm.sequence import Sequence, SequenceGroup, SequenceStatus
  from vllm.utils import Device
-+from vllm.envs import VLLM_WORKER_ID, VLLM_KV_CAPI_PATH
  
- SeqId = int
- EncoderSeqId = str
-@@ -60,6 +62,7 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
+@@ -60,6 +63,7 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
  
      def __init__(
          self,
-+        model_name: str, 
++        model_name: str,
          block_size: int,
          num_gpu_blocks: int,
          num_cpu_blocks: int,
-@@ -91,11 +94,17 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
+@@ -91,11 +95,28 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
  
          self.watermark_blocks = int(watermark * num_gpu_blocks)
  
-+        if VLLM_WORKER_ID is not None and VLLM_KV_CAPI_PATH is not None:
-+            self.event_manager = KVCacheEventManager(model_name, worker_id=str(VLLM_WORKER_ID).encode(), lib_path=VLLM_KV_CAPI_PATH)
++        kv_event_manager_params = [
++            VLLM_WORKER_ID, VLLM_KV_CAPI_PATH, VLLM_KV_NAMESPACE,
++            VLLM_KV_COMPONENT
++        ]
++        set_kv_event_manager_params = len(
++            [param for param in kv_event_manager_params if param is not None])
++
++        if set_kv_event_manager_params == len(kv_event_manager_params):
++            self.event_manager = KVCacheEventManager(
++                namespace=VLLM_KV_NAMESPACE,
++                component=VLLM_KV_COMPONENT,
++                worker_id=VLLM_WORKER_ID,
++                lib_path=VLLM_KV_CAPI_PATH)
 +        else:
 +            self.event_manager = None
 +
@@ -225,26 +234,31 @@ index c5b3b04f..8a483aa2 100644
          self.block_tables: Dict[SeqId, BlockTable] = {}
 diff --git a/vllm/core/event_manager.py b/vllm/core/event_manager.py
 new file mode 100644
-index 00000000..4aa90a4a
+index 00000000..5ab47424
 --- /dev/null
 +++ b/vllm/core/event_manager.py
-@@ -0,0 +1,89 @@
-+from typing import Optional
+@@ -0,0 +1,102 @@
++# SPDX-License-Identifier: Apache-2.0
++import ctypes
 +import logging
++import uuid
++from ctypes import c_char_p, c_size_t, c_uint32, c_void_p
++from typing import Optional
++
 +from vllm.core.block.prefix_caching_block import PrefixCachingBlock, PrefixHash
 +
-+import ctypes
-+from ctypes import c_char_p, c_uint32, c_void_p, c_size_t
-+import uuid
-+
 +logger = logging.getLogger(__name__)
++
 +
 +class TritonResult:
 +    OK = 0
 +    ERR = 1
 +
++
 +class KVCacheEventManager:
-+    def __init__(self, model_name: str, worker_id: bytes, lib_path: str):
++
++    def __init__(self, namespace: str, component: str, worker_id: int,
++                 lib_path: str):
 +        self.lib = None
 +
 +        try:
@@ -252,57 +266,64 @@ index 00000000..4aa90a4a
 +            self.lib.triton_llm_init.argtypes = [c_char_p, c_char_p]
 +            self.lib.triton_llm_init.restype = c_uint32
 +
-+            result = self.lib.triton_llm_init(model_name.encode(), worker_id)
++            result = self.lib.triton_llm_init(namespace.encode(),
++                                              component.encode(), worker_id)
 +            if result == TritonResult.OK:
-+                logger.info("KVCacheEventManager initialized successfully. Ready to publish KV Cache Events")
++                logger.info(
++                    "KVCacheEventManager initialized successfully. Ready to publish KV Cache Events"
++                )
 +            else:
 +                logger.info("KVCacheEventManager initialization failed!")
 +
 +        except Exception as e:
 +            print(f"Failed to load {lib_path}")
 +            raise e
-+        
++
 +        self.lib.triton_kv_event_publish_stored.argtypes = [
-+            ctypes.c_uint64,                    # event_id
-+            ctypes.POINTER(ctypes.c_uint32),    # token_ids
-+            ctypes.POINTER(ctypes.c_size_t),    # num_block_tokens
-+            ctypes.POINTER(ctypes.c_uint64),    # block_ids
-+            ctypes.c_size_t,                    # num_blocks
-+            ctypes.POINTER(ctypes.c_uint64),    # parent_hash
-+            ctypes.c_uint64,                    # lora_id
++            ctypes.c_uint64,  # event_id
++            ctypes.POINTER(ctypes.c_uint32),  # token_ids
++            ctypes.POINTER(ctypes.c_size_t),  # num_block_tokens
++            ctypes.POINTER(ctypes.c_uint64),  # block_ids
++            ctypes.c_size_t,  # num_blocks
++            ctypes.POINTER(ctypes.c_uint64),  # parent_hash
++            ctypes.c_uint64,  # lora_id
 +        ]
 +        self.lib.triton_kv_event_publish_stored.restype = ctypes.c_uint32  # triton_llm_result_t
 +
 +        self.lib.triton_kv_event_publish_removed.argtypes = [
-+            ctypes.c_uint64,                    # event_id
-+            ctypes.POINTER(ctypes.c_uint64),    # block_ids
-+            ctypes.c_size_t,                    # num_blocks
++            ctypes.c_uint64,  # event_id
++            ctypes.POINTER(ctypes.c_uint64),  # block_ids
++            ctypes.c_size_t,  # num_blocks
 +        ]
 +        self.lib.triton_kv_event_publish_removed.restype = ctypes.c_uint32  # triton_llm_result_t
 +
 +        self.event_id_counter = 0
 +
-+    def enqueue_stored_event(self, parent: Optional[PrefixCachingBlock], block: PrefixCachingBlock):
-+        token_ids_arr = (ctypes.c_uint32 * len(block.token_ids))(*block.token_ids)
++    def enqueue_stored_event(self, parent: Optional[PrefixCachingBlock],
++                             block: PrefixCachingBlock):
++        token_ids_arr = (ctypes.c_uint32 *
++                         len(block.token_ids))(*block.token_ids)
 +        num_block_tokens = (ctypes.c_size_t * 1)(len(block.token_ids))
 +        block_hash = (ctypes.c_uint64 * 1)(block.content_hash)
-+        parent_hash = ((ctypes.c_uint64 * 1)(parent.content_hash) if parent is not None else None)
++        parent_hash = ((ctypes.c_uint64 * 1)(parent.content_hash)
++                       if parent is not None else None)
 +
 +        # Publish the event
 +        result = self.lib.triton_kv_event_publish_stored(
-+            self.event_id_counter,        # uint64_t event_id
-+            token_ids_arr,                # const uint32_t *token_ids
-+            num_block_tokens,             # const uintptr_t *num_block_tokens
-+            block_hash,                   # const uint64_t *block_ids
-+            1,                            # uintptr_t num_blocks
-+            parent_hash,                  # const uint64_t *parent_hash
-+            0,                            # uint64_t lora_id
++            self.event_id_counter,  # uint64_t event_id
++            token_ids_arr,  # const uint32_t *token_ids
++            num_block_tokens,  # const uintptr_t *num_block_tokens
++            block_hash,  # const uint64_t *block_ids
++            1,  # uintptr_t num_blocks
++            parent_hash,  # const uint64_t *parent_hash
++            0,  # uint64_t lora_id
 +        )
 +
 +        if result == TritonResult.OK:
 +            logger.debug(f"Store - Published KV Event: {block.content_hash}")
 +        else:
-+            logger.debug(f"Store - Failed to Publish KV Event: {block.content_hash}")
++            logger.debug(
++                f"Store - Failed to Publish KV Event: {block.content_hash}")
 +
 +        self.event_id_counter += 1
 +
@@ -310,15 +331,15 @@ index 00000000..4aa90a4a
 +        result = self.lib.triton_kv_event_publish_removed(
 +            self.event_id_counter,
 +            (ctypes.c_uint64 * 1)(block_hash),
-+            1,)
-+        
++            1,
++        )
++
 +        if result == TritonResult.OK:
 +            logger.debug(f"Remove - Published KV Event: {block_hash}")
 +        else:
 +            logger.debug(f"Remove - Failed to Publish KV Event: {block_hash}")
 +
 +        self.event_id_counter += 1
-\ No newline at end of file
 diff --git a/vllm/core/scheduler.py b/vllm/core/scheduler.py
 index f507847a..6af77646 100644
 --- a/vllm/core/scheduler.py
@@ -1205,19 +1226,21 @@ index d82d9ad9..542ccfe8 100644
                  self.async_callbacks[v_id]
                  if self.model_config.use_async_output_proc else None)
 diff --git a/vllm/envs.py b/vllm/envs.py
-index 745b068b..438142e3 100644
+index 745b068b..0ae63d9b 100644
 --- a/vllm/envs.py
 +++ b/vllm/envs.py
-@@ -87,6 +87,8 @@ if TYPE_CHECKING:
+@@ -87,6 +87,10 @@ if TYPE_CHECKING:
      VLLM_ENABLE_MOE_ALIGN_BLOCK_SIZE_TRITON: bool = False
      VLLM_RAY_PER_WORKER_GPUS: float = 1.0
      VLLM_RAY_BUNDLE_INDICES: str = ""
 +    VLLM_KV_CAPI_PATH: Optional[str] = None
-+    VLLM_WORKER_ID: Optional[str] = None
++    VLLM_KV_NAMESPACE: Optional[str] = None
++    VLLM_KV_COMPONENT: Optional[str] = None
++    VLLM_WORKER_ID: Optional[int] = None
  
  
  def get_default_cache_root():
-@@ -572,6 +574,14 @@ environment_variables: Dict[str, Callable[[], Any]] = {
+@@ -572,6 +576,21 @@ environment_variables: Dict[str, Callable[[], Any]] = {
      # models the alignment is already naturally aligned to 256 bytes.
      "VLLM_CUDA_MEM_ALIGN_KV_CACHE":
      lambda: bool(int(os.getenv("VLLM_CUDA_MEM_ALIGN_KV_CACHE", "1"))),
@@ -1226,9 +1249,16 @@ index 745b068b..438142e3 100644
 +    "VLLM_KV_CAPI_PATH":
 +    lambda: os.environ.get("VLLM_KV_CAPI_PATH", None),
 +
++    # Identifiers to publish KV related information
++    "VLLM_KV_NAMESPACE":
++    lambda: os.environ.get("VLLM_KV_NAMESPACE", None),
++    "VLLM_KV_COMPONENT":
++    lambda: os.environ.get("VLLM_KV_COMPONENT", None),
++
 +    # Worker ID used for identifying workers in distributed settings
 +    "VLLM_WORKER_ID":
-+    lambda: os.getenv("VLLM_WORKER_ID", None),
++    lambda: int(os.getenv("VLLM_WORKER_ID", "0"))
++    if "VLLM_WORKER_ID" in os.environ else None,
  }
  
  # end-env-vars-definition
