@@ -61,6 +61,17 @@ LLMCTL_CMD="sleep 5 && llmctl http remove chat-model $MODEL_NAME && \
 tmux select-pane -t 1
 tmux send-keys "$INIT_CMD && $LLMCTL_CMD" C-m
 
+CURL_CMD="curl localhost:9992/v1/chat/completions \
+  -H \"Content-Type: application/json\" \
+  -d '{
+    \"model\": \"$MODEL_NAME\",
+    \"messages\": [
+      {\"role\": \"user\", \"content\": \"What is the capital of France?\"}
+    ],
+    \"stream\": true,
+    \"max_tokens\": 10
+  }'"
+
 ########################################################
 # Processor
 ########################################################
@@ -78,9 +89,10 @@ tmux send-keys "$INIT_CMD && $LLMCTL_CMD" C-m
 ########################################################
 PREFILL_CMD="VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 \
     python3 -m disaggregated.prefill_worker \
-    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --model $MODEL_NAME \
     --gpu-memory-utilization 0.8 \
     --enforce-eager \
+    --max-model-len 1000 \
     --tensor-parallel-size 1 \
     --kv-transfer-config \
     '{\"kv_connector\":\"PyNcclConnector\",\"kv_role\":\"kv_producer\",\"kv_rank\":0,\"kv_parallel_size\":2}'"
@@ -93,13 +105,14 @@ tmux send-keys "$INIT_CMD && $PREFILL_CMD" C-m
 ########################################################
 DECODE_CMD="VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1 \
     python3 -m disaggregated.decode_worker \
-    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --model $MODEL_NAME \
     --gpu-memory-utilization 0.8 \
     --enforce-eager \
+    --max-model-len 1000 \
     --tensor-parallel-size 1 \
     --kv-transfer-config \
-    '{\"kv_connector\":\"PyNcclConnector\",\"kv_role\":\"kv_producer\",\"kv_rank\":0,\"kv_parallel_size\":2}'"
+    '{\"kv_connector\":\"PyNcclConnector\",\"kv_role\":\"kv_consumer\",\"kv_rank\":1,\"kv_parallel_size\":2}'"
 
 tmux select-pane -t 3
 tmux send-keys "$INIT_CMD && $DECODE_CMD" C-m
-
+tmux attach-session -t "$SESSION_NAME"
