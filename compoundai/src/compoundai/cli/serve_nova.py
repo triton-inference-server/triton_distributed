@@ -4,13 +4,18 @@ import asyncio
 import json
 import logging
 import os
-import sys
 import typing as t
-
+import random
+import string
 import click
 from triton_distributed_rs import triton_worker, DistributedRuntime
 
+
 logger = logging.getLogger("compoundai.serve.nova")
+
+def generate_run_id():
+    """Generate a random 6-character run ID"""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 @click.command()
 @click.argument("bento_identifier", type=click.STRING, required=False, default=".")
@@ -47,6 +52,8 @@ def main(
     from bentoml._internal.context import server_context
     from bentoml._internal.log import configure_server_logging
 
+    run_id = generate_run_id()
+
     # Import service first to check configuration
     service = import_service(bento_identifier)
     if service_name and service_name != service.name:
@@ -72,7 +79,10 @@ def main(
 
     # Check if Nova is enabled for this service
     if service.is_nova_component():
-        # Nova worker path
+        if worker_id is not None:
+            server_context.worker_index = worker_id
+        class_instance = service.inner()
+        
         @triton_worker()
         async def worker(runtime: DistributedRuntime):
             if service_name and service_name != service.name:
@@ -83,51 +93,39 @@ def main(
             server_context.service_name = service.name
 
             # Get Nova configuration and create component
-            namespace, name = service.nova_address()
-            logger.info(f"Registering component with namespace '{namespace}' and name '{name}'")
-            print(f"Registering component with namespace '{namespace}' and name '{name}'")
-            component = runtime.namespace(namespace).component(name)
+            namespace, component_name = service.nova_address()
+            logger.info(f"[{run_id}] Registering component {namespace}/{component_name}")
+            component = runtime.namespace(namespace).component(component_name)
             
-            # Create service first
-            await component.create_service()
-            logger.info(f"Created {service.name} component")
+            try:
+                # Create service first
+                await component.create_service()
+                logger.info(f"[{run_id}] Created {service.name} component")
 
-            # Set runtime on all dependencies
-            for dep in service.dependencies.values():
-                dep.set_runtime(runtime)
+                # Set runtime on all dependencies
+                for dep in service.dependencies.values():
+                    dep.set_runtime(runtime)
+                    logger.info(f"[{run_id}] Set runtime for dependency: {dep}")
 
-            # Create service instance
-            instance = service.inner()
+                # Then register all Nova endpoints
+                nova_endpoints = service.get_nova_endpoints()
+                print(f"[{run_id}] Nova endpoints: {nova_endpoints}")
+                for name, endpoint in nova_endpoints.items():
+                    td_endpoint = component.endpoint(name)
+                    logger.info(f"[{run_id}] Registering endpoint '{name}'")
+                    # Bind an instance of inner to the endpoint
+                    bound_method = endpoint.func.__get__(class_instance)
+                    result = await td_endpoint.serve_endpoint(bound_method)
+                    logger.info(f"[{run_id}] Result: {result}")
+                    logger.info(f"[{run_id}] Registered endpoint '{name}'")
 
-            # Register all Nova endpoints
-            for name, endpoint in service.get_nova_endpoints().items():
-                logger.info(f"Registering endpoint '{name}'")
-                nova_endpoint = component.endpoint(name)
-                # Bind an instance of inner to the endpoint
-                bound_method = endpoint.func.__get__(instance)
-                await nova_endpoint.serve_endpoint(bound_method)
-                logger.info(f"Registered endpoint '{name}'")
-
-            logger.info(f"Started {service.name} instance with all endpoints registered")
+                logger.info(f"[{run_id}] Started {service.name} instance with all endpoints registered")
+                logger.info(f"[{run_id}] Available endpoints: {service.list_nova_endpoints()}")
+            except Exception as e:
+                logger.error(f"[{run_id}] Error in Nova component setup: {str(e)}")
+                raise
 
         asyncio.run(worker())
-    else:
-        # Regular service path
-        if worker_id is not None:
-            server_context.worker_index = worker_id
-
-        if service_name and service_name != service.name:
-            server_context.service_type = "service"
-        else:
-            server_context.service_type = "entry_service"
-
-        server_context.service_name = service.name
-        
-        # Create service instance
-        instance = service.inner()
-        
-        # Handle any service initialization here
-        logger.info(f"Started regular {service.name} instance")
 
 if __name__ == "__main__":
     main()
