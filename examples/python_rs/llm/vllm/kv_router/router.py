@@ -15,7 +15,6 @@
 
 
 import asyncio
-import uuid
 from argparse import Namespace
 from enum import Enum
 
@@ -57,16 +56,17 @@ class Router:
     @triton_endpoint(TokenizedRequest, Response)
     async def generate(self, request):
         lora_id = 0
-        worker_id = ""
+        worker_id = None
         if self.routing_strategy == RoutingStrategy.PREFIX:
             try:
                 worker_id = await self.router.schedule(request.tokens, lora_id)
+            # [NOTE][TODO] Now that the scheduler may return more error messages,
+            # now we are catching all exceptions and logging them. Should have
+            # catch specific router exceptions once we have dedicated types.
             except Exception as e:
                 vllm_logger.info(f"{e}")
-                if "No worker found" in str(e):
-                    worker_id = ""
-                else:
-                    vllm_logger.exception(f"Error during worker selection: {e}")
+                worker_id = None
+                vllm_logger.exception(f"Error during worker selection: {e}")
 
             vllm_logger.info(f"Scheduling to worker_id: {worker_id}")
 
@@ -74,14 +74,14 @@ class Router:
             engine_generator = await self.workers_client.round_robin(
                 request.model_dump_json()
             )
-        elif self.routing_strategy == RoutingStrategy.RANDOM or worker_id == "":
+        elif self.routing_strategy == RoutingStrategy.RANDOM or worker_id is None:
             engine_generator = await self.workers_client.random(
                 request.model_dump_json()
             )
         else:
             # extract back lease_id
             engine_generator = await self.workers_client.direct(
-                request.model_dump_json(), uuid.UUID(worker_id).int
+                request.model_dump_json(), worker_id
             )
 
         async for resp in engine_generator:
@@ -111,10 +111,7 @@ async def worker(runtime: DistributedRuntime, args: Namespace):
         + "\n".join(f"id: {id}" for id in workers_client.endpoint_ids())
     )
 
-    # TODO Router is a fixed namespace separate from the others
-    kv_listener = runtime.namespace("router").component(
-        "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-    )
+    kv_listener = runtime.namespace("triton-init").component("vllm")
     await kv_listener.create_service()
 
     router_component = runtime.namespace("triton-init").component("router")

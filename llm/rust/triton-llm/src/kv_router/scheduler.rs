@@ -231,6 +231,7 @@ pub fn select_worker(
         let kv_load_ratio = w.data.kv_active_blocks as f64 / w.data.kv_total_blocks as f64;
         let load_deviation = kv_load_ratio - workers.load_avg;
 
+        // [FIXME] multiple endpoints of the same worker cause out of bound error
         let worker_id = workers.worker_ids[i];
         let overlap_score = request.overlap.scores.get(&worker_id).map_or(0, |x| *x);
         let overlap_score = overlap_score as usize * KV_BLOCK_SIZE;
