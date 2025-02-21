@@ -1,7 +1,7 @@
 name: Documentation update checker
 on:
   pull_request:
-
+    types: [opened]
     paths:
      - 'deploy/Kubernetes/**'
      - '**/*.md'
