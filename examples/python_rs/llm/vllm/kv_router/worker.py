@@ -15,7 +15,6 @@
 
 import asyncio
 import os
-import uuid
 from typing import AsyncIterator
 
 import uvloop
@@ -24,20 +23,24 @@ from common.parser import parse_vllm_args
 from common.protocol import MyRequestOutput, vLLMGenerateRequest
 from triton_distributed_rs import (
     DistributedRuntime,
-    KvRouter,
     KvMetricsPublisher,
     triton_endpoint,
     triton_worker,
 )
 from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.engine.metrics_types import StatLoggerBase, Stats, SupportsMetricsInfo
 from vllm.logger import logger as vllm_logger
 from vllm.sampling_params import RequestOutputKind
-from vllm.engine.metrics_types import Stats, StatLoggerBase, SupportsMetricsInfo
 
 vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
+
 class KvStatLogger(StatLoggerBase):
-    def __init__(self, vllm_scheduler: vllm.core.scheduler.Scheduler, metrics_publisher: KvMetricsPublisher):
+    def __init__(
+        self,
+        vllm_scheduler: vllm.core.scheduler.Scheduler,
+        metrics_publisher: KvMetricsPublisher,
+    ):
         # Must query initialized scheduler for max infos
         self.request_total_slots = vllm_scheduler.scheduler_config.max_num_seqs
         self.kv_total_blocks = vllm_scheduler.block_manager.num_total_gpu_blocks
@@ -51,7 +54,6 @@ class KvStatLogger(StatLoggerBase):
             self.kv_total_blocks,
         )
 
-
     def log(self, stats: Stats) -> None:
         self.metrics_publisher.publish(
             stats.num_running_sys,
@@ -63,16 +65,21 @@ class KvStatLogger(StatLoggerBase):
     def info(self, type: str, obj: SupportsMetricsInfo) -> None:
         pass
 
+
 class VllmEngine(BaseVllmEngine):
     """
     vLLM Inference Engine
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs, metrics_publisher: KvMetricsPublisher):
+    def __init__(
+        self, engine_args: AsyncEngineArgs, metrics_publisher: KvMetricsPublisher
+    ):
         self.engine_args = engine_args
         super().__init__(engine_args)
         # Attach logger for continuous metrics publishing
-        self.stat_logger = KvStatLogger(self.engine_client.engine.scheduler[0], metrics_publisher)
+        self.stat_logger = KvStatLogger(
+            self.engine_client.engine.scheduler[0], metrics_publisher
+        )
         self.engine_client.add_logger("kv_metrics", self.stat_logger)
 
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
