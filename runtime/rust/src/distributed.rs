@@ -15,8 +15,9 @@
 
 pub use crate::component::Component;
 use crate::{
-    component::{self, ComponentBuilder, Namespace},
+    component::{self, ComponentBuilder, Endpoint, Namespace},
     discovery::DiscoveryClient,
+    protocols::{self, EndpointAddress},
     service::ServiceClient,
     transports::{etcd, nats, tcp},
     ErrorContext,
@@ -86,18 +87,6 @@ impl DistributedRuntime {
     pub fn namespace(&self, name: impl Into<String>) -> Result<Namespace> {
         Namespace::new(self.clone(), name.into())
     }
-
-    // /// Create a [`Component`]
-    // pub fn component(
-    //     &self,
-    //     name: impl Into<String>,
-    //     namespace: impl Into<String>,
-    // ) -> Result<Component> {
-    //     Ok(ComponentBuilder::from_runtime(self.clone())
-    //         .name(name.into())
-    //         .namespace(namespace.into())
-    //         .build()?)
-    // }
 
     pub(crate) fn discovery_client(&self, namespace: impl Into<String>) -> DiscoveryClient {
         DiscoveryClient::new(namespace.into(), self.etcd_client.clone())

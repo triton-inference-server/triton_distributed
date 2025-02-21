@@ -13,14 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Receiver;
 use tracing as log;
 
 use triton_distributed::{
-    protocols::{self, annotated::Annotated},
+    error,
+    protocols::{self, annotated::Annotated, EndpointAddress},
     raise,
     transports::etcd::{KeyValue, WatchEvent},
     DistributedRuntime, Result,
@@ -74,18 +75,9 @@ pub async fn model_watcher(state: Arc<ModelWatchState>, events_rx: Receiver<Watc
     while let Some(event) = events_rx.recv().await {
         match event {
             WatchEvent::Put(kv) => match handle_put(&kv, state.clone()).await {
-                Ok(model_name) => {
-                    log::info!("added chat model: {}", model_name);
-                }
+                Ok(_) => {}
                 Err(e) => {
                     log::error!("error adding chat model: {}", e);
-                    // log::warn!(
-                    //     "deleting offending key: {}",
-                    //     kv.key_str().unwrap_or_default()
-                    // );
-                    // if let Err(e) = kv_client.delete(kv.key(), None).await {
-                    //     log::error!("failed to delete offending key: {}", e);
-                    // }
                 }
             },
             WatchEvent::Delete(kv) => match handle_delete(&kv, state.clone()).await {
@@ -117,30 +109,43 @@ async fn handle_delete(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<Str
 // models.
 //
 // If this method errors, for the near term, we will delete the offending key.
-async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<String> {
+async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<()> {
     log::debug!("adding model");
 
     let key = kv.key_str()?;
     log::debug!("key: {}", key);
 
-    let model_name = key.trim_start_matches(&state.prefix);
-    let model_entry = serde_json::from_slice::<ModelEntry>(kv.value())?;
+    let path = key.trim_start_matches(&state.prefix);
 
-    // this means there is an entry in etcd that breaks the contract that the key
-    // in the models path must match the model name in the entry.
-    if model_entry.name != model_name {
-        raise!(
-            "model name mismatch: {} != {}",
-            model_entry.name,
-            model_name
-        );
+    let (model_name, action) = path
+        .split_once('/')
+        .ok_or(error!("invalid key entry: {}", key))?;
+
+    log::debug!("model_name: {}", model_name);
+
+    // Skip state keys for now
+    if action.ends_with("state") {
+        log::debug!("skipping state update for now");
+        return Ok(());
     }
 
-    let (namespace, component, endpoint) = model_entry.endpoint.dissolve();
+    // Only process .address keys
+    if !action.ends_with(".address") {
+        raise!("invalid key entry: {}", key);
+    }
+
+    let (request_format, _) = action
+        .split_once(".")
+        .ok_or(error!("invalid key entry: {}", key))?;
+
+    // Parse the endpoint address from the value
+    let endpoint_addr = EndpointAddress::from_str(kv.value_str()?)?;
+    let endpoint_addr: protocols::Endpoint = endpoint_addr.into();
+    let (namespace, component, endpoint) = endpoint_addr.dissolve();
 
     let client = state
         .drt
-        .namespace(namespace)?
+        .namespace(&namespace)?
         .component(component)?
         .endpoint(endpoint)
         .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
@@ -152,5 +157,5 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<String
         .manager
         .add_chat_completions_model(model_name, client)?;
 
-    Ok(model_name.to_string())
+    Ok(())
 }

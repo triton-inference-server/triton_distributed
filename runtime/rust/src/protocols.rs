@@ -14,7 +14,7 @@
 // limitations under the License.
 
 use crate::component::validate_allowed_chars;
-use crate::{error, raise, Error, Result};
+use crate::{error, raise, DistributedRuntime, Error, Result};
 use derive_getters::{Dissolve, Getters};
 use serde::{Deserialize, Serialize};
 use validator::ValidationError;
@@ -25,19 +25,19 @@ pub type LeaseId = i64;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Component {
-    pub name: String,
-    pub namespace: String,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Dissolve, Getters)]
-pub struct Endpoint {
-    /// Name of the endpoint.
+    namespace: String,
     name: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Getters, Dissolve)]
+pub struct Endpoint {
+    /// Namespace of the component.
+    namespace: String,
 
     /// Component of the endpoint.
     component: String,
 
-    /// Namespace of the component.
-    namespace: String,
+    /// Name of the endpoint.
+    name: String,
 }
 
 impl std::fmt::Display for Endpoint {

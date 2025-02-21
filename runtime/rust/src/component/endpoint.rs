@@ -15,6 +15,8 @@
 
 use derive_getters::Dissolve;
 
+use crate::protocols;
+
 use super::*;
 
 #[derive(Educe, Builder, Dissolve)]

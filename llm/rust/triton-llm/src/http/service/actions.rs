@@ -1,12 +1,13 @@
 use async_trait::async_trait;
 use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
+use tracing as log;
 use triton_distributed::{
     actions::{Action, ExecuteAction},
-    error, protocols,
-    transports::etcd,
-    Result,
+    error, protocols, DistributedRuntime, Result,
 };
+
+use crate::http::service::discovery::ModelState;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Subcommand)]
 #[serde(rename_all = "snake_case")]
@@ -26,11 +27,20 @@ pub enum HttpAction {
 
 #[derive(Debug, Clone, Serialize, Deserialize, clap::ValueEnum)]
 pub enum HttpModelRequestFormat {
-    #[serde(rename = "openai-chat")]
+    #[serde(rename = "openai_chat")]
     OpenAIChat,
 
-    #[serde(rename = "openai-cmpl")]
+    #[serde(rename = "openai_cmpl")]
     OpenAICompletion,
+}
+
+impl std::fmt::Display for HttpModelRequestFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OpenAIChat => write!(f, "openai_chat"),
+            Self::OpenAICompletion => write!(f, "openai_cmpl"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Args, Serialize, Deserialize)]
@@ -41,8 +51,8 @@ pub struct CreateRouteOptions {
     #[arg(long)]
     pub endpoint: protocols::EndpointAddress,
 
-    #[arg(long, value_name = "FORMAT", action = clap::ArgAction::Append)]
-    pub format: Vec<HttpModelRequestFormat>,
+    #[arg(long, value_name = "FORMAT", default_value = "openai_chat")]
+    pub format: HttpModelRequestFormat,
 }
 
 #[derive(Debug, Clone, Args, Serialize, Deserialize)]
@@ -64,12 +74,51 @@ pub struct MarkUnavailableOptions {
 }
 
 pub struct HttpModelActionExecutor {
-    etcd_client: etcd::Client,
+    drt: DistributedRuntime,
+    ns: String,
 }
 
 impl HttpModelActionExecutor {
-    pub fn new(etcd_client: etcd::Client) -> Self {
-        Self { etcd_client }
+    pub fn new(drt: DistributedRuntime, ns: String) -> Self {
+        Self { drt, ns }
+    }
+
+    async fn create_route(&self, opts: &CreateRouteOptions) -> Result<()> {
+        // todo - add component "http" as a build options
+        let component = self.drt.namespace(&self.ns)?.component("http")?;
+        let etcd_client = self.drt.etcd_client();
+
+        let request_format = opts.format.to_string();
+        let path = format!("{}/models/{}", component.etcd_path(), opts.name);
+
+        log::debug!(
+            "Creating route for model {0} --> {1} stored at {path}",
+            opts.name,
+            opts.endpoint
+        );
+
+        // state
+        let state_key = format!("{path}/state");
+        let state_val = serde_json::to_vec_pretty(&ModelState::Ready)?;
+        etcd_client.kv_put(state_key, state_val, None).await?;
+
+        // route
+        let route_key = format!("{path}/{request_format}.address");
+        let route_val = opts.endpoint.as_str().as_bytes().to_vec();
+        etcd_client.kv_create(route_key, route_val, None).await?;
+
+        Ok(())
+    }
+
+    async fn remove_route(&self, opts: &RemoveRouteOptions) -> Result<()> {
+        let component = self.drt.namespace(&self.ns)?.component("http")?;
+        let etcd_client = self.drt.etcd_client();
+
+        let path = format!("{}/models/{}", component.etcd_path(), opts.name);
+
+        let mut client = self.drt.etcd_client().etcd_client().kv_client();
+        let _deleted = client.delete(path, None).await?;
+        Ok(())
     }
 }
 
@@ -77,7 +126,7 @@ impl HttpModelActionExecutor {
 impl ExecuteAction<HttpAction> for HttpModelActionExecutor {
     async fn execute(&self, action: &HttpAction) -> Result<()> {
         match action {
-            HttpAction::CreateRoute(opts) => todo!(),
+            HttpAction::CreateRoute(opts) => self.create_route(opts).await,
             HttpAction::RemoveRoute(opts) => todo!(),
             HttpAction::MarkReady(opts) => todo!(),
             HttpAction::MarkUnavailable(opts) => todo!(),
@@ -87,7 +136,11 @@ impl ExecuteAction<HttpAction> for HttpModelActionExecutor {
 
 // Action Creation Helpers
 impl HttpAction {
-    pub fn create_route(name: impl Into<String>, endpoint: impl AsRef<str>) -> Result<Self> {
+    pub fn create_route(
+        name: impl Into<String>,
+        endpoint: impl AsRef<str>,
+        format: Option<HttpModelRequestFormat>,
+    ) -> Result<Self> {
         let endpoint_addr = endpoint
             .as_ref()
             .parse::<protocols::EndpointAddress>()
@@ -96,7 +149,7 @@ impl HttpAction {
         Ok(Self::CreateRoute(CreateRouteOptions {
             name: name.into(),
             endpoint: endpoint_addr.into(),
-            format: vec![],
+            format: format.unwrap_or(HttpModelRequestFormat::OpenAIChat),
         }))
     }
 
@@ -125,7 +178,7 @@ impl HttpAction {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
-    use triton_distributed::{actions::ActionRegistry, protocols::EndpointAddress};
+    use triton_distributed::actions::ActionRegistry;
 
     use super::*;
     use std::sync::{Arc, Mutex};
@@ -203,7 +256,12 @@ mod tests {
         registry
             .execute(
                 "http",
-                HttpAction::create_route("gpt-4", "llm.inference.text-generation").unwrap(),
+                HttpAction::create_route(
+                    "gpt-4",
+                    "llm.inference.text-generation",
+                    Some(HttpModelRequestFormat::OpenAIChat),
+                )
+                .unwrap(),
             )
             .await
             .unwrap();

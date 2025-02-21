@@ -17,8 +17,10 @@ use clap::{Parser, Subcommand};
 use tracing as log;
 
 use triton_distributed::{
-    distributed::DistributedConfig, logging, protocols::Endpoint, raise, DistributedRuntime,
-    Result, Runtime, Worker,
+    distributed::DistributedConfig,
+    logging,
+    protocols::{Endpoint, EndpointAddress},
+    raise, DistributedRuntime, Result, Runtime, Worker,
 };
 use triton_llm::http::service::discovery::{ModelEntry, ModelState};
 
@@ -54,7 +56,7 @@ enum HttpCommands {
         model_name: String,
 
         /// Endpoint name (format: component.endpoint or namespace.component.endpoint)
-        endpoint_name: String,
+        endpoint_name: EndpointAddress,
     },
 
     /// List chat models
@@ -111,30 +113,9 @@ async fn handle_command(runtime: Runtime, namespace: String, command: Commands) 
                         endpoint_name
                     );
 
-                    // parse endpoint
-                    // split by '.' must have 2, can have 3 parts, any more or less is an error
-                    let parts: Vec<&str> = endpoint_name.split('.').collect();
-                    if parts.len() < 2 || parts.len() > 3 {
-                        raise!("Invalid endpoint name: {}", endpoint_name);
-                    }
-
-                    // if 3 parts, then it's namespace.component.endpoint
-                    // if 2 parts, then it's model_name.component.endpoint
-
-                    // create model entry
-                    let endpoint = Endpoint {
-                        namespace: if parts.len() == 3 {
-                            parts[0].to_string()
-                        } else {
-                            namespace.clone()
-                        },
-                        component: parts[parts.len() - 2].to_string(),
-                        name: parts[parts.len() - 1].to_string(),
-                    };
-
                     let model = ModelEntry {
                         name: model_name.clone(),
-                        endpoint,
+                        endpoint: endpoint_name.into(),
                         state: Some(ModelState::Ready),
                     };
 
@@ -180,11 +161,12 @@ async fn handle_command(runtime: Runtime, namespace: String, command: Commands) 
                             serde_json::from_slice::<ModelEntry>(kv.value()),
                         ) {
                             (Ok(key), Ok(model)) => {
+                                let (n, c, e) = model.endpoint.dissolve();
                                 models.push(ModelRow {
                                     name: key.trim_start_matches(&prefix).to_string(),
-                                    namespace: model.endpoint.namespace,
-                                    component: model.endpoint.component,
-                                    endpoint: model.endpoint.name,
+                                    namespace: n,
+                                    component: c,
+                                    endpoint: e,
                                 });
                             }
                             (Err(e), _) => {

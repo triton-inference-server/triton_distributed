@@ -39,6 +39,7 @@ async-stream = { version = "0.3" }
 async-trait = { version = "0.1" }
 bytes = "1"
 derive_builder = "0.20"
+derive-getters = "0.5"
 futures = "0.3"
 serde = { version = "1", features = ["derive"] }
 thiserror = { version = "2.0.11" }

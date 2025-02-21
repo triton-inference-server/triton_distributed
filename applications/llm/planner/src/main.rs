@@ -69,10 +69,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing as log;
 use trd::{error, logging, DistributedRuntime, ErrorContext, Result, Runtime, Worker};
-use triton_distributed::{self as trd, engine::async_trait, service::Action};
-use triton_llm::http::service::actions::{
-    HttpModelReadyAction, HttpModelRemoveAction, HttpModelUnavailableAction,
-};
+use triton_distributed::{self as trd, actions::Action, engine::async_trait};
+use triton_llm::http::service::actions::HttpAction;
 
 fn main() -> Result<()> {
     logging::init();
