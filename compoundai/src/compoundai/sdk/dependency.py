@@ -38,6 +38,7 @@ class NovaClient:
                                 .endpoint(name)\
                                 .client()
                             
+                            # TODO: Potentially model dump for a user here so they can pass around Pydantic models
                             stream = await client.generate(*args, **kwargs)
                             
                             async for item in stream:

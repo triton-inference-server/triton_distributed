@@ -23,7 +23,13 @@ Users/Clients (HTTP)
 │  Backend    │
 └─────────────┘
 """
+from pydantic import BaseModel
 
+class RequestType(BaseModel):
+    text: str
+
+class ResponseType(BaseModel):
+    text: str
 
 @service(
     resources={"cpu": "2"},
@@ -38,9 +44,9 @@ class Backend:
         print("Starting backend")
 
     @nova_endpoint()
-    async def generate(self, text: RequestType) -> ResponseType:
+    async def generate(self, text: RequestType):
         """Generate tokens."""
-        text = f"{text}-back"
+        text = f"{text.text}-back"
         print(f"Backend received: {text}")
         for token in text.split():
             yield f"Backend: {token}"
@@ -61,11 +67,12 @@ class Middle:
         print("Starting middle")
 
     @nova_endpoint()
-    async def generate(self, text: str):
+    async def generate(self, text: RequestType):
         """Forward requests to backend."""
-        text = f"{text}-mid"
+        text = f"{text.text}-mid"
         print(f"Middle received: {text}")
-        async for response in self.backend.generate(text):
+        txt = RequestType(text=text)
+        async for response in self.backend.generate(txt.model_dump_json()):
             print(f"Middle received response: {response}")
             yield f"Middle: {response}"
 
@@ -81,8 +88,11 @@ class Frontend:
         print("Starting frontend")
 
     @api
-    async def generate(self, text: str):
+    async def generate(self, text):
         """Stream results from the pipeline."""
         print(f"Frontend received: {text}")
-        async for response in self.middle.generate(text):
+        print(f"Frontend received type: {type(text)}")
+        txt = RequestType(text=text)
+        print(f"Frontend sending: {type(txt)}")
+        async for response in self.middle.generate(txt.model_dump_json()):
             yield f"Frontend: {response}" 
