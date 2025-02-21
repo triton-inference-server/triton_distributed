@@ -2,4 +2,5 @@ from compoundai.sdk.decorators import nova_endpoint, api
 from compoundai.sdk.service import service
 from compoundai.sdk.dependency import depends
 from bentoml import api
+from bentoml._internal.context import server_context
 
