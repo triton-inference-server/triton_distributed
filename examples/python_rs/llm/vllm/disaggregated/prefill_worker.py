@@ -81,7 +81,8 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
                 if task is not None:
                     prefill_request = PrefillRequest.model_validate_json(task)
                     vllm_logger.debug(f"Prefill request: {prefill_request}")
-                    await prefill_engine.generate(prefill_request)
+                    async for _ in prefill_engine.generate(prefill_request):
+                        pass
 
 
 if __name__ == "__main__":
