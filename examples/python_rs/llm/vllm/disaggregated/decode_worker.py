@@ -15,6 +15,7 @@
 
 
 import asyncio
+import os
 import socket
 import uuid
 
@@ -27,8 +28,6 @@ from triton_distributed_rs import DistributedRuntime, triton_worker
 from triton_distributed_rs.prefill_queue import PrefillQueue
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
-
-prefill_queue = PrefillQueue()
 
 
 class VllmDecodeEngine(BaseVllmEngine):
@@ -49,6 +48,7 @@ class VllmDecodeEngine(BaseVllmEngine):
 
         self.kv_transfer_config = engine_args.create_engine_config().kv_transfer_config
         self.kv_rank = self.kv_transfer_config.kv_rank
+        self.nats_server = os.getenv("NATS_SERVER", "nats://localhost:4222")
 
     async def generate(self, raw_request):
         if self.engine_client is None:
@@ -76,7 +76,8 @@ class VllmDecodeEngine(BaseVllmEngine):
         )
         vllm_logger.debug(f"Prefill request: {prefill_request}")
 
-        prefill_queue.enqueue_task(prefill_request.model_dump_json())
+        async with PrefillQueue.get_instance(nats_server=self.nats_server) as queue:
+            queue.enqueue_task(prefill_request.model_dump_json())
 
         vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
