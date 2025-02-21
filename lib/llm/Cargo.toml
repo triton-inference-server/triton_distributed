@@ -15,8 +15,8 @@
 
 [workspace]
 members = [
-    ".",
-    "bindings/c++",
+    "bindings/c",
+    "bindings/python/rust",
 ]
 
 [workspace.package]

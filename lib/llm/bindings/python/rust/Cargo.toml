@@ -14,7 +14,7 @@
 # limitations under the License.
 
 [package]
-name = "triton-distributed-runtime-py"
+name = "triton-distributed-llm-py"
 version = "0.2.0"
 edition = "2021"
 authors = ["NVIDIA"]
@@ -24,15 +24,15 @@ repository = "https://github.com/triton-inference-server/triton_distributed"
 
 [lib]
 path = "src/lib.rs"
-name = "_runtime"
+name = "_core"
 # "cdylib" is necessary to produce a shared library for Python to import from.
-# "rlib" is necessary to produce a crate for use in another rust library.
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 
 [dependencies]
-#triton-llm = { path = "../llm/rust/triton-llm" }
-triton-distributed-runtime = { path = "../../../../runtime" }
+triton-distributed-llm = { path = "../../../../llm" }
+#triton-distributed-runtime = { path = "../../../../runtime" }
+triton-distributed-runtime-py = { path = "../../../../runtime/bindings/python/rust" }
 
 futures = "0.3"
 once_cell = "1.20.3"

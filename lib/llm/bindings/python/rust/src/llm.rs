@@ -13,19 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
-use std::path::Path;
+use super::*;
 
-fn main() {
-    let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-
-    let header_path = Path::new(&crate_dir)
-        .join("include")
-        .join("nvidia")
-        .join("triton_llm")
-        .join("llm_engine.h");
-
-    cbindgen::generate(crate_dir)
-        .expect("Unable to generate bindings")
-        .write_to_file(header_path);
-}
+pub mod kv;

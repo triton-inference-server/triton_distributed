@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use tracing as log;
 
 use triton_distributed_runtime::{DistributedRuntime, Worker};
-use triton_llm::kv_router::{
+use triton_distributed_llm::kv_router::{
     indexer::compute_block_hash_for_seq, protocols::*, publisher::KvPublisher,
 };
 static WK: OnceCell<Worker> = OnceCell::new();

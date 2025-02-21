@@ -47,7 +47,7 @@ const DEFAULT_ANNOTATED_SETTING: Option<bool> = Some(true);
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _runtime(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Sets up RUST_LOG environment variable for logging through the python-wheel
     // Example: RUST_LOG=debug python3 -m ...
@@ -83,9 +83,9 @@ where
 
 #[pyclass]
 #[derive(Clone)]
-struct DistributedRuntime {
-    inner: rs::DistributedRuntime,
-    event_loop: PyObject,
+pub struct DistributedRuntime {
+    pub inner: rs::DistributedRuntime,
+    pub event_loop: PyObject,
 }
 
 #[pyclass]
@@ -103,9 +103,9 @@ struct Namespace {
 
 #[pyclass]
 #[derive(Clone)]
-struct Component {
-    inner: rs::component::Component,
-    event_loop: PyObject,
+pub struct Component {
+    pub inner: rs::component::Component,
+    pub event_loop: PyObject,
 }
 
 #[pyclass]
