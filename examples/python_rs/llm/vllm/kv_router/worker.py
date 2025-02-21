@@ -22,22 +22,58 @@ import uvloop
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
 from common.protocol import MyRequestOutput, vLLMGenerateRequest
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+from triton_distributed_rs import (
+    DistributedRuntime,
+    KvRouter,
+    KvMetricsPublisher,
+    triton_endpoint,
+    triton_worker,
+)
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 from vllm.sampling_params import RequestOutputKind
+from vllm.engine.metrics_types import Stats, StatLoggerBase, SupportsMetricsInfo
 
 vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
+class KvStatLogger(StatLoggerBase):
+    def __init__(self, vllm_scheduler: vllm.core.scheduler.Scheduler, metrics_publisher: KvMetricsPublisher):
+        # Must query initialized scheduler for max infos
+        self.request_total_slots = vllm_scheduler.scheduler_config.max_num_seqs
+        self.kv_total_blocks = vllm_scheduler.block_manager.num_total_gpu_blocks
+
+        # KV metrics
+        self.metrics_publisher = metrics_publisher
+        self.metrics_publisher.publish(
+            0,
+            self.request_total_slots,
+            0,
+            self.kv_total_blocks,
+        )
+
+
+    def log(self, stats: Stats) -> None:
+        self.metrics_publisher.publish(
+            stats.num_running_sys,
+            self.request_total_slots,
+            int(stats.gpu_cache_usage_sys * self.kv_total_blocks),
+            self.kv_total_blocks,
+        )
+
+    def info(self, type: str, obj: SupportsMetricsInfo) -> None:
+        pass
 
 class VllmEngine(BaseVllmEngine):
     """
     vLLM Inference Engine
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs):
+    def __init__(self, engine_args: AsyncEngineArgs, metrics_publisher: KvMetricsPublisher):
         self.engine_args = engine_args
         super().__init__(engine_args)
+        # Attach logger for continuous metrics publishing
+        self.stat_logger = KvStatLogger(self.engine_client.engine.scheduler[0], metrics_publisher)
+        self.engine_client.add_logger("kv_metrics", self.stat_logger)
 
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
     async def generate(self, request) -> AsyncIterator:
@@ -69,8 +105,9 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     """
     Serve the triton-init.vllm.generate endpoint.
     """
+    metrics_publisher = KvMetricsPublisher()
     worker_component = runtime.namespace("triton-init").component("vllm")
-    await worker_component.create_service()
+    await metrics_publisher.create_service(worker_component)
 
     worker_endpoint = worker_component.endpoint("generate")
 
@@ -78,13 +115,13 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
     vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
 
-    VLLM_KV_NAMESPACE = "router"
+    VLLM_KV_NAMESPACE = "triton-init"
     os.environ["VLLM_KV_NAMESPACE"] = str(VLLM_KV_NAMESPACE)
 
-    VLLM_KV_COMPONENT = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+    VLLM_KV_COMPONENT = "vllm"
     os.environ["VLLM_KV_COMPONENT"] = str(VLLM_KV_COMPONENT)
 
-    vllm_engine = VllmEngine(engine_args)
+    vllm_engine = VllmEngine(engine_args, metrics_publisher)
     await vllm_engine.initialize()
 
     await worker_endpoint.serve_endpoint(vllm_engine.generate)
