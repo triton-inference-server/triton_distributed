@@ -16,7 +16,6 @@
 use serde::{Deserialize, Serialize};
 use std::borrow::BorrowMut;
 use std::cmp::min;
-use tracing as log;
 
 use uuid::Uuid;
 
@@ -30,17 +29,11 @@ pub enum KvSchedulerError {
     #[error("no endpoints aviailable to route work")]
     NoEndpoints,
 
-    #[error("endpoints existed, but no valid routes were found")]
-    NoRoutes,
-
     #[error("all workers busy")]
     AllWorkersBusy,
 
     #[error("endpoint subscriber shutdown")]
     SubscriberShutdown,
-
-    #[error("scheduler offline")]
-    SchedulerOffline,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,7 +75,7 @@ pub struct SchedulingRequest {
 impl SchedulingRequest {
     pub fn respond(self, worker_id: String) {
         if self.resp_tx.send(worker_id).is_err() {
-            log::trace!("failed to send response to requestor");
+            tracing::trace!("failed to send response to requestor");
         }
     }
 }
@@ -97,7 +90,7 @@ impl KvScheduler {
     ) -> Result<Self, KvSchedulerError> {
         let mut endpoints_rx = endpoints_rx;
 
-        log::trace!("awaiting the start of the background endpoint subscriber");
+        tracing::trace!("awaiting the start of the background endpoint subscriber");
         let mut endpoints = match endpoints_rx.recv().await {
             Some(endpoints) => endpoints,
             None => {
@@ -107,12 +100,12 @@ impl KvScheduler {
 
         // Channel to accept new scheduling requests
         let (request_tx, request_rx) = tokio::sync::mpsc::channel::<SchedulingRequest>(16);
-        log::debug!("scheduler starting");
+        tracing::debug!("scheduler starting");
         // Background task to handle scheduling requests
         tokio::spawn(async move {
             let mut request: SchedulingRequest;
             let mut request_rx = request_rx;
-            log::debug!("scheduler background task started");
+            tracing::debug!("scheduler background task started");
 
             'outer: loop {
                 request = tokio::select! {
@@ -121,11 +114,11 @@ impl KvScheduler {
                     new_request = request_rx.recv() => {
                         match new_request {
                             Some(new_request) => {
-                                log::trace!("received request to be scheduled");
+                                tracing::trace!("received request to be scheduled");
                                 new_request
                             },
                             None => {
-                                log::trace!("scheduler shutdown");
+                                tracing::trace!("scheduler shutdown");
                                 break 'outer;
                             }
                         }
@@ -134,18 +127,18 @@ impl KvScheduler {
                     new_endpoints = endpoints_rx.recv() => {
                         match new_endpoints {
                             Some(new_endpoints) => {
-                                log::trace!("updated endpoints");
+                                tracing::trace!("updated endpoints");
                                 endpoints = new_endpoints;
                                 continue 'outer;
                             }
                             None => {
-                                log::trace!("endpoint subscriber shutdown");
+                                tracing::trace!("endpoint subscriber shutdown");
                                 break 'outer;
                             }
                         }
                     }
                 };
-                log::debug!("selected");
+                tracing::debug!("selected");
                 loop {
                     match select_worker(endpoints.borrow_mut(), &request) {
                         Ok(worker_id) => {
@@ -153,24 +146,24 @@ impl KvScheduler {
                             continue 'outer;
                         }
                         Err(KvSchedulerError::AllWorkersBusy) => {
-                            log::trace!("all workers busy; waiting for more capacity");
+                            tracing::trace!("all workers busy; waiting for more capacity");
                             endpoints = match endpoints_rx.recv().await {
                                 Some(endpoints) => endpoints,
                                 None => {
-                                    log::trace!("endpoint subscriber shutdown");
+                                    tracing::trace!("endpoint subscriber shutdown");
                                     break 'outer;
                                 }
                             };
                         }
                         Err(e) => {
-                            log::error!("error scheduling request: {:?}", e);
+                            tracing::error!("error scheduling request: {:?}", e);
                             break 'outer;
                         }
                     }
                 }
             }
 
-            log::trace!("background endpoint subscriber shutting down");
+            tracing::trace!("background endpoint subscriber shutting down");
         });
 
         Ok(KvScheduler { request_tx })
@@ -188,17 +181,17 @@ impl KvScheduler {
             overlap,
             resp_tx,
         };
-        log::debug!("before sending request");
+        tracing::debug!("before sending request");
         self.request_tx
             .send(request)
             .await
             .map_err(|_| KvSchedulerError::SubscriberShutdown)?;
-        log::debug!("after sending request");
+        tracing::debug!("after sending request");
 
         let res = resp_rx
             .await
             .map_err(|_| KvSchedulerError::SubscriberShutdown)?;
-        log::debug!("after receiving response");
+        tracing::debug!("after receiving response");
         Ok(res)
     }
 }
@@ -249,7 +242,7 @@ pub fn select_worker(
             + (1.0 - alpha) * normalized_new_tokens
             + gamma * request_load_ratio;
 
-        log::debug!("worker: {}; load_deviation: {}; normalized new blocks: {}; request_load_ratio: {} cost: {}",
+        tracing::debug!("worker: {}; load_deviation: {}; normalized new blocks: {}; request_load_ratio: {} cost: {}",
                 worker_id,
                 load_deviation,
                 normalized_new_tokens,
@@ -272,7 +265,7 @@ pub fn select_worker(
 
     match best_index {
         Some(i) => {
-            log::info!(
+            tracing::info!(
                 "selected worker: {}; cost: {}",
                 workers.endpoints[i].subject,
                 best_cost
@@ -280,7 +273,7 @@ pub fn select_worker(
             Ok(workers.endpoints[i].subject.clone())
         }
         None => {
-            log::debug!("all workers busy");
+            tracing::debug!("all workers busy");
             Err(KvSchedulerError::AllWorkersBusy)
         }
     }

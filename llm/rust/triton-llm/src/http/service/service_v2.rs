@@ -25,6 +25,7 @@ pub struct HttpService {
     models: ModelManager,
     router: axum::Router,
     port: u16,
+    host: String,
 }
 
 #[derive(Clone, Builder)]
@@ -32,6 +33,9 @@ pub struct HttpService {
 pub struct HttpServiceConfig {
     #[builder(default = "8787")]
     port: u16,
+
+    #[builder(setter(into), default = "String::from(\"0.0.0.0\")")]
+    host: String,
 
     // #[builder(default)]
     // custom: Vec<axum::Router>
@@ -57,7 +61,7 @@ impl HttpService {
     }
 
     pub async fn run(&self, cancel_token: CancellationToken) -> Result<()> {
-        let address = format!("0.0.0.0:{}", self.port);
+        let address = format!("{}:{}", self.host, self.port);
         tracing::info!(address, "Starting HTTP service on: {address}");
 
         let listener = tokio::net::TcpListener::bind(address.as_str())
@@ -122,6 +126,7 @@ impl HttpServiceConfigBuilder {
             models: model_manager,
             router,
             port: config.port,
+            host: config.host,
         })
     }
 }

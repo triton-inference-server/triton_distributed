@@ -15,7 +15,7 @@
 
 
 import asyncio
-import random
+import socket
 import uuid
 
 import msgspec
@@ -37,23 +37,26 @@ class VllmDecodeEngine(BaseVllmEngine):
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs):
+    def __init__(self, engine_args: AsyncEngineArgs, prefill):
         assert (
             engine_args.kv_transfer_config.is_kv_consumer
         ), "Decode worker must be a KV consumer"
+        if engine_args.enable_chunked_prefill is not False:
+            vllm_logger.info(
+                "Chunked prefill is not supported in disaggregated mode, disabling it"
+            )
+            engine_args.enable_chunked_prefill = False
         super().__init__(engine_args)
-        self.prefills: list = []
+        self.prefill = prefill
 
-        self.num_prefill_workers = (
-            self.engine.engine.vllm_config.kv_transfer_config.kv_producers_parallel_size
-        )
-        self.kv_rank = self.engine.engine.vllm_config.kv_transfer_config.kv_rank
-
-    def add_prefill(self, prefill):
-        self.prefills.append(prefill)
+        self.kv_transfer_config = engine_args.create_engine_config().kv_transfer_config
+        self.kv_rank = self.kv_transfer_config.kv_rank
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):
+        if self.engine_client is None:
+            await self.initialize()
+
         vllm_logger.debug(f"Got raw request: {raw_request}")
         (
             request,
@@ -62,31 +65,40 @@ class VllmDecodeEngine(BaseVllmEngine):
             engine_prompt,
             sampling_params,
         ) = await self._parse_raw_request(raw_request)
-        prefill_rank = random.choice(range(self.num_prefill_workers))
-        request_id = f"{uuid.uuid4()}___prefill_kv_rank_{prefill_rank}___decode_kv_rank_{self.kv_rank}"
+
+        # TODO: pass decode info through a separate request param
+        request_id = f"{uuid.uuid4()}___decode_hostname_{socket.gethostname()}___decode_kv_rank_{self.kv_rank}"
 
         prefill_sampling_params = {**msgspec.to_builtins(sampling_params)}
         prefill_sampling_params["max_tokens"] = 1
+        prefill_sampling_params["min_tokens"] = 1
         prefill_request = PrefillRequest(
             prompt=request_prompt,  # TODO: we should use engine prompt to avoid extra tokenization
             sampling_params=prefill_sampling_params,
             request_id=request_id,
         )
         vllm_logger.debug(f"Prefill request: {prefill_request}")
-        self.prefills[prefill_rank].generate(
+        prefill_output = self.prefill.generate(
             prefill_request.model_dump_json(),
         )
 
         vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
         )
-        generator = self.engine.generate(engine_prompt, sampling_params, request_id)
+        if self.engine_client is None:
+            raise RuntimeError("Engine client not initialized")
+        else:
+            generator = self.engine_client.generate(
+                engine_prompt, sampling_params, request_id
+            )
 
         async for response in await self._stream_response(
             request, generator, request_id, conversation
         ):
             vllm_logger.debug(f"Generated response: {response}")
             yield response
+
+        await prefill_output
 
 
 @triton_worker()
@@ -98,18 +110,15 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
 
-    decode_engine = VllmDecodeEngine(engine_args)
-    for i in range(decode_engine.num_prefill_workers):
-        prefill = (
-            await runtime.namespace("triton-init")
-            .component("prefill")
-            .endpoint(f"generate_kv_rank_{i}")
-            .client()
-        )
-        decode_engine.add_prefill(prefill)
-
-    endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(decode_engine.generate)
+    prefill = (
+        await runtime.namespace("triton-init")
+        .component("prefill")
+        .endpoint("generate")
+        .client()
+    )
+    async with VllmDecodeEngine(engine_args, prefill) as decode_engine:
+        endpoint = component.endpoint("generate")
+        await endpoint.serve_endpoint(decode_engine.generate)
 
 
 if __name__ == "__main__":

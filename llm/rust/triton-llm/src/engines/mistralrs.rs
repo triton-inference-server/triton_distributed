@@ -22,8 +22,8 @@ use indexmap::IndexMap;
 use mistralrs::{
     Constraint, DefaultSchedulerMethod, Device, DeviceMapMetadata, DeviceMapSetting,
     GGUFLoaderBuilder, GGUFSpecificConfig, MemoryGpuConfig, MistralRs, MistralRsBuilder,
-    ModelDType, NormalRequest, PagedAttentionConfig, Pipeline, Request, RequestMessage, ResponseOk,
-    SamplingParams, SchedulerConfig, TokenSource,
+    ModelDType, NormalLoaderBuilder, NormalRequest, NormalSpecificConfig, PagedAttentionConfig,
+    Pipeline, Request, RequestMessage, ResponseOk, SamplingParams, SchedulerConfig, TokenSource,
 };
 use tokio::sync::mpsc::channel;
 
@@ -68,28 +68,45 @@ struct MistralRsEngine {
 
 impl MistralRsEngine {
     async fn new(model_path: &Path) -> pipeline_error::Result<Self> {
-        let Some(model_filename) = model_path.file_name() else {
-            pipeline_error::bail!("Missing filename in model path");
-        };
-        let Some(model_dir) = model_path.parent() else {
-            pipeline_error::bail!("Invalid model path");
-        };
+        let loader = if model_path.is_file() {
+            // Load from a GGUF
+            let Some(model_filename) = model_path.file_name() else {
+                pipeline_error::bail!("Missing filename in model path");
+            };
+            let Some(model_dir) = model_path.parent() else {
+                pipeline_error::bail!("Invalid model path");
+            };
 
-        // Select a Mistral model
-        // We do not use any files from HF servers here, and instead load the
-        // chat template from the specified file, and the tokenizer and model from a
-        // local GGUF file at the path `.`
-        let loader = GGUFLoaderBuilder::new(
-            None,
-            None,
-            model_dir.display().to_string(),
-            vec![model_filename.to_string_lossy().into_owned()],
-            GGUFSpecificConfig {
-                prompt_chunksize: None,
-                topology: None,
-            },
-        )
-        .build();
+            GGUFLoaderBuilder::new(
+                None,
+                None,
+                model_dir.display().to_string(),
+                vec![model_filename.to_string_lossy().into_owned()],
+                GGUFSpecificConfig {
+                    prompt_chunksize: None,
+                    topology: None,
+                },
+            )
+            .build()
+        } else {
+            // Load from a HF repo dir
+            NormalLoaderBuilder::new(
+                NormalSpecificConfig {
+                    use_flash_attn: false,
+                    prompt_chunksize: None,
+                    topology: None,
+                    organization: Default::default(),
+                    write_uqff: None,
+                    from_uqff: None,
+                    imatrix: None,
+                    calibration_file: None,
+                },
+                None,
+                None,
+                Some(model_path.display().to_string()),
+            )
+            .build(None)?
+        };
 
         // Paged attention requires cuda
         let paged_attention_config = if cfg!(feature = "cuda") {

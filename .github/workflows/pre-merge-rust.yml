@@ -54,6 +54,14 @@ jobs:
       with:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-tools-${{ github.head_ref || github.ref_name }}-${{ hashFiles('**/Cargo.lock') }}
+    - name: Install Rust in dev environment
+      # Install Rust only to run GitHub Local Actions in (dev environment) using the `ACT` environment variable.
+      # See act usage: https://nektosact.com/introduction.html
+      # https://nektosact.com/usage/index.html?highlight=env.Act#skipping-steps
+      if: ${{ env.ACT }}
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
     - name: Set up Rust Toolchain Components
       run: rustup component add rustfmt clippy
     - name: Run Cargo Check on runtime
