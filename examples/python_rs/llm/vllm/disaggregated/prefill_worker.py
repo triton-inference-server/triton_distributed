@@ -72,17 +72,15 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("prefill")
     await component.create_service()
 
-    prefill_engine = VllmPrefillEngine(engine_args)
-    await prefill_engine
-
-    nats_server = os.getenv("NATS_SERVER", "nats://localhost:4222")
-    # infinite loop to fetch prefill request from prefill queue
-    async with PrefillQueue.get_instance(nats_server=nats_server) as queue:
-        while True:
-            if task := queue.dequeue_task() is not None:
-                prefill_request = PrefillRequest.model_validate_json(task)
-                vllm_logger.debug(f"Prefill request: {prefill_request}")
-                await prefill_engine.generate(prefill_request)
+    async with VllmPrefillEngine(engine_args) as prefill_engine:
+        nats_server = os.getenv("NATS_SERVER", "nats://localhost:4222")
+        # infinite loop to fetch prefill request from prefill queue
+        async with PrefillQueue.get_instance(nats_server=nats_server) as queue:
+            while True:
+                if task := queue.dequeue_task() is not None:
+                    prefill_request = PrefillRequest.model_validate_json(task)
+                    vllm_logger.debug(f"Prefill request: {prefill_request}")
+                    await prefill_engine.generate(prefill_request)
 
 
 if __name__ == "__main__":
