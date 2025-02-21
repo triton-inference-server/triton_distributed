@@ -95,9 +95,11 @@ RUN cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
 # Tell vllm to use the Triton LLM C API for KV Cache Routing
 ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
 
-# FIXME: Determine if this is needed, and with a triton-distributed banner
-# ENTRYPOINT ["/opt/nvidia/nvidia_entrypoint.sh"]
-ENTRYPOINT ["/bin/bash"]
+# FIXME: Copy more specific folders in for dev/debug after directory restructure
+COPY . /workspace
+
+# FIXME: May want a modification with triton-distributed banner on entry
+ENTRYPOINT ["/opt/nvidia/nvidia_entrypoint.sh"]
 
 CMD []
 
@@ -125,9 +127,13 @@ RUN uv python install 3.12
 COPY --from=dev /opt/vllm /opt/vllm
 COPY --from=dev /opt/triton/venv /opt/triton/venv
 
-# FIXME: Use a more consolidated path after directory restructure
-# Copy minimal set of files for deployment/testing
+# Copy minimal set of files for testing. May consider separate stage for testing
+# if test dependencies start to negatively impact deployment environment/size.
 COPY pyproject.toml /workspace/pyproject.toml
+COPY container/deps/vllm /workspace/container/deps/vllm
+COPY python-wheel/python /workspace/python-wheel/python
+# Copy minimal set of files for deployment/examples
+# FIXME: Use a more consolidated path after directory restructure
 COPY examples/python_rs/llm/vllm /workspace/examples/python_rs/llm/vllm
 
 # Set environment variables
