@@ -231,4 +231,5 @@ def test_add_multiply_divide(
     p = Process(target=run, args=(2, store_inputs_in_request))
     p.start()
     p.join()
+    assert False
     assert p.exitcode == 0
