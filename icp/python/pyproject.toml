@@ -18,8 +18,23 @@ requires = ["setuptools>=65.0", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "triton_distributed.icp"
+name = "triton-distributed-icp"
 dynamic = ["version"]
+authors = [
+    { name = "NVIDIA Inc.", email = "sw-dl-triton@nvidia.com" },
+]
+license = { text = "Apache-2.0" }
+
+# Minimum dependencies to import triton_distributed.icp
+# TODO: Expand this list to include all dependencies and remove duplicates from container/deps.
+dependencies = [
+    "cupy-cuda12x",
+    "nats-py",
+    "msgspec",
+    "ucx-py-cu12",
+    "protobuf==5.27.3",
+    "grpcio-tools==1.66.0",
+]
 
 [tool.setuptools_scm]
 version_file = "src/triton_distributed/icp/_version.py"
@@ -28,4 +43,7 @@ root = "../.."
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["triton_distributed.icp*"]
-namespaces= true
+namespaces = true
+
+[tool.setuptools]
+license-files = ["../../LICENSE"]
