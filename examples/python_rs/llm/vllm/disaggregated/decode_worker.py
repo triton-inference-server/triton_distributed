@@ -24,9 +24,13 @@ import uvloop
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
 from common.protocol import PrefillRequest
-from triton_distributed_rs import DistributedRuntime, triton_worker
+from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from triton_distributed_rs.prefill_queue import PrefillQueue
 from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.entrypoints.openai.protocol import (
+    ChatCompletionRequest,
+    ChatCompletionStreamResponse,
+)
 from vllm.logger import logger as vllm_logger
 
 
@@ -50,6 +54,7 @@ class VllmDecodeEngine(BaseVllmEngine):
         self.kv_rank = self.kv_transfer_config.kv_rank
         self.nats_server = os.getenv("NATS_SERVER", "nats://localhost:4222")
 
+    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):
         if self.engine_client is None:
             await self.initialize()
