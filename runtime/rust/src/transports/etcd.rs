@@ -366,7 +366,7 @@ fn default_servers() -> Vec<String> {
     }
 }
 
-// #[cfg(feature = "integration")]
+#[cfg(feature = "integration")]
 #[cfg(test)]
 mod tests {
     use crate::{distributed::DistributedConfig, DistributedRuntime};
