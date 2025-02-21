@@ -13,15 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Triton LLM
-//!
-//! The `triton-llm` crate is a Rust library that provides a set of traits and types for building
-//! distributed LLM inference solutions.
-
-pub mod engines;
-pub mod http;
-pub mod kv_router;
-pub mod protocols;
-pub mod types;
-pub mod model_card;
-pub mod common;
+/// A trait allowing to get/set a revision on an object.
+/// NATS uses this to ensure atomic updates.
+pub trait Versioned {
+    fn revision(&self) -> u64;
+    fn set_revision(&mut self, r: u64);
+}

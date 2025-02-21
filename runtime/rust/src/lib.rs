@@ -38,11 +38,11 @@ pub mod protocols;
 pub mod runnable;
 pub mod runtime;
 pub mod service;
+pub mod slug;
 pub mod transports;
 pub mod worker;
 
 pub mod distributed;
-
 pub use futures::stream;
 pub use tokio_util::sync::CancellationToken;
 pub use worker::Worker;
