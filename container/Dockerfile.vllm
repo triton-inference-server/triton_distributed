@@ -115,6 +115,12 @@ RUN apt update -y && \
     apt install -y curl tmux vim && \
     echo "set -g mouse on" >> /root/.tmux.conf
 
+# Set environment variables
+ENV VIRTUAL_ENV=/opt/triton/venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
+ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
+
 # Copy binaries
 COPY --from=dev /usr/local/bin/http /usr/local/bin/http
 COPY --from=dev /usr/local/bin/llmctl /usr/local/bin/llmctl
@@ -125,7 +131,7 @@ COPY --from=dev /bin/uvx /usr/local/bin/uvx
 # Copy venv with installed packages
 RUN uv python install 3.12
 COPY --from=dev /opt/vllm /opt/vllm
-COPY --from=dev /opt/triton/venv /opt/triton/venv
+COPY --from=dev ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
 # Copy minimal set of files for testing. May consider separate stage for testing
 # if test dependencies start to negatively impact deployment environment/size.
@@ -133,17 +139,10 @@ COPY pyproject.toml /workspace/pyproject.toml
 COPY container/deps/vllm /workspace/container/deps/vllm
 COPY python-wheel/python /workspace/python-wheel/python
 # Add library for KV routing
-COPY --from=dev /opt/triton/llm_binding/lib/libtriton_llm_capi.so /opt/triton/llm_binding/lib/libtriton_llm_capi.so
+COPY --from=dev ${VLLM_KV_CAPI_PATH} ${VLLM_KV_CAPI_PATH}
 # Copy minimal set of files for deployment/examples
 # FIXME: Use a more consolidated path after directory restructure
 COPY examples/python_rs/llm/vllm /workspace/examples/python_rs/llm/vllm
-
-# Set environment variables
-ENV VIRTUAL_ENV=/opt/triton/venv
-ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
-ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
-# FIXME: Copy over minimal files and .so for kv routing
-ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
 
 WORKDIR /workspace
 
