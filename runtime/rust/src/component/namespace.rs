@@ -17,10 +17,10 @@ use async_trait::async_trait;
 
 use super::*;
 
-use crate::icp::events::EventPlane;
+use crate::traits::events::EventPublisher;
 
 #[async_trait]
-impl EventPlane for Namespace {
+impl EventPublisher for Namespace {
     fn subject(&self) -> String {
         format!("namespace.{}", self.name)
     }

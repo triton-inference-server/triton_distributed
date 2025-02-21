@@ -26,9 +26,8 @@
 use serde::{Deserialize, Serialize};
 
 use triton_distributed::{
-    error,
-    icp::events::EventPlane,
-    logging,
+    error, logging,
+    traits::events::EventPublisher,
     utils::{Duration, Instant},
     DistributedRuntime, ErrorContext, Result, Runtime, Worker,
 };

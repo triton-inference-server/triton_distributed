@@ -28,7 +28,7 @@ use crate::Result;
 ///
 /// Each implementation of [EventPlane] will define the root subject.
 #[async_trait]
-pub trait EventPlane {
+pub trait EventPublisher {
     /// The base subject used for this implementation of the [EventPlane].
     fn subject(&self) -> String;
 

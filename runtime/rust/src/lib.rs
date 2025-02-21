@@ -32,7 +32,6 @@ pub use config::RuntimeConfig;
 pub mod component;
 pub mod discovery;
 pub mod engine;
-pub mod icp;
 pub mod logging;
 pub mod pipeline;
 pub mod protocols;
@@ -40,6 +39,7 @@ pub mod runnable;
 pub mod runtime;
 pub mod service;
 pub mod slug;
+pub mod traits;
 pub mod transports;
 pub mod utils;
 pub mod worker;
@@ -83,24 +83,4 @@ pub struct DistributedRuntime {
     // a single endpoint watcher for both clients, this keeps the number background tasking watching specific
     // paths in etcd to a minimum.
     component_registry: component::Registry,
-}
-
-pub mod traits {
-    use super::*;
-
-    /// A trait for objects taht proivde access to the [Runtime]
-    pub trait RuntimeProvider {
-        fn rt(&self) -> &Runtime;
-    }
-
-    /// A trait for objects that provide access to the [DistributedRuntime].
-    pub trait DistributedRuntimeProvider {
-        fn drt(&self) -> &DistributedRuntime;
-    }
-
-    impl RuntimeProvider for DistributedRuntime {
-        fn rt(&self) -> &Runtime {
-            &self.runtime
-        }
-    }
 }

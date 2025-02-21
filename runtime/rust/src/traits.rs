@@ -14,3 +14,20 @@
 // limitations under the License.
 
 pub mod events;
+
+use super::{DistributedRuntime, Runtime};
+/// A trait for objects taht proivde access to the [Runtime]
+pub trait RuntimeProvider {
+    fn rt(&self) -> &Runtime;
+}
+
+/// A trait for objects that provide access to the [DistributedRuntime].
+pub trait DistributedRuntimeProvider {
+    fn drt(&self) -> &DistributedRuntime;
+}
+
+impl RuntimeProvider for DistributedRuntime {
+    fn rt(&self) -> &Runtime {
+        &self.runtime
+    }
+}
