@@ -26,4 +26,4 @@ macro_rules! define_model_types {
 define_model_types!(
     (Chat, "chat"),
     (Completion, "completion"),
-); 
+);

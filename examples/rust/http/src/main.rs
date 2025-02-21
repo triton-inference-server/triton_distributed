@@ -58,17 +58,17 @@ async fn app(runtime: Runtime) -> Result<()> {
         .host(args.host)
         .build()?;
     let manager = http_service.model_manager().clone();
-    
+
     let component = distributed.namespace(&args.namespace)?.component(&args.component)?;
     let etcd_root = component.etcd_path();
 
     // Create watchers for all model types
     let mut watcher_tasks = Vec::new();
-    
+
     for model_type in ModelType::all() {
         let etcd_path = format!("{}/models/{}/", etcd_root, model_type.as_str());
         let etcd_path_pop = format!("{}/models/", etcd_root);
-        
+
         let state = Arc::new(ModelWatchState {
             prefix_to_name: etcd_path.clone(),
             prefix_to_type: etcd_path_pop.clone(),
