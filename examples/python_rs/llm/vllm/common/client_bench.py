@@ -45,10 +45,10 @@ async def worker(
         if delay > 0:
             await asyncio.sleep(delay)
         
-        start_time = asyncio.get_event_loop().time()
+        req_start_time = asyncio.get_event_loop().time()
         first_token_time = None
         token_times = []
-        last_token_time = start_time
+        last_token_time = req_start_time
 
         stream = await client.generate(
             Request(
@@ -64,7 +64,7 @@ async def worker(
         async for resp in stream:
             current_time = asyncio.get_event_loop().time()
             if first_token_time is None:
-                first_token_time = current_time - start_time
+                first_token_time = current_time - req_start_time
             else:
                 token_times.append(current_time - last_token_time)
             last_token_time = current_time
@@ -77,6 +77,7 @@ async def worker(
 
     # Create tasks with their respective delays
     tasks = []
+    start_time = asyncio.get_event_loop().time()  # Add global start time here
     for prompt, timestamp, max_tokens in zip(prompts, timestamps, max_tokens_list):
         tasks.append(process_prompt(prompt, timestamp, max_tokens))
 
@@ -87,10 +88,14 @@ async def worker(
     avg_first_token = sum(r["time_to_first_token"] for r in results) / len(results)
     avg_between_tokens = sum(r["avg_time_between_tokens"] for r in results) / len(results)
     
+    # Calculate total time from start to finish
+    total_time = asyncio.get_event_loop().time() - start_time
+    
     # Save results to JSON file
     results_data = {
         "average_time_to_first_token": avg_first_token,
         "average_time_between_tokens": avg_between_tokens,
+        "total_time": total_time,
         "gamma": gamma,
         "balance_threshold": balance_threshold
     }
@@ -101,6 +106,7 @@ async def worker(
 
     print(f"\nAverage time to first token: {avg_first_token:.3f} seconds")
     print(f"Average time between tokens: {avg_between_tokens:.3f} seconds")
+    print(f"Total time for all requests: {total_time:.3f} seconds")
 
 
 if __name__ == "__main__":
@@ -110,9 +116,9 @@ if __name__ == "__main__":
     
     max_count = 1000
     
-    with open('/workspace/datasets/mooncake_trace_synthesized_processed_10000samples.json', "r") as f:
+    with open('/workspace/examples/datasets/mooncake_trace_synthesized_processed_10000samples.json', "r") as f:
         prompts = json.load(f)
-    with open('/workspace/datasets/mooncake_trace_synthesized.jsonl', "r") as f:
+    with open('/workspace/examples/datasets/mooncake_trace_synthesized.jsonl', "r") as f:
         data = [json.loads(line) for line in f]
     prompts, data = prompts[:max_count], data[:max_count]
     
@@ -121,7 +127,7 @@ if __name__ == "__main__":
                     if float(d['input_length']) + float(d['output_length']) <= 16000]
     
     prompts = [prompts[i] for i in valid_indices]
-    timestamps = [float(data[i]['timestamp']) / 1000 for i in valid_indices]
+    timestamps = [float(data[i]['timestamp']) / 2000 for i in valid_indices]
     max_tokens_list = [int(data[i]['output_length']) for i in valid_indices] 
     
     # Normalize timestamps to start from 0
