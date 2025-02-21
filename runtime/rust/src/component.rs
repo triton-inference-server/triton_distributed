@@ -276,9 +276,9 @@ impl Namespace {
 }
 
 // Custom validator function
-fn validate_allowed_chars(input: &str) -> Result<(), ValidationError> {
-    // Define the allowed character set using a regex
-    let regex = regex::Regex::new(r"^[a-z0-9-_]+$").unwrap();
+pub(crate) fn validate_allowed_chars(input: &str) -> Result<(), ValidationError> {
+    // First character must be [a-z], remaining chars can be [a-z0-9-_]
+    let regex = regex::Regex::new(r"^[a-z][a-z0-9-_]*$").unwrap();
 
     if regex.is_match(input) {
         Ok(())

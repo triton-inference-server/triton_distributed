@@ -5285,6 +5285,7 @@ dependencies = [
  "axum 0.8.1",
  "bytes",
  "chrono",
+ "clap",
  "derive_builder",
  "either",
  "futures",

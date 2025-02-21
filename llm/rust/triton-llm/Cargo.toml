@@ -48,6 +48,9 @@ validator = { workspace = true }
 uuid = { workspace = true }
 xxhash-rust = { workspace = true }
 
+# actions
+clap = { version = "4.5", features = ["derive"] }
+
 # protocols
 chrono = { version = "0.4" }
 serde_json = { version = "1" }

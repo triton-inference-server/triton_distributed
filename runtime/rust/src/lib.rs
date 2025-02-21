@@ -29,6 +29,7 @@ use async_once_cell::OnceCell;
 mod config;
 pub use config::RuntimeConfig;
 
+pub mod actions;
 pub mod component;
 pub mod discovery;
 pub mod engine;

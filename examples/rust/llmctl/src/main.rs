@@ -20,7 +20,7 @@ use triton_distributed::{
     distributed::DistributedConfig, logging, protocols::Endpoint, raise, DistributedRuntime,
     Result, Runtime, Worker,
 };
-use triton_llm::http::service::discovery::ModelEntry;
+use triton_llm::http::service::discovery::{ModelEntry, ModelState};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -135,6 +135,7 @@ async fn handle_command(runtime: Runtime, namespace: String, command: Commands) 
                     let model = ModelEntry {
                         name: model_name.clone(),
                         endpoint,
+                        state: Some(ModelState::Ready),
                     };
 
                     // add model to etcd

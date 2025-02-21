@@ -31,6 +31,12 @@ use crate::protocols::openai::chat_completions::{
     ChatCompletionRequest, ChatCompletionResponseDelta,
 };
 
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum ModelState {
+    Ready,
+    Unavailable,
+}
+
 /// [ModelEntry] is a struct that contains the information for the HTTP service to discover models
 /// from the etcd cluster.
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -42,6 +48,16 @@ pub struct ModelEntry {
 
     /// Component of the endpoint.
     pub endpoint: protocols::Endpoint,
+
+    // TODO - deprecate default
+    // default is required now to support older versions of the model entry otherwise deserialization
+    // will fail. by release, remove the option on ModelState and make it required
+    #[serde(default = "default_model_state")]
+    pub state: Option<ModelState>,
+}
+
+fn default_model_state() -> Option<ModelState> {
+    Some(ModelState::Ready)
 }
 
 pub struct ModelWatchState {
@@ -120,11 +136,13 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<String
         );
     }
 
+    let (namespace, component, endpoint) = model_entry.endpoint.dissolve();
+
     let client = state
         .drt
-        .namespace(model_entry.endpoint.namespace)?
-        .component(model_entry.endpoint.component)?
-        .endpoint(model_entry.endpoint.name)
+        .namespace(namespace)?
+        .component(component)?
+        .endpoint(endpoint)
         .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
         .await?;
 

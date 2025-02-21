@@ -32,13 +32,25 @@ use bytes::Bytes;
 use derive_getters::Dissolve;
 use futures::stream::StreamExt;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::Duration;
 
-/// Action to be performed when a [Service] transitions to a new [ServiceState]
-#[async_trait]
-pub trait Action {
-    /// Execute a predefined action on a state transition
-    async fn perform(&self) -> Result<()>;
+/// Represents the state of a service and its available actions
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceState {
+    pub name: String,
+    pub status: ServiceStatus,
+    pub metadata: Option<serde_json::Value>,
+}
+
+/// Status values for service state
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ServiceStatus {
+    Starting,
+    Ready,
+    Unavailable,
+    Error,
 }
 
 pub struct ServiceClient {
