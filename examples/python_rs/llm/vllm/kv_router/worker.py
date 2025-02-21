@@ -74,13 +74,15 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
     worker_endpoint = worker_component.endpoint("generate")
 
-    # KV Publisher and Aggregator requires a UUID (str)
-    # KV Router requires a lease_id (int)
-    # This allows us to please both, until they are unified
-    # If VLLM_WORKER_ID is not set, KV Routing will fail
-    VLLM_WORKER_ID = uuid.UUID(int=worker_endpoint.lease_id())
+    VLLM_WORKER_ID = worker_endpoint.lease_id()
     os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
     vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
+
+    VLLM_KV_NAMESPACE = "router"
+    os.environ["VLLM_KV_NAMESPACE"] = str(VLLM_KV_NAMESPACE)
+
+    VLLM_KV_COMPONENT = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+    os.environ["VLLM_KV_COMPONENT"] = str(VLLM_KV_COMPONENT)
 
     vllm_engine = VllmEngine(engine_args)
     await vllm_engine.initialize()
