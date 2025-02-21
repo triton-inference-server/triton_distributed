@@ -20,7 +20,7 @@ Cargo.toml @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12
 /deploy/Kubernetes/ @whoisj @hutm @biswapanda
 
 # CI/CD
-/.github/ @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
+/.github/ @triton-inference-server/devops
 
 # Legal
 /LICENSE @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
@@ -29,6 +29,6 @@ Cargo.lock @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv @ryanolson @gra
 
 # Assign a role as a Code Owner to documentation updates:
 [Documentation]
-*.md @@admin
-**/*.md @@admin
-CODEOWNERS @@admin
+*.md @triton-inference-server/devops
+**/*.md @triton-inference-server/devops
+CODEOWNERS @triton-inference-server/devops
