@@ -85,8 +85,8 @@ define_type_subcommands!(
 
 #[derive(Parser)]
 #[command(
-    author="NVIDIA", 
-    version="0.2.1", 
+    author="NVIDIA",
+    version="0.2.1",
     about="LLMCTL - Control and manage TRD Components",
     long_about = None,
     disable_help_subcommand = true,
@@ -263,7 +263,7 @@ async fn list_models(
     model_type: Option<ModelType>,
 ) -> Result<()> {
     let component = distributed.namespace(&namespace)?.component("http")?;
-    
+
     let mut models = Vec::new();
     let model_types = match &model_type {
         Some(mt) => vec![mt.clone()],

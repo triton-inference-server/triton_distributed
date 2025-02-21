@@ -95,7 +95,7 @@ async fn handle_delete(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(St
     let model_name = key.trim_start_matches(&state.prefix_to_name);
     let model_type = key.trim_start_matches(&state.prefix_to_type)
         .trim_end_matches(&format!("/{}", model_name));
-    
+
     match model_type {
         "chat" => state.manager.remove_chat_completions_model(model_name)?,
         "completion" => state.manager.remove_completions_model(model_name)?,
