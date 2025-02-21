@@ -41,9 +41,9 @@ class NovaClient:
                             stream = await client.generate(*args, **kwargs)
                             
                             async for item in stream:
-                                print(f"Received item: {item}")
-                                print(f"Item data: {item.data}")
-                                await queue.put(item.data)
+                                data = item.data()
+                                print(f"Item data: {data}")
+                                await queue.put(data)
                             await queue.put(None)
                         except Exception:
                             await queue.put(None)
@@ -66,9 +66,9 @@ class NovaClient:
                             stream = await client.generate(*args, **kwargs)
                             
                             async for item in stream:
-                                print(f"Received item: {item}")
-                                print(f"Item data: {item.data}")
-                                await queue.put(item.data)
+                                data = item.data()
+                                print(f"Item data: {data}")
+                                await queue.put(data)
                             await queue.put(None)
                         except Exception:
                             await queue.put(None)
