@@ -43,6 +43,13 @@ RUN --mount=type=bind,source=./container/deps/requirements.test.txt,target=/tmp/
 # Finish pyright install
 RUN pyright --help > /dev/null 2>&1
 
+# Install etcd
+ENV ETCD_VERSION="v3.5.18"
+RUN wget https://github.com/etcd-io/etcd/releases/download/$ETCD_VERSION/etcd-$ETCD_VERSION-linux-amd64.tar.gz -O /tmp/etcd.tar.gz && \
+mkdir -p /usr/local/bin/etcd && \
+tar -xvf /tmp/etcd.tar.gz -C /usr/local/bin/etcd --strip-components=1
+ENV PATH=/usr/local/bin/etcd/:$PATH
+
 # Enable Git operations in the /workspace directory
 RUN printf "[safe]\n      directory=/workspace\n" > /root/.gitconfig
 
