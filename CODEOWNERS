@@ -21,14 +21,13 @@ Cargo.toml @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12
 
 # CI/CD
 /.github/ @triton-inference-server/devops
+CODEOWNERS @triton-inference-server/devops
 
 # Legal
 /LICENSE @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
 /ATTRIBUTIONS.md @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
 Cargo.lock @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv @ryanolson @grahamking @paulhendricks
 
-# Assign a role as a Code Owner to documentation updates:
-[Documentation]
+# Documentation updates:
 *.md @triton-inference-server/devops
 **/*.md @triton-inference-server/devops
-CODEOWNERS @triton-inference-server/devops
