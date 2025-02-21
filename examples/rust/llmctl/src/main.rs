@@ -25,11 +25,12 @@ use triton_llm::model_type::ModelType;
 
 // Macro to define model types and associated commands
 macro_rules! define_type_subcommands {
-    ($(($variant:ident, $str_name:expr, $help:expr)),* $(,)?) => {
+    ($(($variant:ident, $primary_name:expr, [$($alias:expr),*], $help:expr)),* $(,)?) => {
         #[derive(Subcommand)]
         enum AddCommands {
             $(
                 #[doc = $help]
+                #[command(name = $primary_name, aliases = [$($alias),*])]
                 $variant(AddModelArgs),
             )*
         }
@@ -37,7 +38,8 @@ macro_rules! define_type_subcommands {
         #[derive(Subcommand)]
         enum ListCommands {
             $(
-                #[doc = concat!("List ", $str_name, " models")]
+                #[doc = concat!("List ", $primary_name, " models")]
+                #[command(name = $primary_name, aliases = [$($alias),*])]
                 $variant,
             )*
         }
@@ -45,7 +47,8 @@ macro_rules! define_type_subcommands {
         #[derive(Subcommand)]
         enum RemoveCommands {
             $(
-                #[doc = concat!("Remove ", $str_name, " model")]
+                #[doc = concat!("Remove ", $primary_name, " model")]
+                #[command(name = $primary_name, aliases = [$($alias),*])]
                 $variant(RemoveModelArgs),
             )*
         }
@@ -76,10 +79,9 @@ macro_rules! define_type_subcommands {
     }
 }
 
-// TODO from import
 define_type_subcommands!(
-    (Chat, "chat", "Add a chat model"),
-    (Completion, "completion", "Add a completion model"),
+    (Chat, "chat", ["chat-model", "chat-models"], "Add a chat model"),
+    (Completion, "completion", ["completions", "completion-model"], "Add a completion model"),
     // Add new model types here:
 );
 
@@ -235,11 +237,28 @@ async fn add_model(
     );
     let etcd_client = distributed.etcd_client();
 
-    etcd_client
+    // check if model already exists
+    let kvs = etcd_client.kv_get_prefix(&path).await?;
+
+    if !kvs.is_empty() {
+        println!(
+            "{} model {} already exists, please remove it before adding a new model.",
+            model_type.as_str(),
+            model_name,
+        );
+        list_single_model(distributed, namespace, model_type, model_name).await?;
+    } else {
+        etcd_client
         .kv_create(path, serde_json::to_vec_pretty(&model)?, None)
         .await?;
+        println!(
+            "Added new {} model {}",
+            model_type.as_str(),
+            model_name,
+        );
+        list_single_model(distributed, namespace, model_type, model_name).await?;
+    }
 
-    println!("Model {} added to namespace {}", model_name, namespace);
     Ok(())
 }
 
@@ -255,6 +274,48 @@ struct ModelRow {
     component: String,
     #[tabled(rename = "ENDPOINT")]
     endpoint: String,
+}
+
+async fn list_single_model(
+    distributed: &DistributedRuntime,
+    namespace: String,
+    model_type: ModelType,
+    model_name: String,
+) -> Result<()> {
+    let component = distributed.namespace(&namespace)?.component("http")?;
+    let path = format!(
+        "{}/models/{}/{}",
+        component.etcd_path(),
+        model_type.as_str(),
+        model_name.to_string()
+    );
+
+    let mut models = Vec::new();
+    let etcd_client = distributed.etcd_client();
+    let kvs = etcd_client.kv_get_prefix(&path).await?;
+
+        for kv in kvs {
+            if let (Ok(_key), Ok(model)) = (
+                kv.key_str(),
+                serde_json::from_slice::<ModelEntry>(kv.value()),
+            ) {
+                models.push(ModelRow {
+                    model_type: model_type.as_str().to_string(),
+                    name: model_name.clone(),
+                    namespace: model.endpoint.namespace,
+                    component: model.endpoint.component,
+                    endpoint: model.endpoint.name,
+                });
+        }
+    }
+
+    if models.is_empty() {
+        println!("Something went wrong, no model was found.");
+    } else {
+        let table = tabled::Table::new(models);
+        println!("{}", table);
+    }
+    Ok(())
 }
 
 async fn list_models(
@@ -274,7 +335,7 @@ async fn list_models(
         let prefix = format!(
             "{}/models/{}/",
             component.etcd_path(),
-            mt.as_str()
+            mt.as_str(),
         );
 
         let etcd_client = distributed.etcd_client();
@@ -332,7 +393,7 @@ async fn remove_model(
     let mut kv_client = distributed.etcd_client().etcd_client().kv_client();
     match kv_client.delete(prefix.as_bytes(), None).await {
         Ok(_response) => {
-            println!("Model {} removed from namespace {}", name, namespace);
+            println!("{} model {} removed from namespace {}", model_type.as_str(), name, namespace);
         }
         Err(e) => {
             log::error!("Error removing model {}: {}", name, e);
