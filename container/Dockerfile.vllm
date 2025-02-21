@@ -132,6 +132,8 @@ COPY --from=dev /opt/triton/venv /opt/triton/venv
 COPY pyproject.toml /workspace/pyproject.toml
 COPY container/deps/vllm /workspace/container/deps/vllm
 COPY python-wheel/python /workspace/python-wheel/python
+# Add library for KV routing
+COPY --from=dev /opt/triton/llm_binding/lib/libtriton_llm_capi.so /opt/triton/llm_binding/lib/libtriton_llm_capi.so
 # Copy minimal set of files for deployment/examples
 # FIXME: Use a more consolidated path after directory restructure
 COPY examples/python_rs/llm/vllm /workspace/examples/python_rs/llm/vllm
