@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use triton_distributed::runtime::CancellationToken;
-use triton_llm::http::service::service_v2;
+use triton_distributed_runtime::runtime::CancellationToken;
+use triton_distributed_llm::http::service::service_v2;
 
 use crate::EngineConfig;
 

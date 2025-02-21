@@ -17,7 +17,7 @@ use std::env;
 
 use clap::Parser;
 
-use triton_distributed::logging;
+use triton_distributed_runtime::logging;
 
 const HELP: &str = r#"
 triton-llm service runner
@@ -34,15 +34,15 @@ fn main() -> anyhow::Result<()> {
     logging::init();
 
     // max_worker_threads and max_blocking_threads from env vars or config file.
-    let rt_config = triton_distributed::RuntimeConfig::from_settings()?;
+    let rt_config = triton_distributed_runtime::RuntimeConfig::from_settings()?;
 
     // One per process. Wraps a Runtime with holds two tokio runtimes.
-    let worker = triton_distributed::Worker::from_config(rt_config)?;
+    let worker = triton_distributed_runtime::Worker::from_config(rt_config)?;
 
     worker.execute(tio_wrapper)
 }
 
-async fn tio_wrapper(runtime: triton_distributed::Runtime) -> anyhow::Result<()> {
+async fn tio_wrapper(runtime: triton_distributed_runtime::Runtime) -> anyhow::Result<()> {
     let mut in_opt = None;
     let mut out_opt = None;
     let args: Vec<String> = env::args().skip(1).collect();
@@ -79,7 +79,7 @@ async fn tio_wrapper(runtime: triton_distributed::Runtime) -> anyhow::Result<()>
     // defaults
     //let dt_config = triton_distributed::distributed::DistributedConfig::from_settings();
     // Wraps the Runtime (which wraps two tokio runtimes) and adds etcd and nats clients
-    //let d_runtime = triton_distributed::DistributedRuntime::new(runtime, dt_config).await?;
+    //let d_runtime = triton_distributed_runtime::DistributedRuntime::new(runtime, dt_config).await?;
 
     tio::run(in_opt, out_opt, nio_flags, runtime.primary_token()).await
 }

@@ -15,8 +15,8 @@
 
 use std::path::PathBuf;
 
-use triton_distributed::runtime::CancellationToken;
-use triton_llm::types::openai::chat_completions::OpenAIChatCompletionsStreamingEngine;
+use triton_distributed_runtime::runtime::CancellationToken;
+use triton_distributed_llm::types::openai::chat_completions::OpenAIChatCompletionsStreamingEngine;
 
 mod input;
 mod opt;
