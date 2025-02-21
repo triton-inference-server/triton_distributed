@@ -36,19 +36,38 @@ Start required services (etcd and NATS):
         - follow instructions in [etcd installation](https://etcd.io/docs/v3.5/install/) to start an `etcd-server` locally
 
 
-## Building the Environment [WIP]
+## Building the Environment
 
-Shreyas: Add instructions for building the container with latest tensorrt_llm here.
 
+- Build TRT-LLM wheel using latest tensorrt_llm main
+```
+git clone https://github.com/NVIDIA/TensorRT-LLM.git
+cd TensorRT-LLM
+
+# Start a dev docker container. Dont forget to mount your home directory to /home in the docker run command.
+make -C jenkins_run LOCAL_USER=1 DOCKER_RUN_ARGS="-v /user/home:/home"
+
+# Build wheel for the GPU architecture you are currently using ("native").
+# We use -f to run fast build which should speed up the build process. But it might not work for all GPUs and for full functionality you should disable it.
+python3 scripts/build_wheel.py --clean --trt_root /usr/local/tensorrt -a native -i -p -ccache -f
+
+# Copy wheel to your local directory
+cp build/tensorrt_llm-*.whl /home
+```
+
+- Build the Triton Distributed container
 ```bash
 # Build image
-./container/build.sh --framework TENSORRTLLM --base-image gitlab-master.nvidia.com:5005/dl/dgx/tritonserver/tensorrt-llm/amd64 --base-image-tag krish-multinode-test
+./container/build.sh --base-image gitlab-master.nvidia.com:5005/dl/dgx/tritonserver/tensorrt-llm/amd64 --base-image-tag krish-fix-trtllm-build.23766174
 ```
 
 ## Launching the Environment
 ```
-# Run image interactively
-./container/run.sh --framework TENSORRTLLM -it
+# Run image interactively from with the triton distributed root directory.
+docker run -it --network host --shm-size=64G --ulimit memlock=-1 --ulimit stack=67108864 -e HF_HOME=/path/to/hf_cache --gpus=all -v .:/workspace -v /user/home:/home triton_distributed:latest
+
+# Install the TRT-LLM wheel
+pip install /home/tensorrt_llm-*.whl
 ```
 
 ## Deployment Options
