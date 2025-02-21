@@ -37,7 +37,8 @@ class ResponseType(BaseModel):
     nova={
         "enabled": True,
         "namespace": "inference",
-    }
+    },
+    workers=3
 )
 class Backend:
     def __init__(self) -> None:

@@ -16,7 +16,7 @@ from common.protocol import PrefillRequest, PrefillResponse
 class Prefill(BaseVllmEngine):
     def __init__(self):
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-        # os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
+        os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
         engine_args = AsyncEngineArgs(
             model="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
             max_model_len=100,

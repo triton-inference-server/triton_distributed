@@ -26,13 +26,14 @@ class Decode(BaseVllmEngine):
     prefill = depends(Prefill)
 
     def __init__(self):
-        os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+        os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
+        os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
         engine_args = AsyncEngineArgs(
             model="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
             max_model_len=100,
             gpu_memory_utilization=0.8,
             enforce_eager=True,
-            tensor_parallel_size=1,
+            tensor_parallel_size=2,
             kv_transfer_config=KVTransferConfig(
                 kv_connector="PyNcclConnector",
                 kv_role="kv_consumer",
