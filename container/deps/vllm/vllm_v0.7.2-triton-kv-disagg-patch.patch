@@ -234,7 +234,7 @@ index c5b3b04f..c72001f7 100644
          self.block_tables: Dict[SeqId, BlockTable] = {}
 diff --git a/vllm/core/event_manager.py b/vllm/core/event_manager.py
 new file mode 100644
-index 00000000..5ab47424
+index 00000000..350453cd
 --- /dev/null
 +++ b/vllm/core/event_manager.py
 @@ -0,0 +1,102 @@
@@ -242,7 +242,7 @@ index 00000000..5ab47424
 +import ctypes
 +import logging
 +import uuid
-+from ctypes import c_char_p, c_size_t, c_uint32, c_void_p
++from ctypes import c_char_p, c_size_t, c_uint32, c_void_p, c_int64
 +from typing import Optional
 +
 +from vllm.core.block.prefix_caching_block import PrefixCachingBlock, PrefixHash
@@ -263,7 +263,7 @@ index 00000000..5ab47424
 +
 +        try:
 +            self.lib = ctypes.CDLL(lib_path)
-+            self.lib.triton_llm_init.argtypes = [c_char_p, c_char_p]
++            self.lib.triton_llm_init.argtypes = [c_char_p, c_char_p, c_int64]
 +            self.lib.triton_llm_init.restype = c_uint32
 +
 +            result = self.lib.triton_llm_init(namespace.encode(),

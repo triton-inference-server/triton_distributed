@@ -109,9 +109,15 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     preprocess_endpoint = preprocess_component.endpoint("generate")
 
     # TODO Hack until we unify lease_id and worker_id
-    VLLM_WORKER_ID = uuid.UUID(int=worker_from_tokens_endpoint.lease_id())
+    VLLM_WORKER_ID = worker_from_tokens_endpoint.lease_id()
     os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
     vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
+
+    VLLM_KV_NAMESPACE = "router"
+    os.environ["VLLM_KV_NAMESPACE"] = str(VLLM_KV_NAMESPACE)
+
+    VLLM_KV_COMPONENT = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+    os.environ["VLLM_KV_COMPONENT"] = str(VLLM_KV_COMPONENT)
 
     vllm_engine = VllmEngine(engine_args, router_client)
     vllm_engine = await vllm_engine.init()
