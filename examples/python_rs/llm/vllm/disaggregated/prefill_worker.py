@@ -77,7 +77,8 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
         # infinite loop to fetch prefill request from prefill queue
         async with PrefillQueue.get_instance(nats_server=nats_server) as queue:
             while True:
-                if task := queue.dequeue_task() is not None:
+                task = await queue.dequeue_task()
+                if task is not None:
                     prefill_request = PrefillRequest.model_validate_json(task)
                     vllm_logger.debug(f"Prefill request: {prefill_request}")
                     await prefill_engine.generate(prefill_request)
