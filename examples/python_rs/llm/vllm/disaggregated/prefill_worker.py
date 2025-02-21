@@ -21,9 +21,8 @@ import uvloop
 import vllm
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
-from common.protocol import PrefillRequest
+from common.prefill_queue import PrefillQueue
 from triton_distributed_rs import DistributedRuntime, triton_worker
-from triton_distributed_rs.prefill_queue import PrefillQueue
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 
@@ -76,9 +75,8 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
         # infinite loop to fetch prefill request from prefill queue
         async with PrefillQueue.get_instance(nats_server=nats_server) as queue:
             while True:
-                task = await queue.dequeue_task()
-                if task is not None:
-                    prefill_request = PrefillRequest.model_validate_json(task)
+                prefill_request = await queue.dequeue_prefill_request()
+                if prefill_request is not None:
                     vllm_logger.debug(f"Prefill request: {prefill_request}")
                     async for _ in prefill_engine.generate(prefill_request):
                         pass

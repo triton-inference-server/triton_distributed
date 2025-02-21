@@ -23,17 +23,20 @@ from nats.errors import Error as NatsError
 from nats.js.errors import NotFoundError
 
 
-class PrefillQueue:
-    _instance: ClassVar[Optional["PrefillQueue"]] = None
+class NATSQueue:
+    _instance: ClassVar[Optional["NATSQueue"]] = None
     _lock: ClassVar[asyncio.Lock] = asyncio.Lock()
 
     def __init__(
-        self, nats_server: str = "nats://localhost:4222", dequeue_timeout: float = 1
+        self,
+        stream_name: str = "default",
+        nats_server: str = "nats://localhost:4222",
+        dequeue_timeout: float = 1,
     ):
         self.nats_url = nats_server
         self.nc: Optional[NATS] = None
         self.js = None
-        self.stream_name = "prefill_queue"
+        self.stream_name = stream_name
         self.subject = f"{self.stream_name}.*"
         self.dequeue_timeout = dequeue_timeout
         self._subscriber = None
@@ -41,13 +44,19 @@ class PrefillQueue:
     @classmethod
     @asynccontextmanager
     async def get_instance(
-        cls, *, nats_server: str = "nats://localhost:4222", dequeue_timeout: float = 1
+        cls,
+        *,
+        stream_name: str = "default",
+        nats_server: str = "nats://localhost:4222",
+        dequeue_timeout: float = 1,
     ):
-        """Get or create a singleton instance of PrefillQueue"""
+        """Get or create a singleton instance of NATSq"""
         async with cls._lock:
             if cls._instance is None:
                 cls._instance = cls(
-                    nats_server=nats_server, dequeue_timeout=dequeue_timeout
+                    stream_name=stream_name,
+                    nats_server=nats_server,
+                    dequeue_timeout=dequeue_timeout,
                 )
                 await cls._instance.connect()
             try:

@@ -23,9 +23,9 @@ import msgspec
 import uvloop
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
+from common.prefill_queue import PrefillQueue
 from common.protocol import PrefillRequest
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
-from triton_distributed_rs.prefill_queue import PrefillQueue
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
@@ -83,7 +83,7 @@ class VllmDecodeEngine(BaseVllmEngine):
 
         # TODO: enqueue after the kv blocks are allocated
         async with PrefillQueue.get_instance(nats_server=self.nats_server) as queue:
-            await queue.enqueue_task(prefill_request.model_dump_json())
+            await queue.enqueue_prefill_request(prefill_request)
 
         vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
