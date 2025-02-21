@@ -9,7 +9,11 @@ from compoundai import depends, nova_endpoint, service, api
 
 from disaggregated.decode import Decode
 
-@service()
+@service(
+    traffic={
+        "timeout": 10000
+    }
+)
 class Client:
     # the original code -> points toward decode worker so we do that as well here
     decode = depends(Decode)

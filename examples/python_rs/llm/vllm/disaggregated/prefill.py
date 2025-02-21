@@ -12,11 +12,10 @@ from common.protocol import PrefillRequest, PrefillResponse
         "enabled": True,
         "namespace": "triton-init",
     },
-    workers=2
 )
 class Prefill(BaseVllmEngine):
     def __init__(self):
-        os.environ["CUDA_VISIBLE_DEVICES"] = f"{server_context.worker_index - 1}"
+        os.environ["CUDA_VISIBLE_DEVICES"] = "1"
         os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
         engine_args = AsyncEngineArgs(
             model="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
@@ -25,25 +24,35 @@ class Prefill(BaseVllmEngine):
             enforce_eager=True,
             tensor_parallel_size=1,
             kv_transfer_config=KVTransferConfig(
-                kv_connector="PyNcclConnector",
+                kv_connector="TritonNcclConnector",
                 kv_role="kv_producer", 
-                kv_rank=server_context.worker_index - 1,
-                kv_parallel_size=3
+                kv_rank=0,
+                kv_parallel_size=2
             )
         )
-        assert ( engine_args.kv_transfer_config.kv_role == "kv_producer"
+        assert (
+            engine_args.kv_transfer_config.is_kv_producer
         ), "Prefill worker must be a KV producer"
+            
         super().__init__(engine_args)
-        self.kv_rank = self.engine.engine.vllm_config.kv_transfer_config.kv_rank
+        self.kv_transfer_config = engine_args.kv_transfer_config
+        self.kv_rank = self.kv_transfer_config.kv_rank
+        print("Prefill engine kv_transfer_config:", self.kv_transfer_config)
+        print("Prefill engine kv_rank:", self.kv_rank)
 
-    @nova_endpoint(name=f"generate_kv_rank_{server_context.worker_index - 1}")
+    @nova_endpoint()
     async def generate(self, request: PrefillRequest):
+        if self.engine_client is None:
+            await self.initialize()
+
         vllm_logger.info(f"Received prefill request: {request}")
-        vllm_logger.debug(f"Prefill request: {request}")
         sampling_params = vllm.SamplingParams(**request.sampling_params)
         vllm_logger.debug(f"Sampling params: {sampling_params}")
-        async for response in self.engine.generate(
-            request.prompt, sampling_params, request.request_id
-        ):
-            vllm_logger.debug(f"Generated response: {response}")
-            yield True
+        if self.engine_client is None:
+            raise RuntimeError("Engine client not initialized")
+        else:
+            async for response in self.engine_client.generate(
+                request.prompt, sampling_params, request.request_id
+            ):
+                vllm_logger.debug(f"Generated response: {response}")
+                yield True
