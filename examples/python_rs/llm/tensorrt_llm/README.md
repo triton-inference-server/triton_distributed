@@ -38,6 +38,7 @@ Start required services (etcd and NATS):
 
 ## Building the Environment
 
+TODO: Remove the internal references below.
 
 - Build TRT-LLM wheel using latest tensorrt_llm main
 ```
@@ -59,6 +60,12 @@ cp build/tensorrt_llm-*.whl /home
 ```bash
 # Build image
 ./container/build.sh --base-image gitlab-master.nvidia.com:5005/dl/dgx/tritonserver/tensorrt-llm/amd64 --base-image-tag krish-fix-trtllm-build.23766174
+```
+
+Alternatively, you can build with latest tensorrt_llm pipeline like below:
+```bash
+# Build image
+./container/build.sh --framework TENSORRTLLM --skip-clone-tensorrtllm 1 --base-image urm.nvidia.com/sw-tensorrt-docker/tensorrt-llm-staging/release --base-image-tag main
 ```
 
 ## Launching the Environment
