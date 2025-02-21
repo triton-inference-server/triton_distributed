@@ -10,7 +10,15 @@ USER root
 
 # Install utilities
 RUN apt update -y && apt install -y git wget curl nvtop tmux vim
+# nats
 RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
+# etcd
+ENV ETCD_VERSION="v3.5.18"
+RUN wget https://github.com/etcd-io/etcd/releases/download/$ETCD_VERSION/etcd-$ETCD_VERSION-linux-amd64.tar.gz -O /tmp/etcd.tar.gz && \
+mkdir -p /usr/local/bin/etcd && \
+tar -xvf /tmp/etcd.tar.gz -C /usr/local/bin/etcd --strip-components=1
+ENV PATH=/usr/local/bin/etcd/:$PATH
+
 
 ### VIRTUAL ENVIRONMENT SETUP ###
 
@@ -42,13 +50,6 @@ RUN --mount=type=bind,source=./container/deps/requirements.test.txt,target=/tmp/
 
 # Finish pyright install
 RUN pyright --help > /dev/null 2>&1
-
-# Install etcd
-ENV ETCD_VERSION="v3.5.18"
-RUN wget https://github.com/etcd-io/etcd/releases/download/$ETCD_VERSION/etcd-$ETCD_VERSION-linux-amd64.tar.gz -O /tmp/etcd.tar.gz && \
-mkdir -p /usr/local/bin/etcd && \
-tar -xvf /tmp/etcd.tar.gz -C /usr/local/bin/etcd --strip-components=1
-ENV PATH=/usr/local/bin/etcd/:$PATH
 
 # Enable Git operations in the /workspace directory
 RUN printf "[safe]\n      directory=/workspace\n" > /root/.gitconfig
@@ -131,6 +132,7 @@ ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
 # Copy binaries
 COPY --from=dev /usr/local/bin/http /usr/local/bin/http
 COPY --from=dev /usr/local/bin/llmctl /usr/local/bin/llmctl
+COPY --from=dev /usr/local/bin/etcd/etcd /usr/local/bin/etcd
 COPY --from=dev /usr/bin/nats-server /usr/local/bin/nats-server
 COPY --from=dev /bin/uv /usr/local/bin/uv
 COPY --from=dev /bin/uvx /usr/local/bin/uvx
