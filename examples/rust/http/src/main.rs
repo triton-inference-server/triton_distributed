@@ -15,13 +15,13 @@
 
 use std::sync::Arc;
 use clap::Parser;
-use std::env;
 
 use triton_distributed::{logging, DistributedRuntime, Result, Runtime, Worker};
 use triton_llm::http::service::{
     discovery::{model_watcher, ModelWatchState},
     service_v2::HttpService,
 };
+use triton_llm::model_type::ModelType;  // Import the shared ModelType
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -51,40 +51,39 @@ fn main() -> Result<()> {
 
 async fn app(runtime: Runtime) -> Result<()> {
     let distributed = DistributedRuntime::from_settings(runtime.clone()).await?;
-
     let args = Args::parse();
 
-    // create the http service and acquire the model manager
     let http_service = HttpService::builder()
         .port(args.port)
         .host(args.host)
         .build()?;
     let manager = http_service.model_manager().clone();
-
-    // todo - use the IntoComponent trait to register the component
-    // todo - start a service
-    // todo - we want the service to create an entry and register component definition
-    // todo - the component definition should be the type of component and it's config
-    // in this example we will have an HttpServiceComponentDefinition object which will be
-    // written to etcd
-    // the cli when operating on an `http` component will validate the namespace.component is
-    // registered with HttpServiceComponentDefinition
+    
     let component = distributed.namespace(&args.namespace)?.component(&args.component)?;
-
     let etcd_root = component.etcd_path();
-    let etcd_path = format!("{}/models/chat/", etcd_root);
 
-    let state = Arc::new(ModelWatchState {
-        prefix: etcd_path.clone(),
-        manager,
-        drt: distributed.clone(),
-    });
+    // Create watchers for all model types
+    let mut watcher_tasks = Vec::new();
+    
+    for model_type in ModelType::all() {
+        let etcd_path = format!("{}/models/{}/", etcd_root, model_type.as_str());
+        let etcd_path_pop = format!("{}/models/", etcd_root);
+        
+        let state = Arc::new(ModelWatchState {
+            prefix_to_name: etcd_path.clone(),
+            prefix_to_type: etcd_path_pop.clone(),
+            manager: manager.clone(),
+            drt: distributed.clone(),
+        });
 
-    let etcd_client = distributed.etcd_client();
-    let models_watcher = etcd_client.kv_get_and_watch_prefix(etcd_path).await?;
+        let etcd_client = distributed.etcd_client();
+        let models_watcher: triton_distributed::transports::etcd::PrefixWatcher = etcd_client.kv_get_and_watch_prefix(etcd_path).await?;
 
-    let (_prefix, _watcher, receiver) = models_watcher.dissolve();
-    let _watcher_task = tokio::spawn(model_watcher(state, receiver));
+        let (_prefix, _watcher, receiver) = models_watcher.dissolve();
+        let watcher_task = tokio::spawn(model_watcher(state, receiver));
+        watcher_tasks.push(watcher_task);
+    }
 
+    // Run the service
     http_service.run(runtime.child_token()).await
 }
