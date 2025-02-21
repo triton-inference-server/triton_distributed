@@ -79,7 +79,7 @@ pub enum KvRouterError {
 }
 
 /// Identifier of a LLM worker which emits events to the router.
-pub type WorkerId = uuid::Uuid;
+pub type WorkerId = i64;
 
 /// A shared reference to a [`RadixBlock`].
 type SharedRadixBlock = Rc<RefCell<RadixBlock>>;
@@ -1188,12 +1188,16 @@ mod tests {
         assert_eq!(hashes.len(), 1);
 
         // create a sequence of 65 elements
-        let sequence = (0..(KV_BLOCK_SIZE + 1)).map(|i| i as u32).collect::<Vec<u32>>();
+        let sequence = (0..(KV_BLOCK_SIZE + 1))
+            .map(|i| i as u32)
+            .collect::<Vec<u32>>();
         let hashes = compute_block_hash_for_seq(&sequence);
         assert_eq!(hashes.len(), 1);
 
         // create a sequence of 129 elements
-        let sequence = (0..(2 * KV_BLOCK_SIZE + 1)).map(|i| i as u32).collect::<Vec<u32>>();
+        let sequence = (0..(2 * KV_BLOCK_SIZE + 1))
+            .map(|i| i as u32)
+            .collect::<Vec<u32>>();
         let hashes = compute_block_hash_for_seq(&sequence);
         assert_eq!(hashes.len(), 2);
     }
