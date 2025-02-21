@@ -77,7 +77,7 @@ class VllmDecodeEngine(BaseVllmEngine):
         vllm_logger.debug(f"Prefill request: {prefill_request}")
 
         async with PrefillQueue.get_instance(nats_server=self.nats_server) as queue:
-            queue.enqueue_task(prefill_request.model_dump_json())
+            await queue.enqueue_task(prefill_request.model_dump_json())
 
         vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
