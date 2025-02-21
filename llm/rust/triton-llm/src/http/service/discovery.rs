@@ -21,13 +21,18 @@ use tokio::sync::mpsc::Receiver;
 use triton_distributed::{
     protocols::{self, annotated::Annotated},
     transports::etcd::{KeyValue, WatchEvent},
-    DistributedRuntime, Result,
+    DistributedRuntime, Result, raise,
 };
 
 use super::ModelManager;
 use crate::protocols::openai::chat_completions::{
     ChatCompletionRequest, ChatCompletionResponseDelta,
 };
+use crate::protocols::openai::completions::{
+    CompletionRequest, CompletionResponse
+};
+use crate::model_type::ModelType;
+use tracing as log;
 
 /// [ModelEntry] is a struct that contains the information for the HTTP service to discover models
 /// from the etcd cluster.
@@ -40,10 +45,14 @@ pub struct ModelEntry {
 
     /// Component of the endpoint.
     pub endpoint: protocols::Endpoint,
+
+    /// Specifies whether the model is a chat or completion model.s
+    pub model_type: ModelType,
 }
 
 pub struct ModelWatchState {
-    pub prefix: String,
+    pub prefix_to_name: String,
+    pub prefix_to_type: String,
     pub manager: ModelManager,
     pub drt: DistributedRuntime,
 }
@@ -56,26 +65,19 @@ pub async fn model_watcher(state: Arc<ModelWatchState>, events_rx: Receiver<Watc
     while let Some(event) = events_rx.recv().await {
         match event {
             WatchEvent::Put(kv) => match handle_put(&kv, state.clone()).await {
-                Ok(model_name) => {
-                    tracing::info!("added chat model: {}", model_name);
+                Ok((model_name, model_type)) => {
+                    log::info!("added {} model: {}",model_type, model_name);
                 }
                 Err(e) => {
-                    tracing::error!("error adding chat model: {}", e);
-                    // tracing::warn!(
-                    //     "deleting offending key: {}",
-                    //     kv.key_str().unwrap_or_default()
-                    // );
-                    // if let Err(e) = kv_client.delete(kv.key(), None).await {
-                    //     tracing::error!("failed to delete offending key: {}", e);
-                    // }
+                    log::error!("error adding model: {}", e);
                 }
             },
             WatchEvent::Delete(kv) => match handle_delete(&kv, state.clone()).await {
-                Ok(model_name) => {
-                    tracing::info!("removed chat model: {}", model_name);
+                Ok((model_name, model_type)) => {
+                    log::info!("removed {} model: {}", model_type, model_name);
                 }
                 Err(e) => {
-                    tracing::error!("error removing chat model: {}", e);
+                    log::error!("error removing model: {}", e);
                 }
             },
         }
@@ -84,33 +86,40 @@ pub async fn model_watcher(state: Arc<ModelWatchState>, events_rx: Receiver<Watc
     tracing::debug!("model watcher stopped");
 }
 
-async fn handle_delete(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<String> {
-    tracing::debug!("removing model");
+async fn handle_delete(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(String, String)> {
+    log::debug!("removing model");
 
     let key = kv.key_str()?;
     tracing::debug!("key: {}", key);
 
-    let model_name = key.trim_start_matches(&state.prefix);
-    state.manager.remove_chat_completions_model(model_name)?;
-    Ok(model_name.to_string())
+    let model_name = key.trim_start_matches(&state.prefix_to_name);
+    let model_type = key.trim_start_matches(&state.prefix_to_type)
+        .trim_end_matches(&format!("/{}", model_name));
+    
+    match model_type {
+        "chat" => state.manager.remove_chat_completions_model(model_name)?,
+        "completion" => state.manager.remove_completions_model(model_name)?,
+        unknown => log::warn!("Unknown model type: {}. No Action Taken.", unknown),
+    };
+
+    Ok((model_name.to_string(), model_type.to_string()))
 }
 
 // Handles a PUT event from etcd, this usually means adding a new model to the list of served
 // models.
 //
 // If this method errors, for the near term, we will delete the offending key.
-async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<String> {
-    tracing::debug!("adding model");
+async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(String, String)> {
+    log::debug!("adding model");
 
     let key = kv.key_str()?;
     tracing::debug!("key: {}", key);
 
-    //let model_name = key.trim_start_matches(&state.prefix);
+    let model_name = key.trim_start_matches(&state.prefix_to_name);
+    let model_type = key.trim_start_matches(&state.prefix_to_type)
+        .trim_end_matches(&format!("/{}", model_name));
     let model_entry = serde_json::from_slice::<ModelEntry>(kv.value())?;
 
-    /*
-    // this means there is an entry in etcd that breaks the contract that the key
-    // in the models path must match the model name in the entry.
     if model_entry.name != model_name {
         raise!(
             "model name mismatch: {} != {}",
@@ -118,23 +127,30 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<String
             model_name
         );
     }
-    */
 
-    let client = state
-        .drt
-        .namespace(model_entry.endpoint.namespace)?
-        .component(model_entry.endpoint.component)?
-        .endpoint(model_entry.endpoint.name)
-        .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
-        .await?;
+    match model_type {
+        "chat" => {
+            let client = state
+                .drt
+                .namespace(model_entry.endpoint.namespace)?
+                .component(model_entry.endpoint.component)?
+                .endpoint(model_entry.endpoint.name)
+                .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
+                .await?;
+            state.manager.add_chat_completions_model(model_name, Arc::new(client))?;
+        }
+        "completion" => {
+            let client = state
+                .drt
+                .namespace(model_entry.endpoint.namespace)?
+                .component(model_entry.endpoint.component)?
+                .endpoint(model_entry.endpoint.name)
+                .client::<CompletionRequest, Annotated<CompletionResponse>>()
+                .await?;
+            state.manager.add_completions_model(model_name, Arc::new(client))?;
+        }
+        unknown => log::warn!("Unknown model type: {}. No Action Taken.", unknown),
+    }
 
-    let client = Arc::new(client);
-
-    let model_name = model_entry.name.clone();
-    tracing::info!("New model registered: {model_name}");
-    state
-        .manager
-        .add_chat_completions_model(&model_name, client)?;
-
-    Ok(model_name.to_string())
+    Ok((model_name.to_string(), model_type.to_string()))
 }
