@@ -28,8 +28,7 @@ fi
 MODEL_NAME=${1:-"deepseek-ai/DeepSeek-R1-Distill-Llama-8B"}
 ENDPOINT_NAME=${2:-"triton-init.vllm.generate"}
 SESSION_NAME="vllm_disagg"
-#WORKDIR="/workspace/examples/python_rs/llm/vllm"
-WORKDIR="/workspace/examples/vllm"
+WORKDIR="$(dirname $0)/.."
 INIT_CMD="cd $WORKDIR"
 
 ########################################################
@@ -48,7 +47,9 @@ tmux split-window -v
 ########################################################
 # HTTP Server
 ########################################################
-HTTP_CMD="TRD_LOG=DEBUG http"
+HTTP_HOST="localhost"
+HTTP_PORT=8080
+HTTP_CMD="TRD_LOG=DEBUG http --host ${HTTP_HOST} --port ${HTTP_PORT}"
 tmux select-pane -t 0
 tmux send-keys "$INIT_CMD && $HTTP_CMD" C-m
 
@@ -61,7 +62,7 @@ LLMCTL_CMD="sleep 5 && llmctl http remove chat-model $MODEL_NAME && \
 tmux select-pane -t 1
 tmux send-keys "$INIT_CMD && $LLMCTL_CMD" C-m
 
-CURL_CMD="curl localhost:9992/v1/chat/completions \
+CURL_CMD="curl ${HTTP_HOST}:${HTTP_PORT}/v1/chat/completions \
   -H \"Content-Type: application/json\" \
   -d '{
     \"model\": \"$MODEL_NAME\",
