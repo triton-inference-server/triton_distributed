@@ -17,7 +17,7 @@ limitations under the License.
 
 # TensorRT-LLM Integration with Triton Distributed
 
-This example demonstrates how to use Triton Distributed to serve large language models with the tensorrt_llm engine, enabling efficient model serving with monolithic option.
+This example demonstrates how to use Triton Distributed to serve large language models with the tensorrt_llm engine, enabling efficient model serving with both monolithic and disaggregated deployment options.
 
 ## Prerequisites
 
@@ -35,14 +35,10 @@ Start required services (etcd and NATS):
     - [etcd](https://etcd.io) server
         - follow instructions in [etcd installation](https://etcd.io/docs/v3.5/install/) to start an `etcd-server` locally
 
-*Note*: This example is work in progress.
 
 ## Building the Environment [WIP]
 
-The example is designed to run in a containerized environment using Triton Distributed, tensorrt_llm, and associated dependencies. To build the container:
-
-REVISIT: Currently using special container from Kris to build the image with tensorrt_llm supporting pytorch workflow in LLM API
-TODO: Work on better instructions for building the container with latest tensorrt_llm.
+Shreyas: Add instructions for building the container with latest tensorrt_llm here.
 
 ```bash
 # Build image
@@ -57,22 +53,21 @@ TODO: Work on better instructions for building the container with latest tensorr
 
 ## Deployment Options
 
+Note: NATS and ETCD servers should be running and accessible from the container as described in the [Prerequisites](#prerequisites) section.
+
 ### 1. Monolithic Deployment
 
 Run the server and client components in separate terminal sessions:
 
 **Server:**
 
-REVISIT: I had to install some dependencies manually in the container to get this to work.
-TODO: Move these extra dependencies to the container build step.
+#### 1.1 Single-Node Single-GPU
 
 ```bash
-# Install dependencies
-pip3 install flash_attn
-
-# Launch worker in background
+# Launch worker
 cd /workspace/examples/python_rs/llm/tensorrt_llm
-python3 -m monolith.worker --engine_args model.json &
+python3 -m monolith.worker --engine_args model.json
+
 ```
 
 Upon successful launch, the output should look similar to:
@@ -85,6 +80,10 @@ Upon successful launch, the output should look similar to:
 [02/14/2025-09:38:53] [TRT-LLM] [I] max_seq_len=131072, max_num_requests=2048, max_num_tokens=8192
 [02/14/2025-09:38:53] [TRT-LLM] [I] Engine loaded and ready to serve...
 ```
+
+#### 1.2 Single-Node Multi-GPU
+
+#### 1.3 Multi-Node Multi-GPU
 
 **Client:**
 
@@ -110,16 +109,6 @@ Annotated(data=', Paris, in terms of its history', event=None, comment=[], id=No
 Annotated(data=', Paris, in terms of its history,', event=None, comment=[], id=None)
 Annotated(data=', Paris, in terms of its history, culture', event=None, comment=[], id=None)
 ```
-
-Next steps:
-- Building container with latest tensorrt_llm wheel.
-- Support and test TP>1: single-node , multi-GPU
-- Support and test TP>1: multi-node, multi-GPU
-- Support and test dissagregated serving: single-node
-- Support and test dissagregated serving: multi-node
-
-NOTE: For multi-node deployment we need to handle the MPI_WORLD setup.
-
 
 ### 2. Disaggregated Deployment
 
