@@ -5,8 +5,7 @@ on:
     paths:
      - 'deploy/Kubernetes/**'
      - '**/*.md'
-     - 'CODEOWNERS'
-    
+     - 'CODEOWNERS'    
 jobs:
   pr_reminder:
     runs-on: ubuntu-latest
