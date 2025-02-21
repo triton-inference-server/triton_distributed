@@ -57,7 +57,7 @@ impl EndpointConfigBuilder {
             .lock()
             .await
             .get(&endpoint.component.etcd_path())
-            .map(|service| service.group(endpoint.component.slug()))
+            .map(|service| service.group(endpoint.component.service_name()))
             .ok_or(error!("Service not found"))?;
 
         // let group = service.group(service_name.as_str());
@@ -89,7 +89,7 @@ impl EndpointConfigBuilder {
             endpoint: endpoint.name.clone(),
             namespace: endpoint.component.namespace.clone(),
             lease_id: lease.id(),
-            transport: TransportType::NatsTcp(endpoint.subject(lease.id())),
+            transport: TransportType::NatsTcp(endpoint.subject_to(lease.id())),
         };
 
         let info = serde_json::to_vec_pretty(&info)?;

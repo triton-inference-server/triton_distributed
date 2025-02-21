@@ -48,7 +48,7 @@ impl ServiceConfigBuilder {
 
         let (component, description, stat_handler) = self.build_internal()?.dissolve();
 
-        let service_name = component.slug();
+        let service_name = component.service_name();
         let description = description.unwrap_or(format!(
             "Triton Component {} in {}",
             component.name, component.namespace

@@ -19,6 +19,7 @@ import uuid
 
 import uvloop
 from common.base_engine import BaseVllmEngine
+from common.chat_processor import ProcessMixIn
 from common.parser import parse_vllm_args
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
@@ -29,7 +30,7 @@ from vllm.entrypoints.openai.protocol import (
 from vllm.logger import logger as vllm_logger
 
 
-class VllmEngine(BaseVllmEngine):
+class VllmEngine(BaseVllmEngine, ProcessMixIn):
     """
     Request handler for the generate endpoint
     """

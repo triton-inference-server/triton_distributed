@@ -88,7 +88,14 @@ impl Client {
         Ok(stream)
     }
 
-    pub async fn service_subscriber(&self, service_name: &str) -> Result<Subscriber> {
+    /// Issues a broadcast request for all services with the provided `service_name` to report their
+    /// current stats. Each service will only respond once. The service may have customized the reply
+    /// so the caller should select which endpoint and what concrete data model should be used to
+    /// extract the details.
+    ///
+    /// Note: Because each endpoint will only reply once, the caller must drop the subscription after
+    /// some time or it will await forever.
+    pub async fn scrape_service(&self, service_name: &str) -> Result<Subscriber> {
         let subject = format!("$SRV.STATS.{}", service_name);
         let reply_subject = format!("_INBOX.{}", nuid::next());
         let subscription = self.client.subscribe(reply_subject.clone()).await?;
@@ -97,20 +104,6 @@ impl Client {
         self.client
             .publish_with_reply(subject, reply_subject, "".into())
             .await?;
-
-        // // Set a timeout to gather responses
-        // let mut responses = Vec::new();
-        // // let mut response_stream = subscription.take_while(|_| futures::future::ready(true));
-
-        // let start = time::Instant::now();
-        // while let Ok(Some(message)) = time::timeout(timeout, subscription.next()).await {
-        //     tx.send(message.payload);
-        //     if start.elapsed() > timeout {
-        //         break;
-        //     }
-        // }
-
-        // Ok(responses)
 
         Ok(subscription)
     }

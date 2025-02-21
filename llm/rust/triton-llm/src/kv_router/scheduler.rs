@@ -23,6 +23,7 @@ use crate::kv_router::indexer::OverlapScores;
 pub use crate::kv_router::protocols::{ForwardPassMetrics, KV_BLOCK_SIZE};
 use crate::kv_router::scoring::ProcessedEndpoints;
 
+#[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 pub enum KvSchedulerError {
     #[error("no endpoints aviailable to route work")]

@@ -60,7 +60,7 @@ impl Slug {
             .to_lowercase()
             .chars()
             .map(|c| {
-                let is_valid = c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_';
+                let is_valid = c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_';
                 if is_valid {
                     c
                 } else {
@@ -69,7 +69,7 @@ impl Slug {
             })
             .collect::<String>();
         let hash = blake3::hash(s.as_bytes()).to_string();
-        let out = format!("{out}-{}", &hash[(hash.len() - 8)..]);
+        let out = format!("{out}_{}", &hash[(hash.len() - 8)..]);
         Slug::new(out)
     }
 }
