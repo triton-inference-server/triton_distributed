@@ -81,6 +81,7 @@ class VllmDecodeEngine(BaseVllmEngine):
         )
         vllm_logger.debug(f"Prefill request: {prefill_request}")
 
+        # TODO: enqueue after the kv blocks are allocated
         async with PrefillQueue.get_instance(nats_server=self.nats_server) as queue:
             await queue.enqueue_task(prefill_request.model_dump_json())
 
