@@ -1,6 +1,8 @@
 import typing as t
 from functools import wraps
 import bentoml
+from typing import get_type_hints, Any
+from pydantic import BaseModel
 
 class NovaEndpoint:
     """Decorator class for Nova endpoints"""
@@ -8,13 +10,33 @@ class NovaEndpoint:
     def __init__(self, func: t.Callable, name: str | None = None):
         self.func = func
         self.name = name or func.__name__
-        # Mark this as a Nova endpoint for discovery
         self.is_nova_endpoint = True
-        # Copy function metadata
+        
+        # Extract request type from hints
+        hints = get_type_hints(func)
+        args = list(hints.items())
+        
+        # Skip self/cls argument
+        if args[0][0] in ('self', 'cls'):
+            args = args[1:]
+            
+        # Get request type from first arg
+        self.request_type = args[0][1]
         wraps(func)(self)
     
-    def __call__(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
-        return self.func(*args, **kwargs)
+    async def __call__(self, *args: t.Any, **kwargs: t.Any) -> Any:
+        # Validate request
+        if len(args) > 1 and issubclass(self.request_type, BaseModel):
+            args = list(args)
+            if isinstance(args[1], (str, dict)):
+                args[1] = self.request_type.parse_obj(args[1])
+                
+        # Convert Pydantic model to dict before passing to triton
+        if len(args) > 1 and isinstance(args[1], BaseModel):
+            args = list(args)
+            args[1] = args[1].model_dump()
+            
+        return await self.func(*args, **kwargs)
 
 def nova_endpoint(
     name: str | None = None

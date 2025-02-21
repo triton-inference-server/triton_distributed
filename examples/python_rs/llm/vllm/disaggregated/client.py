@@ -7,7 +7,7 @@ from typing import Annotated
 # from nova_init.decorators import nova_endpoint, nova_service, nova_depends, nova_api
 from compoundai import depends, nova_endpoint, service, api
 
-from decode import Decode
+from disaggregated.decode import Decode
 
 @service()
 class Client:
@@ -18,17 +18,19 @@ class Client:
         print("client init")
 
     @api
-    async def cmpl(self, prompt: str, max_tokens: int, temperature: float):
-        print(prompt, max_tokens, temperature)
-
+    async def cmpl(self, msg: str):
+        
         # Don't await the generator - directly async iterate over it
         decgen = self.decode.generate(
             {
-                "prompt": prompt,
-                "sampling_params": {
-                    "max_tokens": max_tokens,
-                    "temperature": temperature,
-                },
+                "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": msg
+                    }
+                ],
+                "stream": True
             }
         )
         async for response in decgen:

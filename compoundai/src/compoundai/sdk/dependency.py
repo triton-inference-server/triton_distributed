@@ -38,11 +38,10 @@ class NovaClient:
                                 .endpoint(name)\
                                 .client()
                             
+                            # TODO: Potentially model dump for a user here so they can pass around Pydantic models
                             stream = await client.generate(*args, **kwargs)
                             
                             async for item in stream:
-                                breakpoint()
-                                print(f"Received item: {item}")
                                 data = item.data()
                                 print(f"Item data: {data}")
                                 await queue.put(data)
@@ -68,8 +67,6 @@ class NovaClient:
                             stream = await client.generate(*args, **kwargs)
                             
                             async for item in stream:
-                                breakpoint()
-                                print(f"Received item: {item}")
                                 data = item.data()
                                 print(f"Item data: {data}")
                                 await queue.put(data)

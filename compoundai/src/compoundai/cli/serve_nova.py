@@ -8,7 +8,8 @@ import typing as t
 import random
 import string
 import click
-from triton_distributed_rs import triton_worker, DistributedRuntime
+from triton_distributed_rs import triton_worker, DistributedRuntime, triton_endpoint
+from typing import Any
 
 
 logger = logging.getLogger("compoundai.serve.nova")
@@ -120,7 +121,10 @@ def main(
                     logger.info(f"[{run_id}] Registering endpoint '{name}'")
                     # Bind an instance of inner to the endpoint
                     bound_method = endpoint.func.__get__(class_instance)
-                    result = await td_endpoint.serve_endpoint(bound_method)
+                    # Only pass request type for now, use Any for response
+                    # TODO: Handle a triton_endpoint not having types
+                    triton_wrapped_method = triton_endpoint(endpoint.request_type, Any)(bound_method)
+                    result = await td_endpoint.serve_endpoint(triton_wrapped_method)
                     logger.info(f"[{run_id}] Result: {result}")
                     logger.info(f"[{run_id}] Registered endpoint '{name}'")
 
