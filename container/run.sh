@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TAG=
 RUN_PREFIX=
 
 # Frameworks
@@ -60,6 +59,14 @@ get_options() {
                 shift
             else
 		missing_requirement $1
+            fi
+            ;;
+        --target)
+            if [ "$2" ]; then
+                TARGET=$2
+                shift
+            else
+                missing_requirement $1
             fi
             ;;
 	--name)
@@ -172,6 +179,9 @@ get_options() {
 
     if [ -z "$IMAGE" ]; then
         IMAGE="triton-distributed:latest-${FRAMEWORK,,}"
+        if [ ! -z ${TARGET} ]; then
+            IMAGE="${IMAGE}-${TARGET}"
+        fi
     fi
 
     if [[ ${GPUS^^} == "NONE" ]]; then
