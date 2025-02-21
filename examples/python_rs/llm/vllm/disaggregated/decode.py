@@ -23,10 +23,10 @@ from vllm.entrypoints.openai.protocol import ChatCompletionRequest
     },
 )
 class Decode(BaseVllmEngine):
-    prefill = depends(Prefill)
+    prefill = depends(Prefill) # link between decode -> to prefill
 
     def __init__(self):
-        os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
+        os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
         os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
         engine_args = AsyncEngineArgs(
             model="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
@@ -37,8 +37,8 @@ class Decode(BaseVllmEngine):
             kv_transfer_config=KVTransferConfig(
                 kv_connector="PyNcclConnector",
                 kv_role="kv_consumer",
-                kv_rank=1,
-                kv_parallel_size=2
+                kv_rank=2,
+                kv_parallel_size=3
             ),
         )
         assert (
@@ -46,10 +46,10 @@ class Decode(BaseVllmEngine):
         ), "Decode worker must be a KV consumer"
         print("kicking off decode")
         super().__init__(engine_args)
-        # self.prefills = []
-        # self.num_prefill_workers = (
-        #     self.engine.engine.vllm_config.kv_transfer_config.kv_producers_parallel_size
-        # )
+        self.prefills = []
+        self.num_prefill_workers = (
+            self.engine.engine.vllm_config.kv_transfer_config.kv_producers_parallel_size
+        )
         self.kv_rank = self.engine.engine.vllm_config.kv_transfer_config.kv_rank
         print("decode engine initialized")
     
