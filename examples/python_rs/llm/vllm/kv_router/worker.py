@@ -25,6 +25,7 @@ from common.protocol import Request, Response, TokenizedRequest
 from triton_distributed_rs import (
     DistributedRuntime,
     KvRouter,
+    KvMetricsPublisher,
     triton_endpoint,
     triton_worker,
 )
@@ -32,17 +33,48 @@ from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.inputs import TokensPrompt
 from vllm.logger import logger as vllm_logger
 from vllm.transformers_utils.tokenizer import AnyTokenizer
+from vllm.engine.metrics_types import Stats, StatLoggerBase, SupportsMetricsInfo
 
 vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
+
+class KvStatLogger(StatLoggerBase):
+    def __init__(self, vllm_scheduler: vllm.core.scheduler.Scheduler, metrics_publisher: KvMetricsPublisher):
+        # Must query initialized scheduler for max infos
+        self.request_total_slots = vllm_scheduler.scheduler_config.max_num_seqs
+        self.kv_total_blocks = vllm_scheduler.block_manager.num_total_gpu_blocks
+
+        # KV metrics
+        self.metrics_publisher = metrics_publisher
+        self.metrics_publisher.publish(
+            0,
+            self.request_total_slots,
+            0,
+            self.kv_total_blocks,
+        )
+
+
+    def log(self, stats: Stats) -> None:
+        self.metrics_publisher.publish(
+            stats.num_running_sys,
+            self.request_total_slots,
+            int(stats.gpu_cache_usage_sys * self.kv_total_blocks),
+            self.kv_total_blocks,
+        )
+
+    def info(self, type: str, obj: SupportsMetricsInfo) -> None:
+        pass
 
 class VllmEngine:
     """
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs, router: KvRouter):
+    def __init__(self, engine_args: AsyncEngineArgs, router: KvRouter, metrics_publisher: KvMetricsPublisher):
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
+        # Attach logger for continuous metrics publishing
+        self.stat_logger = KvStatLogger(self.engine.engine.scheduler[0], metrics_publisher)
+        self.engine.add_logger("kv_metrics", self.stat_logger)
         self.router = router
         self.tokenizer: Optional[AnyTokenizer] = None
 
@@ -91,8 +123,9 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     Instantiate a `backend` component and serve the `generate` endpoint
     A `Component` can serve multiple endpoints
     """
+    metrics_publisher = KvMetricsPublisher()
     worker_component = runtime.namespace("triton-init").component("vllm")
-    await worker_component.create_service()
+    await metrics_publisher.create_service(worker_component)
 
     preprocess_component = runtime.namespace("triton-init").component("preprocess")
     await preprocess_component.create_service()
@@ -105,7 +138,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     )
 
     worker_from_tokens_endpoint = worker_component.endpoint("generate_from_tokens")
-    worker_from_prompt_endpoint = worker_component.endpoint("generate")
+    # worker_from_prompt_endpoint = worker_component.endpoint("generate")
     preprocess_endpoint = preprocess_component.endpoint("generate")
 
     # TODO Hack until we unify lease_id and worker_id
@@ -113,18 +146,18 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
     vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
 
-    VLLM_KV_NAMESPACE = "router"
+    VLLM_KV_NAMESPACE = "triton-init"
     os.environ["VLLM_KV_NAMESPACE"] = str(VLLM_KV_NAMESPACE)
 
-    VLLM_KV_COMPONENT = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+    VLLM_KV_COMPONENT = "vllm"
     os.environ["VLLM_KV_COMPONENT"] = str(VLLM_KV_COMPONENT)
 
-    vllm_engine = VllmEngine(engine_args, router_client)
+    vllm_engine = VllmEngine(engine_args, router_client, metrics_publisher)
     vllm_engine = await vllm_engine.init()
 
     await asyncio.gather(
         worker_from_tokens_endpoint.serve_endpoint(vllm_engine.generate_from_tokens),
-        worker_from_prompt_endpoint.serve_endpoint(vllm_engine.generate_from_prompt),
+        # worker_from_prompt_endpoint.serve_endpoint(vllm_engine.generate_from_prompt),
         preprocess_endpoint.serve_endpoint(vllm_engine.preprocess),
     )
 
