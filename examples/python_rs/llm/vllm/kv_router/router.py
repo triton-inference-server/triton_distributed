@@ -122,7 +122,12 @@ async def worker(runtime: DistributedRuntime, args: Namespace):
 
     router = None
     if args.routing_strategy == RoutingStrategy.PREFIX:
-        router = KvRouter(runtime, kv_listener)
+        router = KvRouter(
+            runtime, 
+            kv_listener, 
+            balance_threshold=args.balance_threshold,
+            gamma=args.gamma,
+        )
 
     endpoint = router_component.endpoint("generate")
     await endpoint.serve_endpoint(
@@ -148,6 +153,18 @@ if __name__ == "__main__":
         type=int,
         default=1,
         help="Minimum number of workers required before proceeding",
+    )
+    parser.add_argument(
+        "--balance-threshold",
+        type=float,
+        default=0.1,
+        help="Threshold for load balancing (between 0 and 1)",
+    )
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=0.1,
+        help="Parameter controlling exploration vs exploitation trade-off",
     )
     args = parser.parse_args()
 

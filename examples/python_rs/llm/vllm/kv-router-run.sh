@@ -16,14 +16,16 @@
 #!/bin/bash
 
 if [ $# -lt 2 ]; then
-    echo "Usage: $0 <number_of_workers> <routing_strategy> [model_name]"
+    echo "Usage: $0 <number_of_workers> <routing_strategy> [gamma] [balance_threshold] [model_name]"
     echo "Error: Must specify at least number of workers and routing strategy"
     exit 1
 fi
 
 NUM_WORKERS=$1
 ROUTING_STRATEGY=$2
-MODEL_NAME=${3:-"deepseek-ai/DeepSeek-R1-Distill-Llama-8B"}
+GAMMA=${3:-0.1}
+BALANCE_THRESHOLD=${4:-0.1}
+MODEL_NAME=${5:-"deepseek-ai/DeepSeek-R1-Distill-Llama-8B"}
 VALID_STRATEGIES=("prefix" "round_robin" "random")
 
 if [[ ! " ${VALID_STRATEGIES[@]} " =~ " ${ROUTING_STRATEGY} " ]]; then
@@ -37,7 +39,9 @@ INIT_CMD="source /opt/triton/venv/bin/activate && cd $WORKDIR"
 
 ROUTER_CMD="RUST_LOG=info python3 -m kv_router.router \
     --routing-strategy $ROUTING_STRATEGY \
-    --min-workers $NUM_WORKERS "
+    --min-workers $NUM_WORKERS \
+    --gamma $GAMMA \
+    --balance-threshold $BALANCE_THRESHOLD "
 
 tmux new-session -d -s "$SESSION_NAME-router"
 

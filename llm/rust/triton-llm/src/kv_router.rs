@@ -54,19 +54,23 @@ impl KvRouter {
     pub async fn from_runtime(
         runtime: DistributedRuntime,
         backend: Component,
+        balance_threshold: f64,
+        gamma: f64,
     ) -> Result<Arc<Self>> {
         let nats_client = runtime.nats_client();
         let service_name = backend.service_name();
         let kv_subject = backend.event_subject(KV_EVENT_SUBJECT);
         log::info!("Component Service Name {}", service_name);
         log::info!("KV Subject {}", kv_subject);
-        Self::new(nats_client, service_name, kv_subject).await
+        Self::new(nats_client, service_name, kv_subject, balance_threshold, gamma).await
     }
 
     pub async fn new(
         nats_client: triton_distributed::transports::nats::Client,
         service_name: String,
         kv_subject: String,
+        balance_threshold: f64,
+        gamma: f64,
     ) -> Result<Arc<Self>> {
         let cancellation_token = CancellationToken::new();
         let (ep_tx, ep_rx) = tokio::sync::mpsc::channel(128);
@@ -79,7 +83,7 @@ impl KvRouter {
         ));
 
         let indexer = KvIndexer::new(cancellation_token.clone());
-        let scheduler = KvScheduler::start(ep_rx).await?;
+        let scheduler = KvScheduler::start(ep_rx, balance_threshold, gamma).await?;
 
         log::debug!("subscribing to kv events: {}", kv_subject);
         let mut kv_events_rx = nats_client.client().subscribe(kv_subject).await?;

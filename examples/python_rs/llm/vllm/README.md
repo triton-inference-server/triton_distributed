@@ -175,12 +175,12 @@ You can run the router and workers in separate terminal sessions or use the `kv-
 #### Deploying using tmux
 
 The helper script `kv-router-run.sh` will launch the router and workers in their own tmux sessions.
-kv-router-run.sh <number_of_workers> <routing_strategy> Optional[<model_name>]
+kv-router-run.sh <number_of_workers> <routing_strategy> <gamma> <balance_threshold> Optional[<model_name>]
 
 Example:
 ```bash
-# Launch 8 workers with prefix routing strategy and use deepseek-ai/DeepSeek-R1-Distill-Llama-8B as the model
-/workspace/examples/python_rs/llm/vllm/kv-router-run.sh 8 prefix deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+# Launch 8 workers with prefix routing strategy, gamma=0.1, balance_threshold=0.1, and use deepseek-ai/DeepSeek-R1-Distill-Llama-8B as the model
+/workspace/examples/python_rs/llm/vllm/kv-router-run.sh 8 prefix 0.1 0.1 deepseek-ai/DeepSeek-R1-Distill-Llama-8B
 
 # List tmux sessions
 tmux ls

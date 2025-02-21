@@ -88,11 +88,15 @@ impl SchedulingRequest {
 
 pub struct KvScheduler {
     request_tx: tokio::sync::mpsc::Sender<SchedulingRequest>,
+    balance_threshold: f64,
+    gamma: f64,
 }
 
 impl KvScheduler {
     pub async fn start(
         endpoints_rx: tokio::sync::mpsc::Receiver<ProcessedEndpoints>,
+        balance_threshold: f64,
+        gamma: f64,
     ) -> Result<Self, KvSchedulerError> {
         let mut endpoints_rx = endpoints_rx;
 
@@ -146,7 +150,7 @@ impl KvScheduler {
                 };
                 log::debug!("selected");
                 loop {
-                    match select_worker(endpoints.borrow_mut(), &request) {
+                    match select_worker(endpoints.borrow_mut(), &request, balance_threshold, gamma) {
                         Ok(worker_id) => {
                             request.respond(worker_id);
                             continue 'outer;
@@ -172,7 +176,11 @@ impl KvScheduler {
             log::trace!("background endpoint subscriber shutting down");
         });
 
-        Ok(KvScheduler { request_tx })
+        Ok(KvScheduler { 
+            request_tx,
+            balance_threshold,
+            gamma,
+        })
     }
 
     pub async fn schedule(
@@ -199,19 +207,27 @@ impl KvScheduler {
         log::debug!("after receiving response");
         Ok(res)
     }
+
+    pub fn set_balance_threshold(&mut self, threshold: f64) {
+        self.balance_threshold = threshold;
+    }
+
+    pub fn set_gamma(&mut self, gamma: f64) {
+        self.gamma = gamma;
+    }
 }
 
 pub fn select_worker(
     workers: &mut ProcessedEndpoints,
     request: &SchedulingRequest,
+    balance_threshold: f64,
+    gamma: f64,
 ) -> Result<String, KvSchedulerError> {
     // balance mode prioritizes balancing load across workers
-    let balance_threshold: f64 = 0.1;
     let balance_mode = workers.load_std > balance_threshold * workers.load_avg;
 
     // Determine alpha based on mode
     let alpha = if balance_mode { 0.7 } else { 0.3 };
-    let gamma = 0.1; // example tuning param
 
     // Compute each worker's score
     let mut best_index = None;

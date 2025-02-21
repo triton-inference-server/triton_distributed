@@ -16,6 +16,7 @@
 
 import argparse
 import asyncio
+import json
 
 import uvloop
 from triton_distributed_rs import DistributedRuntime, triton_worker
@@ -29,13 +30,15 @@ async def worker(
     prompts: list[str], 
     timestamps: list[float],
     max_tokens_list: int, 
-    temperature: float
+    temperature: float,
+    gamma: float,
+    balance_threshold: float
 ):
     """
     Instantiate a `backend` client and call the `generate` endpoint asynchronously
     based on provided prompts and timestamps
     """
-    endpoint = runtime.namespace("triton-init").component("vllm").endpoint("generate")
+    endpoint = runtime.namespace("triton-init").component("preprocess").endpoint("generate")
     client = await endpoint.client()
 
     async def process_prompt(prompt: str, delay: float, max_tokens: int):
@@ -84,6 +87,18 @@ async def worker(
     avg_first_token = sum(r["time_to_first_token"] for r in results) / len(results)
     avg_between_tokens = sum(r["avg_time_between_tokens"] for r in results) / len(results)
     
+    # Save results to JSON file
+    results_data = {
+        "average_time_to_first_token": avg_first_token,
+        "average_time_between_tokens": avg_between_tokens,
+        "gamma": gamma,
+        "balance_threshold": balance_threshold
+    }
+    
+    # Append results to JSONL file
+    with open('benchmark_results.jsonl', 'a') as f:
+        f.write(json.dumps(results_data) + '\n')
+
     print(f"\nAverage time to first token: {avg_first_token:.3f} seconds")
     print(f"Average time between tokens: {avg_between_tokens:.3f} seconds")
 
@@ -93,21 +108,29 @@ if __name__ == "__main__":
     
     import json
     
-    with open('/workspace/datasets/mooncake_10min_processed_3422samples.json', "r") as f:
+    max_count = 1000
+    
+    with open('/workspace/datasets/mooncake_trace_synthesized_processed_10000samples.json', "r") as f:
         prompts = json.load(f)
-    with open('/workspace/datasets/mooncake_10min.jsonl', "r") as f:
+    with open('/workspace/datasets/mooncake_trace_synthesized.jsonl', "r") as f:
         data = [json.loads(line) for line in f]
+    prompts, data = prompts[:max_count], data[:max_count]
     
     # Filter out samples where combined length exceeds 16000
     valid_indices = [i for i, d in enumerate(data) 
                     if float(d['input_length']) + float(d['output_length']) <= 16000]
     
     prompts = [prompts[i] for i in valid_indices]
-    timestamps = [float(data[i]['timestamp']) / 2500 for i in valid_indices]
+    timestamps = [float(data[i]['timestamp']) / 1000 for i in valid_indices]
     max_tokens_list = [int(data[i]['output_length']) for i in valid_indices] 
     
     # Normalize timestamps to start from 0
     base_time = min(timestamps)
     timestamps = [t - base_time for t in timestamps]
 
-    asyncio.run(worker(prompts, timestamps, max_tokens_list, 0.5))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gamma', type=float, default=0.1)
+    parser.add_argument('--balance_threshold', type=float, default=0.1)
+    args = parser.parse_args()
+
+    asyncio.run(worker(prompts, timestamps, max_tokens_list, 0.5, args.gamma, args.balance_threshold))

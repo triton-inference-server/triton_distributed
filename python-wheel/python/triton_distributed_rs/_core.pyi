@@ -133,10 +133,23 @@ class KvRouter:
 
     ...
 
-    def __init__(self, drt: DistributedRuntime, component: Component) -> KvRouter:
+    def __init__(
+        self, 
+        drt: DistributedRuntime, 
+        component: Component,
+        balance_threshold: float,
+        gamma: float,
+    ) -> KvRouter:
         """
         Create a `KvRouter` object that is associated with the `component`
+
+        Args:
+            drt: The distributed runtime
+            component: The component to associate with
+            balance_threshold: Threshold for load balancing (between 0 and 1)
+            gamma: Parameter controlling exploration vs exploitation trade-off
         """
+        ...
 
     def schedule(self, token_ids: List[int], lora_id: int) -> str:
         """

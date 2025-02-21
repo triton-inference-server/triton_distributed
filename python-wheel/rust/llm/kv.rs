@@ -23,12 +23,19 @@ pub(crate) struct KvRouter {
 #[pymethods]
 impl KvRouter {
     #[new]
-    fn new(drt: DistributedRuntime, component: Component) -> PyResult<Self> {
+    fn new(
+        drt: DistributedRuntime, 
+        component: Component,
+        balance_threshold: f64,
+        gamma: f64,
+    ) -> PyResult<Self> {
         let runtime = pyo3_async_runtimes::tokio::get_runtime();
         runtime.block_on(async {
             let inner = llm_rs::kv_router::KvRouter::from_runtime(
                 drt.inner.clone(),
                 component.inner.clone(),
+                balance_threshold,
+                gamma,
             )
             .await
             .map_err(to_pyerr)?;
