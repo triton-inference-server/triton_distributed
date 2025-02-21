@@ -98,7 +98,6 @@ async def worker(runtime: DistributedRuntime, args: Namespace):
         .client()
     )
     vllm_logger.info("Waiting for workers to be ready")
-    await workers_client.wait_for_endpoints()
 
     while len(workers_client.endpoint_ids()) < args.min_workers:
         vllm_logger.info(

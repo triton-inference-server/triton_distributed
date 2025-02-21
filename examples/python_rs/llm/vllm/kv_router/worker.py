@@ -24,22 +24,26 @@ from common.parser import parse_vllm_args
 from common.protocol import Request, Response, TokenizedRequest
 from triton_distributed_rs import (
     DistributedRuntime,
-    KvRouter,
     KvMetricsPublisher,
+    KvRouter,
     triton_endpoint,
     triton_worker,
 )
 from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.engine.metrics_types import StatLoggerBase, Stats, SupportsMetricsInfo
 from vllm.inputs import TokensPrompt
 from vllm.logger import logger as vllm_logger
 from vllm.transformers_utils.tokenizer import AnyTokenizer
-from vllm.engine.metrics_types import Stats, StatLoggerBase, SupportsMetricsInfo
 
 vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
 
 class KvStatLogger(StatLoggerBase):
-    def __init__(self, vllm_scheduler: vllm.core.scheduler.Scheduler, metrics_publisher: KvMetricsPublisher):
+    def __init__(
+        self,
+        vllm_scheduler: vllm.core.scheduler.Scheduler,
+        metrics_publisher: KvMetricsPublisher,
+    ):
         # Must query initialized scheduler for max infos
         self.request_total_slots = vllm_scheduler.scheduler_config.max_num_seqs
         self.kv_total_blocks = vllm_scheduler.block_manager.num_total_gpu_blocks
@@ -53,7 +57,6 @@ class KvStatLogger(StatLoggerBase):
             self.kv_total_blocks,
         )
 
-
     def log(self, stats: Stats) -> None:
         self.metrics_publisher.publish(
             stats.num_running_sys,
@@ -65,15 +68,23 @@ class KvStatLogger(StatLoggerBase):
     def info(self, type: str, obj: SupportsMetricsInfo) -> None:
         pass
 
+
 class VllmEngine:
     """
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs, router: KvRouter, metrics_publisher: KvMetricsPublisher):
+    def __init__(
+        self,
+        engine_args: AsyncEngineArgs,
+        router: KvRouter,
+        metrics_publisher: KvMetricsPublisher,
+    ):
         self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
         # Attach logger for continuous metrics publishing
-        self.stat_logger = KvStatLogger(self.engine.engine.scheduler[0], metrics_publisher)
+        self.stat_logger = KvStatLogger(
+            self.engine.engine.scheduler[0], metrics_publisher
+        )
         self.engine.add_logger("kv_metrics", self.stat_logger)
         self.router = router
         self.tokenizer: Optional[AnyTokenizer] = None
@@ -141,7 +152,6 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     # worker_from_prompt_endpoint = worker_component.endpoint("generate")
     preprocess_endpoint = preprocess_component.endpoint("generate")
 
-    # TODO Hack until we unify lease_id and worker_id
     VLLM_WORKER_ID = worker_from_tokens_endpoint.lease_id()
     os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
     vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
