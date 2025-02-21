@@ -148,6 +148,11 @@ where
         })
     }
 
+    /// String identifying namepoint/component/endpoint
+    pub fn path(&self) -> String {
+        self.endpoint.path()
+    }
+
     pub fn endpoint_ids(&self) -> &tokio::sync::watch::Receiver<Vec<i64>> {
         &self.watch_rx
     }

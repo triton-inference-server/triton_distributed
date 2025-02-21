@@ -17,11 +17,9 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Receiver;
-use tracing as log;
 
 use triton_distributed::{
     protocols::{self, annotated::Annotated},
-    raise,
     transports::etcd::{KeyValue, WatchEvent},
     DistributedRuntime, Result,
 };
@@ -51,7 +49,7 @@ pub struct ModelWatchState {
 }
 
 pub async fn model_watcher(state: Arc<ModelWatchState>, events_rx: Receiver<WatchEvent>) {
-    log::debug!("model watcher started");
+    tracing::debug!("model watcher started");
 
     let mut events_rx = events_rx;
 
@@ -59,38 +57,38 @@ pub async fn model_watcher(state: Arc<ModelWatchState>, events_rx: Receiver<Watc
         match event {
             WatchEvent::Put(kv) => match handle_put(&kv, state.clone()).await {
                 Ok(model_name) => {
-                    log::info!("added chat model: {}", model_name);
+                    tracing::info!("added chat model: {}", model_name);
                 }
                 Err(e) => {
-                    log::error!("error adding chat model: {}", e);
-                    // log::warn!(
+                    tracing::error!("error adding chat model: {}", e);
+                    // tracing::warn!(
                     //     "deleting offending key: {}",
                     //     kv.key_str().unwrap_or_default()
                     // );
                     // if let Err(e) = kv_client.delete(kv.key(), None).await {
-                    //     log::error!("failed to delete offending key: {}", e);
+                    //     tracing::error!("failed to delete offending key: {}", e);
                     // }
                 }
             },
             WatchEvent::Delete(kv) => match handle_delete(&kv, state.clone()).await {
                 Ok(model_name) => {
-                    log::info!("removed chat model: {}", model_name);
+                    tracing::info!("removed chat model: {}", model_name);
                 }
                 Err(e) => {
-                    log::error!("error removing chat model: {}", e);
+                    tracing::error!("error removing chat model: {}", e);
                 }
             },
         }
     }
 
-    log::debug!("model watcher stopped");
+    tracing::debug!("model watcher stopped");
 }
 
 async fn handle_delete(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<String> {
-    log::debug!("removing model");
+    tracing::debug!("removing model");
 
     let key = kv.key_str()?;
-    log::debug!("key: {}", key);
+    tracing::debug!("key: {}", key);
 
     let model_name = key.trim_start_matches(&state.prefix);
     state.manager.remove_chat_completions_model(model_name)?;
@@ -102,14 +100,15 @@ async fn handle_delete(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<Str
 //
 // If this method errors, for the near term, we will delete the offending key.
 async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<String> {
-    log::debug!("adding model");
+    tracing::debug!("adding model");
 
     let key = kv.key_str()?;
-    log::debug!("key: {}", key);
+    tracing::debug!("key: {}", key);
 
-    let model_name = key.trim_start_matches(&state.prefix);
+    //let model_name = key.trim_start_matches(&state.prefix);
     let model_entry = serde_json::from_slice::<ModelEntry>(kv.value())?;
 
+    /*
     // this means there is an entry in etcd that breaks the contract that the key
     // in the models path must match the model name in the entry.
     if model_entry.name != model_name {
@@ -119,6 +118,7 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<String
             model_name
         );
     }
+    */
 
     let client = state
         .drt
@@ -130,9 +130,11 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<String
 
     let client = Arc::new(client);
 
+    let model_name = model_entry.name.clone();
+    tracing::info!("New model registered: {model_name}");
     state
         .manager
-        .add_chat_completions_model(model_name, client)?;
+        .add_chat_completions_model(&model_name, client)?;
 
     Ok(model_name.to_string())
 }

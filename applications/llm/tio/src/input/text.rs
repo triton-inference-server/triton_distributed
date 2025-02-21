@@ -14,7 +14,10 @@
 // limitations under the License.
 
 use futures::StreamExt;
-use std::io::{ErrorKind, Read, Write};
+use std::{
+    io::{ErrorKind, Read, Write},
+    sync::Arc,
+};
 use triton_distributed::{pipeline::Context, runtime::CancellationToken};
 use triton_llm::{
     protocols::openai::chat_completions::MessageRole,
@@ -40,6 +43,13 @@ pub async fn run(
         OpenAIChatCompletionsStreamingEngine,
         bool,
     ) = match engine_config {
+        EngineConfig::Dynamic(client) => {
+            // The service_name isn't used for text chat outside of logs,
+            // so use the path. That avoids having to listen on etcd for model registration.
+            let service_name = client.path();
+            tracing::info!("Model: {service_name}");
+            (service_name, Arc::new(client), false)
+        }
         EngineConfig::StaticFull {
             service_name,
             engine,
@@ -48,8 +58,6 @@ pub async fn run(
             (service_name, engine, false)
         }
     };
-    // TODO: Acquire an etcd lease, we are running
-
     main_loop(cancel_token, &service_name, engine, inspect_template).await
 }
 

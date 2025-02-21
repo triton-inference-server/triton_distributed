@@ -15,13 +15,23 @@
 
 use std::path::PathBuf;
 
-use triton_distributed::runtime::CancellationToken;
-use triton_llm::types::openai::chat_completions::OpenAIChatCompletionsStreamingEngine;
+use triton_distributed::{component::Client, DistributedRuntime};
+use triton_llm::types::{
+    openai::chat_completions::{
+        ChatCompletionRequest, ChatCompletionResponseDelta, OpenAIChatCompletionsStreamingEngine,
+    },
+    Annotated,
+};
 
 mod input;
 mod opt;
 mod output;
 pub use opt::{Input, Output};
+
+/// How we identify a namespace/component/endpoint URL.
+/// Technically the '://' is not part of the scheme but it eliminates several string
+/// concatenations.
+const ENDPOINT_SCHEME: &str = "tdr://";
 
 /// Required options depend on the in and out choices
 #[derive(clap::Parser, Debug, Clone)]
@@ -46,6 +56,10 @@ pub struct Flags {
 }
 
 pub enum EngineConfig {
+    /// An remote networked engine we don't know about yet
+    /// We don't have the pre-processor yet so this is only text requests. Type will change later.
+    Dynamic(Client<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>),
+
     /// A Full service engine does it's own tokenization and prompt formatting.
     StaticFull {
         service_name: String,
@@ -54,22 +68,25 @@ pub enum EngineConfig {
 }
 
 pub async fn run(
+    runtime: triton_distributed::Runtime,
     in_opt: Input,
     out_opt: Output,
     flags: Flags,
-    cancel_token: CancellationToken,
 ) -> anyhow::Result<()> {
+    let cancel_token = runtime.primary_token();
+
     // Turn relative paths into absolute paths
     let model_path = flags
         .model_path_pos
         .or(flags.model_path_flag)
         .and_then(|p| p.canonicalize().ok());
     // Serve the model under the name provided, or the name of the GGUF file.
-    let model_name = flags.model_name.or_else(||
-            // "stem" means the filename without the extension.
-            model_path.as_ref()
-                .and_then(|p| p.file_stem())
-                .map(|n| n.to_string_lossy().into_owned()));
+    let model_name = flags.model_name.or_else(|| {
+        model_path
+            .as_ref()
+            .and_then(|p| p.iter().last())
+            .map(|n| n.to_string_lossy().into_owned())
+    });
 
     // Create the engine matching `out`
     let engine_config = match out_opt {
@@ -83,6 +100,33 @@ pub async fn run(
                 service_name: model_name,
                 engine: output::echo_full::make_engine_full(),
             }
+        }
+        Output::Endpoint(path) => {
+            let elements: Vec<&str> = path.split('/').collect();
+            if elements.len() != 3 {
+                anyhow::bail!("An endpoint URL must have format {ENDPOINT_SCHEME}namespace/component/endpoint");
+            }
+            // This will attempt to connect to NATS and etcd
+            let distributed_runtime = DistributedRuntime::from_settings(runtime.clone()).await?;
+
+            let client = distributed_runtime
+                .namespace(elements[0])?
+                .component(elements[1])?
+                .endpoint(elements[2])
+                .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
+                .await?;
+
+            tracing::info!("Waiting for remote {}...", client.path());
+            tokio::select! {
+                _ = cancel_token.cancelled() => {
+                    return Ok(());
+                }
+                r = client.wait_for_endpoints() => {
+                    r?;
+                }
+            }
+
+            EngineConfig::Dynamic(client)
         }
         #[cfg(feature = "mistralrs")]
         Output::MistralRs => {
@@ -101,10 +145,13 @@ pub async fn run(
 
     match in_opt {
         Input::Http => {
-            crate::input::http::run(cancel_token.clone(), flags.http_port, engine_config).await?;
+            crate::input::http::run(runtime.clone(), flags.http_port, engine_config).await?;
         }
         Input::Text => {
             crate::input::text::run(cancel_token.clone(), engine_config).await?;
+        }
+        Input::Endpoint(path) => {
+            crate::input::endpoint::run(runtime.clone(), path, engine_config).await?;
         }
     }
 

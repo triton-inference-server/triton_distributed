@@ -25,9 +25,9 @@
 //! - Prompt formatter settings (PromptFormatterArtifact)
 //! - Various metadata like revision, publish time, etc.
 
+use crate::protocols::TokenIdType;
 use anyhow::Result;
 use either::Either;
-use crate::protocols::TokenIdType;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -196,7 +196,6 @@ impl ModelDeploymentCard {
     }
 }
 
-
 impl fmt::Display for ModelDeploymentCard {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.slug())
@@ -256,7 +255,7 @@ struct HFConfigJsonFile {
 
 impl HFConfigJsonFile {
     async fn from_file(file: &File) -> Result<Arc<dyn ModelInfo>> {
-        let contents = std::fs::read_to_string(&file)?;
+        let contents = std::fs::read_to_string(file)?;
         let config: Self = serde_json::from_str(&contents)?;
         Ok(Arc::new(config))
     }

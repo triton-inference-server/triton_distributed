@@ -15,12 +15,17 @@
 
 use std::fmt;
 
+use crate::ENDPOINT_SCHEME;
+
 pub enum Input {
     /// Run an OpenAI compatible HTTP server
     Http,
 
     /// Read prompt from stdin
     Text,
+
+    /// Pull requests from a namespace/component/endpoint path.
+    Endpoint(String),
 }
 
 impl TryFrom<&str> for Input {
@@ -30,6 +35,10 @@ impl TryFrom<&str> for Input {
         match s {
             "http" => Ok(Input::Http),
             "text" => Ok(Input::Text),
+            endpoint_path if endpoint_path.starts_with(ENDPOINT_SCHEME) => {
+                let path = endpoint_path.strip_prefix(ENDPOINT_SCHEME).unwrap();
+                Ok(Input::Endpoint(path.to_string()))
+            }
             e => Err(anyhow::anyhow!("Invalid in= option '{e}'")),
         }
     }
@@ -40,6 +49,7 @@ impl fmt::Display for Input {
         let s = match self {
             Input::Http => "http",
             Input::Text => "text",
+            Input::Endpoint(path) => path,
         };
         write!(f, "{s}")
     }
@@ -48,6 +58,9 @@ impl fmt::Display for Input {
 pub enum Output {
     /// Accept un-preprocessed requests, echo the prompt back as the response
     EchoFull,
+
+    /// Publish requests to a namespace/component/endpoint path.
+    Endpoint(String),
 
     #[cfg(feature = "mistralrs")]
     /// Run inference on a model in a GGUF file using mistralrs w/ candle
@@ -63,6 +76,12 @@ impl TryFrom<&str> for Output {
             "mistralrs" => Ok(Output::MistralRs),
 
             "echo_full" => Ok(Output::EchoFull),
+
+            endpoint_path if endpoint_path.starts_with(ENDPOINT_SCHEME) => {
+                let path = endpoint_path.strip_prefix(ENDPOINT_SCHEME).unwrap();
+                Ok(Output::Endpoint(path.to_string()))
+            }
+
             e => Err(anyhow::anyhow!("Invalid out= option '{e}'")),
         }
     }
@@ -75,6 +94,8 @@ impl fmt::Display for Output {
             Output::MistralRs => "mistralrs",
 
             Output::EchoFull => "echo_full",
+
+            Output::Endpoint(path) => path,
         };
         write!(f, "{s}")
     }

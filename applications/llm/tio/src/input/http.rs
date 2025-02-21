@@ -13,32 +13,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use triton_distributed::runtime::CancellationToken;
-use triton_llm::http::service::service_v2;
+use std::sync::Arc;
+
+use triton_distributed::{DistributedRuntime, Runtime};
+use triton_llm::http::service::{discovery, service_v2};
 
 use crate::EngineConfig;
 
 /// Build and run an HTTP service
 pub async fn run(
-    cancel_token: CancellationToken,
+    runtime: Runtime,
     http_port: u16,
     engine_config: EngineConfig,
 ) -> anyhow::Result<()> {
+    let http_service = service_v2::HttpService::builder()
+        .port(http_port)
+        .enable_chat_endpoints(true)
+        .enable_cmpl_endpoints(true)
+        .build()?;
     match engine_config {
+        EngineConfig::Dynamic(client) => {
+            let service_name = client.path();
+            let distributed_runtime = DistributedRuntime::from_settings(runtime.clone()).await?;
+            // Listen for models registering themselves in etcd, add them to HTTP service
+            let state = Arc::new(discovery::ModelWatchState {
+                prefix: service_name.clone(),
+                manager: http_service.model_manager().clone(),
+                drt: distributed_runtime.clone(),
+            });
+            let etcd_client = distributed_runtime.etcd_client();
+            let models_watcher = etcd_client.kv_get_and_watch_prefix(service_name).await?;
+            let (_prefix, _watcher, receiver) = models_watcher.dissolve();
+            let _watcher_task = tokio::spawn(discovery::model_watcher(state, receiver));
+        }
         EngineConfig::StaticFull {
             service_name,
             engine,
             ..
         } => {
-            let http_service = service_v2::HttpService::builder()
-                .port(http_port)
-                .enable_chat_endpoints(true)
-                .enable_cmpl_endpoints(true)
-                .build()?;
             http_service
                 .model_manager()
                 .add_chat_completions_model(&service_name, engine)?;
-            http_service.run(cancel_token).await
         }
     }
+    http_service.run(runtime.primary_token()).await
 }

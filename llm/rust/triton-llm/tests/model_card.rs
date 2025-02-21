@@ -13,8 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use triton_llm::model_card::model::{ModelDeploymentCard, ModelInfoType, TokenizerKind, PromptFormatterArtifact};
 use tempfile::tempdir;
+use triton_llm::model_card::model::{
+    ModelDeploymentCard, ModelInfoType, PromptFormatterArtifact, TokenizerKind,
+};
 
 #[tokio::test]
 async fn test_model_info_from_hf_like_local_repo() {
@@ -27,7 +29,6 @@ async fn test_model_info_from_hf_like_local_repo() {
     assert_eq!(info.max_position_embeddings(), 8192);
     assert_eq!(info.vocab_size(), 128256);
 }
-
 
 #[tokio::test]
 async fn test_model_info_from_non_existent_local_repo() {

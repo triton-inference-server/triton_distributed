@@ -137,6 +137,10 @@ impl Component {
         format!("{}.events.{}", self.service_name(), name.as_ref())
     }
 
+    pub fn path(&self) -> String {
+        format!("{}/{}", self.namespace, self.name)
+    }
+
     pub fn drt(&self) -> &DistributedRuntime {
         &self.drt
     }
@@ -211,6 +215,10 @@ impl Endpoint {
 
     pub fn component(&self) -> &Component {
         &self.component
+    }
+
+    pub fn path(&self) -> String {
+        format!("{}/{}", self.component.path(), self.name)
     }
 
     pub fn etcd_path(&self) -> String {

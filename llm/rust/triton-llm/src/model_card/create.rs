@@ -15,15 +15,14 @@
 
 use std::collections::HashMap;
 
-use std::path::Path;
-use std::fs;
 use crate::model_card::model::ModelDeploymentCard;
 use anyhow::{Context, Result};
+use std::fs;
+use std::path::Path;
 
-use crate::model_card::model::{ModelInfoType, TokenizerKind, PromptFormatterArtifact, File};
+use crate::model_card::model::{File, ModelInfoType, PromptFormatterArtifact, TokenizerKind};
 
 impl ModelDeploymentCard {
-
     /// Creates a ModelDeploymentCard from a local directory path.
     ///
     /// Currently HuggingFace format is supported and following files are expected:
@@ -57,7 +56,9 @@ impl ModelDeploymentCard {
     /// TODO: This will be implemented after nova-hub is integrated with the model-card
     /// TODO: Attempt to auto-detect model type and construct an MDC from a NGC repo
     pub async fn from_ngc_repo(_: &str) -> anyhow::Result<Self> {
-        Err(anyhow::anyhow!("ModelDeploymentCard::from_ngc_repo is not implemented"))
+        Err(anyhow::anyhow!(
+            "ModelDeploymentCard::from_ngc_repo is not implemented"
+        ))
     }
 
     pub async fn from_repo(repo_id: &str, model_name: &str) -> anyhow::Result<Self> {
@@ -130,11 +131,12 @@ async fn check_for_file(repo_id: &str, file: &str) -> anyhow::Result<File> {
 }
 
 async fn check_for_files(repo_id: &str, files: Vec<String>) -> Result<HashMap<String, File>> {
-    let dir_entries = fs::read_dir(repo_id)
-        .with_context(|| format!("Failed to read directory: {}", repo_id))?;
+    let dir_entries =
+        fs::read_dir(repo_id).with_context(|| format!("Failed to read directory: {}", repo_id))?;
     let mut found_files = HashMap::new();
     for entry in dir_entries {
-        let entry = entry.with_context(|| format!("Failed to read directory entry in {}", repo_id))?;
+        let entry =
+            entry.with_context(|| format!("Failed to read directory entry in {}", repo_id))?;
         let path = entry.path();
         let file_name = path
             .file_name()
@@ -162,11 +164,17 @@ async fn check_for_files(repo_id: &str, files: Vec<String>) -> Result<HashMap<St
 fn check_valid_local_repo_path(path: impl AsRef<Path>) -> Result<()> {
     let path = path.as_ref();
     if !path.exists() {
-        return Err(anyhow::anyhow!("Model path does not exist: {}", path.display()));
+        return Err(anyhow::anyhow!(
+            "Model path does not exist: {}",
+            path.display()
+        ));
     }
 
     if !path.is_dir() {
-        return Err(anyhow::anyhow!("Model path is not a directory: {}", path.display()));
+        return Err(anyhow::anyhow!(
+            "Model path is not a directory: {}",
+            path.display()
+        ));
     }
     Ok(())
 }

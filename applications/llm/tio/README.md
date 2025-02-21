@@ -44,5 +44,21 @@ Send a request:
 curl -d '{"model": "Llama-3.2-1B-Instruct-Q4_K_M", "max_tokens": 2049, "messages":[{"role":"user", "content": "What is the capital of South Africa?" }]}' -H 'Content-Type: application/json' http://localhost:8080/v1/chat/completions
 ```
 
+*Multi-node*
+
+Node 1:
+```
+tio in=http out=tdr://ns/backend/mistralrs
+```
+
+Node 2:
+```
+tio in=tdr://ns/backend/mistralrs out=mistralrs ~/llm_models/Llama-3.2-3B-Instruct
+```
+
+This will use etcd to auto-discover the model and NATS to talk to it. You can run multiple workers on the same endpoint and it will pick one at random each time.
+
+The `ns/backend/mistralrs` are purely symbolic, pick anything as long as it has three parts, and it matches the other node.
+
 Run `tio --help` for more options.
 
