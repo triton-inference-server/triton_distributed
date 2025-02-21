@@ -125,8 +125,10 @@ RUN uv python install 3.12
 COPY --from=dev /opt/vllm /opt/vllm
 COPY --from=dev /opt/triton/venv /opt/triton/venv
 
-# Copy examples
-COPY examples/python_rs/llm/vllm /workspace/examples/vllm
+# FIXME: Use a more consolidated path after directory restructure
+# Copy minimal set of files for deployment/testing
+COPY pyproject.toml /workspace/pyproject.toml
+COPY examples/python_rs/llm/vllm /workspace/examples/python_rs/llm/vllm
 
 # Set environment variables
 ENV VIRTUAL_ENV=/opt/triton/venv
