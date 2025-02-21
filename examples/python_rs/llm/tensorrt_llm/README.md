@@ -67,13 +67,14 @@ Alternatively, you can build with latest tensorrt_llm pipeline like below:
 # Build image
 ./container/build.sh --framework TENSORRTLLM --skip-clone-tensorrtllm 1 --base-image urm.nvidia.com/sw-tensorrt-docker/tensorrt-llm-staging/release --base-image-tag main
 ```
+**Note:** If you are using the latest tensorrt_llm image, you do not need to install the TRT-LLM wheel.
 
 ## Launching the Environment
 ```
 # Run image interactively from with the triton distributed root directory.
 docker run -it --network host --shm-size=64G --ulimit memlock=-1 --ulimit stack=67108864 -e HF_HOME=/path/to/hf_cache --gpus=all -v .:/workspace -v /user/home:/home triton_distributed:latest
 
-# Install the TRT-LLM wheel
+# Install the TRT-LLM wheel. No need to do this if you are using the latest tensorrt_llm image.
 pip install /home/tensorrt_llm-*.whl
 ```
 
