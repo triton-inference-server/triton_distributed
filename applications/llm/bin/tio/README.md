@@ -9,15 +9,6 @@ Rust:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-Get the NATS server from https://nats.io/download/ and run it:
-```
-nats-server -js --trace --store_dir $(mktemp -d)
-```
-
-Get etcd from https://github.com/etcd-io/etcd/releases and run it: `etcd`
-
-These components are required but not yet used by tio. It's a journey, OK.
-
 ## Build
 
 - CUDA:
@@ -40,11 +31,11 @@ For example one of these should be fast and good quality on almost any machine: 
 
 *Text interface*
 
-`./target/release/tio in=text out=mistralrs --model-path Llama-3.2-1B-Instruct-Q4_K_M.gguf`
+`./target/release/tio Llama-3.2-1B-Instruct-Q4_K_M.gguf` or path to a Hugging Face repo checkout instead of the GGUF.
 
 *HTTP interface*
 
-`./target/release/tio in=http out=mistralrs --model-path Llama-3.2-1B-Instruct-Q4_K_M.gguf`
+`./target/release/tio in=http --model-path Llama-3.2-1B-Instruct-Q4_K_M.gguf`
 
 List the models: `curl localhost:8080/v1/models`
 

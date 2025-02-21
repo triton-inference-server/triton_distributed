@@ -18,8 +18,13 @@ requires = ["setuptools>=65.0", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "triton_distributed.runtime"
+name = "triton-distributed-runtime"
 dynamic = ["version"]
+authors = [
+    { name = "NVIDIA Inc.", email = "sw-dl-triton@nvidia.com" },
+]
+license = { text = "Apache-2.0" }
+
 dependencies = ["triton_distributed.icp >= 0"]
 
 [tool.setuptools_scm]
@@ -29,4 +34,7 @@ root = "../.."
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["triton_distributed.runtime*"]
-namespaces= true
+namespaces = true
+
+[tool.setuptools]
+license-files = ["../../LICENSE"]

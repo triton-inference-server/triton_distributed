@@ -59,6 +59,7 @@ server/
 # will have compiled files and executables
 debug/
 target/
+llm_engine.h
 
 ### Virtual Environment ###
 .venv/

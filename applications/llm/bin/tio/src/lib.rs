@@ -27,6 +27,15 @@ pub use opt::{Input, Output};
 #[derive(clap::Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]
 pub struct Flags {
+    /// Full path to the model, which can be either a GGUF file or a checked out HF repository.
+    /// For the `echo_full` engine omit the flag.
+    #[arg(index = 1)]
+    pub model_path_pos: Option<PathBuf>,
+
+    // `--model-path`. The one above is `tio <positional-model-path>`
+    #[arg(long = "model-path")]
+    pub model_path_flag: Option<PathBuf>,
+
     /// HTTP port. `in=http` only
     #[arg(long, default_value = "8080")]
     pub http_port: u16,
@@ -34,12 +43,6 @@ pub struct Flags {
     /// The name of the model we are serving
     #[arg(long)]
     pub model_name: Option<String>,
-
-    /// Full path to the model. This differs by engine:
-    /// - mistralrs: File. GGUF.
-    /// - echo_full: Omit the flag.
-    #[arg(long)]
-    pub model_path: Option<PathBuf>,
 }
 
 pub enum EngineConfig {
@@ -57,7 +60,10 @@ pub async fn run(
     cancel_token: CancellationToken,
 ) -> anyhow::Result<()> {
     // Turn relative paths into absolute paths
-    let model_path = flags.model_path.and_then(|p| p.canonicalize().ok());
+    let model_path = flags
+        .model_path_pos
+        .or(flags.model_path_flag)
+        .and_then(|p| p.canonicalize().ok());
     // Serve the model under the name provided, or the name of the GGUF file.
     let model_name = flags.model_name.or_else(||
             // "stem" means the filename without the extension.
@@ -83,9 +89,6 @@ pub async fn run(
             let Some(model_path) = model_path else {
                 anyhow::bail!("out=mistralrs requires flag --model-path=<full-path-to-model-gguf>");
             };
-            if !model_path.is_file() {
-                anyhow::bail!("--model-path should refer to a GGUF file");
-            }
             let Some(model_name) = model_name else {
                 unreachable!("We checked model_path earlier, and set model_name from model_path");
             };
