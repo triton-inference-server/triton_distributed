@@ -30,9 +30,19 @@ jobs:
                 `Once verified, the reviewer will merge the PR. Thanks! \n\n` +
                 `🚀`
             })
+      - name: Adding Label
+        uses: actions/github-script@v7
+        env:
+          REPOSITORY: ${{ github.repository }}
+          CONTRIBUTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          script: |
+            const { REPOSITORY, CONTRIBUTOR } = process.env
+
             github.rest.issues.createLabel({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               name: "documentation"
-            })
+            });
