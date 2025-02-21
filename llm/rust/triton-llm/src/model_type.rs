@@ -1,29 +1,35 @@
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use serde::{Deserialize, Serialize};
 
-// Macro to define model types
-macro_rules! define_model_types {
-    ($(($variant:ident, $str_name:expr)),* $(,)?) => {
-        #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
-        pub enum ModelType {
-            $($variant),*
-        }
-
-        impl ModelType {
-            pub fn as_str(&self) -> &'static str {
-                match self {
-                    $(Self::$variant => $str_name),*
-                }
-            }
-
-            pub fn all() -> Vec<Self> {
-                vec![$(Self::$variant),*]
-            }
-        }
-    }
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum ModelType {
+    Chat,
+    Completion,
 }
 
-// Define all model types in one place
-define_model_types!(
-    (Chat, "chat"),
-    (Completion, "completion"),
-);
+impl ModelType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Chat => "chat",
+            Self::Completion => "completion",
+        }
+    }
+
+    pub fn all() -> Vec<Self> {
+        vec![Self::Chat, Self::Completion]
+    }
+}
