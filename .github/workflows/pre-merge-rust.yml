@@ -30,6 +30,7 @@ on:
     - 'applications/llm/tio/**'
     - 'llm/rust/**'
     - 'examples/rust/**'
+    - 'python-wheel/rust/**'
     - 'runtime/rust/**'
     - '**.rs'
     - 'Cargo.toml'
@@ -39,7 +40,7 @@ jobs:
   pre-merge-rust:
     runs-on: ubuntu-latest
     strategy:
-      matrix: { dir: ['runtime/rust', 'applications/llm/tio', 'examples/rust', 'llm/rust'] }
+      matrix: { dir: ['runtime/rust', 'applications/llm/tio', 'examples/rust', 'llm/rust', 'python-wheel'] }
     permissions:
       contents: read
     steps:
