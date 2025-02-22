@@ -217,9 +217,6 @@ get_options() {
 
 	ENVIRONMENT_VARIABLES+=" -e HF_TOKEN"
 
-	if [ ! -d "${SOURCE_DIR}/icp/src/python/tdist/icp/protos" ]; then
-	    $RUN_PREFIX docker run --rm -t -v ${SOURCE_DIR}/..:/workspace -w /workspace $IMAGE /workspace/icp/protos/gen_python.sh > /dev/null 2>&1
-	fi
 	INTERACTIVE=" -it "
     fi
 
