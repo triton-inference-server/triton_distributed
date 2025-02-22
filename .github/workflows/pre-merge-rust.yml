@@ -26,6 +26,7 @@ on:
     branches:
     - main
     paths:
+    - pre-merge-rust.yml
     - 'applications/llm/tio/**'
     - 'llm/rust/**'
     - 'examples/rust/**'
@@ -70,6 +71,7 @@ jobs:
     - name: Run Cargo Check
       working-directory: ${{ matrix.dir }}
       run: cargo check --locked
+      timeout-minutes: 5
     - name: Verify Code Formatting
       working-directory: ${{ matrix.dir }}
       run: cargo fmt -- --check
