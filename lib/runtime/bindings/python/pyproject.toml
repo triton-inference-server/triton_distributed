@@ -15,9 +15,9 @@
 
 
 [project]
-name = "triton-distributed-rs"
+name = "triton-distributed-runtime"
 version = "0.2.1"
-description = "Distributed LLM Framework"
+description = "Distributed Inference Framework"
 readme = "README.md"
 authors = [
     { name = "NVIDIA Inc.", email = "sw-dl-triton@nvidia.com" },

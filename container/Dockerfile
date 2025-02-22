@@ -128,8 +128,8 @@ RUN apt-get install tmux -y
 # Working directory
 WORKDIR /workspace
 
-COPY runtime /workspace/runtime
-RUN cd runtime/rust && \
+COPY lib/runtime /workspace/lib/runtime
+RUN cd lib/runtime && \
     cargo build --release --locked && cargo doc --no-deps
 
 # Build OpenAI HTTP Service binaries
