@@ -25,7 +25,10 @@ USER root
 # TODO: separate dev from runtime dependendcies
 
 # Rust build/dev dependencies
-RUN apt-get update; apt-get install -y gdb protobuf-compiler
+RUN apt-get update && \
+    apt-get install --no-install-recommends --yes  gdb protobuf-compiler cmake libssl-dev pkg-config
+
+
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 

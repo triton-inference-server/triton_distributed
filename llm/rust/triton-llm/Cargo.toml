@@ -71,6 +71,14 @@ either = { version = "1.13" }
 indexmap = { version = "2.6" }
 mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "5e689c9", optional = true }
 
+# tokenizers
+tokenizers = { version = "0.21.0", default-features = false, features = [
+  "onig",
+  "esaxx_fast",
+] }
+sentencepiece = "0.11.2"
+
+
 [dev-dependencies]
 insta = { version = "1.41", features = ["glob", "json", "redactions"]}
 proptest = "1.5.0"
