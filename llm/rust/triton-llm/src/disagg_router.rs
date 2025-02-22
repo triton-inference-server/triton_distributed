@@ -13,7 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::*;
+#[derive(Clone)]
+pub struct DisaggregatedRouter {
+    max_local_prefill_length: i32,
+}
 
-pub mod kv;
-pub mod disagg_router;
+impl DisaggregatedRouter {
+    pub fn new(max_local_prefill_length: i32) -> Self {
+        DisaggregatedRouter { max_local_prefill_length }
+    }
+
+    pub fn prefill_remote(&self, prefill_length: i32, prefix_hit_length: i32) -> bool {
+        // schedule the request purely based on the prefill length
+        // TODO: apply math models and compare local vs remote prefill TTFT
+        return prefill_length - prefix_hit_length > self.max_local_prefill_length
+    }
+
+    pub fn update_value(&mut self, max_local_prefill_length: i32) {
+        self.max_local_prefill_length = max_local_prefill_length;
+    }
+
+}
