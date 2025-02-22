@@ -131,9 +131,6 @@ RUN apt-get install tmux -y
 # Working directory
 WORKDIR /workspace
 
-COPY icp /workspace/icp
-RUN /workspace/icp/protos/gen_python.sh
-
 COPY runtime /workspace/runtime
 RUN cd runtime/rust && \
     cargo build --release --locked && cargo doc --no-deps
@@ -173,23 +170,9 @@ RUN mkdir -p /opt/triton/llm_binding/wheels && \
 # TODO: In future, we may use a virtualenv for everything and remove this.
 RUN pip install /opt/triton/llm_binding/wheels/triton_distributed_rs*cp312*.whl
 
-# Install python packages
-ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown
-
-# SETUPTOOLS_SCM_PRETEND_VERSION allows dynamically setting the package versions during build/install.
-# This allows having versioned packages during development between releases, such as commit IDs.
-#
-# Normally SCM version is taken directly from .git but this is not available in the Dockerfile
-# and so we pass in via a buildarg
-RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
-RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/runtime/python
-
 # Copy everything in after install steps to avoid re-running build/install
 # commands on unrelated changes in other dirs.
 COPY . /workspace
-
-# Sets pythonpath for python modules
-ENV PYTHONPATH="${PYTHONPATH}:/workspace/examples/python:/opt/tritonserver/python/openai/openai_frontend"
 
 # Enable system UCX
 ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
