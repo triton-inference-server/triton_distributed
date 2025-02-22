@@ -201,9 +201,9 @@ get_options() {
 
 	ENVIRONMENT_VARIABLES+=" -e HF_TOKEN"
 
-	if [ ! -d "${SOURCE_DIR}/icp/src/python/tdist/icp/protos" ]; then
-	    $RUN_PREFIX docker run --rm -t -v ${SOURCE_DIR}/..:/workspace -w /workspace $IMAGE /workspace/icp/protos/gen_python.sh > /dev/null 2>&1
-	fi
+#	if [ ! -d "${SOURCE_DIR}/icp/src/python/tdist/icp/protos" ]; then
+#	    $RUN_PREFIX docker run --rm -t -v ${SOURCE_DIR}/..:/workspace -w /workspace $IMAGE /workspace/icp/protos/gen_python.sh > /dev/null 2>&1
+#	fi
 	INTERACTIVE=" -it "
     fi
 
@@ -236,7 +236,7 @@ get_options() {
 	RM_STRING=" --rm "
     fi
 
-
+    echo "here"
     REMAINING_ARGS=("$@")
 }
 
@@ -261,14 +261,17 @@ missing_requirement() {
 }
 
 error() {
+    echo "error"
     printf '%s %s\n' "$1" "$2" >&2
     exit 1
 }
+echo "hello"
 
 get_options "$@"
 
-# RUN the image
+echo "hello"
 
+# RUN the image
 if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi

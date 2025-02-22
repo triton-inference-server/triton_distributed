@@ -14,19 +14,29 @@
 # limitations under the License.
 
 
-[package]
-name = "api_server"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
+from pydantic import BaseModel
 
-[dependencies]
-triton-distributed-runtime = { workspace = true}
-triton-distributed-llm = { workspace = true}
 
-serde = { workspace = true }
-serde_json = { workspace = true }
-tokio = { workspace = true }
+class Request(BaseModel):
+    prompt: str
+    sampling_params: dict
+
+
+class Tokens(BaseModel):
+    tokens: list[int]
+
+
+class TokenizedRequest(Request, Tokens):
+    pass
+
+
+class PrefillRequest(Request):
+    request_id: str
+
+
+class Response(BaseModel):
+    text: str
+
+
+class PrefillResponse(BaseModel):
+    prefilled: bool

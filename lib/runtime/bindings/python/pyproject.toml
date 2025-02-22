@@ -33,7 +33,7 @@ dependencies = [
 
 [tool.maturin]
 module-name = "triton_distributed.runtime._runtime"
-python-packages = ["triton_distributed.runtime"]
+python-packages = ["triton_distributed/runtime"]
 python-source = "src"
 
 [build-system]
