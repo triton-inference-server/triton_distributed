@@ -1,5 +1,7 @@
 import zmq
+import msgspec
 import time
+import json
 from vllm import LLMEngine
 from vllm.engine.arg_utils import EngineArgs
 from vllm.sampling_params import SamplingParams, RemotePrefillParams
@@ -54,8 +56,8 @@ def main():
 
     engine.add_request(
         request_id="0",
-        prompt="The capital of France is",
-        params=SamplingParams(max_tokens=5),
+        prompt="A B C D E",
+        params=SamplingParams(max_tokens=15, temperature=0.0),
         remote_prefill_params=RemotePrefillParams(
             is_remote_prefill=True,
         )
@@ -63,23 +65,31 @@ def main():
 
     engine.add_request(
         request_id="1",
-        prompt="The capital of Germany is",
-        params=SamplingParams(max_tokens=5),
+        prompt="1 2 3 4 5",
+        params=SamplingParams(max_tokens=15, temperature=0.0),
     )
 
     iteration = 0
+    remote_prefill_outputs = {}
     while True:
 
         try:
             print(f"Iteration {iteration}")
             iteration += 1
 
-            request_outputs = engine.step()
+            request_outputs, remote_prefill_requests = engine.step(return_remote_prefill_requests=True, remote_prefill_outputs=remote_prefill_outputs)
+
+            print(f"Sending {len(remote_prefill_requests)} remote prefill requests to prefill")
+            _socket.send(msgspec.msgpack.encode(remote_prefill_requests))
+            remote_prefill_outputs = json.loads(_socket.recv().decode())
+            print(f"Received {len(remote_prefill_outputs)} remote prefill outputs from prefill")
 
             num_outputs = len(request_outputs)
             print(f"Num outputs: {num_outputs}")
             if num_outputs > 0:
-                print(request_outputs[0].outputs[0].text)
+                for output in request_outputs:
+                    print(f"Output {output.request_id}")
+                    print(output.outputs[0].text)
 
             time.sleep(1)   
         except KeyboardInterrupt:
