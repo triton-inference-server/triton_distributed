@@ -111,6 +111,13 @@ ENV PYTHONUNBUFFERED=1
 # Install NATS - pointing toward NATS github instead of binaries.nats.dev due to server instability
 RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
 
+# Install etcd
+ENV ETCD_VERSION="v3.5.18"
+RUN wget https://github.com/etcd-io/etcd/releases/download/$ETCD_VERSION/etcd-$ETCD_VERSION-linux-amd64.tar.gz -O /tmp/etcd.tar.gz && \
+mkdir -p /usr/local/bin/etcd && \
+tar -xvf /tmp/etcd.tar.gz -C /usr/local/bin/etcd --strip-components=1
+ENV PATH=/usr/local/bin/etcd/:$PATH
+
 # Enable Git operations in the /workspace directory.
 RUN printf "[safe]\n      directory=/workspace\n" > /root/.gitconfig
 
