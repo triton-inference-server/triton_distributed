@@ -1,9 +1,12 @@
 import zmq
 from vllm import LLMEngine
 from vllm.engine.arg_utils import EngineArgs
-from vllm.sampling_params import SamplingParams, RemotePrefillParams
+from vllm.sampling_params import RemotePrefillParams
 from vllm.config import KVTransferConfig
-
+from vllm.inputs.data import TokensPrompt
+from vllm.outputs import RemotePrefillRequest
+import msgspec
+import json
 _ctx = None
 _socket = None
 
@@ -53,6 +56,48 @@ def main():
 
     remote_agent_name = engine.nixl_connector.add_remote_agent(decode_meta)
     print(f"Added remote agent: {remote_agent_name}")
+
+    iteration = 0
+    while True:
+
+        try:
+            print(f"Iteration {iteration}")
+            iteration += 1
+
+            remote_prefill_requests = msgspec.msgpack.decode(_socket.recv(), type=list[RemotePrefillRequest])
+
+            print(f"Received {len(remote_prefill_requests)} remote prefill requests from decode")
+
+            for remote_prefill_request in remote_prefill_requests:
+                sampling_params = remote_prefill_request.sampling_params
+                sampling_params.max_tokens = 1
+                sampling_params.min_tokens = 1
+                engine.add_request(
+                    request_id=remote_prefill_request.request_id,
+                    prompt=TokensPrompt(prompt_token_ids=remote_prefill_request.prompt_token_ids),
+                    params=sampling_params,
+                    remote_prefill_params=RemotePrefillParams(
+                        is_remote_decode=True,
+                        decode_mem_desc=remote_prefill_request.memory_desc,
+                        decode_agent_name=remote_prefill_request.agent_name,
+                    )
+                )
+
+            prefill_outputs = engine.step()
+            num_prefill_outputs = len(prefill_outputs)
+            print(f"Prefilled {num_prefill_outputs} requests")
+
+
+            remote_prefill_outputs = {}
+            if num_prefill_outputs > 0:
+                for output in prefill_outputs:
+                    print(f"Output {output.request_id}")
+                    print(output.outputs[0].text)
+                    remote_prefill_outputs[output.request_id] = output.outputs[0].token_ids[0]
+
+            _socket.send(json.dumps(remote_prefill_outputs).encode())
+        except KeyboardInterrupt:
+            break
 
 if __name__ == "__main__":
     main()
