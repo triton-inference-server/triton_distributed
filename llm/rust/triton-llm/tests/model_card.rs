@@ -14,9 +14,7 @@
 // limitations under the License.
 
 use tempfile::tempdir;
-use triton_llm::model_card::model::{
-    ModelDeploymentCard, ModelInfoType, PromptFormatterArtifact, TokenizerKind,
-};
+use triton_llm::model_card::model::{ModelDeploymentCard, PromptFormatterArtifact, TokenizerKind};
 
 #[tokio::test]
 async fn test_model_info_from_hf_like_local_repo() {
@@ -44,7 +42,6 @@ async fn test_tokenizer_from_hf_like_local_repo() {
     // Verify tokenizer file was found
     match mdc.tokenizer {
         TokenizerKind::HfTokenizerJson(_) => (),
-        _ => panic!("Expected HfTokenizerJson"),
     }
 }
 
