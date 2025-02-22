@@ -41,9 +41,9 @@ class VllmEngine(BaseVllmEngine):
 
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
     async def generate(self, request) -> AsyncIterator:
-        if self.engine_client is None:
-            await self.initialize()
-        assert self.engine_client is not None, "engine_client was not initialized"
+        assert (
+            self.engine_client is not None
+        ), "engine_client was not initialized, must call initialize() first"
 
         sampling_params = request.sampling_params
         # rust HTTP requires Delta streaming
@@ -83,6 +83,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
 
     vllm_engine = VllmEngine(engine_args)
+    await vllm_engine.initialize()
 
     await worker_endpoint.serve_endpoint(vllm_engine.generate)
 
