@@ -10,6 +10,7 @@ import string
 import click
 from triton_distributed_rs import triton_worker, DistributedRuntime, triton_endpoint
 from typing import Any
+import inspect
 
 
 logger = logging.getLogger("compoundai.serve.nova")
@@ -103,6 +104,17 @@ def main(
                 await component.create_service()
                 logger.info(f"[{run_id}] Created {service.name} component")
 
+                # Run startup hooks before setting up endpoints
+                for name, member in vars(class_instance.__class__).items():
+                    if callable(member) and getattr(member, "__bentoml_startup_hook__", False):
+                        logger.info(f"[{run_id}] Running startup hook: {name}")
+                        result = getattr(class_instance, name)()
+                        if inspect.isawaitable(result):
+                            await result
+                            logger.info(f"[{run_id}] Completed async startup hook: {name}")
+                        else:
+                            logger.info(f"[{run_id}] Completed startup hook: {name}")
+
                 # Set runtime on all dependencies
                 for dep in service.dependencies.values():
                     dep.set_runtime(runtime)
@@ -123,8 +135,10 @@ def main(
                     bound_method = endpoint.func.__get__(class_instance)
                     # Only pass request type for now, use Any for response
                     # TODO: Handle a triton_endpoint not having types
+                    # TODO: Handle multiple endpoints in a single component
                     triton_wrapped_method = triton_endpoint(endpoint.request_type, Any)(bound_method)
                     result = await td_endpoint.serve_endpoint(triton_wrapped_method)
+                    # WARNING: unreachable code :( because serve blocks
                     logger.info(f"[{run_id}] Result: {result}")
                     logger.info(f"[{run_id}] Registered endpoint '{name}'")
 

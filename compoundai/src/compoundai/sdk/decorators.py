@@ -70,3 +70,10 @@ def api(func: t.Callable) -> t.Callable:
         The decorated function.
     """
     return bentoml.api(func)
+
+def async_onstart(func: t.Callable) -> t.Callable:
+    """Decorator for async onstart functions.
+    """
+    # Mark the function as a startup hook
+    setattr(func, "__bentoml_startup_hook__", True)
+    return bentoml.on_startup(func)
