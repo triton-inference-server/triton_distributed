@@ -42,7 +42,8 @@ class BaseVllmEngine:
         """Initialize the engine client and related components."""
         logger.info("Initializing engine client")
         self._engine_context = build_async_engine_client_from_engine_args(
-            self.engine_args
+            self.engine_args,
+            disable_frontend_multiprocessing=True
         )
         if self._engine_context is not None:
             self.engine_client = await self._engine_context.__aenter__()
