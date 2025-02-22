@@ -19,46 +19,52 @@ import os
 import threading
 from contextlib import asynccontextmanager
 from typing import Any, Dict, Tuple
-from dataclasses import asdict
 
 import uvloop
 from common.parser import parse_tensorrt_llm_args
 from common.protocol import DisaggregatedRequest, DisaggregatedResponse
+from mpi4py.futures import MPICommExecutor
+from mpi4py.MPI import COMM_WORLD
 from tensorrt_llm import SamplingParams
 from tensorrt_llm._torch import LLM
-from tensorrt_llm._utils import set_mpi_comm
 from tensorrt_llm._torch.pyexecutor.config import PyTorchConfig
+from tensorrt_llm._utils import set_mpi_comm
+from tensorrt_llm.llmapi import DisaggregatedParams, KvCacheConfig, MpiCommSession
+from tensorrt_llm.llmapi.disagg_utils import (
+    CtxGenServerConfig,
+    parse_disagg_config_file,
+    split_world_comm,
+)
 from tensorrt_llm.logger import logger
-from tensorrt_llm.llmapi import LLM, BuildConfig, KvCacheConfig, MpiCommSession
-from tensorrt_llm.llmapi import DisaggregatedParams
-from tensorrt_llm.llmapi.disagg_utils import (CtxGenServerConfig,
-                                              parse_disagg_config_file,
-                                              split_world_comm)
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
-
-from mpi4py.futures import MPICommExecutor
+from triton_distributed_rs import DistributedRuntime, triton_worker
 
 logger.set_level("info")
+
 
 class TensorrtLLMEngine:
     """
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: Tuple[Dict[str, Any], Dict[str, Any]], 
-                    disagg_config: Dict[str, Any], 
-                    instance_idx: int, 
-                    sub_comm):
+    def __init__(
+        self,
+        engine_args: Tuple[Dict[str, Any], Dict[str, Any]],
+        disagg_config: Dict[str, Any],
+        instance_idx: int,
+        sub_comm,
+    ):
         self.pytorch_config_args, self.llm_engine_args = engine_args
         self.disagg_config = disagg_config
         self.instance_idx = instance_idx
-        self.server_config: CtxGenServerConfig = disagg_config.server_configs[instance_idx]
+        self.server_config: CtxGenServerConfig = disagg_config.server_configs[
+            instance_idx
+        ]
         self.mpi_session = MpiCommSession(sub_comm, n_workers=sub_comm.Get_size())
         self._init_engine()
 
     def _init_engine(self):
         logger.info("Initializing engine")
-        
+
         # Run the engine in a separate thread running the AsyncIO event loop.
         self._llm_engine = None
         self._llm_engine_start_cv = threading.Condition()
@@ -95,15 +101,17 @@ class TensorrtLLMEngine:
                 llm = await loop.run_in_executor(
                     None,
                     lambda: LLM(
-                        **self.llm_engine_args, 
+                        **self.llm_engine_args,
                         tensor_parallel_size=self.server_config.tp_size,
                         pipeline_parallel_size=self.server_config.pp_size,
                         gpus_per_node=None,
                         trust_remote_code=True,
                         _mpi_session=self.mpi_session,
-                        kv_cache_config=KvCacheConfig(free_gpu_memory_fraction=self.server_config.gpu_fraction),
+                        kv_cache_config=KvCacheConfig(
+                            free_gpu_memory_fraction=self.server_config.gpu_fraction
+                        ),
                         pytorch_backend_config=pytorch_config,
-                        backend="pytorch"
+                        backend="pytorch",
                     ),
                 )
                 yield llm
@@ -160,17 +168,26 @@ class TensorrtLLMEngine:
         request = DisaggregatedRequest.parse_raw(request)
         sampling_params = SamplingParams(**request.sampling_params)
         disaggregated_params = DisaggregatedParams(**request.disaggregated_params)
-        
+
         if disaggregated_params.opaque_state is not None:
-            disaggregated_params.opaque_state = disaggregated_params.opaque_state.encode('utf-8').decode('unicode_escape').encode('latin1')
-        
+            disaggregated_params.opaque_state = (
+                disaggregated_params.opaque_state.encode("utf-8")
+                .decode("unicode_escape")
+                .encode("latin1")
+            )
+
         async for response in self._llm_engine.generate_async(
-            request.prompt, sampling_params, streaming=request.streaming,
-            disaggregated_params=disaggregated_params
+            request.prompt,
+            sampling_params,
+            streaming=request.streaming,
+            disaggregated_params=disaggregated_params,
         ):
             logger.debug(f"Generated response: {response}")
             if self.server_config.type == "ctx":
-                yield DisaggregatedResponse(text=response.outputs[0].text, disaggregated_params=response.outputs[0].disaggregated_params).model_dump_json()
+                yield DisaggregatedResponse(
+                    text=response.outputs[0].text,
+                    disaggregated_params=response.outputs[0].disaggregated_params,
+                ).model_dump_json()
             else:
                 yield response.outputs[0].text
         self._ongoing_request_count -= 1
@@ -178,11 +195,11 @@ class TensorrtLLMEngine:
 
 @triton_worker()
 async def worker(
-    runtime: DistributedRuntime, 
-    engine_args: Tuple[Dict[str, Any], Dict[str, Any]], 
-    disagg_config: Dict[str, Any], 
-    instance_idx: int, 
-    sub_comm
+    runtime: DistributedRuntime,
+    engine_args: Tuple[Dict[str, Any], Dict[str, Any]],
+    disagg_config: Dict[str, Any],
+    instance_idx: int,
+    sub_comm,
 ):
     """
     Instantiate a `backend` component and serve the `generate` endpoint
@@ -191,32 +208,40 @@ async def worker(
     server_type = disagg_config.server_configs[instance_idx].type
     logger.info(f"Starting {server_type} server")
 
-    component = runtime.namespace("triton-init").component(f"tensorrt-llm-{server_type}-{instance_idx}")
+    component = runtime.namespace("triton-init").component(
+        f"tensorrt-llm-{server_type}-{instance_idx}"
+    )
     await component.create_service()
 
     endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(TensorrtLLMEngine(engine_args, disagg_config, instance_idx, sub_comm).generate)
+    await endpoint.serve_endpoint(
+        TensorrtLLMEngine(engine_args, disagg_config, instance_idx, sub_comm).generate
+    )
 
 
 if __name__ == "__main__":
     uvloop.install()
     args, engine_args = parse_tensorrt_llm_args()
 
-    if args.llmapi_disaggregated_config is None or not os.path.exists(args.llmapi_disaggregated_config):
-        raise ValueError(f"llmapi_disaggregated_config file does not exist or not provided")
+    if args.llmapi_disaggregated_config is None or not os.path.exists(
+        args.llmapi_disaggregated_config
+    ):
+        raise ValueError(
+            "llmapi_disaggregated_config file does not exist or not provided"
+        )
 
     disagg_config = parse_disagg_config_file(args.llmapi_disaggregated_config)
 
     logger.info(f"Parsed disaggregated config: {disagg_config}")
 
     is_leader, instance_idx, sub_comm = split_world_comm(disagg_config.server_configs)
-    os.environ['TRTLLM_USE_MPI_KVCACHE'] = "1"
+    os.environ["TRTLLM_USE_MPI_KVCACHE"] = "1"
     set_mpi_comm(sub_comm)
-    
+
     logger.info(f"is_leader: {is_leader}, instance_idx: {instance_idx}")
 
     if is_leader:
-        asyncio.run(worker(engine_args, disagg_config, instance_idx, sub_comm))    
+        asyncio.run(worker(engine_args, disagg_config, instance_idx, sub_comm))
     else:
         with MPICommExecutor(sub_comm) as executor:
             if not is_leader and executor is not None:

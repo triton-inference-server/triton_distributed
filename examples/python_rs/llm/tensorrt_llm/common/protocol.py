@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tensorrt_llm.llmapi import DisaggregatedParams
 from pydantic import BaseModel
+from tensorrt_llm.llmapi import DisaggregatedParams
 
 
 class Request(BaseModel):
@@ -29,6 +29,7 @@ class Response(BaseModel):
 
 class DisaggregatedRequest(Request):
     disaggregated_params: dict = {}
+
 
 class DisaggregatedResponse(Response):
     disaggregated_params: DisaggregatedParams = {}
