@@ -68,7 +68,7 @@ TENSORRTLLM_BACKEND_REPO_TAG=triton-llm/v0.17.0
 TENSORRTLLM_BACKEND_REBUILD=0
 # Set this as 1 to skip cloning the trt-llm backend repo. If cloning is skipped, trt-llm
 # backend repo tag and rebuild flag will be ignored. Use this option if you are using
-# trtllm llmapi worker. 
+# trtllm llmapi worker.
 TENSORRTLLM_SKIP_CLONE=0
 
 VLLM_BASE_IMAGE="nvcr.io/nvidia/cuda-dl-base"

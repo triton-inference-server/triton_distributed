@@ -16,18 +16,18 @@
 
 import argparse
 import asyncio
-from dataclasses import asdict
 import copy
-import os
-import uvloop
-from triton_distributed_rs import DistributedRuntime, triton_worker
-from tensorrt_llm.llmapi import DisaggregatedParams
-from tensorrt_llm.logger import logger
-from tensorrt_llm.llmapi.disagg_utils import (CtxGenServerConfig,
-                                              parse_disagg_config_file)
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+from dataclasses import asdict
 
+import uvloop
 from common.protocol import DisaggregatedRequest, DisaggregatedResponse
+from tensorrt_llm.llmapi import DisaggregatedParams
+from tensorrt_llm.llmapi.disagg_utils import (
+    CtxGenServerConfig,
+    parse_disagg_config_file,
+)
+from tensorrt_llm.logger import logger
+from triton_distributed_rs import DistributedRuntime, triton_worker
 
 logger.set_level("info")
 
@@ -62,13 +62,19 @@ class Router:
         ctx_client = self.get_next_server(self.ctx_clients, "ctx")
 
         # Send request to context server
-        request.disaggregated_params = asdict(DisaggregatedParams(request_type="context_only"))
+        request.disaggregated_params = asdict(
+            DisaggregatedParams(request_type="context_only")
+        )
         logger.debug(f"Sending request {request} to ctx server: {ctx_client}")
 
-        ctx_resp =[resp async for resp in await ctx_client.generate(request.model_dump_json())]
+        ctx_resp = [
+            resp async for resp in await ctx_client.generate(request.model_dump_json())
+        ]
         if len(ctx_resp) > 1:
-            raise ValueError("Context server returned more than one response. This is currently not supported in disaggregated server.")
-        
+            raise ValueError(
+                "Context server returned more than one response. This is currently not supported in disaggregated server."
+            )
+
         ctx_resp_obj = DisaggregatedResponse.parse_raw(ctx_resp[0].data())
         if request.streaming:
             # NOTE: this might change in the future if trtllm context server returns raw tokens
@@ -80,15 +86,13 @@ class Router:
         # Pick a generation server
         gen_client = self.get_next_server(self.gen_clients, "gen")
         logger.debug(f"Sending request {gen_req} to gen server: {gen_client}")
-        
+
         async for response in await gen_client.generate(gen_req.model_dump_json()):
             yield response.data()
 
+
 @triton_worker()
-async def worker(
-    runtime: DistributedRuntime,
-    server_configs: list[CtxGenServerConfig]
-):
+async def worker(runtime: DistributedRuntime, server_configs: list[CtxGenServerConfig]):
     """
     Instantiate a `backend` component and serve the `generate` endpoint
     A `Component` can serve multiple endpoints
@@ -101,10 +105,20 @@ async def worker(
 
     for i, server_config in enumerate(server_configs):
         if server_config.type == "ctx":
-            ctx_client = await runtime.namespace("triton-init").component(f"tensorrt-llm-ctx-{i}").endpoint("generate").client()
+            ctx_client = (
+                await runtime.namespace("triton-init")
+                .component(f"tensorrt-llm-ctx-{i}")
+                .endpoint("generate")
+                .client()
+            )
             ctx_clients.append(ctx_client)
         elif server_config.type == "gen":
-            gen_client = await runtime.namespace("triton-init").component(f"tensorrt-llm-gen-{i}").endpoint("generate").client()
+            gen_client = (
+                await runtime.namespace("triton-init")
+                .component(f"tensorrt-llm-gen-{i}")
+                .endpoint("generate")
+                .client()
+            )
             gen_clients.append(gen_client)
         else:
             raise ValueError(f"Invalid server type: {server_config.type}")
@@ -112,13 +126,18 @@ async def worker(
     endpoint = component.endpoint("generate")
     await endpoint.serve_endpoint(Router(ctx_clients, gen_clients).generate)
 
+
 if __name__ == "__main__":
     uvloop.install()
-    
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--llmapi-disaggregated-config", '-c', type=str, 
-                        default="disaggregated/llmapi_disaggregated_configs/single_node_config.yaml", 
-                        help="Path to the llmapi disaggregated config file")
+    parser.add_argument(
+        "--llmapi-disaggregated-config",
+        "-c",
+        type=str,
+        default="disaggregated/llmapi_disaggregated_configs/single_node_config.yaml",
+        help="Path to the llmapi disaggregated config file",
+    )
     args = parser.parse_args()
     disagg_config = parse_disagg_config_file(args.llmapi_disaggregated_config)
     server_configs = disagg_config.server_configs

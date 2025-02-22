@@ -77,7 +77,17 @@ if __name__ == "__main__":
     parser.add_argument("--max-tokens", type=int, default=10)
     parser.add_argument("--temperature", type=float, default=0.5)
     parser.add_argument("--streaming", type=bool, default=True)
-    parser.add_argument("--component", type=str, default="router", help="component to send request to")
+    parser.add_argument(
+        "--component", type=str, default="router", help="component to send request to"
+    )
     args = parser.parse_args()
 
-    asyncio.run(worker(args.component, args.prompt, args.max_tokens, args.temperature, args.streaming))
+    asyncio.run(
+        worker(
+            args.component,
+            args.prompt,
+            args.max_tokens,
+            args.temperature,
+            args.streaming,
+        )
+    )
