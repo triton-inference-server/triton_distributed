@@ -19,7 +19,7 @@ use service_metrics::DEFAULT_NAMESPACE;
 use triton_distributed::{
     logging,
     protocols::annotated::Annotated,
-    utils::{stream, Duration, Instant},
+    utils::Duration,
     DistributedRuntime, Result, Runtime, Worker,
 };
 
