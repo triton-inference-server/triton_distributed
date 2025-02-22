@@ -94,9 +94,9 @@ define_type_subcommands!(
     disable_help_subcommand = true,
 )]
 struct Cli {
-    /// Namespace to operate in
+    /// Public Namespace to operate in
     #[arg(short = 'n', long)]
-    namespace: Option<String>,
+    public_namespace: Option<String>,
 
     #[command(subcommand)]
     command: Commands,
@@ -132,7 +132,6 @@ enum HttpCommands {
     },
 }
 
-/// Common fields for adding any model type
 #[derive(Parser)]
 struct AddModelArgs {
     /// Model name (e.g. foo/v1)
@@ -156,7 +155,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Default namespace to "public" if not specified
-    let namespace = cli.namespace.unwrap_or_else(|| "public".to_string());
+    let namespace = cli.public_namespace.unwrap_or_else(|| "public".to_string());
 
     let worker = Worker::from_settings()?;
     worker.execute(|runtime| async move { handle_command(runtime, namespace, cli.command).await })
@@ -208,17 +207,33 @@ async fn add_model(
         endpoint_name
     );
 
+    let parts: Vec<&str> = endpoint_name.split('.').collect();
+    if parts.len() < 2 || parts.len() > 3 {
+        raise!("Invalid endpoint name: {}", endpoint_name);
+    }
+
+    // if 3 parts, then it's namespace.component.endpoint
+    // if 2 parts, then it's model_name.component.endpoint
+
     // parse endpoint
     let parts: Vec<&str> = endpoint_name.split('.').collect();
-    if parts.len() != 2 {
-        raise!("Endpoint name '{}' is not valid. Format should be 'component.endpoint'", endpoint_name);
+
+    if parts.len() < 2 {
+        raise!("Endpoint name '{}' is to short. Format should be 'component.endpoint' or 'namespace.component.endpoint'", endpoint_name);
+    } else if parts.len() > 3 {
+        raise!("Endpoint name '{}' is to long. Format should be 'component.endpoint' or 'namespace.component.endpoint'", endpoint_name);
     }
 
     // create model entry
     let endpoint = Endpoint {
-        namespace: namespace.to_string(),
-        component: parts[0].to_string(),
-        name: parts[1].to_string(),
+        namespace: if parts.len() == 3 {
+            parts[0].to_string()
+        } else {
+            println!("Using the public namespace: {} for model: {}", namespace, model_name);
+            namespace.clone()
+        },
+        component: parts[parts.len() - 2].to_string(),
+        name: parts[parts.len() - 1].to_string(),
     };
 
     let model = ModelEntry {
@@ -242,7 +257,7 @@ async fn add_model(
 
     if !kvs.is_empty() {
         println!(
-            "{} model {} already exists, please remove it before adding a new model.",
+            "{} model {} already exists, please remove it before changing the endpoint.",
             model_type.as_str(),
             model_name,
         );
@@ -359,14 +374,14 @@ async fn list_models(
 
     if models.is_empty() {
         match &model_type {
-            Some(mt) => println!("No {} models found in namespace {}", mt.as_str(), namespace),
-            None => println!("No models found in namespace {}", namespace),
+            Some(mt) => println!("No {} models found in the public namespace: {}", mt.as_str(), namespace),
+            None => println!("No models found in the public namespace: {}", namespace),
         }
     } else {
         let table = tabled::Table::new(models);
         match &model_type {
-            Some(mt) => println!("Listing {} models in namespace {}", mt.as_str(), namespace),
-            None => println!("Listing all models in namespace {}", namespace),
+            Some(mt) => println!("Listing {} models in the public namespace: {}", mt.as_str(), namespace),
+            None => println!("Listing all models in the public namespace: {}", namespace),
         }
         println!("{}", table);
     }
@@ -393,7 +408,7 @@ async fn remove_model(
     let mut kv_client = distributed.etcd_client().etcd_client().kv_client();
     match kv_client.delete(prefix.as_bytes(), None).await {
         Ok(_response) => {
-            println!("{} model {} removed from namespace {}", model_type.as_str(), name, namespace);
+            println!("{} model {} removed from the public namespace: {}", model_type.as_str(), name, namespace);
         }
         Err(e) => {
             log::error!("Error removing model {}: {}", name, e);
