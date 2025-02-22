@@ -13,9 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
 use clap::Parser;
-use std::env;
+use std::sync::Arc;
 
 use triton_distributed::{logging, DistributedRuntime, Result, Runtime, Worker};
 use triton_llm::http::service::{
@@ -69,7 +68,9 @@ async fn app(runtime: Runtime) -> Result<()> {
     // written to etcd
     // the cli when operating on an `http` component will validate the namespace.component is
     // registered with HttpServiceComponentDefinition
-    let component = distributed.namespace(&args.namespace)?.component(&args.component)?;
+    let component = distributed
+        .namespace(&args.namespace)?
+        .component(&args.component)?;
 
     let etcd_root = component.etcd_path();
     let etcd_path = format!("{}/models/chat/", etcd_root);
