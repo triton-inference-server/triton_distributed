@@ -49,22 +49,19 @@ impl EventPublisher for Namespace {
     }
 }
 
+// #[cfg(feature = "integration")]
 #[cfg(test)]
 mod tests {
     use super::*;
 
     // todo - make a distributed runtime fixture
     // todo - two options - fully mocked or integration test
-    #[cfg(feature = "integration")]
     #[tokio::test]
     async fn test_publish() {
-        // todo - use rtest - make fixtures
-        let dtr = DistributedRuntime::from_settings(Runtime::single_threaded().unwrap())
-            .await
-            .unwrap();
-
+        let rt = Runtime::from_current().unwrap();
+        let dtr = DistributedRuntime::from_settings(rt.clone()).await.unwrap();
         let ns = dtr.namespace("test".to_string()).unwrap();
-
         ns.publish("test", &"test".to_string()).await.unwrap();
+        rt.shutdown();
     }
 }

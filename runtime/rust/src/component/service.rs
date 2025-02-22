@@ -61,7 +61,7 @@ impl ServiceConfigBuilder {
         }
 
         // create service on the secondary runtime
-        let secondary = component.drt.runtime.secondary.clone();
+        let secondary = component.drt.runtime.secondary();
         let builder = component.drt.nats_client.client().service_builder();
         let service = secondary
             .spawn(async move {

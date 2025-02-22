@@ -61,7 +61,7 @@ enum RuntimeType {
 pub struct Runtime {
     id: Arc<String>,
     primary: RuntimeType,
-    secondary: Arc<tokio::runtime::Runtime>,
+    secondary: RuntimeType,
     cancellation_token: CancellationToken,
 }
 

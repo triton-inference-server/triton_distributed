@@ -102,8 +102,9 @@ impl Worker {
         Fut: Future<Output = Result<()>> + Send + 'static,
     {
         let runtime = self.runtime;
+        let local_runtime = runtime.clone();
         let primary = runtime.primary();
-        let secondary = runtime.secondary.clone();
+        let secondary = runtime.secondary();
 
         let timeout = std::env::var(TRD_WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
             .ok()
@@ -171,7 +172,9 @@ impl Worker {
             .take()
             .expect("Application initialized; but another thread is awaiting it; Worker.execute() can only be called once");
 
-        secondary.block_on(task)?
+        secondary.block_on(task)??;
+        local_runtime.shutdown();
+        Ok(())
     }
 }
 
