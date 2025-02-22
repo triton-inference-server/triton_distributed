@@ -163,7 +163,10 @@ impl Client {
             ]);
 
         // Execute the transaction
-        let _ = self.client.kv_client().txn(txn).await?;
+        let response = self.client.kv_client().txn(txn).await?;
+        if !response.succeeded() {
+            return Err(error!("key already exists: {}", key));
+        }
 
         Ok(())
     }
