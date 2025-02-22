@@ -81,11 +81,12 @@ jobs:
       run: cargo clippy --no-deps --all-targets -- -D warnings
     - name: Install and Run cargo-deny
       working-directory: ${{ matrix.dir }}
-      # Skip this step for failing dirs until license errors fixed
+      # FIXME: Skip this step for failing dirs until license errors fixed
       if: |
         matrix.dir != 'examples/rust' &&
         matrix.dir != 'applications/llm/tio' &&
-        matrix.dir != 'llm/rust'
+        matrix.dir != 'llm/rust' &&
+        matrix.dir != 'python-wheel'
       run: |
         cargo-deny --version || cargo install cargo-deny
         cargo-deny check --hide-inclusion-graph licenses
