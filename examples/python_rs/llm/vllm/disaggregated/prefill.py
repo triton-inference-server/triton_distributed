@@ -4,7 +4,7 @@ from common.base_engine import BaseVllmEngine
 from vllm.logger import logger as vllm_logger
 
 import os
-from compoundai import nova_endpoint, service, server_context
+from compoundai import nova_endpoint, service, server_context, async_onstart
 from common.protocol import PrefillRequest, PrefillResponse
 
 @service(
@@ -37,8 +37,11 @@ class Prefill(BaseVllmEngine):
         super().__init__(engine_args)
         self.kv_transfer_config = engine_args.kv_transfer_config
         self.kv_rank = self.kv_transfer_config.kv_rank
-        print("Prefill engine kv_transfer_config:", self.kv_transfer_config)
-        print("Prefill engine kv_rank:", self.kv_rank)
+
+    @async_onstart
+    async def init_engine(self):
+        await self.initialize()
+        print("Prefill engine initialized")
 
     @nova_endpoint()
     async def generate(self, request: PrefillRequest):

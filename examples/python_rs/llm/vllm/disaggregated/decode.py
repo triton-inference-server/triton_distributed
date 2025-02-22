@@ -9,10 +9,11 @@ from vllm.logger import logger as vllm_logger
 # from nova_init.decorators import nova_endpoint, nova_service, nova_depends
 import os
 from disaggregated.prefill import Prefill
-from compoundai import depends, nova_endpoint, service, api
+from compoundai import depends, nova_endpoint, service, api, async_onstart
 
 from vllm.engine.arg_utils import AsyncEngineArgs
 from common.base_engine import BaseVllmEngine
+from common.chat_processor import ProcessMixIn
 from common.protocol import PrefillRequest
 from vllm.entrypoints.openai.protocol import ChatCompletionRequest
 
@@ -22,7 +23,7 @@ from vllm.entrypoints.openai.protocol import ChatCompletionRequest
         "namespace": "triton-init",
     },
 )
-class Decode(BaseVllmEngine):
+class Decode(BaseVllmEngine, ProcessMixIn):
     prefill = depends(Prefill) 
 
     def __init__(self):
@@ -45,20 +46,19 @@ class Decode(BaseVllmEngine):
             engine_args.kv_transfer_config.kv_role == "kv_consumer"
         ), "Decode worker must be a KV consumer"
         
-        print("Decode engine initializing")
         super().__init__(engine_args)
         self.kv_transfer_config = engine_args.kv_transfer_config
-        print("Decode engine kv_transfer_config:", self.kv_transfer_config)
         self.kv_rank = self.kv_transfer_config.kv_rank
-        print("Decode engine kv_rank:", self.kv_rank)
-        print("Decode engine initialized")
+
+    @async_onstart
+    async def init_engine(self):
+        await self.initialize()
     
     @nova_endpoint() 
     async def generate(self, raw_request: ChatCompletionRequest):
         if self.engine_client is None:
             await self.initialize()
             
-        print("here")
         vllm_logger.info(f"Received request: {raw_request}")
         (
             request,
@@ -83,6 +83,8 @@ class Decode(BaseVllmEngine):
         prefill_output = self.prefill.generate(
             prefill_request.model_dump_json(),
         )
+        async for _ in prefill_output:
+            pass
 
         vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
@@ -97,5 +99,3 @@ class Decode(BaseVllmEngine):
         ):
             vllm_logger.debug(f"Generated response: {response}")
             yield response
-
-        await prefill_output  # Make sure prefill completes
