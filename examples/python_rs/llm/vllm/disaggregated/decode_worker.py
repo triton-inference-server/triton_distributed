@@ -15,6 +15,7 @@
 
 
 import asyncio
+import os
 import socket
 import uuid
 
@@ -23,6 +24,7 @@ import uvloop
 from common.base_engine import BaseVllmEngine
 from common.chat_processor import ProcessMixIn
 from common.parser import parse_vllm_args
+from common.prefill_queue import PrefillQueue
 from common.protocol import PrefillRequest
 from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
@@ -38,7 +40,7 @@ class VllmDecodeEngine(BaseVllmEngine, ProcessMixIn):
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs, prefill):
+    def __init__(self, engine_args: AsyncEngineArgs):
         assert (
             engine_args.kv_transfer_config.is_kv_consumer
         ), "Decode worker must be a KV consumer"
@@ -48,10 +50,10 @@ class VllmDecodeEngine(BaseVllmEngine, ProcessMixIn):
             )
             engine_args.enable_chunked_prefill = False
         super().__init__(engine_args)
-        self.prefill = prefill
 
         self.kv_transfer_config = engine_args.create_engine_config().kv_transfer_config
         self.kv_rank = self.kv_transfer_config.kv_rank
+        self.nats_server = os.getenv("NATS_SERVER", "nats://localhost:4222")
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):
@@ -79,9 +81,10 @@ class VllmDecodeEngine(BaseVllmEngine, ProcessMixIn):
             request_id=request_id,
         )
         vllm_logger.debug(f"Prefill request: {prefill_request}")
-        prefill_output = self.prefill.generate(
-            prefill_request.model_dump_json(),
-        )
+
+        # TODO: enqueue after the kv blocks are allocated
+        async with PrefillQueue.get_instance(nats_server=self.nats_server) as queue:
+            await queue.enqueue_prefill_request(prefill_request)
 
         vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
@@ -99,8 +102,6 @@ class VllmDecodeEngine(BaseVllmEngine, ProcessMixIn):
             vllm_logger.debug(f"Generated response: {response}")
             yield response
 
-        await prefill_output
-
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
@@ -111,13 +112,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
 
-    prefill = (
-        await runtime.namespace("triton-init")
-        .component("prefill")
-        .endpoint("generate")
-        .client()
-    )
-    async with VllmDecodeEngine(engine_args, prefill) as decode_engine:
+    async with VllmDecodeEngine(engine_args) as decode_engine:
         endpoint = component.endpoint("generate")
         await endpoint.serve_endpoint(decode_engine.generate)
 

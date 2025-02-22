@@ -15,13 +15,14 @@
 
 
 import asyncio
+import os
 
 import uvloop
 import vllm
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
-from common.protocol import PrefillRequest, PrefillResponse
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+from common.prefill_queue import PrefillQueue
+from triton_distributed_rs import DistributedRuntime, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 
@@ -44,7 +45,6 @@ class VllmPrefillEngine(BaseVllmEngine):
         self.kv_transfer_config = engine_args.create_engine_config().kv_transfer_config
         self.kv_rank = self.kv_transfer_config.kv_rank
 
-    @triton_endpoint(PrefillRequest, PrefillResponse)
     async def generate(self, request):
         if self.engine_client is None:
             await self.initialize()
@@ -71,8 +71,15 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     await component.create_service()
 
     async with VllmPrefillEngine(engine_args) as prefill_engine:
-        endpoint = component.endpoint("generate")
-        await endpoint.serve_endpoint(prefill_engine.generate)
+        nats_server = os.getenv("NATS_SERVER", "nats://localhost:4222")
+        # infinite loop to fetch prefill request from prefill queue
+        async with PrefillQueue.get_instance(nats_server=nats_server) as queue:
+            while True:
+                prefill_request = await queue.dequeue_prefill_request()
+                if prefill_request is not None:
+                    vllm_logger.debug(f"Prefill request: {prefill_request}")
+                    async for _ in prefill_engine.generate(prefill_request):
+                        pass
 
 
 if __name__ == "__main__":
