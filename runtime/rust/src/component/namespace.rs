@@ -49,7 +49,7 @@ impl EventPublisher for Namespace {
     }
 }
 
-// #[cfg(feature = "integration")]
+#[cfg(feature = "integration")]
 #[cfg(test)]
 mod tests {
     use super::*;
