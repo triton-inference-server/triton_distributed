@@ -168,6 +168,14 @@ get_options() {
                 missing_requirement $1
             fi
             ;;
+        --build-context)
+            if [ "$2" ]; then
+                BUILD_CONTEXT_ARG="--build-context $2"
+                shift
+            else
+                missing_requirement $1
+            fi
+            ;;
         --)
             shift
             break
@@ -260,6 +268,7 @@ show_help() {
     echo "  [--tag tag for image]"
     echo "  [--no-cache disable docker build cache]"
     echo "  [--dry-run print docker commands without running]"
+    echo "  [--build-context name=path to add build context]"
     exit 0
 }
 
@@ -312,7 +321,7 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $TAG $LATEST_TAG $BUILD_CONTEXT $NO_CACHE
+$RUN_PREFIX docker build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $TAG $LATEST_TAG $BUILD_CONTEXT_ARG $BUILD_CONTEXT $NO_CACHE
 
 { set +x; } 2>/dev/null
 

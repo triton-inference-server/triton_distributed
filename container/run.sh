@@ -206,6 +206,7 @@ get_options() {
 	VOLUME_MOUNTS+=" -v ${SOURCE_DIR}/..:/workspace "
 	VOLUME_MOUNTS+=" -v /tmp:/tmp "
 	VOLUME_MOUNTS+=" -v /mnt/:/mnt "
+	VOLUME_MOUNTS+=" -v /ephemeral/:/ephemeral " # TODO: Remove this before merging
 
 	if [ -z "$HF_CACHE" ]; then
 	    HF_CACHE=$DEFAULT_HF_CACHE
@@ -217,9 +218,10 @@ get_options() {
 
 	ENVIRONMENT_VARIABLES+=" -e HF_TOKEN"
 
-	if [ ! -d "${SOURCE_DIR}/icp/src/python/tdist/icp/protos" ]; then
-	    $RUN_PREFIX docker run --rm -t -v ${SOURCE_DIR}/..:/workspace -w /workspace $IMAGE /workspace/icp/protos/gen_python.sh > /dev/null 2>&1
-	fi
+    # TODO: Before merging, understand why this is needed to run --mount-workspace
+	# if [ ! -d "${SOURCE_DIR}/icp/src/python/tdist/icp/protos" ]; then
+	#     $RUN_PREFIX docker run --rm -t -v ${SOURCE_DIR}/..:/workspace -w /workspace $IMAGE /workspace/icp/protos/gen_python.sh > /dev/null 2>&1
+	# fi
 	INTERACTIVE=" -it "
     fi
 
