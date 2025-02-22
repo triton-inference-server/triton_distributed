@@ -4,8 +4,9 @@ import time
 import json
 from vllm import LLMEngine
 from vllm.engine.arg_utils import EngineArgs
-from vllm.sampling_params import SamplingParams, RemotePrefillParams
+from vllm.sampling_params import SamplingParams
 from vllm.config import KVTransferConfig
+from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams, RemotePrefillResponse
 
 _ctx = None
 _socket = None
@@ -16,6 +17,17 @@ def init_zmq(hostname="localhost", port=5432):
     _ctx = zmq.Context()
     _socket = _ctx.socket(zmq.PAIR)
     _socket.connect(f"tcp://{hostname}:{port}")
+
+
+def get_remote_prefill_request_callback(socket):
+    def callback(request: RemotePrefillRequest) -> RemotePrefillResponse:
+        print(f"[socket.send] Decode sending request to prefill")
+        socket.send(msgspec.msgpack.encode(request))
+        print(f"[socket.recv] Decode waiting for response from prefill")
+        response = msgspec.msgpack.decode(socket.recv(), type=RemotePrefillResponse)
+        print(f"Decode received response from prefill")
+        return response
+    return callback
 
 
 def main():
@@ -50,7 +62,7 @@ def main():
     print("Engine created")
 
     # Send metadata to prefill
-    print("Sending metadata to prefill")
+    print("[socket.send] Sending metadata to prefill")
     _socket.send(agent_metadata)
     print(f"Sent metadata to prefill")
 
@@ -60,6 +72,7 @@ def main():
         params=SamplingParams(max_tokens=15, temperature=0.0),
         remote_prefill_params=RemotePrefillParams(
             is_remote_prefill=True,
+            remote_prefill_request_callback=get_remote_prefill_request_callback(_socket),
         )
     )
 
@@ -77,12 +90,7 @@ def main():
             print(f"Iteration {iteration}")
             iteration += 1
 
-            request_outputs, remote_prefill_requests = engine.step(return_remote_prefill_requests=True, remote_prefill_outputs=remote_prefill_outputs)
-
-            print(f"Sending {len(remote_prefill_requests)} remote prefill requests to prefill")
-            _socket.send(msgspec.msgpack.encode(remote_prefill_requests))
-            remote_prefill_outputs = json.loads(_socket.recv().decode())
-            print(f"Received {len(remote_prefill_outputs)} remote prefill outputs from prefill")
+            request_outputs = engine.step()
 
             num_outputs = len(request_outputs)
             print(f"Num outputs: {num_outputs}")

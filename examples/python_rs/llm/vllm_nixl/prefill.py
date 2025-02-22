@@ -1,12 +1,12 @@
 import zmq
 from vllm import LLMEngine
 from vllm.engine.arg_utils import EngineArgs
-from vllm.sampling_params import RemotePrefillParams
 from vllm.config import KVTransferConfig
 from vllm.inputs.data import TokensPrompt
-from vllm.outputs import RemotePrefillRequest
+from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams, RemotePrefillResponse
 import msgspec
-import json
+import time
+
 _ctx = None
 _socket = None
 
@@ -50,7 +50,7 @@ def main():
     print("Engine created")
     
     # Recv metadata from decode
-    print("Receiving metadata from decode")
+    print("[socket.recv] Receiving metadata from decode")
     decode_meta = _socket.recv()
     print(f"Received metadata from decode")
 
@@ -64,11 +64,14 @@ def main():
             print(f"Iteration {iteration}")
             iteration += 1
 
-            remote_prefill_requests = msgspec.msgpack.decode(_socket.recv(), type=list[RemotePrefillRequest])
+            try:
+                print(f"[socket.recv] Prefill waiting for request from decode")
+                msg = _socket.recv(zmq.NOBLOCK)
+                remote_prefill_request = msgspec.msgpack.decode(msg, type=RemotePrefillRequest)
 
-            print(f"Received {len(remote_prefill_requests)} remote prefill requests from decode")
+                print(f"Received remote prefill request from decode")
 
-            for remote_prefill_request in remote_prefill_requests:
+                # Sampling params can be adjusted inside the engine
                 sampling_params = remote_prefill_request.sampling_params
                 sampling_params.max_tokens = 1
                 sampling_params.min_tokens = 1
@@ -82,20 +85,26 @@ def main():
                         decode_agent_name=remote_prefill_request.agent_name,
                     )
                 )
+            except zmq.Again:
+                print("No request from decode")
 
             prefill_outputs = engine.step()
             num_prefill_outputs = len(prefill_outputs)
             print(f"Prefilled {num_prefill_outputs} requests")
 
-
-            remote_prefill_outputs = {}
             if num_prefill_outputs > 0:
-                for output in prefill_outputs:
-                    print(f"Output {output.request_id}")
-                    print(output.outputs[0].text)
-                    remote_prefill_outputs[output.request_id] = output.outputs[0].token_ids[0]
+                assert num_prefill_outputs == 1
+                output = prefill_outputs[0]
+                print(f"Output {output.request_id}")
+                print(output.outputs[0].text)
+                remote_prefill_response = RemotePrefillResponse(
+                    request_id=output.request_id,
+                    first_token_id=output.outputs[0].token_ids[0],
+                )
+                print(f"[socket.send] Prefill sending response to decode")
+                _socket.send(msgspec.msgpack.encode(remote_prefill_response))
 
-            _socket.send(json.dumps(remote_prefill_outputs).encode())
+            time.sleep(1)
         except KeyboardInterrupt:
             break
 
