@@ -24,8 +24,8 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 use std::{ops::Deref, path::Path};
 
-pub use anyhow::{Error, Result};
 use crate::protocols::TokenIdType;
+pub use anyhow::{Error, Result};
 
 pub use hf::HuggingFaceTokenizer;
 pub use sp::SentencePieceTokenizer;
