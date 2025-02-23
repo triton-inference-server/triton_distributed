@@ -21,11 +21,8 @@ def init_zmq(hostname="localhost", port=5432):
 
 def get_remote_prefill_request_callback(socket):
     def callback(request: RemotePrefillRequest) -> RemotePrefillResponse:
-        print(f"[socket.send] Decode sending request to prefill")
         socket.send(msgspec.msgpack.encode(request))
-        print(f"[socket.recv] Decode waiting for response from prefill")
         response = msgspec.msgpack.decode(socket.recv(), type=RemotePrefillResponse)
-        print(f"Decode received response from prefill")
         return response
     return callback
 
@@ -46,6 +43,7 @@ def main():
         pipeline_parallel_size=1, # TODO add support for pipeline parallel > 1
         gpu_memory_utilization=0.25, # for dev to speed up mem registration
         max_model_len=100, # for dev to reduce required memory
+        tensor_parallel_size=2,
     )
     vllm_config = args.create_engine_config()
     executor_class = LLMEngine._get_executor_cls(vllm_config)
@@ -56,14 +54,14 @@ def main():
         log_stats=False,
     )
 
-    agent_metadata = engine.nixl_connector.get_agent_metadata()
-    print(f"Agent metadata len: {len(agent_metadata)}")
 
     print("Engine created")
 
     # Send metadata to prefill
+    metadata = engine.get_nixl_metadata()
     print("[socket.send] Sending metadata to prefill")
-    _socket.send(agent_metadata)
+    encoded_metadata = msgspec.msgpack.encode(metadata)  # Encode the list of bytes
+    _socket.send(encoded_metadata)
     print(f"Sent metadata to prefill")
 
     engine.add_request(
@@ -83,7 +81,6 @@ def main():
     )
 
     iteration = 0
-    remote_prefill_outputs = {}
     while True:
 
         try:
