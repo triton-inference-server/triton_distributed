@@ -34,6 +34,7 @@ def main():
         pipeline_parallel_size=1, # TODO add support for pipeline parallel > 1
         gpu_memory_utilization=0.25, # for dev to speed up mem registration
         max_model_len=100, # for dev to reduce required memory
+        tensor_parallel_size=2,
     )
     vllm_config = args.create_engine_config()
     executor_class = LLMEngine._get_executor_cls(vllm_config)
@@ -44,18 +45,17 @@ def main():
         log_stats=False,
     )
 
-    agent_metadata = engine.nixl_connector.get_agent_metadata()
-    print(f"Agent metadata len: {len(agent_metadata)}")
-
     print("Engine created")
     
     # Recv metadata from decode
     print("[socket.recv] Receiving metadata from decode")
-    decode_meta = _socket.recv()
+    msg = _socket.recv()
+    # TODO add to NixlMetadata msgpack.Struct
+    decode_meta = msgspec.msgpack.decode(msg, type=tuple[str, list[bytes], list[dict[tuple[int, int], bytes]]])
     print(f"Received metadata from decode")
 
-    remote_agent_name = engine.nixl_connector.add_remote_agent(decode_meta)
-    print(f"Added remote agent: {remote_agent_name}")
+    remote_agent_names = engine.add_remote_nixl_metadata(*decode_meta)
+    print(f"Added remote agent: {remote_agent_names}")
 
     iteration = 0
     while True:
@@ -81,13 +81,14 @@ def main():
                     params=sampling_params,
                     remote_prefill_params=RemotePrefillParams(
                         is_remote_decode=True,
-                        decode_mem_desc=remote_prefill_request.memory_desc,
-                        decode_agent_name=remote_prefill_request.agent_name,
+                        decode_block_ids=remote_prefill_request.block_ids,
+                        decode_engine_id=remote_prefill_request.engine_id,
                     )
                 )
             except zmq.Again:
                 print("No request from decode")
 
+            print(f"Prefilling")
             prefill_outputs = engine.step()
             num_prefill_outputs = len(prefill_outputs)
             print(f"Prefilled {num_prefill_outputs} requests")
