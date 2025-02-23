@@ -23,14 +23,14 @@ Run in container. In terminal 1:
 
 ```
 cd /workspace/examples/python_rs/llm/vllm_nixl
-CUDA_VISIBLE_DEVICES=0 python prefill.py
+CUDA_VISIBLE_DEVICES=0,1 python prefill.py
 ```
 
 In terminal 2:
 
 ```
 cd /workspace/examples/python_rs/llm/vllm_nixl
-CUDA_VISIBLE_DEVICES=1 python decode.py
+CUDA_VISIBLE_DEVICES=2,3 python decode.py
 ```
 
 
