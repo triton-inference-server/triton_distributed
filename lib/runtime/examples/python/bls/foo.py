@@ -16,7 +16,7 @@
 import asyncio
 
 import uvloop
-from triton_distributed_rs import DistributedRuntime, triton_worker
+from triton_distributed_runtime import DistributedRuntime, triton_worker
 
 uvloop.install()
 

@@ -18,7 +18,7 @@ use futures::stream::StreamExt;
 use std::{sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 use tracing as log;
-use triton_distributed::{component::Component, DistributedRuntime};
+use triton_distributed_runtime::{component::Component, DistributedRuntime};
 
 pub mod indexer;
 pub mod protocols;
@@ -65,7 +65,7 @@ impl KvRouter {
     }
 
     pub async fn new(
-        nats_client: triton_distributed::transports::nats::Client,
+        nats_client: triton_distributed_runtime::transports::nats::Client,
         service_name: String,
         kv_subject: String,
     ) -> Result<Arc<Self>> {
@@ -145,7 +145,7 @@ impl KvRouter {
 }
 
 async fn collect_endpoints(
-    nats_client: triton_distributed::transports::nats::Client,
+    nats_client: triton_distributed_runtime::transports::nats::Client,
     service_name: String,
     ep_tx: tokio::sync::mpsc::Sender<ProcessedEndpoints>,
     cancel: CancellationToken,

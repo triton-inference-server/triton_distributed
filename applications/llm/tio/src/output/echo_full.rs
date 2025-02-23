@@ -18,9 +18,9 @@ use std::{sync::Arc, time::Duration};
 use async_stream::stream;
 use async_trait::async_trait;
 
-use triton_distributed::engine::{AsyncEngine, AsyncEngineContextProvider, ResponseStream};
-use triton_distributed::pipeline::{Error, ManyOut, SingleIn};
-use triton_distributed::protocols::annotated::Annotated;
+use triton_distributed_runtime::engine::{AsyncEngine, AsyncEngineContextProvider, ResponseStream};
+use triton_distributed_runtime::pipeline::{Error, ManyOut, SingleIn};
+use triton_distributed_runtime::protocols::annotated::Annotated;
 use triton_llm::protocols::openai::chat_completions::FinishReason;
 use triton_llm::protocols::openai::chat_completions::{
     ChatCompletionRequest, ChatCompletionResponseDelta, Content,

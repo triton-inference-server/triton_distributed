@@ -19,12 +19,12 @@ pub use crate::kv_router::protocols::ForwardPassMetrics;
 
 use anyhow::Result;
 use derive_builder::Builder;
-use triton_distributed::pipeline::network::{
+use triton_distributed_runtime::pipeline::network::{
     ingress::push_endpoint::PushEndpoint,
     PushWorkHandler,
 };
 
-use triton_distributed::transports::nats::{self, ServiceExt};
+use triton_distributed_runtime::transports::nats::{self, ServiceExt};
 
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;

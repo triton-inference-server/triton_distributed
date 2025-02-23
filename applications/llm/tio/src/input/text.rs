@@ -18,7 +18,7 @@ use std::{
     io::{ErrorKind, Read, Write},
     sync::Arc,
 };
-use triton_distributed::{pipeline::Context, runtime::CancellationToken};
+use triton_distributed_runtime::{pipeline::Context, runtime::CancellationToken};
 use triton_llm::{
     protocols::openai::chat_completions::MessageRole,
     types::openai::chat_completions::{

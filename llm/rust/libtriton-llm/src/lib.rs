@@ -21,7 +21,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use tracing as log;
 use uuid::Uuid;
 
-use triton_distributed::{DistributedRuntime, Worker};
+use triton_distributed_runtime::{DistributedRuntime, Worker};
 use triton_llm::kv_router::{
     indexer::compute_block_hash_for_seq, protocols::*, publisher::KvPublisher,
 };

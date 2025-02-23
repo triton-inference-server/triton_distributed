@@ -16,7 +16,7 @@
 use clap::{Parser, Subcommand};
 use tracing as log;
 
-use triton_distributed::{
+use triton_distributed_runtime::{
     distributed::DistributedConfig, logging, protocols::Endpoint, raise, DistributedRuntime,
     Result, Runtime, Worker,
 };

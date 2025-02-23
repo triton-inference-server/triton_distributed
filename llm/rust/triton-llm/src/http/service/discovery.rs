@@ -18,7 +18,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Receiver;
 
-use triton_distributed::{
+use triton_distributed_runtime::{
     protocols::{self, annotated::Annotated},
     transports::etcd::{KeyValue, WatchEvent},
     DistributedRuntime, Result,

@@ -31,7 +31,7 @@ cbindgen = "0.27"
 
 [dependencies]
 triton-llm = { path = "../triton-llm" }
-triton-distributed = { workspace = true }
+triton-distributed-runtime = { workspace = true }
 
 anyhow = { version = "1" }
 futures = "0.3"

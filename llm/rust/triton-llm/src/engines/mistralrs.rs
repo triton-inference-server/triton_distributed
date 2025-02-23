@@ -27,10 +27,10 @@ use mistralrs::{
 };
 use tokio::sync::mpsc::channel;
 
-use triton_distributed::engine::{AsyncEngine, AsyncEngineContextProvider, ResponseStream};
-use triton_distributed::pipeline::error as pipeline_error;
-use triton_distributed::pipeline::{Error, ManyOut, SingleIn};
-use triton_distributed::protocols::annotated::Annotated;
+use triton_distributed_runtime::engine::{AsyncEngine, AsyncEngineContextProvider, ResponseStream};
+use triton_distributed_runtime::pipeline::error as pipeline_error;
+use triton_distributed_runtime::pipeline::{Error, ManyOut, SingleIn};
+use triton_distributed_runtime::protocols::annotated::Annotated;
 
 use crate::protocols::openai::chat_completions::{
     ChatCompletionChoiceDelta, ChatCompletionContent, ChatCompletionRequest,

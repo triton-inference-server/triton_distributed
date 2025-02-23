@@ -16,7 +16,7 @@
 use crate::kv_router::{indexer::RouterEvent, protocols::KvCacheEvent, KV_EVENT_SUBJECT};
 use tokio::sync::mpsc;
 use tracing as log;
-use triton_distributed::{component::Component, DistributedRuntime, Result};
+use triton_distributed_runtime::{component::Component, DistributedRuntime, Result};
 use uuid::Uuid;
 
 pub struct KvPublisher {

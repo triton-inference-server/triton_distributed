@@ -146,26 +146,27 @@ RUN cd llm/rust/ && \
     cargo build --release --locked && cargo doc --no-deps
 
 # Install uv, create virtualenv for general use, and build triton_distributed_rs wheel
-COPY python-wheel /workspace/python-wheel
+#COPY python-wheel /workspace/python-wheel
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
-    cd python-wheel && \
-    uv build && \
-    uv pip install dist/triton_distributed_rs*cp312*.whl
+    uv pip install maturin[patchelf] && \
+    cd lib/runtime/bindings/python && \
+    maturin build --release && \
+    uv pip install rust/target/wheels/triton_distributed_runtime*cp312*.whl
 
 # Package the bindings
 RUN mkdir -p /opt/triton/llm_binding/wheels && \
     mkdir /opt/triton/llm_binding/lib && \
-    cp python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/. && \
+    cp lib/runtime/bindings/python/rust/target/wheels/triton_distributed_runtime*cp312*.whl /opt/triton/llm_binding/wheels/. && \
     cp llm/rust/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/. && \
     cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
 
 # Install triton_distributed_rs wheel globally in container for tests that
 # currently run without virtual environment activated.
 # TODO: In future, we may use a virtualenv for everything and remove this.
-RUN pip install /opt/triton/llm_binding/wheels/triton_distributed_rs*cp312*.whl
+RUN pip install /opt/triton/llm_binding/wheels/triton_distributed_runtime*cp312*.whl
 
 # Copy everything in after install steps to avoid re-running build/install
 # commands on unrelated changes in other dirs.

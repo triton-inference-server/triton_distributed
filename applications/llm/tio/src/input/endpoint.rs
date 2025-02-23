@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use triton_distributed::{
+use triton_distributed_runtime::{
     pipeline::network::Ingress, protocols::Endpoint, DistributedRuntime, Runtime,
 };
 use triton_llm::http::service::discovery::ModelEntry;

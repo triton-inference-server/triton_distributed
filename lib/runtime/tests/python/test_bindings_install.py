@@ -20,7 +20,7 @@ pytestmark = pytest.mark.pre_merge
 
 def test_bindings_install():
     # Verify python bindings to rust can be imported
-    import triton_distributed_rs as tdr
+    import triton_distributed.runtime as tdr
 
     # Placeholder to avoid unused import errors or removal by linters
     assert tdr

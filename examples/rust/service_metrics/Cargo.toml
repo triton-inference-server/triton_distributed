@@ -23,7 +23,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-triton-distributed = { workspace = true }
+triton-distributed-runtime = { workspace = true }
 
 # third-party
 futures = { workspace = true }

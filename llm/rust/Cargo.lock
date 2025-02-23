@@ -2514,7 +2514,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
- "triton-distributed",
+ "triton-distributed-runtime",
  "triton-llm",
  "uuid 1.13.1",
 ]
@@ -5233,7 +5233,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "triton-distributed"
+name = "triton-distributed-runtime"
 version = "0.2.0"
 dependencies = [
  "anyhow",
@@ -5306,7 +5306,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tracing",
- "triton-distributed",
+ "triton-distributed-runtime",
  "unicode-segmentation",
  "uuid 1.13.1",
  "validator",

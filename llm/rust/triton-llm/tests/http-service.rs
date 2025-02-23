@@ -18,7 +18,7 @@ use async_stream::stream;
 use prometheus::{proto::MetricType, Registry};
 use reqwest::StatusCode;
 use std::sync::Arc;
-use triton_distributed::{
+use triton_distributed_runtime::{
     pipeline::{
         async_trait, AsyncEngine, AsyncEngineContextProvider, ManyOut, ResponseStream, SingleIn,
     },
