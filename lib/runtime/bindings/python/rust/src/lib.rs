@@ -24,17 +24,14 @@ use std::{fmt::Display, sync::Arc};
 use tokio::sync::Mutex;
 use tracing_subscriber::FmtSubscriber;
 
-use triton_distributed::{
+use triton_distributed_runtime::{
     self as rs,
     pipeline::{EngineStream, ManyOut, SingleIn},
     protocols::annotated::Annotated as RsAnnotated,
     traits::DistributedRuntimeProvider,
 };
 
-use triton_llm::{self as llm_rs};
-
 mod engine;
-mod llm;
 
 type JsonServerStreamingIngress =
     Ingress<SingleIn<serde_json::Value>, ManyOut<RsAnnotated<serde_json::Value>>>;
@@ -47,7 +44,7 @@ const DEFAULT_ANNOTATED_SETTING: Option<bool> = Some(true);
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _runtime(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Sets up RUST_LOG environment variable for logging through the python-wheel
     // Example: RUST_LOG=debug python3 -m ...
@@ -65,11 +62,8 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Endpoint>()?;
     m.add_class::<Client>()?;
     m.add_class::<AsyncResponseStream>()?;
-    m.add_class::<llm::kv::KvRouter>()?;
-
+  
     engine::add_to_module(m)?;
-
-    // llm::http::add_to_module(m)?;
 
     Ok(())
 }

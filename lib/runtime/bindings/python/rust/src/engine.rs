@@ -16,7 +16,7 @@
 use std::sync::Arc;
 
 pub use serde::{Deserialize, Serialize};
-pub use triton_distributed::{
+pub use triton_distributed_runtime::{
     error,
     pipeline::{
         async_trait, AsyncEngine, AsyncEngineContextProvider, Data, ManyOut, ResponseStream,

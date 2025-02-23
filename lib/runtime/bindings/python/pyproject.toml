@@ -29,13 +29,10 @@ dependencies = [
     "uvloop>=0.21.0",
 ]
 
-# [project.scripts]
-# triton-distributed = "triton_distributed_rs:main"
-
 [tool.maturin]
-module-name = "triton_distributed_rs._core"
-python-packages = ["triton_distributed_rs"]
-python-source = "python"
+module-name = "triton_distributed.runtime._runtime"
+python-packages = ["triton_distributed/runtime"]
+python-source = "src"
 
 [build-system]
 requires = ["maturin>=1.0,<2.0", "patchelf"]
