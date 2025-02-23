@@ -13,7 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::tokenizers::{traits::{Decoder, Encoder, Tokenizer}, Encoding, Error, Result, TokenIdType};
+use crate::tokenizers::{
+    traits::{Decoder, Encoder, Tokenizer},
+    Encoding, Error, Result, TokenIdType,
+};
 
 use sentencepiece::SentencePieceProcessor;
 
@@ -101,7 +104,6 @@ impl Decoder for SentencePieceTokenizer {
         Ok(text)
     }
 }
-
 
 /// Implement the Tokenizer trait for SentencePieceTokenizer
 impl Tokenizer for SentencePieceTokenizer {}

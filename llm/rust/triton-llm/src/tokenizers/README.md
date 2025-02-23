@@ -15,7 +15,7 @@
 ```rust
 use triton_llm::tokenizers::hf::HuggingFaceTokenizer;
 
-let hf_tokenizer = HuggingFaceTokenizer::from_file("fixtures/hf_llama-2.json")
+let hf_tokenizer = HuggingFaceTokenizer::from_file("tests/data/sample-models/TinyLlama_v1.1/tokenizer.json")
     .expect("Failed to load HuggingFace tokenizer");
 ```
 
@@ -23,7 +23,7 @@ let hf_tokenizer = HuggingFaceTokenizer::from_file("fixtures/hf_llama-2.json")
 ```rust
 use triton_llm::tokenizers::sp::SentencePieceTokenizer;
 
-let sp_tokenizer = SentencePieceTokenizer::from_file("fixtures/sp_nemo_43b_002.model")
+let sp_tokenizer = SentencePieceTokenizer::from_file("tests/data/sample-models/google-t5/t5-small/spiece.model")
     .expect("Failed to load SentencePiece tokenizer");
 ```
 
@@ -32,7 +32,7 @@ let sp_tokenizer = SentencePieceTokenizer::from_file("fixtures/sp_nemo_43b_002.m
 ```rust
 use triton_llm::tokenizers::{HuggingFaceTokenizer, traits::{Encoder, Decoder}};
 
-let tokenizer = HuggingFaceTokenizer::from_file("fixtures/hf_llama-2.json")
+let tokenizer = HuggingFaceTokenizer::from_file("tests/data/sample-models/TinyLlama_v1.1/tokenizer.json")
     .expect("Failed to load HuggingFace tokenizer");
 
 let text = "Your sample text here";

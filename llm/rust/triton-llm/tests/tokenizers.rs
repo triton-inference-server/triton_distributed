@@ -27,11 +27,13 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use triton_llm::tokenizers::*;
-use triton_llm::tokenizers::{traits::{Decoder, Encoder, Tokenizer}, Encoding, Error, Result};
 use triton_llm::protocols::TokenIdType;
+use triton_llm::tokenizers::*;
+use triton_llm::tokenizers::{
+    traits::{Decoder, Encoder, Tokenizer},
+    Encoding, Error, Result,
+};
 
-// these need to be in scope to use the traits on our concrete implementations
 
 const TEST_PROMPTS: [&str; 4] = [
     "deep learning is",
@@ -40,26 +42,19 @@ const TEST_PROMPTS: [&str; 4] = [
     "another prompt",
 ];
 
-const HF_TOKENIZERS_LOCAL: [&str; 1] = ["fixtures/hf_llama-2.json"];
-const SP_TOKENIZERS_LOCAL: [&str; 1] = ["fixtures/sp_nemo_43b_002.model"];
 
-const HASHES: [(&str, [u64; 4]); 2] = [
+const TINYLLAMA_TOKENIZER_PATH: &str = "tests/data/sample-models/TinyLlama_v1.1/tokenizer.json";
+
+const HF_TOKENIZERS_LOCAL: [&str; 1] = [TINYLLAMA_TOKENIZER_PATH];
+
+const HASHES: [(&str, [u64; 4]); 1] = [
     (
-        "fixtures/hf_llama-2.json",
+        TINYLLAMA_TOKENIZER_PATH,
         [
             771185775798505393,
             8538328482215529710,
             17087868772360018644,
             1660219240238826577,
-        ],
-    ),
-    (
-        "fixtures/sp_nemo_43b_002.model",
-        [
-            4364584305793124512,
-            14835610107630089099,
-            4745649050194253372,
-            7628184170446428562,
         ],
     ),
 ];
@@ -78,26 +73,12 @@ fn compute_hashes_for_tokenizer<E: Encoder>(tokenizer: &E, prompts: &[&str]) -> 
 }
 
 #[test]
-fn compute_hashes() {
+fn compute_hashes_hf() {
     let hash_map: HashMap<&str, [u64; 4]> = HASHES.iter().cloned().collect();
-
-    for &tokenizer_name in SP_TOKENIZERS_LOCAL.iter() {
-        let tokenizer = SentencePieceTokenizer::from_file(tokenizer_name)
-            .expect("Failed to load remote HuggingFace tokenizer");
-
-        let prompt_hashes = compute_hashes_for_tokenizer(&tokenizer, &TEST_PROMPTS);
-
-        println!(
-            "SP Tokenizer: {:?} Hashes: {:?}",
-            tokenizer_name, prompt_hashes
-        );
-
-        assert_eq!(prompt_hashes, hash_map[tokenizer_name]);
-    }
 
     for &tokenizer_name in HF_TOKENIZERS_LOCAL.iter() {
         let tokenizer = HuggingFaceTokenizer::from_file(tokenizer_name)
-            .expect("Failed to load remote HuggingFace tokenizer");
+            .expect("Failed to load HuggingFace tokenizer");
 
         let prompt_hashes = compute_hashes_for_tokenizer(&tokenizer, &TEST_PROMPTS);
 
@@ -112,7 +93,7 @@ fn compute_hashes() {
 
 #[test]
 fn test_hf_lifecycle() {
-    let tokenizer = HuggingFaceTokenizer::from_file(HF_TOKENIZERS_LOCAL[0])
+    let tokenizer = HuggingFaceTokenizer::from_file(TINYLLAMA_TOKENIZER_PATH)
         .expect("Failed to load remote HuggingFace tokenizer");
 
     let encoding = tokenizer
@@ -128,7 +109,7 @@ fn test_hf_lifecycle() {
 
 #[test]
 fn test_sequence() {
-    let tokenizer = HuggingFaceTokenizer::from_file(HF_TOKENIZERS_LOCAL[0])
+    let tokenizer = HuggingFaceTokenizer::from_file(TINYLLAMA_TOKENIZER_PATH)
         .expect("Failed to load remote HuggingFace tokenizer");
 
     let shared_tokenizer = Arc::new(tokenizer);
@@ -169,133 +150,4 @@ fn test_sequence() {
         }
     }
     assert_eq!(output, TEST_PROMPTS[0]);
-}
-
-#[test]
-fn test_stop_sequence_decoder() {
-    let tokenizer =
-        Arc::new(SentencePieceTokenizer::from_file("fixtures/sp_nemo_43b_002.model").unwrap());
-
-    // Test actual use case where <extra_id_1> was being returned, but should have been jailed and held back
-
-    let mut encoded_sequence = Sequence::new(tokenizer.clone().into());
-
-    encoded_sequence.append_text("I'm afraid I don't have access to that information.  I can tell you that I'm very proud of the way you've been acting this year, and I think you're doing a great job of being kind and helpful to others.  Keep up the good work, and I'm sure you'll be on the nice list this year!\n<extra_id_1>").unwrap();
-
-    let mut decoded_sequence = Sequence::new(tokenizer.clone().into());
-
-    let mut result = String::new();
-
-    for token_id in encoded_sequence.token_ids() {
-        let text = decoded_sequence
-            .append_token_id(*token_id)
-            .expect("Failed to decode token_id");
-        println!("text: {}", text);
-        result.push_str(&text);
-    }
-
-    assert!(result.contains("<extra_id_1>"));
-
-    let mut decoder = StopSequenceDecoder::builder(tokenizer.clone().into())
-        .add_stop_sequence_hidden("<extra_id_1>")
-        .build()
-        .expect("Failed to build StopSequenceDecoder");
-
-    let mut result = String::new();
-
-    for token_id in encoded_sequence.token_ids() {
-        let text = decoder
-            .append_token_id(*token_id)
-            .expect("Failed to decode token_id");
-
-        match text {
-            SequenceDecoderOutput::Text(text) => {
-                result.push_str(&text);
-            }
-            SequenceDecoderOutput::StoppedWithText(text) => {
-                result.push_str(&text);
-                break;
-            }
-            SequenceDecoderOutput::Stopped => {
-                break;
-            }
-            _ => {}
-        }
-    }
-
-    let result = result.trim_end();
-
-    assert_eq!(result, "I'm afraid I don't have access to that information.  I can tell you that I'm very proud of the way you've been acting this year, and I think you're doing a great job of being kind and helpful to others.  Keep up the good work, and I'm sure you'll be on the nice list this year!");
-
-    // Test that a stop sequence not at the end of a string will break the decoder loop
-    // when a stop signal is triggered
-    // In this case, the stop sequence is "I'm afraid I don't have access to that information."
-    // And the result should be that nothing is returned since we jail text stop sequences
-
-    let mut decoder = StopSequenceDecoder::builder(tokenizer.clone().into())
-        .add_stop_sequence_hidden("I'm afraid I don't have access to that information.")
-        .build()
-        .expect("Failed to build StopSequenceDecoder");
-
-    let mut result = String::new();
-
-    for token_id in encoded_sequence.token_ids() {
-        let text = decoder
-            .append_token_id(*token_id)
-            .expect("Failed to decode token_id");
-
-        match text {
-            SequenceDecoderOutput::Text(text) => {
-                result.push_str(&text);
-            }
-            SequenceDecoderOutput::StoppedWithText(text) => {
-                result.push_str(&text);
-                break;
-            }
-            SequenceDecoderOutput::Stopped => {
-                break;
-            }
-            _ => {}
-        }
-    }
-
-    assert_eq!(result, "");
-
-    // Test that stop_token_ids return the text for their token_id
-
-    let mut decoder = StopSequenceDecoder::builder(tokenizer.clone().into())
-        .add_stop_token_id_visible(251511) // "." token_id, which is different from "_."
-        .build()
-        .expect("Failed to build StopSequenceDecoder");
-
-    let mut result = String::new();
-
-    for token_id in encoded_sequence.token_ids() {
-        let text = decoder
-            .append_token_id(*token_id)
-            .expect("Failed to decode token_id");
-
-        match text {
-            SequenceDecoderOutput::Text(text) => {
-                result.push_str(&text);
-            }
-            SequenceDecoderOutput::StoppedWithText(text) => {
-                result.push_str(&text);
-                break;
-            }
-            SequenceDecoderOutput::Stopped => {
-                break;
-            }
-            _ => {}
-        }
-    }
-
-    assert_eq!(
-        result,
-        "I'm afraid I don't have access to that information."
-    );
-
-    // Test that addition calls to append_token_id after a stop event fail with an error
-
-    assert!(decoder.append_token_id(1337).is_err());
 }

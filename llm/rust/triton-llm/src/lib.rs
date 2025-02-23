@@ -24,5 +24,5 @@ pub mod http;
 pub mod kv_router;
 pub mod model_card;
 pub mod protocols;
-pub mod types;
 pub mod tokenizers;
+pub mod types;
