@@ -30,7 +30,7 @@ crate-type = ["cdylib"]
 cbindgen = "0.27"
 
 [dependencies]
-triton-llm = { path = "../triton-llm" }
+triton-disributed-llm = { path = "../.." }
 triton-distributed-runtime = { workspace = true }
 
 anyhow = { version = "1" }
