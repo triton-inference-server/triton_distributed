@@ -4,6 +4,7 @@ from vllm.engine.arg_utils import EngineArgs
 from vllm.config import KVTransferConfig
 from vllm.inputs.data import TokensPrompt
 from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams, RemotePrefillResponse
+from vllm.distributed.device_communicators.nixl import NixlMetadata
 import msgspec
 import time
 
@@ -50,11 +51,10 @@ def main():
     # Recv metadata from decode
     print("[socket.recv] Receiving metadata from decode")
     msg = _socket.recv()
-    # TODO add to NixlMetadata msgpack.Struct
-    decode_meta = msgspec.msgpack.decode(msg, type=tuple[str, list[bytes], list[dict[tuple[int, int], bytes]]])
+    decode_meta = msgspec.msgpack.decode(msg, type=NixlMetadata)
     print(f"Received metadata from decode")
 
-    remote_agent_names = engine.add_remote_nixl_metadata(*decode_meta)
+    remote_agent_names = engine.add_remote_nixl_metadata(decode_meta)
     print(f"Added remote agent: {remote_agent_names}")
 
     iteration = 0

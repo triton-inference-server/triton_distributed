@@ -60,7 +60,7 @@ def main():
     # Send metadata to prefill
     metadata = engine.get_nixl_metadata()
     print("[socket.send] Sending metadata to prefill")
-    encoded_metadata = msgspec.msgpack.encode(metadata)  # Encode the list of bytes
+    encoded_metadata = msgspec.msgpack.encode(metadata)
     _socket.send(encoded_metadata)
     print(f"Sent metadata to prefill")
 
