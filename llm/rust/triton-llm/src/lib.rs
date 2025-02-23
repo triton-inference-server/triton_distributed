@@ -18,11 +18,13 @@
 //! The `triton-llm` crate is a Rust library that provides a set of traits and types for building
 //! distributed LLM inference solutions.
 
+pub mod backend;
 pub mod common;
 pub mod engines;
 pub mod http;
 pub mod kv_router;
 pub mod model_card;
+pub mod preprocessor;
 pub mod protocols;
 pub mod tokenizers;
 pub mod types;
