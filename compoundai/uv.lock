@@ -297,7 +297,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "bentoml", specifier = ">=1.3.22" }]
+requires-dist = [{ name = "bentoml", specifier = ">=1.4.0" }]
 
 [[package]]
 name = "deepmerge"
