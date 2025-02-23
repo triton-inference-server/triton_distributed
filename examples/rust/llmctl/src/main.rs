@@ -207,14 +207,6 @@ async fn add_model(
         endpoint_name
     );
 
-    let parts: Vec<&str> = endpoint_name.split('.').collect();
-    if parts.len() < 2 || parts.len() > 3 {
-        raise!("Invalid endpoint name: {}", endpoint_name);
-    }
-
-    // if 3 parts, then it's namespace.component.endpoint
-    // if 2 parts, then it's model_name.component.endpoint
-
     // parse endpoint
     let parts: Vec<&str> = endpoint_name.split('.').collect();
 
