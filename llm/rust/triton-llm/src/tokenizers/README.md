@@ -19,14 +19,6 @@ let hf_tokenizer = HuggingFaceTokenizer::from_file("tests/data/sample-models/Tin
     .expect("Failed to load HuggingFace tokenizer");
 ```
 
-#### SentencePiece Tokenizer
-```rust
-use triton_llm::tokenizers::sp::SentencePieceTokenizer;
-
-let sp_tokenizer = SentencePieceTokenizer::from_file("tests/data/sample-models/google-t5/t5-small/spiece.model")
-    .expect("Failed to load SentencePiece tokenizer");
-```
-
 ### Encoding and Decoding Text
 
 ```rust

@@ -28,12 +28,15 @@ use crate::protocols::TokenIdType;
 pub use anyhow::{Error, Result};
 
 pub use hf::HuggingFaceTokenizer;
+
+#[cfg(feature = "sentencepiece")]
 pub use sp::SentencePieceTokenizer;
 
 /// Represents the type of tokenizer being used
 #[derive(Debug)]
 pub enum TokenizerType {
     HuggingFace(String),
+    #[cfg(feature = "sentencepiece")]
     SentencePiece(String),
 }
 
@@ -129,8 +132,15 @@ pub fn create_tokenizer_from_file(file_path: &str) -> Result<Arc<dyn traits::Tok
             Ok(Arc::new(tokenizer))
         }
         "model" => {
-            let tokenizer = SentencePieceTokenizer::from_file(file_path)?;
-            Ok(Arc::new(tokenizer))
+            #[cfg(feature = "sentencepiece")]
+            {
+                let tokenizer = SentencePieceTokenizer::from_file(file_path)?;
+                Ok(Arc::new(tokenizer))
+            }
+            #[cfg(not(feature = "sentencepiece"))]
+            {
+                Err(Error::msg("SentencePiece tokenizer not supported".to_string()))
+            }
         }
         _ => Err(Error::msg("Unsupported file type".to_string())),
     }
