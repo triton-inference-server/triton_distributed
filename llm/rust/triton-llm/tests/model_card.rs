@@ -14,20 +14,19 @@
 // limitations under the License.
 
 use tempfile::tempdir;
-use triton_llm::model_card::model::{
-    ModelDeploymentCard, ModelInfoType, PromptFormatterArtifact, TokenizerKind,
-};
+use triton_llm::model_card::model::{ModelDeploymentCard, PromptFormatterArtifact, TokenizerKind};
+
+const HF_PATH: &str = "tests/data/sample-models/TinyLlama_v1.1";
 
 #[tokio::test]
 async fn test_model_info_from_hf_like_local_repo() {
-    let path = "tests/data/sample-models/mock-llama-3.1-8b-instruct";
-    let mdc = ModelDeploymentCard::from_local_path(path).await.unwrap();
+    let mdc = ModelDeploymentCard::from_local_path(HF_PATH).await.unwrap();
     let info = mdc.model_info.get_model_info().await.unwrap();
     assert_eq!(info.model_type(), "llama");
-    assert_eq!(info.bos_token_id(), 128000);
-    assert_eq!(info.eos_token_ids(), vec![128009]);
-    assert_eq!(info.max_position_embeddings(), 8192);
-    assert_eq!(info.vocab_size(), 128256);
+    assert_eq!(info.bos_token_id(), 1);
+    assert_eq!(info.eos_token_ids(), vec![2]);
+    assert_eq!(info.max_position_embeddings(), 2048);
+    assert_eq!(info.vocab_size(), 32000);
 }
 
 #[tokio::test]
@@ -39,8 +38,7 @@ async fn test_model_info_from_non_existent_local_repo() {
 
 #[tokio::test]
 async fn test_tokenizer_from_hf_like_local_repo() {
-    let path = "tests/data/sample-models/mock-llama-3.1-8b-instruct";
-    let mdc = ModelDeploymentCard::from_local_path(path).await.unwrap();
+    let mdc = ModelDeploymentCard::from_local_path(HF_PATH).await.unwrap();
     // Verify tokenizer file was found
     match mdc.tokenizer {
         TokenizerKind::HfTokenizerJson(_) => (),
@@ -50,8 +48,7 @@ async fn test_tokenizer_from_hf_like_local_repo() {
 
 #[tokio::test]
 async fn test_prompt_formatter_from_hf_like_local_repo() {
-    let path = "tests/data/sample-models/mock-llama-3.1-8b-instruct";
-    let mdc = ModelDeploymentCard::from_local_path(path).await.unwrap();
+    let mdc = ModelDeploymentCard::from_local_path(HF_PATH).await.unwrap();
     // Verify prompt formatter was found
     match mdc.prompt_formatter {
         Some(PromptFormatterArtifact::HfTokenizerConfigJson(_)) => (),

@@ -5133,6 +5133,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.11",
+ "tokenizers",
  "tokio",
  "tokio-stream",
  "tokio-util",

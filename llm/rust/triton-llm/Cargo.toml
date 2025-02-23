@@ -25,6 +25,7 @@ homepage.workspace = true
 mistralrs = ["dep:mistralrs"]
 metal = ["mistralrs/metal"]
 cuda = ["mistralrs/cuda"]
+sentencepiece = ["dep:sentencepiece"]
 
 [dependencies]
 
@@ -70,6 +71,14 @@ prometheus = { version = "0.13" }
 either = { version = "1.13" }
 indexmap = { version = "2.6" }
 mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "5e689c9", optional = true }
+
+# tokenizers
+tokenizers = { version = "0.21.0", default-features = false, features = [
+  "onig",
+  "esaxx_fast",
+] }
+sentencepiece = { version = "0.11.2", optional = true }
+
 
 [dev-dependencies]
 insta = { version = "1.41", features = ["glob", "json", "redactions"]}

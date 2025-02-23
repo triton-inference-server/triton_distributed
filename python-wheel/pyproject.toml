@@ -48,7 +48,7 @@ build-backend = "maturin"
 
 # TODO add skip files for generated code
 # skip = "./.git,./.github,./src/grpc_generated"
-skip = "./.git,./.github"
+skip = "./.git,./.github,./llm/rust/triton-llm/tests/data"
 
 # ignore short words, and typename parameters like OffsetT
 ignore-regex = "\\b(.{1,4}|[A-Z]\\w*T)\\b"
