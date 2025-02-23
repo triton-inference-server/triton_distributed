@@ -493,6 +493,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3eeab4423108c5d7c744f4d234de88d18d636100093ae04caf4825134b9c3a32"
 
 [[package]]
+name = "bs62"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afdf0f7a8a430954ae6cba49be4af8fa3a4bee15d9210aa8a82aee6abca531bd"
+dependencies = [
+ "lazy_static",
+ "num-bigint",
+ "num-traits",
+]
+
+[[package]]
 name = "bstr"
 version = "1.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1376,6 +1387,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
+name = "erased-serde"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24e2389d65ab4fab27dc2a5de7b191e1f6617d1f1c8855c0dc569c94a4cbb18d"
+dependencies = [
+ "serde",
+ "typeid",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1960,6 +1981,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "hf-hub"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "112fa2f6ad4ab815b9e1b938b4b1e437032d055e2f92ed10fd6ab2e62d02c6b6"
+dependencies = [
+ "dirs",
+ "futures",
+ "http",
+ "indicatif",
+ "log",
+ "native-tls",
+ "num_cpus",
+ "rand",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio",
+ "ureq",
+]
+
+[[package]]
 name = "http"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2350,6 +2393,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "pin-project",
+ "regex",
  "serde",
  "similar",
  "walkdir",
@@ -2417,6 +2461,15 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -2570,7 +2623,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "toktrie",
+ "toktrie 0.1.0",
  "url",
 ]
 
@@ -2678,6 +2731,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "memo-map"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38d1115007560874e373613744c6fba374c17688327a71c1476d1a5954cc857b"
+
+[[package]]
 name = "metal"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2704,6 +2763,8 @@ version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cff7b8df5e85e30b87c2b0b3f58ba3a87b68e133738bf512a7713769326dbca9"
 dependencies = [
+ "memo-map",
+ "self_cell",
  "serde",
  "serde_json",
 ]
@@ -2871,7 +2932,7 @@ dependencies = [
  "tokenizers",
  "tokio",
  "tokio-rayon",
- "toktrie_hf_tokenizers",
+ "toktrie_hf_tokenizers 0.1.0",
  "toml",
  "tqdm",
  "tracing",
@@ -3097,6 +3158,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-bigint"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5e44f723f1133c9deac646763579fdb3ac745e418f2a7af9cd0c431da1f20b9"
+dependencies = [
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
 name = "num-complex"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3121,6 +3192,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "num-integer"
+version = "0.1.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -4313,10 +4393,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "self_cell"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2fdfc24bc566f839a2da4c4295b82db7d25a24253867d5c64355abb5799bdbe"
+
+[[package]]
 name = "semver"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f79dfe2d285b0488816f30e700a7438c5a73d816b5b7d3ac72fbc48b0d185e03"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "sentencepiece"
@@ -4943,7 +5032,7 @@ dependencies = [
  "derive_builder",
  "esaxx-rs",
  "getrandom 0.2.15",
- "hf-hub",
+ "hf-hub 0.3.2",
  "indicatif",
  "itertools 0.12.1",
  "lazy_static",
@@ -5084,6 +5173,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "toktrie"
+version = "0.6.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f9c32a81c3faff7dde7909b471a5c39970e684b7fb88994a0fe4d9a3fb3a2b1"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "bytemuck_derive",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "toktrie_hf_tokenizers"
 version = "0.1.0"
 source = "git+https://github.com/microsoft/llguidance?rev=cfef3df97372a7b84d74976ff41cc9cb78bca6cc#cfef3df97372a7b84d74976ff41cc9cb78bca6cc"
@@ -5094,7 +5196,21 @@ dependencies = [
  "serde",
  "serde_json",
  "tokenizers",
- "toktrie",
+ "toktrie 0.1.0",
+]
+
+[[package]]
+name = "toktrie_hf_tokenizers"
+version = "0.6.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e43a051aef243334de35fe3ba70060e11aa373eeb193cc98cce37383d312002"
+dependencies = [
+ "anyhow",
+ "log",
+ "serde",
+ "serde_json",
+ "tokenizers",
+ "toktrie 0.6.28",
 ]
 
 [[package]]
@@ -5363,19 +5479,27 @@ dependencies = [
  "async-trait",
  "axum 0.8.1",
  "blake3",
+ "bs62",
  "bytes",
  "chrono",
  "derive_builder",
  "either",
+ "erased-serde",
  "futures",
+ "galil-seiferas",
+ "hf-hub 0.4.1",
  "indexmap 2.7.1",
  "insta",
+ "itertools 0.14.0",
+ "minijinja",
+ "minijinja-contrib",
  "mistralrs",
  "prometheus",
  "proptest",
  "regex",
  "reqwest",
  "rstest",
+ "semver",
  "sentencepiece",
  "serde",
  "serde_json",
@@ -5385,6 +5509,8 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
+ "toktrie 0.6.28",
+ "toktrie_hf_tokenizers 0.6.28",
  "tracing",
  "triton-distributed",
  "unicode-segmentation",
@@ -5409,6 +5535,12 @@ dependencies = [
  "pin-project-lite",
  "tokio",
 ]
+
+[[package]]
+name = "typeid"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e13db2e0ccd5e14a544e8a246ba2312cd25223f616442d7f2cb0e3db614236e"
 
 [[package]]
 name = "typenum"

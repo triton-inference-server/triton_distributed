@@ -38,7 +38,10 @@ impl ModelDeploymentCard {
     /// - The path doesn't exist or isn't a directory
     /// - The path contains invalid Unicode characters
     /// - Required model files are missing or invalid
-    pub async fn from_local_path(local_root_dir: impl AsRef<Path>) -> anyhow::Result<Self> {
+    pub async fn from_local_path(
+        local_root_dir: impl AsRef<Path>,
+        model_name: Option<String>,
+    ) -> anyhow::Result<Self> {
         let local_root_dir = local_root_dir.as_ref();
         check_valid_local_repo_path(local_root_dir)?;
         let repo_id = local_root_dir
@@ -46,11 +49,14 @@ impl ModelDeploymentCard {
             .to_str()
             .ok_or_else(|| anyhow::anyhow!("Path contains invalid Unicode"))?
             .to_string();
-        let model_name = local_root_dir
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| anyhow::anyhow!("Invalid model directory name"))?;
-        Self::from_repo(&repo_id, model_name).await
+        let model_name = model_name.unwrap_or(
+            local_root_dir
+                .file_name()
+                .and_then(|n| n.to_str())
+                .ok_or_else(|| anyhow::anyhow!("Invalid model directory name"))?
+                .to_string(),
+        );
+        Self::from_repo(&repo_id, &model_name).await
     }
 
     /// TODO: This will be implemented after nova-hub is integrated with the model-card

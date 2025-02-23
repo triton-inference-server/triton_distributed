@@ -20,7 +20,9 @@ const HF_PATH: &str = "tests/data/sample-models/TinyLlama_v1.1";
 
 #[tokio::test]
 async fn test_model_info_from_hf_like_local_repo() {
-    let mdc = ModelDeploymentCard::from_local_path(HF_PATH).await.unwrap();
+    let mdc = ModelDeploymentCard::from_local_path(HF_PATH, None)
+        .await
+        .unwrap();
     let info = mdc.model_info.get_model_info().await.unwrap();
     assert_eq!(info.model_type(), "llama");
     assert_eq!(info.bos_token_id(), 1);
@@ -32,13 +34,15 @@ async fn test_model_info_from_hf_like_local_repo() {
 #[tokio::test]
 async fn test_model_info_from_non_existent_local_repo() {
     let path = "tests/data/sample-models/this-model-does-not-exist";
-    let result = ModelDeploymentCard::from_local_path(path).await;
+    let result = ModelDeploymentCard::from_local_path(path, None).await;
     assert!(result.is_err());
 }
 
 #[tokio::test]
 async fn test_tokenizer_from_hf_like_local_repo() {
-    let mdc = ModelDeploymentCard::from_local_path(HF_PATH).await.unwrap();
+    let mdc = ModelDeploymentCard::from_local_path(HF_PATH, None)
+        .await
+        .unwrap();
     // Verify tokenizer file was found
     match mdc.tokenizer {
         TokenizerKind::HfTokenizerJson(_) => (),
@@ -48,7 +52,9 @@ async fn test_tokenizer_from_hf_like_local_repo() {
 
 #[tokio::test]
 async fn test_prompt_formatter_from_hf_like_local_repo() {
-    let mdc = ModelDeploymentCard::from_local_path(HF_PATH).await.unwrap();
+    let mdc = ModelDeploymentCard::from_local_path(HF_PATH, None)
+        .await
+        .unwrap();
     // Verify prompt formatter was found
     match mdc.prompt_formatter {
         Some(PromptFormatterArtifact::HfTokenizerConfigJson(_)) => (),
@@ -60,7 +66,7 @@ async fn test_prompt_formatter_from_hf_like_local_repo() {
 async fn test_missing_required_files() {
     // Create empty temp directory
     let temp_dir = tempdir().unwrap();
-    let result = ModelDeploymentCard::from_local_path(temp_dir.path()).await;
+    let result = ModelDeploymentCard::from_local_path(temp_dir.path(), None).await;
     assert!(result.is_err());
     let err = result.unwrap_err().to_string();
     // Should fail because config.json is missing
