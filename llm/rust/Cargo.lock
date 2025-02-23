@@ -1981,6 +1981,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "hf-hub"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "112fa2f6ad4ab815b9e1b938b4b1e437032d055e2f92ed10fd6ab2e62d02c6b6"
+dependencies = [
+ "dirs",
+ "futures",
+ "http",
+ "indicatif",
+ "log",
+ "native-tls",
+ "num_cpus",
+ "rand",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio",
+ "ureq",
+]
+
+[[package]]
 name = "http"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2371,6 +2393,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "pin-project",
+ "regex",
  "serde",
  "similar",
  "walkdir",
@@ -5009,7 +5032,7 @@ dependencies = [
  "derive_builder",
  "esaxx-rs",
  "getrandom 0.2.15",
- "hf-hub",
+ "hf-hub 0.3.2",
  "indicatif",
  "itertools 0.12.1",
  "lazy_static",
@@ -5464,6 +5487,7 @@ dependencies = [
  "erased-serde",
  "futures",
  "galil-seiferas",
+ "hf-hub 0.4.1",
  "indexmap 2.7.1",
  "insta",
  "itertools 0.14.0",
