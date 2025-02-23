@@ -40,7 +40,7 @@ use super::{
     validate_logit_bias, ContentProvider, OpenAISamplingOptionsProvider,
     OpenAIStopConditionsProvider,
 };
-// use crate::AnnotationsProvider;
+use triton_distributed::protocols::annotated::AnnotationsProvider;
 
 /// Request object which is used to generate chat completions.
 #[derive(Serialize, Deserialize, Builder, Validate, Debug, Clone)]
@@ -791,21 +791,21 @@ impl NvExtProvider for ChatCompletionRequest {
     }
 }
 
-// impl AnnotationsProvider for ChatCompletionRequest {
-//     fn annotations(&self) -> Option<Vec<String>> {
-//         self.nvext
-//             .as_ref()
-//             .and_then(|nvext| nvext.annotations.clone())
-//     }
+impl AnnotationsProvider for ChatCompletionRequest {
+    fn annotations(&self) -> Option<Vec<String>> {
+        self.nvext
+            .as_ref()
+            .and_then(|nvext| nvext.annotations.clone())
+    }
 
-//     fn has_annotation(&self, annotation: &str) -> bool {
-//         self.nvext
-//             .as_ref()
-//             .and_then(|nvext| nvext.annotations.as_ref())
-//             .map(|annotations| annotations.contains(&annotation.to_string()))
-//             .unwrap_or(false)
-//     }
-// }
+    fn has_annotation(&self, annotation: &str) -> bool {
+        self.nvext
+            .as_ref()
+            .and_then(|nvext| nvext.annotations.as_ref())
+            .map(|annotations| annotations.contains(&annotation.to_string()))
+            .unwrap_or(false)
+    }
+}
 
 impl OpenAISamplingOptionsProvider for ChatCompletionRequest {
     fn get_temperature(&self) -> Option<f32> {
