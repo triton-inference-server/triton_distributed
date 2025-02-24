@@ -35,31 +35,25 @@ jobs:
       IMAGE_TAG: ghcr.io/triton-inference-server/triton_distributed:pr_fastcheck_${{ matrix.framework }}_${{ github.sha }}
       PYTEST_XML_FILE: pytest_test_report.xml
     steps:
-      -
-        name: Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-      -
-        name: Set up Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f7ce87c1d6bead3e36075b2ce75da1f6cc28aaca # v3.9.0
-      -
-        name: Build image
+      - name: Build image
         id: build-image
         run: |
           ./container/build.sh --tag $IMAGE_TAG --framework ${{ matrix.framework }}
-      -
-        name: Run pytest
+      - name: Run pytest
         env:
           DOCKER_RUN_CMD: docker run --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 --cap-add CAP_SYS_PTRACE --ipc host
           PYTEST_MARKS: pre_merge
         run: |
           $DOCKER_RUN_CMD -w /workspace --name $CONTAINER_ID $IMAGE_TAG pytest --basetemp=/tmp --junitxml=$PYTEST_XML_FILE -m $PYTEST_MARKS
-      -
-        name: Copy test report from test Container
+      - name: Copy test report from test Container
         if: always()
         run: |
           docker cp $CONTAINER_ID:/workspace/$PYTEST_XML_FILE .
-      -
-        name: Archive test report
+      - name: Archive test report
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         if: always()
         with:
@@ -67,8 +61,7 @@ jobs:
           if-no-files-found: error
           path: |
             ${{ env.PYTEST_XML_FILE }}
-      -
-        name: Login to GitHub Container Registry
+      - name: Login to GitHub Container Registry
         id: login
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         if: ${{ steps.build-image.outcome == 'success' }}
@@ -76,8 +69,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      -
-        name: Push image to GitHub Container Registry
+      - name: Push image to GitHub Container Registry
         if: ${{ steps.build-image.outcome == 'success' && steps.login.outcome == 'success' }}
         run: |
           docker image push $IMAGE_TAG
@@ -89,8 +81,7 @@ jobs:
     name: "Event File"
     runs-on: ubuntu-latest
     steps:
-      - 
-        name: Upload
+      - name: Upload
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: Event File
