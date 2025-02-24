@@ -18,7 +18,8 @@ import random
 import string
 
 import uvloop
-from triton_distributed_rs import DistributedRuntime, triton_worker
+
+from triton_distributed.runtime import DistributedRuntime, triton_worker
 
 # Soak Test
 #
