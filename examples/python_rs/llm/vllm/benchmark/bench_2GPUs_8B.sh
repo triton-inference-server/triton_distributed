@@ -85,7 +85,7 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1 python3 -m disaggregat
 
 echo "Running benchmark..."
 
-CONFIG_PREFIX="prefill_tp1dp1_generate_t1d1
+CONFIG_PREFIX="prefill_tp1dp1_generate_t1d1"
 
 ARTIFACT_DIR_PREFIX="./artifacts/$CONFIG_PREFIX"
 
