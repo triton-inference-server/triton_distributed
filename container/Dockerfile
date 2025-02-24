@@ -154,6 +154,8 @@ RUN mkdir /opt/triton && \
     uv build && \
     uv pip install /workspace/lib/bindings/python/dist/triton_distributed*cp312*.whl
 
+RUN ls lib/bindings/python/dist
+
 # Package the bindings
 RUN mkdir -p /opt/triton/bindings/wheels && \
     mkdir /opt/triton/bindings/lib && \
@@ -164,7 +166,7 @@ RUN mkdir -p /opt/triton/bindings/wheels && \
 # Install triton_distributed_runtime and triton_distributed_llm wheels globally in container for tests that
 # currently run without virtual environment activated.
 # TODO: In future, we may use a virtualenv for everything and remove this.
-RUN pip install /opt/triton/bindings/wheels/triton_distributed_*cp312*.whl
+RUN pip install /opt/triton/bindings/wheels/triton_distributed*cp312*.whl
 
 # Copy everything in after install steps to avoid re-running build/install
 # commands on unrelated changes in other dirs.
