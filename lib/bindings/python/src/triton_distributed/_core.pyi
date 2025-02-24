@@ -89,7 +89,7 @@ class Endpoint:
         """
         ...
 
-    async def client() -> Client:
+    async def client(self) -> Client:
         """
         Create a `Client` capable of calling served instances of this endpoint
         """
