@@ -33,10 +33,9 @@ use std::path::PathBuf;
 /// set in the environment variable `HF_TOKEN`.
 /// The model is downloaded and cached in `tests/data/sample-models` directory.
 /// make sure the token has access to `meta-llama/Llama-3.1-70B-Instruct` model
-
 fn check_hf_token() -> bool {
     let hf_token = std::env::var("HF_TOKEN").ok();
-    return hf_token.is_some();
+    hf_token.is_some()
 }
 
 async fn make_mdc_from_repo(
@@ -71,7 +70,7 @@ async fn maybe_download_model(local_path: &str, model: &str, revision: &str) -> 
     for file in &files_to_download {
         downloaded_path = repo_builder.get(file).await.unwrap();
     }
-    return downloaded_path.parent().unwrap().display().to_string();
+    downloaded_path.parent().unwrap().display().to_string()
 }
 
 async fn make_mdcs() -> Vec<ModelDeploymentCard> {
