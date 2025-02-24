@@ -21,14 +21,14 @@ from typing import AsyncIterator
 
 import uvloop
 from common.protocol import Tokens
+from vllm.logger import logger as vllm_logger
+
+from triton_distributed.llm import KvRouter
 from triton_distributed.runtime import (
     DistributedRuntime,
     triton_endpoint,
     triton_worker,
 )
-from triton_distributed.llm import KvRouter
-
-from vllm.logger import logger as vllm_logger
 
 WorkerId = str
 
