@@ -1,0 +1,12 @@
+#DOCKER_BUILDKIT=1 docker build -f Dockerfile.cai -t triton-distributed:cai .
+
+FROM triton-distributed:latest-vllm 
+
+USER root
+
+RUN source /opt/triton/venv/bin/activate && uv pip install pip
+
+COPY compoundai /compoundai
+RUN source /opt/triton/venv/bin/activate && \
+    cd /compoundai && \
+    uv pip install -e .
