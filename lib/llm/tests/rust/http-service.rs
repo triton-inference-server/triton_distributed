@@ -24,13 +24,13 @@ use triton_distributed_runtime::{
     },
     CancellationToken,
 };
-use triton_llm::http::service::{
+use triton_distributed_llm::http::service::{
     error::HttpError,
     metrics::{Endpoint, RequestType, Status},
     service_v2::HttpService,
     Metrics,
 };
-use triton_llm::protocols::{
+use triton_distributed_llm::protocols::{
     openai::{
         chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
         completions::{CompletionRequest, CompletionResponse},

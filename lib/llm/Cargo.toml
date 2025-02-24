@@ -83,8 +83,16 @@ validator = { workspace = true }
 uuid = { workspace = true }
 xxhash-rust = { workspace = true }
 
+blake3 = "1"
+
 # protocols
-chrono = { version = "0.4" }
+chrono = { version = "0.4", default-features = false, features = [
+  "alloc",
+  "std",
+  "clock",
+  "now",
+  "serde",
+] }
 serde_json = { version = "1" }
 regex = "1"
 unicode-segmentation = "1.12"

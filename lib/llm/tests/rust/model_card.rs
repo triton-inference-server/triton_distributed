@@ -14,7 +14,7 @@
 // limitations under the License.
 
 use tempfile::tempdir;
-use triton_llm::model_card::model::{
+use triton_distributed_llm::model_card::model::{
     ModelDeploymentCard, ModelInfoType, PromptFormatterArtifact, TokenizerKind,
 };
 

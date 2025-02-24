@@ -187,7 +187,7 @@ pub struct ChatCompletionRequest {
     /// in the vocabulary of the model.
     ///
     /// ```
-    /// use triton_llm::protocols::openai::completions::CompletionRequest;
+    /// use triton_distributed_llm::protocols::openai::completions::CompletionRequest;
     ///
     /// let request = CompletionRequest::builder()
     ///     .prompt("What is the meaning of life?")
@@ -271,7 +271,7 @@ impl ChatCompletionRequestBuilder {
     /// Builds and validates the ChatCompletionRequest
     ///
     /// ```rust
-    /// use triton_llm::protocols::openai::chat_completions::ChatCompletionRequest;
+    /// use triton_distributed_llm::protocols::openai::chat_completions::ChatCompletionRequest;
     ///
     /// let request = ChatCompletionRequest::builder()
     ///     .model("mixtral-8x7b-instruct-v0.1")

@@ -14,7 +14,7 @@
 // limitations under the License.
 
 use futures::StreamExt;
-use triton_llm::protocols::{
+use triton_distributed_llm::protocols::{
     codec::{create_message_stream, Message, SseCodecError},
     openai::{chat_completions::ChatCompletionResponse, completions::CompletionResponse},
     ContentProvider, DataStream,

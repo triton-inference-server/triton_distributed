@@ -16,7 +16,7 @@
 use triton_distributed_runtime::{
     pipeline::network::Ingress, protocols::Endpoint, DistributedRuntime, Runtime,
 };
-use triton_llm::http::service::discovery::ModelEntry;
+use triton_distributed_llm::http::service::discovery::ModelEntry;
 
 use crate::{EngineConfig, ENDPOINT_SCHEME};
 

@@ -21,8 +21,8 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
-use triton_distributed::engine::{AsyncEngine, AsyncEngineContext, Data, ResponseStream};
-use triton_distributed::pipeline::{
+use triton_distributed_runtime::engine::{AsyncEngine, AsyncEngineContext, Data, ResponseStream};
+use triton_distributed_runtime::pipeline::{
     context::{Context, StreamContext},
     Error, ManyOut, PipelineError, PipelineIO, SegmentSource, SingleIn,
 };

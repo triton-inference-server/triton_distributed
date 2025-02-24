@@ -14,7 +14,7 @@
 // limitations under the License.
 
 use serde::{Deserialize, Serialize};
-use triton_llm::protocols::{
+use triton_distributed_llm::protocols::{
     common,
     openai::{
         self,
