@@ -16,7 +16,7 @@
 use triton_distributed::{
     pipeline::network::Ingress, protocols::Endpoint, DistributedRuntime, Runtime,
 };
-use triton_llm::http::service::discovery::ModelEntry;
+use triton_llm::{http::service::discovery::ModelEntry, model_type::ModelType};
 
 use crate::{EngineConfig, ENDPOINT_SCHEME};
 
@@ -48,6 +48,7 @@ pub async fn run(
             let model_registration = ModelEntry {
                 name: service_name.to_string(),
                 endpoint,
+                model_type: ModelType::Chat, // Assume chat for now
             };
             let etcd_client = distributed.etcd_client();
             etcd_client

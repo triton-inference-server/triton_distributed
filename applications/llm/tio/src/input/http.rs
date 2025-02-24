@@ -16,7 +16,7 @@
 use std::sync::Arc;
 
 use triton_distributed::{DistributedRuntime, Runtime};
-use triton_llm::http::service::{discovery, service_v2};
+use triton_llm::{http::service::{discovery, service_v2}, model_type::ModelType};
 
 use crate::EngineConfig;
 
@@ -33,11 +33,12 @@ pub async fn run(
         .build()?;
     match engine_config {
         EngineConfig::Dynamic(client) => {
-            let service_name = client.path();
+            let service_name = client.etcd_path();
             let distributed_runtime = DistributedRuntime::from_settings(runtime.clone()).await?;
             // Listen for models registering themselves in etcd, add them to HTTP service
             let state = Arc::new(discovery::ModelWatchState {
                 prefix: service_name.clone(),
+                model_type: ModelType::Chat,
                 manager: http_service.model_manager().clone(),
                 drt: distributed_runtime.clone(),
             });
