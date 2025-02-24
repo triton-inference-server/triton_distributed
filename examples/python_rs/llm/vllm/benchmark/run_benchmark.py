@@ -218,17 +218,14 @@ def parse_args():
 def main():
     args = parse_args()
 
-    LOGGER.setFormatter(
-        logging.Formatter(
-            "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(filename)s: "
+        "%(levelname)s: "
+        "%(funcName)s(): "
+        "%(lineno)d:\t"
+        "%(message)s",
     )
-
-    if args.verbose:
-        LOGGER.setLevel(logging.DEBUG)
-    else:
-        LOGGER.setLevel(logging.INFO)
 
     # If --request-count was not provided, compute it if load-type=concurrency
     if args.request_count is None:
