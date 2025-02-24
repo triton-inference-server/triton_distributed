@@ -41,16 +41,17 @@ Start required services (etcd and NATS):
 TODO: Remove the internal references below.
 
 - Build TRT-LLM wheel using latest tensorrt_llm main
+
 ```
 git clone https://github.com/NVIDIA/TensorRT-LLM.git
 cd TensorRT-LLM
 
 # Start a dev docker container. Dont forget to mount your home directory to /home in the docker run command.
-make -C jenkins_run LOCAL_USER=1 DOCKER_RUN_ARGS="-v /user/home:/home"
+make -C docker jenkins_run LOCAL_USER=1 DOCKER_RUN_ARGS="-v /user/home:/home"
 
 # Build wheel for the GPU architecture you are currently using ("native").
 # We use -f to run fast build which should speed up the build process. But it might not work for all GPUs and for full functionality you should disable it.
-python3 scripts/build_wheel.py --clean --trt_root /usr/local/tensorrt -a native -i -p -ccache -f
+python3 scripts/build_wheel.py --clean --trt_root /usr/local/tensorrt -a native -i -p -ccache
 
 # Copy wheel to your local directory
 cp build/tensorrt_llm-*.whl /home
