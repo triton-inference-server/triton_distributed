@@ -152,12 +152,12 @@ RUN mkdir /opt/triton && \
     source /opt/triton/venv/bin/activate && \
     cd lib/bindings/python && \
     uv build && \
-    uv pip install /workspace/lib/bindings/python/target/wheels/triton_distributed*cp312*.whl
+    uv pip install /workspace/lib/bindings/python/dist/triton_distributed*cp312*.whl
 
 # Package the bindings
 RUN mkdir -p /opt/triton/bindings/wheels && \
     mkdir /opt/triton/bindings/lib && \
-    cp lib/bindings/python/target/wheels/triton_distributed*cp312*.whl /opt/triton/bindings/wheels/. && \
+    cp lib/bindings/python/dist/triton_distributed*cp312*.whl /opt/triton/bindings/wheels/. && \
     cp lib/bindings/c/target/release/libtriton_distributed_llm_capi.so /opt/triton/bindings/lib/. && \
     cp -r lib/bindings/c/include /opt/triton/bindings/.
 
