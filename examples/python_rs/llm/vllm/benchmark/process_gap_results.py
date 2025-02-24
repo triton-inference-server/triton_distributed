@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 
 # To run this script you need to install:
 # pip install pandas matplotlib seaborn
@@ -14,7 +29,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from matplotlib.ticker import MultipleLocator
 
 
 def parse_tp_dp(name):
@@ -90,7 +104,9 @@ def extract_val_and_concurrency(base_path, latest_run_dirs):
             )
             with open(json_path, "r") as f:
                 data = json.load(f)
-                output_token_throughput = data.get("output_token_throughput", {}).get("avg")
+                output_token_throughput = data.get("output_token_throughput", {}).get(
+                    "avg"
+                )
                 output_token_throughput_per_request = data.get(
                     "output_token_throughput_per_request", {}
                 ).get("avg")
@@ -273,7 +289,9 @@ def create_pareto_graph(base_path, results, title):
                 "label": label_str,
                 "configuration": r["configuration"],
                 "concurrency": r["concurrency"],
-                "output_token_throughput_per_request": r["output_token_throughput_per_request"],
+                "output_token_throughput_per_request": r[
+                    "output_token_throughput_per_request"
+                ],
                 "output_token_throughput_per_gpu": r["output_token_throughput_per_gpu"],
                 "time_to_first_token": r["time_to_first_token"],
                 "inter_token_latency": r["inter_token_latency"],
@@ -312,7 +330,7 @@ def create_pareto_graph(base_path, results, title):
         pareto_efficient(group.index, np.column_stack((X, Y)))
 
         # Extract frontier for plotting
-        pf_group = group[group["is_pareto_efficient"] == True].copy()
+        pf_group = group[group["is_pareto_efficient"] == True].copy()  # noqa: E712
         pf_group = pf_group.sort_values(by="output_token_throughput_per_request")
         plt.plot(
             pf_group["output_token_throughput_per_request"],
@@ -349,8 +367,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "base_path", type=str, help="Base path to the results directory"
     )
-    parser.add_argument(
-        "title", type=str, help="Title for all graphs"
-    )
+    parser.add_argument("title", type=str, help="Title for all graphs")
     args = parser.parse_args()
     main(args.base_path, args.title)

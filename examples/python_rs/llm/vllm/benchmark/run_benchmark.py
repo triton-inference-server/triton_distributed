@@ -1,71 +1,120 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import argparse
+import json
 import logging
 import os
 import subprocess
+import time
 from datetime import datetime
+
+import requests
 
 LOGGER = logging.getLogger(__name__)
 
 
+def wait_for_server(url, timeout=300):
+    headers = {"Content-Type": "application/json"}
+    data = {
+        "model": "llama",
+        "messages": [
+            {
+                "role": "system",
+                "content": "What is the capital of France?",
+            }
+        ],
+        "temperature": 0,
+        "top_p": 0.95,
+        "max_tokens": 25,
+        "min_tokens": 25,
+        "stream": True,
+        "n": 1,
+        "frequency_penalty": 0.0,
+        "stop": [],
+    }
+    start = time.time()
+    while True:
+        try:
+            response = requests.post(url, data=json.dumps(data), headers=headers)
+            if response.status_code == 200:
+                LOGGER.debug(response.content)
+                return True
+            else:
+                if time.time() - start > timeout:
+                    raise ValueError(
+                        f"Server is not responding: {response.status_code}"
+                    )
+                LOGGER.warning(f"Server is not responding: {response.status_code}")
+                time.sleep(5)
+        except requests.exceptions.RequestException as e:
+            LOGGER.warning(f"Server is not responding: {e}")
+            time.sleep(5)
+            if time.time() - start > timeout:
+                raise ValueError(f"Server is not responding: {e}")
+
+
 # Function to run the benchmark
-def run_benchmark(
-    input_tokens_cached,
-    input_tokens_uncached,
-    output_tokens,
-    model,
-    tokenizer,
-    url,
-    artifact_dir,
-    request_count,
-    load_type,
-    load_value,
-):
+def run_benchmark(args):
+    wait_for_server(args.url + "/v1/chat/completions", args.benchmark_timeout)
+
     # Create a directory for the test
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_folder = os.path.join(
-        artifact_dir,
-        f"{load_type}_{load_value}_{timestamp}",
+        args.artifact_dir,
+        f"{args.load_type}_{args.load_value}_{timestamp}",
     )
     os.makedirs(run_folder, exist_ok=True)
 
     # Construct the benchmark command
     command = (
-        f"genai-perf profile -m {model} --endpoint-type chat --streaming --num-dataset-entries 1000 "
-        f"--service-kind openai --endpoint v1/chat/completions --request-count {request_count} --warmup-request-count 10 "
+        f"genai-perf profile -m {args.model} --endpoint-type chat --streaming --num-dataset-entries 1000 "
+        f"--service-kind openai --endpoint v1/chat/completions --request-count {args.request_count} --warmup-request-count 10 "
         f"--random-seed 123 --synthetic-input-tokens-stddev 0 --output-tokens-stddev 0 "
-        f"--tokenizer {tokenizer} --synthetic-input-tokens-mean {input_tokens_uncached} --output-tokens-mean {output_tokens} "
-        f"--extra-inputs seed:100 --extra-inputs min_tokens:{output_tokens} --extra-inputs max_tokens:{output_tokens} "
-        f"--profile-export-file my_profile_export.json --url {url} --artifact-dir {run_folder} "
-        f"--num-prefix-prompts 1 --prefix-prompt-length {input_tokens_cached} "
+        f"--tokenizer {args.tokenizer} --synthetic-input-tokens-mean {args.isl_uncached} --output-tokens-mean {args.osl} "
+        f"--extra-inputs seed:100 --extra-inputs min_tokens:{args.osl} --extra-inputs max_tokens:{args.osl} "
+        f"--profile-export-file my_profile_export.json --url {args.url} --artifact-dir {args.run_folder} "
+        f"--num-prefix-prompts 1 --prefix-prompt-length {args.isl_cached} "
     )
-    if load_type == "rps":
-        command += f"--request-rate {load_value} "
-    elif load_type == "concurrency":
-        command += f"--concurrency {int(load_value)} "
+    if args.load_type == "rps":
+        command += f"--request-rate {args.load_value} "
+    elif args.load_type == "concurrency":
+        command += f"--concurrency {int(args.load_value)} "
     else:
-        raise ValueError(f"Invalid load type: {load_type}")
+        raise ValueError(f"Invalid load type: {args.load_type}")
 
-    command += f"-- -v --async "
+    command += "-- -v --async "
 
-    print(command)
+    LOGGER.debug(command)
 
     # Print information about the run
     LOGGER.info(
-        f"ISL cached: {input_tokens_cached}, ISL uncached: {input_tokens_uncached}, OSL: {output_tokens}, {load_type}: {load_value}"
+        f"ISL cached: {args.isl_cached}, ISL uncached: {args.isl_uncached}, OSL: {args.osl}, {args.load_type}: {args.load_value}"
     )
-    LOGGER.info(f"Saving artifacts in: {run_folder}")
+    LOGGER.info(f"Saving artifacts in: {args.artifact_dir}")
     LOGGER.info(f"Command: {command}")
     # Save the command to a file in artifacts folder with execution permissions and shebang
-    with open(os.path.join(run_folder, "run.sh"), "w") as f:
+    with open(os.path.join(args.artifact_dir, "run.sh"), "w") as f:
         f.write("#!/bin/bash\n")
         f.write(command)
         f.close()
-        subprocess.run(["chmod", "+x", os.path.join(run_folder, "run.sh")])
+        subprocess.run(["chmod", "+x", os.path.join(args.artifact_dir, "run.sh")])
 
     # Prepare output file
-    output_file = os.path.join(run_folder, "output.txt")
+    output_file = os.path.join(args.artifact_dir, "output.txt")
 
     # Run the command and capture both stdout and stderr
     with open(output_file, "w") as f:
@@ -73,10 +122,10 @@ def run_benchmark(
             command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
         for line in process.stdout:
-            print(line.decode(), end="")
+            LOGGER.debug(line.decode(), end="")
             f.write(line.decode())
         for line in process.stderr:
-            print(line.decode(), end="")
+            LOGGER.debug(line.decode(), end="")
             f.write(line.decode())
 
     process.wait()
@@ -144,23 +193,18 @@ def parse_args():
         required=True,
         help="Value of load",
     )
+    parser.add_argument(
+        "--benchmark-timeout",
+        type=int,
+        default=300,
+        help="Benchmark timeout",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    run_benchmark(
-        args.isl_cached,
-        args.isl_uncached,
-        args.osl,
-        args.model,
-        args.tokenizer,
-        args.url,
-        args.artifact_dir,
-        args.request_count,
-        args.load_type,
-        args.load_value,
-    )
+    run_benchmark(args)
 
 
 if __name__ == "__main__":
