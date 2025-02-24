@@ -382,8 +382,9 @@ async fn test_mulit_turn_with_system() {
     }
 }
 
+/// Test the prompt formatter with a multi-turn conversation that includes system message and tools
 #[tokio::test]
-async fn test_mulit_turn_with_system_with_tools() {
+async fn test_multi_turn_with_system_with_tools() {
     if !check_hf_token() {
         println!("HF_TOKEN is not set, skipping test");
         return;
@@ -419,8 +420,9 @@ async fn test_mulit_turn_with_system_with_tools() {
     }
 }
 
+/// Test the prompt formatter with a multi-turn conversation that includes a continuation
 #[tokio::test]
-async fn test_mulit_turn_with_continuation() {
+async fn test_multi_turn_with_continuation() {
     if !check_hf_token() {
         println!("HF_TOKEN is not set, skipping test");
         return;

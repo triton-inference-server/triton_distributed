@@ -15,14 +15,20 @@
 
 //! Prompt Formatting Module
 //!
-//! This module is responsible for formatting the prompt of an LLM request/turn.
+//! Handles formatting of LLM request prompts, including:
+//! - Chat template rendering
+//! - Tool usage formatting
+//! - Generation prompt handling
+//!
+//! The module supports different prompt formatting strategies through the
+//! PromptFormatter
 
-// TODO: query if `add_generation_prompt` is in the prompt template
-// TOOD: only models which support add_generation_prompt can support:
-//       - PALS
-//       - Continuation - Continuation is detected if the request is a user turn.
-//         We could send back the partial assistant response, do not enable
-//         add_generation_prompt, and let the LLM continue generating the response.
+// TODO:
+// 1. Query if `add_generation_prompt` is present in the prompt template
+// 2. Support for models with add_generation_prompt:
+//    - PALS (Prefix-Assisted Language Sampling)
+//    - Continuation - Detected on user turns, where we can return
+//      partial assistant responses without add_generation_prompt
 
 use anyhow::Result;
 use minijinja::value::Value;

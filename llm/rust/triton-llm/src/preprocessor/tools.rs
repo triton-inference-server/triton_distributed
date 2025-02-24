@@ -22,18 +22,23 @@ use serde_json::Value;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+/// Matches and processes tool calling patterns in LLM responses
+///
+/// Supports multiple formats for tool calls:
+/// - Single/multiple function calls with parameters/arguments
+/// - Auto or user selected tool usage
 pub struct ToolCallingMatcher {
     tool_choice: ToolChoice,
 }
 
-// Same as CalledFunction, but uses `parameters`
+// Same as CalledFunction with named parameters
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct CalledFunctionParameters {
     pub name: String,
     pub parameters: HashMap<String, Value>,
 }
 
-// Same as CalledFunction, but uses `arguments``
+// Same as CalledFunction with named parameters
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct CalledFunctionArguments {
     pub name: String,

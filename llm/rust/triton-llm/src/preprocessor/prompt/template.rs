@@ -50,21 +50,26 @@ impl PromptFormatter {
 
 /// Chat Template Jinja Renderer
 ///
-/// This object holds a Jinja environment with at least one registered template.
+/// Manages a Jinja environment with registered templates for chat formatting.
+/// Handles two types of ChatTemplateValue templates:
 ///
-/// If [`ChatTemplateValue`] is a string, it is registered as the `default` template.
-///
-/// If [`ChatTemplateValue`] is a map, it is expected to contain at least one of the following keys:
-/// - `tool_use`: The template to use when a tool is used.
-/// - `default`: The template to use when no tool is used.
-///
-/// If the map contains both keys, the `tool_use` template is registered as the `tool_use` template
-/// and the `default` template is registered as the `default` template.
-///
+/// 1. String template: Registered as the 'default' template
+/// 2. Map template: Contains 'tool_use' and/or 'default' templates
+///    - tool_use: Template for tool-based interactions
+///    - default: Template for standard chat interactions
+///   If the map contains both keys, the `tool_use` template is registered as the `tool_use` template
+///   and the `default` template is registered as the `default` template.
 struct JinjaEnvironment {
     env: Environment<'static>,
 }
 
+/// Formatter for HuggingFace tokenizer config JSON templates
+///
+/// Implements chat template rendering based on HuggingFace's tokenizer_config.json format.
+/// Supports:
+/// - Tool usage templates
+/// - Generation prompts
+/// - Context mixins for template customization
 #[derive(Debug)]
 struct HfTokenizerConfigJsonFormatter {
     env: Environment<'static>,
