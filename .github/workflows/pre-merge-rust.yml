@@ -82,7 +82,7 @@ jobs:
     - name: Install and Run cargo-deny
       working-directory: lib/runtime
       run: |
-        cargo-deny --version || cargo install cargo-deny
+        cargo-deny --version || cargo install cargo-deny@0.16.4
         cargo-deny check --hide-inclusion-graph licenses
       timeout-minutes: 5
     - name: Run Unit Tests
