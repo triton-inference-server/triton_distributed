@@ -45,10 +45,9 @@ jobs:
           ./container/build.sh --tag $IMAGE_TAG --framework ${{ matrix.framework }}
       - name: Run pytest
         env:
-          DOCKER_RUN_CMD: docker run --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 --cap-add CAP_SYS_PTRACE --ipc host
           PYTEST_MARKS: pre_merge
         run: |
-          $DOCKER_RUN_CMD -w /workspace --name $CONTAINER_ID $IMAGE_TAG pytest --basetemp=/tmp --junitxml=$PYTEST_XML_FILE -m $PYTEST_MARKS
+          docker run -w /workspace --name $CONTAINER_ID $IMAGE_TAG pytest --basetemp=/tmp --junitxml=$PYTEST_XML_FILE -m $PYTEST_MARKS
       - name: Copy test report from test Container
         if: always()
         run: |
