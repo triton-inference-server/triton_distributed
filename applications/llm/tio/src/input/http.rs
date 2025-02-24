@@ -33,7 +33,7 @@ pub async fn run(
         .build()?;
     match engine_config {
         EngineConfig::Dynamic(client) => {
-            let service_name = client.etcd_path();
+            let service_name = client.path();
             let distributed_runtime = DistributedRuntime::from_settings(runtime.clone()).await?;
             // Listen for models registering themselves in etcd, add them to HTTP service
             let state = Arc::new(discovery::ModelWatchState {
