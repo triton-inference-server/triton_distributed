@@ -19,7 +19,15 @@ VLLM_USE_PRECOMPILED=1 uv pip install -e "vllm  @ <path to vllm repo @ ptarasiew
 
 ## Run example
 
-Run in container. In terminal 1:
+Run in container. In terminal 0:
+
+```
+llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B test-nixl.process.chat/completions
+TRT_LOG=DEBUG http --port 8181
+```
+
+
+In terminal 1:
 
 ```
 cd /workspace/examples/python_rs/llm/vllm_nixl
@@ -37,9 +45,14 @@ CUDA_VISIBLE_DEVICES=2,3 python decode.py
 
 In terminal 3:
 ```
-cd /workspace/examples/python_rs/llm/vllm_nixl
-python client.py --prompt "A B C D E" --remote-prefill
-python client.py --prompt "A B C D E"
+curl localhost:8181/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+    "messages": [
+      {"role": "user", "content": "What is the capital of France?"}
+    ]
+  }'
 ```
 
 ## TODO
@@ -49,7 +62,7 @@ python client.py --prompt "A B C D E"
 - [x] Conditional remote prefill
 - [x] Manual example with tp > 1
 - [x] Run on triton distributed runtime
-- [ ] [Piotr] add oai http endpoint
+- [x] [Piotr] add oai http endpoint
 - [ ] [Piotr] Sample only on decode, do note return remote prefill response
 - [ ] [Neelay] Add etcd for discovery
 - [ ] [Alec] Enable chunked prefill
