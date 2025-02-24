@@ -19,9 +19,13 @@ from functools import wraps
 from typing import Any, AsyncGenerator, Callable, Type
 
 from pydantic import BaseModel, ValidationError
-
 from triton_distributed._core import Client as Client
 from triton_distributed._core import DistributedRuntime as DistributedRuntime
+from triton_distributed_rs._core import Backend as Backend
+from triton_distributed_rs._core import DistributedRuntime
+from triton_distributed_rs._core import KvRouter as KvRouter
+from triton_distributed_rs._core import ModelDeploymentCard as ModelDeploymentCard
+from triton_distributed_rs._core import OAIChatPreprocessor as OAIChatPreprocessor
 
 
 def triton_worker():
