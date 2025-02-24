@@ -1,34 +1,101 @@
 import zmq
 from vllm import LLMEngine
-from vllm.engine.arg_utils import EngineArgs
+from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.config import KVTransferConfig
 from vllm.inputs.data import TokensPrompt
 from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams, RemotePrefillResponse
 from vllm.distributed.device_communicators.nixl import NixlMetadata
+from vllm.entrypoints.openai.api_server import build_async_engine_client_from_engine_args
 import msgspec
-import time
-
-_ctx = None
-_socket = None
+import asyncio
+import uvloop
 
 
+from triton_distributed_rs import DistributedRuntime, triton_worker
+
+
+class RequestHandler:
+    def __init__(self, engine_client, socket):
+        self.engine_client = engine_client
+        self.socket = socket
+
+        print("[socket.recv] Receiving metadata from decode")
+        msg = self.socket.recv()
+        decode_meta = msgspec.msgpack.decode(msg, type=NixlMetadata)
+        print(f"Received metadata from decode")
+
+        # remote_agent_names = self.engine_client.add_remote_nixl_metadata(decode_meta)
+        # print(f"Added remote agent: {remote_agent_names}")
+        
+        print("RequestHandler initialized")
+
+    async def generate(self, raw_request: str):
+        print("Got request")
+        request: RemotePrefillRequest = msgspec.json.decode(raw_request.encode("utf-8"), type=RemotePrefillRequest)
+        print(f"Request: {request}")
+
+        sampling_params = request.sampling_params
+        sampling_params.max_tokens = 1
+        sampling_params.min_tokens = 1
+        
+        remote_prefill_params = RemotePrefillParams(
+            is_remote_decode=True,
+            decode_block_ids=request.block_ids,
+            decode_engine_id=request.engine_id,
+        )
+
+        response = RemotePrefillResponse(
+            request_id=request.request_id,
+            first_token_id=435,
+        )
+
+        json_response = msgspec.json.encode(response).decode("utf-8")
+        yield json_response
+
+        # async for output in self.engine_client.generate(
+        #     request_id=request.request_id,
+        #     prompt=TokensPrompt(prompt_token_ids=request.prompt_token_ids),
+        #     sampling_params=sampling_params,
+        #     remote_prefill_params=remote_prefill_params,
+        # ):
+        #     print(output.outputs[0].text)
+        #     remote_prefill_response = RemotePrefillResponse(
+        #         request_id=output.request_id,
+        #         first_token_id=output.outputs[0].token_ids[0],
+        #     )
+        #     json_response = msgspec.json.encode(remote_prefill_response).decode("utf-8")
+        #     yield json_response
+
+
+# This is only used for metadata exchange between prefill and decode
+# Should be replaced with etcd
 def init_zmq(hostname="localhost", port=5432):
-    global _ctx, _socket
-    _ctx = zmq.Context()
-    _socket = _ctx.socket(zmq.PAIR)
-    _socket.bind(f"tcp://{hostname}:{port}")
+    ctx = zmq.Context()
+    socket = ctx.socket(zmq.PAIR)
+    socket.bind(f"tcp://{hostname}:{port}")
+    return socket
 
 
-def main():
-    init_zmq()
+@triton_worker()
+async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
+    socket = init_zmq()
 
-    args = EngineArgs(
+    component = runtime.namespace("test-nixl").component("prefill")
+    await component.create_service()
+
+    endpoint = component.endpoint("generate")
+
+    async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
+
+        await endpoint.serve_endpoint(RequestHandler(engine_client, socket).generate)
+
+if __name__ == "__main__":
+    uvloop.install()
+
+    engine_args = AsyncEngineArgs(
         model="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
         enforce_eager=True,
-        kv_transfer_config=KVTransferConfig(
-            kv_connector="TritonNixlConnector",
-            kv_role="kv_consumer",
-        ),
+        kv_transfer_config=KVTransferConfig(kv_connector="TritonNixlConnector"),
         enable_chunked_prefill=False, # TODO add support for chunked prefill
         disable_async_output_proc=True, # TODO add support for async output processing
         preemption_mode="swap", # TODO add support for recompute
@@ -37,78 +104,6 @@ def main():
         max_model_len=100, # for dev to reduce required memory
         tensor_parallel_size=1,
     )
-    vllm_config = args.create_engine_config()
-    executor_class = LLMEngine._get_executor_cls(vllm_config)
-    
-    engine = LLMEngine(
-        vllm_config=vllm_config,
-        executor_class=executor_class,
-        log_stats=False,
-    )
 
-    print("Engine created")
-    
-    # Recv metadata from decode
-    print("[socket.recv] Receiving metadata from decode")
-    msg = _socket.recv()
-    decode_meta = msgspec.msgpack.decode(msg, type=NixlMetadata)
-    print(f"Received metadata from decode")
-
-    remote_agent_names = engine.add_remote_nixl_metadata(decode_meta)
-    print(f"Added remote agent: {remote_agent_names}")
-
-    iteration = 0
-    while True:
-
-        try:
-            print(f"Iteration {iteration}")
-            iteration += 1
-
-            try:
-                print(f"[socket.recv] Prefill waiting for request from decode")
-                msg = _socket.recv(zmq.NOBLOCK)
-                remote_prefill_request = msgspec.msgpack.decode(msg, type=RemotePrefillRequest)
-
-                print(f"Received remote prefill request from decode")
-
-                # Sampling params can be adjusted inside the engine
-                sampling_params = remote_prefill_request.sampling_params
-                sampling_params.max_tokens = 1
-                sampling_params.min_tokens = 1
-                engine.add_request(
-                    request_id=remote_prefill_request.request_id,
-                    prompt=TokensPrompt(prompt_token_ids=remote_prefill_request.prompt_token_ids),
-                    params=sampling_params,
-                    remote_prefill_params=RemotePrefillParams(
-                        is_remote_decode=True,
-                        decode_block_ids=remote_prefill_request.block_ids,
-                        decode_engine_id=remote_prefill_request.engine_id,
-                    )
-                )
-            except zmq.Again:
-                print("No request from decode")
-
-            print(f"Prefilling")
-            prefill_outputs = engine.step()
-            num_prefill_outputs = len(prefill_outputs)
-            print(f"Prefilled {num_prefill_outputs} requests")
-
-            if num_prefill_outputs > 0:
-                assert num_prefill_outputs == 1
-                output = prefill_outputs[0]
-                print(f"Output {output.request_id}")
-                print(output.outputs[0].text)
-                remote_prefill_response = RemotePrefillResponse(
-                    request_id=output.request_id,
-                    first_token_id=output.outputs[0].token_ids[0],
-                )
-                print(f"[socket.send] Prefill sending response to decode")
-                _socket.send(msgspec.msgpack.encode(remote_prefill_response))
-
-            time.sleep(1)
-        except KeyboardInterrupt:
-            break
-
-if __name__ == "__main__":
-    main()
+    asyncio.run(worker(engine_args))
 

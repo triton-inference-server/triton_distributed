@@ -3,7 +3,6 @@ import msgspec
 import asyncio
 import uvloop
 from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.sampling_params import SamplingParams
 from vllm.config import KVTransferConfig
 from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams, RemotePrefillResponse
 from vllm.entrypoints.openai.api_server import build_async_engine_client_from_engine_args
@@ -13,8 +12,9 @@ from triton_distributed_rs import DistributedRuntime, triton_worker
 from protocol import Request
 
 class RequestHandler:
-    def __init__(self, engine_client, socket):
+    def __init__(self, engine_client, prefill_client, socket):
         self.engine_client = engine_client
+        self.prefill_client = prefill_client
         self.socket = socket
 
         # Send metadata to prefill
@@ -26,17 +26,15 @@ class RequestHandler:
         print("RequestHandler initialized")
 
     def get_remote_prefill_request_callback(self):
-        def callback(request: RemotePrefillRequest) -> RemotePrefillResponse:
-            self.socket.send(msgspec.msgpack.encode(request))
-            response = msgspec.msgpack.decode(self.socket.recv(), type=RemotePrefillResponse)
-            # response = RemotePrefillResponse(
-            #     request_id=request.request_id,
-            #     first_token_id=435,
-            # )
-            return response
+        async def callback(request: RemotePrefillRequest) -> RemotePrefillResponse:
+            json_request = msgspec.json.encode(request).decode("utf-8")
+            stream = await self.prefill_client.generate(json_request)
+            async for response in stream:
+                print(f"Response: {response}")
+                return msgspec.json.decode(response.data().encode("utf-8"), type=RemotePrefillResponse)
         return callback
 
-    async def generate(self, raw_request):
+    async def generate(self, raw_request: str):
         print("Got request")
         request: Request = msgspec.json.decode(raw_request.encode("utf-8"), type=Request)
         print(f"Request: {request}")
@@ -61,7 +59,6 @@ class RequestHandler:
 # This is only used for metadata exchange between prefill and decode
 # Should be replaced with etcd
 def init_zmq(hostname="localhost", port=5432):
-    global _ctx, _socket
     ctx = zmq.Context()
     socket = ctx.socket(zmq.PAIR)
     socket.connect(f"tcp://{hostname}:{port}")
@@ -78,9 +75,11 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
     endpoint = component.endpoint("generate")
 
+    prefill_client = await runtime.namespace("test-nixl").component("prefill").endpoint("generate").client()
+
     async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
 
-        await endpoint.serve_endpoint(RequestHandler(engine_client, socket).generate)
+        await endpoint.serve_endpoint(RequestHandler(engine_client, prefill_client, socket).generate)
 
 if __name__ == "__main__":
     uvloop.install()
