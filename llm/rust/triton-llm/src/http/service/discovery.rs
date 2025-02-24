@@ -32,8 +32,7 @@ use crate::protocols::openai::completions::{
     CompletionRequest, CompletionResponse
 };
 use crate::model_type::ModelType;
-use tracing as log;
-
+use tracing;
 /// [ModelEntry] is a struct that contains the information for the HTTP service to discover models
 /// from the etcd cluster.
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -66,18 +65,18 @@ pub async fn model_watcher(state: Arc<ModelWatchState>, events_rx: Receiver<Watc
         match event {
             WatchEvent::Put(kv) => match handle_put(&kv, state.clone()).await {
                 Ok((model_name, model_type)) => {
-                    log::info!("added {} model: {}",model_type, model_name);
+                    tracing::info!("added {} model: {}",model_type, model_name);
                 }
                 Err(e) => {
-                    log::error!("error adding model: {}", e);
+                    tracing::error!("error adding model: {}", e);
                 }
             },
             WatchEvent::Delete(kv) => match handle_delete(&kv, state.clone()).await {
                 Ok((model_name, model_type)) => {
-                    log::info!("removed {} model: {}", model_type, model_name);
+                    tracing::info!("removed {} model: {}", model_type, model_name);
                 }
                 Err(e) => {
-                    log::error!("error removing model: {}", e);
+                    tracing::error!("error removing model: {}", e);
                 }
             },
         }
@@ -87,7 +86,7 @@ pub async fn model_watcher(state: Arc<ModelWatchState>, events_rx: Receiver<Watc
 }
 
 async fn handle_delete(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(&str, ModelType)> {
-    log::debug!("removing model");
+    tracing::debug!("removing model");
 
     let key = kv.key_str()?;
     tracing::debug!("key: {}", key);
@@ -107,7 +106,7 @@ async fn handle_delete(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(&s
 //
 // If this method errors, for the near term, we will delete the offending key.
 async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(&str, ModelType)> {
-    log::debug!("adding model");
+    tracing::debug!("adding model");
 
     let key = kv.key_str()?;
     tracing::debug!("key: {}", key);
