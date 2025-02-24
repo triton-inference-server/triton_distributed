@@ -34,7 +34,6 @@ use triton_llm::tokenizers::{
     Encoding, Error, Result,
 };
 
-
 const TEST_PROMPTS: [&str; 4] = [
     "deep learning is",
     "Deep learning is",
@@ -42,22 +41,19 @@ const TEST_PROMPTS: [&str; 4] = [
     "another prompt",
 ];
 
-
 const TINYLLAMA_TOKENIZER_PATH: &str = "tests/data/sample-models/TinyLlama_v1.1/tokenizer.json";
 
 const HF_TOKENIZERS_LOCAL: [&str; 1] = [TINYLLAMA_TOKENIZER_PATH];
 
-const HASHES: [(&str, [u64; 4]); 1] = [
-    (
-        TINYLLAMA_TOKENIZER_PATH,
-        [
-            771185775798505393,
-            8538328482215529710,
-            17087868772360018644,
-            1660219240238826577,
-        ],
-    ),
-];
+const HASHES: [(&str, [u64; 4]); 1] = [(
+    TINYLLAMA_TOKENIZER_PATH,
+    [
+        771185775798505393,
+        8538328482215529710,
+        17087868772360018644,
+        1660219240238826577,
+    ],
+)];
 
 fn compute_hashes_for_tokenizer<E: Encoder>(tokenizer: &E, prompts: &[&str]) -> Vec<u64> {
     prompts

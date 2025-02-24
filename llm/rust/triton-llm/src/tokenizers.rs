@@ -141,7 +141,9 @@ pub fn create_tokenizer_from_file(file_path: &str) -> Result<Arc<dyn traits::Tok
             }
             #[cfg(not(feature = "sentencepiece"))]
             {
-                Err(Error::msg("SentencePiece tokenizer not supported".to_string()))
+                Err(Error::msg(
+                    "SentencePiece tokenizer not supported".to_string(),
+                ))
             }
         }
         _ => Err(Error::msg("Unsupported file type".to_string())),
