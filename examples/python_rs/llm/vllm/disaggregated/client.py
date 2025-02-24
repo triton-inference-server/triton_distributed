@@ -5,14 +5,14 @@ import json
 from typing import Annotated
 
 # from nova_init.decorators import nova_endpoint, nova_service, nova_depends, nova_api
-from compoundai import depends, nova_endpoint, service, api
-
+from compoundai import depends, nova_endpoint, service, api, NOVA_IMAGE
 from disaggregated.decode import Decode
 
 @service(
     traffic={
         "timeout": 10000
-    }
+    },
+    image=NOVA_IMAGE
 )
 class Client:
     # the original code -> points toward decode worker so we do that as well here
