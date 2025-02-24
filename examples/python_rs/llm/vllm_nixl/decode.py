@@ -12,17 +12,9 @@ from triton_distributed_rs import DistributedRuntime, triton_worker
 from protocol import Request
 
 class RequestHandler:
-    def __init__(self, engine_client, prefill_client, socket):
+    def __init__(self, engine_client, prefill_client):
         self.engine_client = engine_client
         self.prefill_client = prefill_client
-        self.socket = socket
-
-        # Send metadata to prefill
-        metadata = engine_client.nixl_metadata
-        assert metadata is not None
-        print("[socket.send] Sending metadata to prefill")
-        encoded_metadata = msgspec.msgpack.encode(metadata)
-        self.socket.send(encoded_metadata)
         print("RequestHandler initialized")
 
     def get_remote_prefill_request_callback(self):
@@ -30,7 +22,6 @@ class RequestHandler:
             json_request = msgspec.json.encode(request).decode("utf-8")
             stream = await self.prefill_client.generate(json_request)
             async for response in stream:
-                print(f"Response: {response}")
                 return msgspec.json.decode(response.data().encode("utf-8"), type=RemotePrefillResponse)
         return callback
 
@@ -79,7 +70,15 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
     async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
 
-        await endpoint.serve_endpoint(RequestHandler(engine_client, prefill_client, socket).generate)
+        # This should be replaced with etcd
+        metadata = engine_client.nixl_metadata
+        assert metadata is not None
+        print("[socket.send] Sending metadata to prefill")
+        encoded_metadata = msgspec.msgpack.encode(metadata)
+        socket.send(encoded_metadata)
+        print("[socket.send] Sent metadata to prefill")
+
+        await endpoint.serve_endpoint(RequestHandler(engine_client, prefill_client).generate)
 
 if __name__ == "__main__":
     uvloop.install()

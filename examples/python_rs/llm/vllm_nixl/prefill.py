@@ -15,19 +15,10 @@ from triton_distributed_rs import DistributedRuntime, triton_worker
 
 
 class RequestHandler:
-    def __init__(self, engine_client, socket):
+    def __init__(self, engine_client):
         self.engine_client = engine_client
-        self.socket = socket
-
-        print("[socket.recv] Receiving metadata from decode")
-        msg = self.socket.recv()
-        decode_meta = msgspec.msgpack.decode(msg, type=NixlMetadata)
-        print(f"Received metadata from decode")
-
-        # remote_agent_names = self.engine_client.add_remote_nixl_metadata(decode_meta)
-        # print(f"Added remote agent: {remote_agent_names}")
-        
         print("RequestHandler initialized")
+        
 
     async def generate(self, raw_request: str):
         print("Got request")
@@ -44,27 +35,27 @@ class RequestHandler:
             decode_engine_id=request.engine_id,
         )
 
-        response = RemotePrefillResponse(
-            request_id=request.request_id,
-            first_token_id=435,
-        )
-
-        json_response = msgspec.json.encode(response).decode("utf-8")
-        yield json_response
-
-        # async for output in self.engine_client.generate(
+        # response = RemotePrefillResponse(
         #     request_id=request.request_id,
-        #     prompt=TokensPrompt(prompt_token_ids=request.prompt_token_ids),
-        #     sampling_params=sampling_params,
-        #     remote_prefill_params=remote_prefill_params,
-        # ):
-        #     print(output.outputs[0].text)
-        #     remote_prefill_response = RemotePrefillResponse(
-        #         request_id=output.request_id,
-        #         first_token_id=output.outputs[0].token_ids[0],
-        #     )
-        #     json_response = msgspec.json.encode(remote_prefill_response).decode("utf-8")
-        #     yield json_response
+        #     first_token_id=435,
+        # )
+
+        # json_response = msgspec.json.encode(response).decode("utf-8")
+        # yield json_response
+
+        async for output in self.engine_client.generate(
+            request_id=request.request_id,
+            prompt=TokensPrompt(prompt_token_ids=request.prompt_token_ids),
+            sampling_params=sampling_params,
+            remote_prefill_params=remote_prefill_params,
+        ):
+            print(f"Output: {output.outputs[0].text}")
+            remote_prefill_response = RemotePrefillResponse(
+                request_id=output.request_id,
+                first_token_id=output.outputs[0].token_ids[0],
+            )
+            json_response = msgspec.json.encode(remote_prefill_response).decode("utf-8")
+            yield json_response
 
 
 # This is only used for metadata exchange between prefill and decode
@@ -87,7 +78,14 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
     async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
 
-        await endpoint.serve_endpoint(RequestHandler(engine_client, socket).generate)
+        # This should be replaced with etcd
+        print("[socket.recv] Receiving metadata from decode")
+        msg = socket.recv()
+        decode_meta = msgspec.msgpack.decode(msg, type=NixlMetadata)
+        await engine_client.add_remote_nixl_metadata(decode_meta)
+        print(f"Added remote metadata")
+
+        await endpoint.serve_endpoint(RequestHandler(engine_client).generate)
 
 if __name__ == "__main__":
     uvloop.install()
