@@ -14,67 +14,161 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Start NATS server
+set -e
+set -x
+
+ENDPOINT_HOST="localhost"
+ENDPOINT_PORT="8080"
+ENDPOINT_URL="http://$ENDPOINT_HOST:$ENDPOINT_PORT"
+
+MEAN_INPUT_TOKENS=3000
+MEAN_OUTPUT_TOKENS=150
+
+MAX_MODEL_LEN=$((MEAN_INPUT_TOKENS + MEAN_OUTPUT_TOKENS + 100))
+
+CHAT_MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
 
 nats-server \
     -js \
-    --trace \
     -p 4222 \
     -m 8222 &
 
+echo "Waiting for NATS server to start..."
+sleep 5
+
+echo "Starting etcd server..."
+etcd &
+
+echo "Waiting for etcd server to start..."
+sleep 5
+
+echo "Starting HTTP server endpoint..."
+http --host $ENDPOINT_HOST --port $ENDPOINT_PORT &
+
+echo "Waiting for HTTP server to start..."
+sleep 5
+
+echo "Adding model to HTTP server..."
+llmctl http add chat-models $CHAT_MODEL_NAME triton-init.vllm.generate
+
+echo "Waiting for model to be added..."
 sleep 15
 
-# Start etcd server
-
-etcd
-
-sleep 15
-
-# Start HTTP server endpoint
-
-http &
-
-sleep 15
-
-# Add model to HTTP server
-
-llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B triton-init.vllm.generate&
-
-sleep 15
-
-# Activate Triton environment
+echo "Activating Triton environment..."
 
 source /opt/triton/venv/bin/activate
 cd /workspace/examples/python_rs/llm/vllm
 
-# Start prefill workers
+
+echo "Starting prefill worker..."
 
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0,1 python3 -m disaggregated.prefill_worker \
-            --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
-            --max-model-len 100 \
+            --model $CHAT_MODEL_NAME \
+            --max-model-len $MAX_MODEL_LEN \
             --gpu-memory-utilization 0.8 \
             --enforce-eager \
             --tensor-parallel-size 2 \
             --kv-transfer-config \
-            '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2}'
+            '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":3}' &
+
+echo "Starting prefill worker..."
 
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=2,3 python3 -m disaggregated.prefill_worker \
-            --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
-            --max-model-len 100 \
+            --model $CHAT_MODEL_NAME \
+            --max-model-len $MAX_MODEL_LEN \
             --gpu-memory-utilization 0.8 \
             --enforce-eager \
             --tensor-parallel-size 2 \
             --kv-transfer-config \
-            '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":1,"kv_parallel_size":3}'
+            '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":1,"kv_parallel_size":3}' &
 
 
+echo "Starting decode worker..."
 
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=4,5,6,7 python3 -m disaggregated.decode_worker \
-        --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
-        --max-model-len 100 \
+        --model $CHAT_MODEL_NAME \
+        --max-model-len $MAX_MODEL_LEN \
         --gpu-memory-utilization 0.8 \
         --enforce-eager \
         --tensor-parallel-size 4 \
         --kv-transfer-config \
-        '{"kv_connector":"TritonNcclConnector","kv_role":"kv_consumer","kv_rank":2,"kv_parallel_size":3}'
+        '{"kv_connector":"TritonNcclConnector","kv_role":"kv_consumer","kv_rank":2,"kv_parallel_size":3}' &
 
+
+echo "Running benchmark..."
+
+CONFIG_PREFIX="prefill_tp2dp2_generate_tp4dp1"
+
+ARTIFACT_DIR_PREFIX="./artifacts/$CONFIG_PREFIX"
+
+mkdir -p $ARTIFACT_DIR_PREFIX
+
+for p in {0..8}; do
+    CONCURRENCY=$((2**p))
+    CONCURRENCY_STR="$CONCURRENCY.0"
+    DATE=$(date +%Y%m%d_%H%M%S)
+    ARTIFACT_DIR="$ARTIFACT_DIR_PREFIX/concurrency_$CONCURRENCY_STR"_$DATE
+    echo "Running benchmark for concurrency $CONCURRENCY..."
+    python3 /workspace/examples/python_rs/llm/vllm/benchmark/run_benchmark.py \
+        --isl-cached 0 \
+        --isl-uncached $MEAN_INPUT_TOKENS \
+        --osl $MEAN_OUTPUT_TOKENS \
+        --model $CHAT_MODEL_NAME \
+        --tokenizer $CHAT_MODEL_NAME \
+        --url $ENDPOINT_URL \
+        --artifact-dir $ARTIFACT_DIR \
+        --load-type concurrency \
+        --load-value $CONCURRENCY
+done
+
+
+pkill -f nats-server   || true
+pkill -f etcd          || true
+pkill -f "http --host $ENDPOINT_HOST --port $ENDPOINT_PORT" || true
+pkill -f python3 || true
+
+# Start vllm serve baseline using 2 GPUs
+
+vllm serve \
+    $CHAT_MODEL_NAME \
+    --tensor-parallel-size 8 \
+    --port $ENDPOINT_PORT \
+    --host $ENDPOINT_HOST &
+
+sleep 15
+
+echo "Running vllm serve baseline benchmark..."
+
+CONFIG_PREFIX="baseline_tp8dp1"
+
+ARTIFACT_DIR_PREFIX="./artifacts/$CONFIG_PREFIX"
+
+mkdir -p $ARTIFACT_DIR_PREFIX
+
+for p in {0..8}; do
+    CONCURRENCY=$((2**p))
+    CONCURRENCY_STR="$CONCURRENCY.0"
+    DATE=$(date +%Y%m%d_%H%M%S)
+    ARTIFACT_DIR="$ARTIFACT_DIR_PREFIX/concurrency_$CONCURRENCY_STR"_$DATE
+    echo "Running benchmark for concurrency $CONCURRENCY..."
+    python3 /workspace/examples/python_rs/llm/vllm/benchmark/run_benchmark.py \
+        --isl-cached 0 \
+        --isl-uncached $MEAN_INPUT_TOKENS \
+        --osl $MEAN_OUTPUT_TOKENS \
+        --model $CHAT_MODEL_NAME \
+        --tokenizer $CHAT_MODEL_NAME \
+        --url $ENDPOINT_URL \
+        --artifact-dir $ARTIFACT_DIR \
+        --load-type concurrency \
+        --load-value $CONCURRENCY
+done
+
+# Kill all python3 processes from vllm serve
+
+pkill -f python3 || true
+
+echo "Generating plots..."
+
+python3 /workspace/examples/python_rs/llm/vllm/benchmark/process_gap_results.py ./artifacts/
+
+echo "Done!"
