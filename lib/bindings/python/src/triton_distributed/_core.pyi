@@ -133,7 +133,7 @@ class KvRouter:
 
     ...
 
-    def __init__(self, drt: DistributedRuntime, component: Component) -> KvRouter:
+    def __init__(self, drt: DistributedRuntime, component: Component) -> None:
         """
         Create a `KvRouter` object that is associated with the `component`
         """

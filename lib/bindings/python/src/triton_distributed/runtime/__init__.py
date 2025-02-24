@@ -63,18 +63,18 @@ def triton_endpoint(
             # Validate the request
             try:
                 if len(args) in [1, 2]:
-                    args = list(args)
+                    args_list = list(args)
                     if isinstance(args[-1], str):
-                        args[-1] = request_model.parse_raw(args[-1])
+                        args_list[-1] = request_model.parse_raw(args[-1])
                     elif isinstance(args[-1], dict):
-                        args[-1] = request_model.parse_obj(args[-1])
+                        args_list[-1] = request_model.parse_obj(args[-1])
                     else:
                         raise ValueError(f"Invalid request: {args[-1]}")
             except ValidationError as e:
                 raise ValueError(f"Invalid request: {e}")
 
             # Wrap the async generator
-            async for item in func(*args, **kwargs):
+            async for item in func(*args_list, **kwargs):
                 # Validate the response
                 # TODO: Validate the response
                 try:
