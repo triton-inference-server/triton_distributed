@@ -154,8 +154,6 @@ RUN mkdir /opt/triton && \
     uv build && \
     uv pip install /workspace/lib/bindings/python/dist/triton_distributed*cp312*.whl
 
-RUN ls lib/bindings/python/dist
-
 # Package the bindings
 RUN mkdir -p /opt/triton/bindings/wheels && \
     mkdir /opt/triton/bindings/lib && \
