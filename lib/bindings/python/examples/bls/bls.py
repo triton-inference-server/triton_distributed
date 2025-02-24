@@ -16,7 +16,7 @@
 import asyncio
 
 import uvloop
-from triton_distributed.runtime import DistributedRuntime, triton_worker
+from triton_distributed_rs import DistributedRuntime, triton_worker
 
 uvloop.install()
 
@@ -42,7 +42,7 @@ async def worker(runtime: DistributedRuntime):
     # router example
     async for char in await foo.round_robin("hello world"):
         # the responses are sse-style responses, so we extract the data key
-        async for x in await bar.random(char.data()):
+        async for x in await bar.random(char.get("data")):
             print(x)
 
 

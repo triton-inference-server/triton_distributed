@@ -13,12 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[workspace]
-members = [
-    "bindings/c",
-    "bindings/python/rust",
-]
-
 [workspace.package]
 version = "0.2.0"
 edition = "2021"

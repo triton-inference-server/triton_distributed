@@ -89,7 +89,7 @@ class Endpoint:
         """
         ...
 
-    async def client(self) -> Client:
+    async def client() -> Client:
         """
         Create a `Client` capable of calling served instances of this endpoint
         """
@@ -133,7 +133,7 @@ class KvRouter:
 
     ...
 
-    def __init__(self, drt: DistributedRuntime, component: Component) ->None:
+    def __init__(self, drt: DistributedRuntime, component: Component) -> KvRouter:
         """
         Create a `KvRouter` object that is associated with the `component`
         """

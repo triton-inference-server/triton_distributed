@@ -141,32 +141,25 @@ RUN cd examples/rust && \
     cp target/release/llmctl /usr/local/bin/
 
 # Generate C bindings. Note that this is required for TRTLLM backend re-build
-RUN cd lib/llm/bindings/c/ && \
+COPY lib/bindings /workspace/lib/bindings
+RUN cd lib/bindings/c/ && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Install uv, create virtualenv for general use, and build triton_distributed_runtime wheel
+# Install uv, create virtualenv for general use, and build triton_distributed  wheel
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
-    uv pip install maturin[patchelf] && \
-    cd lib/runtime/bindings/python && \
-    maturin build --release && \
-    uv pip install rust/target/wheels/triton_distributed_runtime*cp312*.whl
-
-# Build triton_distributed_llm wheel
-RUN source /opt/triton/venv/bin/activate && \
-    cd lib/llm/bindings/python && \
-    maturin build --release && \
-    uv pip install /workspace/lib/llm/target/wheels/triton_distributed_llm*cp312*.whl
+    cd lib/bindings/python && \
+    uv build && \
+    uv pip install /workspace/lib/bindings/python/target/wheels/triton_distributed*cp312*.whl
 
 # Package the bindings
 RUN mkdir -p /opt/triton/bindings/wheels && \
     mkdir /opt/triton/bindings/lib && \
-    cp lib/runtime/bindings/python/rust/target/wheels/triton_distributed_runtime*cp312*.whl /opt/triton/bindings/wheels/. && \
-    cp lib/llm/target/wheels/triton_distributed_llm*cp312*.whl /opt/triton/bindings/wheels/. && \
-    cp lib/llm/target/release/libtriton_distributed_llm_capi.so /opt/triton/bindings/lib/. && \
-    cp -r lib/llm/bindings/c/include /opt/triton/bindings/.
+    cp lib/bindings/python/target/wheels/triton_distributed*cp312*.whl /opt/triton/bindings/wheels/. && \
+    cp lib/bindings/c/target/release/libtriton_distributed_llm_capi.so /opt/triton/bindings/lib/. && \
+    cp -r lib/bindings/c/include /opt/triton/bindings/.
 
 # Install triton_distributed_runtime and triton_distributed_llm wheels globally in container for tests that
 # currently run without virtual environment activated.

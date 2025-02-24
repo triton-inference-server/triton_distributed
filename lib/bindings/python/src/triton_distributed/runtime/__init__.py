@@ -19,7 +19,8 @@ from functools import wraps
 from typing import Any, AsyncGenerator, Callable, Type
 
 from pydantic import BaseModel, ValidationError
-from triton_distributed.runtime._runtime import DistributedRuntime
+from triton_distributed._core import DistributedRuntime
+
 
 def triton_worker():
     def decorator(func):
@@ -61,18 +62,18 @@ def triton_endpoint(
             # Validate the request
             try:
                 if len(args) in [1, 2]:
-                    args_list = list(args)
+                    args = list(args)
                     if isinstance(args[-1], str):
-                        args_list[-1] = request_model.parse_raw(args[-1])
+                        args[-1] = request_model.parse_raw(args[-1])
                     elif isinstance(args[-1], dict):
-                        args_list[-1] = request_model.parse_obj(args[-1])
+                        args[-1] = request_model.parse_obj(args[-1])
                     else:
                         raise ValueError(f"Invalid request: {args[-1]}")
             except ValidationError as e:
                 raise ValueError(f"Invalid request: {e}")
 
             # Wrap the async generator
-            async for item in func(*args_list, **kwargs):
+            async for item in func(*args, **kwargs):
                 # Validate the response
                 # TODO: Validate the response
                 try:

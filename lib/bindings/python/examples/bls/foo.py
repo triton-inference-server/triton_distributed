@@ -13,6 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 
-from triton_distributed.llm._llm import KvRouter as KvRouter
+import uvloop
+from triton_distributed_rs import DistributedRuntime, triton_worker
 
+uvloop.install()
+
+
+class RequestHandler:
+    async def generate(self, request):
+        for char in request:
+            yield char
+
+
+@triton_worker()
+async def worker(runtime: DistributedRuntime):
+    component = runtime.namespace("examples/bls").component("foo")
+    await component.create_service()
+
+    endpoint = component.endpoint("generate")
+    await endpoint.serve_endpoint(RequestHandler().generate)
+
+
+asyncio.run(worker())

@@ -31,7 +31,10 @@ use triton_distributed_runtime::{
     traits::DistributedRuntimeProvider,
 };
 
+use triton_distributed_llm::{self as llm_rs};
+
 mod engine;
+mod llm;
 
 type JsonServerStreamingIngress =
     Ingress<SingleIn<serde_json::Value>, ManyOut<RsAnnotated<serde_json::Value>>>;
@@ -44,7 +47,7 @@ const DEFAULT_ANNOTATED_SETTING: Option<bool> = Some(true);
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-fn _runtime(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Sets up RUST_LOG environment variable for logging through the python-wheel
     // Example: RUST_LOG=debug python3 -m ...
@@ -62,7 +65,8 @@ fn _runtime(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Endpoint>()?;
     m.add_class::<Client>()?;
     m.add_class::<AsyncResponseStream>()?;
-  
+    m.add_class::<llm::kv::KvRouter>()?;
+
     engine::add_to_module(m)?;
 
     Ok(())
@@ -77,9 +81,9 @@ where
 
 #[pyclass]
 #[derive(Clone)]
-pub struct DistributedRuntime {
-    pub inner: rs::DistributedRuntime,
-    pub event_loop: PyObject,
+struct DistributedRuntime {
+    inner: rs::DistributedRuntime,
+    event_loop: PyObject,
 }
 
 #[pyclass]
@@ -97,9 +101,9 @@ struct Namespace {
 
 #[pyclass]
 #[derive(Clone)]
-pub struct Component {
-    pub inner: rs::component::Component,
-    pub event_loop: PyObject,
+struct Component {
+    inner: rs::component::Component,
+    event_loop: PyObject,
 }
 
 #[pyclass]

@@ -15,7 +15,7 @@
 
 
 [project]
-name = "triton-distributed-runtime"
+name = "triton-distributed"
 version = "0.2.1"
 description = "Distributed Inference Framework"
 readme = "README.md"
@@ -30,8 +30,8 @@ dependencies = [
 ]
 
 [tool.maturin]
-module-name = "triton_distributed.runtime._runtime"
-python-packages = ["triton_distributed/runtime"]
+module-name = "triton_distributed._core"
+python-packages = ["triton_distributed"]
 python-source = "src"
 
 [build-system]

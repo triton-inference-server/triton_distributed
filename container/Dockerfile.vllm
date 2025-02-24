@@ -85,32 +85,22 @@ RUN cd examples/rust && \
 # COPY applications/...
 
 # Generate C bindings for kv cache routing in vLLM
-RUN cd lib/llm/bindings/c && \
+COPY lib/bindings /workspace/lib/bindings
+RUN cd lib/bindings/c && \
 cargo build --release --locked && cargo doc --no-deps
 
-# Install uv, create virtualenv for general use, and build triton_distributed_runtime wheel
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-RUN mkdir /opt/triton && \
-    uv venv /opt/triton/venv --python 3.12 && \
-    source /opt/triton/venv/bin/activate && \
-    uv pip install maturin[patchelf] && \
-    cd lib/runtime/bindings/python && \
-    maturin build --release && \
-    uv pip install rust/target/wheels/triton_distributed_runtime*cp312*.whl
-
-# Build triton_distributed_llm wheel
+# Build triton_distributed wheel
 RUN source /opt/triton/venv/bin/activate && \
-    cd lib/llm/bindings/python && \
-    maturin build --release && \
-    uv pip install /workspace/lib/llm/target/wheels/triton_distributed_llm*cp312*.whl
+    cd lib/bindings/python && \
+    uv build && \
+    uv pip install /workspace/lib/bindings/python/target/wheels/triton_distributed_runtime*cp312*.whl
 
 # Package the bindings
 RUN mkdir -p /opt/triton/bindings/wheels && \
     mkdir /opt/triton/bindings/lib && \
-    cp lib/runtime/bindings/python/rust/target/wheels/triton_distributed_runtime*cp312*.whl /opt/triton/bindings/wheels/. && \
-    cp lib/llm/target/wheels/triton_distributed_llm*cp312*.whl /opt/triton/bindings/wheels/. && \
-    cp lib/llm/target/release/libtriton_distributed_llm_capi.so /opt/triton/bindings/lib/. && \
-    cp -r lib/llm/bindings/c/include /opt/triton/bindings/.
+    cp lib/bindings/python/target/wheels/triton_distributed*cp312*.whl /opt/triton/bindings/wheels/. && \
+    cp lib/bindings/c/target/release/libtriton_distributed_llm_capi.so /opt/triton/bindings/lib/. && \
+    cp -r lib/bindings/c/include /opt/triton/bindings/.
 
 # Tell vllm to use the Triton LLM C API for KV Cache Routing
 ENV VLLM_KV_CAPI_PATH="/opt/triton/bindings/lib/libtriton_distributed_llm_capi.so"
@@ -139,7 +129,7 @@ RUN apt update -y && \
 ENV VIRTUAL_ENV=/opt/triton/venv
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
-ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_distributed_llm_capi.so"
+ENV VLLM_KV_CAPI_PATH="/opt/triton/bindings/lib/libtriton_distributed_llm_capi.so"
 
 # Copy binaries
 COPY --from=dev /usr/local/bin/http /usr/local/bin/http

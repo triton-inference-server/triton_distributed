@@ -21,7 +21,7 @@ import uvloop
 from common.base_engine import BaseVllmEngine
 from common.chat_processor import ProcessMixIn
 from common.parser import parse_vllm_args
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+from triton_distributed.runtime import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
