@@ -21,7 +21,7 @@ use crate::protocols::openai::{
     chat_completions::{ChatCompletionMessage, ChatCompletionRequest, Content, MessageRole},
     completions::CompletionRequest,
 };
-use tracing as log;
+use tracing;
 
 impl OAIChatLikeRequest for ChatCompletionRequest {
     fn messages(&self) -> Value {
@@ -80,7 +80,7 @@ impl OAIPromptFormatter for HfTokenizerConfigJsonFormatter {
         let has_tools = tools.is_some();
         let add_generation_prompt = req.should_add_generation_prompt();
 
-        log::trace!(
+        tracing::trace!(
             "Rendering prompt with tools: {:?}, add_generation_prompt: {}",
             has_tools,
             add_generation_prompt

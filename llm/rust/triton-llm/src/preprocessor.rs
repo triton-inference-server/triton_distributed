@@ -30,7 +30,7 @@ use anyhow::Result;
 use futures::stream::{self, StreamExt};
 use prompt::OAIPromptFormatter;
 use std::{collections::HashMap, sync::Arc};
-use tracing as log;
+use tracing;
 
 use crate::model_card::model::{ModelDeploymentCard, ModelInfo, TokenizerKind};
 use crate::preprocessor::prompt::OAIChatLikeRequest;
@@ -115,7 +115,7 @@ impl OpenAIPreprocessor {
             match request.raw_prompt() {
                 Some(prompt) => prompt,
                 None => {
-                    log::warn!("Raw prompt requested but not available");
+                    tracing::warn!("Raw prompt requested but not available");
                     self.formatter.render(request)?
                 }
             }
@@ -194,14 +194,14 @@ impl OpenAIPreprocessor {
             async move {
                 if let Some(response) = inner.response_stream.next().await {
                     if inner.cancelled {
-                        log::debug!(
+                        tracing::debug!(
                             request_id = inner.context.id(),
                             "Cancellation issued last message; closing stream"
                         );
                         return None;
                     }
 
-                    log::trace!(
+                    tracing::trace!(
                         request_id = inner.context.id(),
                         "Processing common response: {:?}",
                         response
@@ -212,7 +212,7 @@ impl OpenAIPreprocessor {
                             .response_generator
                             .choice_from_postprocessor(data)
                             .inspect_err(|e| {
-                                log::error!(
+                                tracing::error!(
                                     request_id = inner.context.id(),
                                     "Error processing common response: {:?}",
                                     e
@@ -223,7 +223,7 @@ impl OpenAIPreprocessor {
                             .map_err(|e| e.to_string())
                     });
 
-                    log::trace!(
+                    tracing::trace!(
                         request_id = inner.context.id(),
                         "OpenAI ChatCompletionResponseDelta: {:?}",
                         response
