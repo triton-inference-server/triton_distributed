@@ -66,7 +66,6 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0,1 python3 -m disaggreg
             --model $CHAT_MODEL_NAME \
             --max-model-len $MAX_MODEL_LEN \
             --gpu-memory-utilization 0.8 \
-            --enforce-eager \
             --tensor-parallel-size 2 \
             --kv-transfer-config \
             '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":3}' &
@@ -77,7 +76,6 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=2,3 python3 -m disaggreg
             --model $CHAT_MODEL_NAME \
             --max-model-len $MAX_MODEL_LEN \
             --gpu-memory-utilization 0.8 \
-            --enforce-eager \
             --tensor-parallel-size 2 \
             --kv-transfer-config \
             '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":1,"kv_parallel_size":3}' &
@@ -89,7 +87,6 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=4,5,6,7 python3 -m disag
         --model $CHAT_MODEL_NAME \
         --max-model-len $MAX_MODEL_LEN \
         --gpu-memory-utilization 0.8 \
-        --enforce-eager \
         --tensor-parallel-size 4 \
         --kv-transfer-config \
         '{"kv_connector":"TritonNcclConnector","kv_role":"kv_consumer","kv_rank":2,"kv_parallel_size":3}' &
@@ -129,7 +126,7 @@ pkill -f python3 || true
 
 # Start vllm serve baseline using 2 GPUs
 
-vllm serve \
+VLLM_CONFIGURE_LOGGING=0 vllm serve \
     $CHAT_MODEL_NAME \
     --tensor-parallel-size 8 \
     --port $ENDPOINT_PORT \
