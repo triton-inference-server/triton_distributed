@@ -27,10 +27,10 @@ import requests
 LOGGER = logging.getLogger(__name__)
 
 
-def wait_for_server(url, timeout=300):
+def wait_for_server(url, model, timeout=300):
     headers = {"Content-Type": "application/json"}
     data = {
-        "model": "llama",
+        "model": model,
         "messages": [
             {
                 "role": "system",
@@ -58,7 +58,9 @@ def wait_for_server(url, timeout=300):
                     raise ValueError(
                         f"Server is not responding: {response.status_code}"
                     )
-                LOGGER.warning(f"Server is not responding: {response.status_code}")
+                LOGGER.warning(
+                    f"Server is not responding: {response.status_code} URL: {url} DATA: {data} HEADERS: {headers}"
+                )
                 time.sleep(5)
         except requests.exceptions.RequestException as e:
             LOGGER.warning(f"Server is not responding: {e}")
@@ -71,7 +73,9 @@ def run_benchmark(args):
     """Waits for the server and then runs the benchmark command."""
 
     # Wait until server is responding
-    wait_for_server(args.url + "/v1/chat/completions", args.benchmark_timeout)
+    wait_for_server(
+        args.url + "/v1/chat/completions", args.model, args.benchmark_timeout
+    )
 
     # Create a directory for the test
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
