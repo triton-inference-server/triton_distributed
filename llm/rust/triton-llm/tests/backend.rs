@@ -13,18 +13,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Triton LLM
-//!
-//! The `triton-llm` crate is a Rust library that provides a set of traits and types for building
-//! distributed LLM inference solutions.
+use triton_llm::backend::Backend;
+use triton_llm::model_card::model::ModelDeploymentCard;
 
-pub mod backend;
-pub mod common;
-pub mod engines;
-pub mod http;
-pub mod kv_router;
-pub mod model_card;
-pub mod preprocessor;
-pub mod protocols;
-pub mod tokenizers;
-pub mod types;
+#[tokio::test]
+async fn test_sequence_factory() {
+    let mdc = ModelDeploymentCard::from_local_path("tests/data/sample-models/TinyLlama_v1.1", None)
+        .await
+        .unwrap();
+
+    let operator = Backend::from_mdc(mdc).await.unwrap();
+
+    let mut decode_stream = operator.tokenizer.decode_stream(false);
+    let output = decode_stream.step(1).unwrap();
+    assert_eq!(output, Some("<s>".to_string()));
+
+    let mut decode_stream = operator.tokenizer.decode_stream(true);
+    let output = decode_stream.step(1).unwrap();
+    assert_eq!(output, None);
+}

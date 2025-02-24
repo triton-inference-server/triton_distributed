@@ -36,7 +36,7 @@ use tokio::{signal, task::JoinHandle};
 pub use tokio_util::sync::CancellationToken;
 
 impl Runtime {
-    fn new(runtime: RuntimeType) -> Result<Runtime> {
+    fn new(runtime: RuntimeType, secondary: Option<RuntimeType>) -> Result<Runtime> {
         // worker id
         let id = Arc::new(uuid::Uuid::new_v4().to_string());
 
@@ -44,19 +44,31 @@ impl Runtime {
         let cancellation_token = CancellationToken::new();
 
         // secondary runtime for background ectd/nats tasks
-        let secondary = RuntimeConfig::single_threaded().create_runtime()?;
+        let secondary = match secondary {
+            Some(secondary) => secondary,
+            None => {
+                RuntimeType::Shared(Arc::new(RuntimeConfig::single_threaded().create_runtime()?))
+            }
+        };
 
         Ok(Runtime {
             id,
             primary: runtime,
-            secondary: Arc::new(secondary),
+            secondary,
             cancellation_token,
         })
     }
 
+    pub fn from_current() -> Result<Runtime> {
+        let handle = tokio::runtime::Handle::current();
+        let primary = RuntimeType::External(handle.clone());
+        let secondary = RuntimeType::External(handle);
+        Runtime::new(primary, Some(secondary))
+    }
+
     pub fn from_handle(handle: tokio::runtime::Handle) -> Result<Runtime> {
         let runtime = RuntimeType::External(handle);
-        Runtime::new(runtime)
+        Runtime::new(runtime, None)
     }
 
     /// Create a [`Runtime`] instance from the settings
@@ -64,14 +76,14 @@ impl Runtime {
     pub fn from_settings() -> Result<Runtime> {
         let config = config::RuntimeConfig::from_settings()?;
         let owned = RuntimeType::Shared(Arc::new(config.create_runtime()?));
-        Runtime::new(owned)
+        Runtime::new(owned, None)
     }
 
     /// Create a [`Runtime`] with a single-threaded primary async tokio runtime
     pub fn single_threaded() -> Result<Runtime> {
         let config = config::RuntimeConfig::single_threaded();
         let owned = RuntimeType::Shared(Arc::new(config.create_runtime()?));
-        Runtime::new(owned)
+        Runtime::new(owned, None)
     }
 
     /// Returns the unique identifier for the [`Runtime`]
@@ -85,8 +97,8 @@ impl Runtime {
     }
 
     /// Returns a [`tokio::runtime::Handle`] for the secondary/background thread pool
-    pub fn secondary(&self) -> &Arc<tokio::runtime::Runtime> {
-        &self.secondary
+    pub fn secondary(&self) -> tokio::runtime::Handle {
+        self.secondary.handle()
     }
 
     /// Access the primary [`CancellationToken`] for the [`Runtime`]

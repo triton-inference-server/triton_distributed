@@ -56,7 +56,7 @@ use tracing_subscriber::{filter::Directive, fmt};
 const FILTER_ENV: &str = "TRD_LOG";
 
 /// Default log level
-const DEFAULT_FILTER_LEVEL: &str = "debug";
+const DEFAULT_FILTER_LEVEL: &str = "error";
 
 /// ENV used to set the path to the logging configuration file
 const CONFIG_PATH_ENV: &str = "TRD_LOGGING_CONFIG_PATH";
