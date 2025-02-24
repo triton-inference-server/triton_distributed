@@ -35,7 +35,7 @@ def main():
         pipeline_parallel_size=1, # TODO add support for pipeline parallel > 1
         gpu_memory_utilization=0.25, # for dev to speed up mem registration
         max_model_len=100, # for dev to reduce required memory
-        tensor_parallel_size=2,
+        tensor_parallel_size=1,
     )
     vllm_config = args.create_engine_config()
     executor_class = LLMEngine._get_executor_cls(vllm_config)
