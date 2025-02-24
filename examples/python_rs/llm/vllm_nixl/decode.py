@@ -93,7 +93,7 @@ if __name__ == "__main__":
         pipeline_parallel_size=1, # TODO add support for pipeline parallel > 1
         gpu_memory_utilization=0.25, # for dev to speed up mem registration
         max_model_len=100, # for dev to reduce required memory
-        tensor_parallel_size=1,
+        tensor_parallel_size=2,
     )
 
     asyncio.run(worker(engine_args))
