@@ -93,7 +93,7 @@ cargo build --release --locked && cargo doc --no-deps
 RUN source /opt/triton/venv/bin/activate && \
     cd lib/bindings/python && \
     uv build && \
-    uv pip install /workspace/lib/bindings/python/dist/triton_distributed_runtime*cp312*.whl
+    uv pip install /workspace/lib/bindings/python/dist/triton_distributed*cp312*.whl
 
 # Package the bindings
 RUN mkdir -p /opt/triton/bindings/wheels && \

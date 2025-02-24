@@ -26,8 +26,8 @@ on:
     branches:
     - main
     paths:
-    - 'runtime/rust/**'
-    - 'llm/rust/**'
+    - 'lib/runtime/**'
+    - 'lib/llm/**'
     - 'applications/llm/tio/**'
     - '**.rs'
     - 'Cargo.toml'
@@ -65,26 +65,26 @@ jobs:
     - name: Set up Rust Toolchain Components
       run: rustup component add rustfmt clippy
     - name: Run Cargo Check on runtime
-      working-directory: runtime/rust
+      working-directory: lib/runtime
       run: cargo check --locked
     - name: Run Cargo Check on tio
       working-directory: applications/llm/tio
       run: cargo check --locked
     - name: Verify Code Formatting
-      working-directory: runtime/rust
+      working-directory: lib/runtime
       run: cargo fmt -- --check
     - name: Run Clippy Checks on runtime
-      working-directory: runtime/rust
+      working-directory: lib/runtime
       run: cargo clippy --no-deps --all-targets -- -D warnings
     - name: Run Clippy Checks on tio
       working-directory: applications/llm/tio
       run: cargo clippy --no-deps --all-targets -- -D warnings
     - name: Install and Run cargo-deny
-      working-directory: runtime/rust
+      working-directory: lib/runtime
       run: |
         cargo-deny --version || cargo install cargo-deny
         cargo-deny check --hide-inclusion-graph licenses
       timeout-minutes: 5
     - name: Run Unit Tests
-      working-directory: runtime/rust
+      working-directory: lib/runtime
       run: cargo test --locked --all-targets
