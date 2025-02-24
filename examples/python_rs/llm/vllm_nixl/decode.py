@@ -1,21 +1,51 @@
 import zmq
 import msgspec
+import json
 import asyncio
 import uvloop
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.config import KVTransferConfig
 from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams, RemotePrefillResponse
 from vllm.entrypoints.openai.api_server import build_async_engine_client_from_engine_args
+from vllm.entrypoints.openai.protocol import (
+    ChatCompletionRequest,
+    ChatCompletionStreamResponse,
+)
+from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
+from vllm.engine.multiprocessing.client import EngineClient
+from vllm.entrypoints.openai.serving_models import OpenAIServingModels, BaseModelPath
 
-from triton_distributed_rs import DistributedRuntime, triton_worker
+from triton_distributed_rs import DistributedRuntime, triton_worker, triton_endpoint
 
 from protocol import Request
 
 class RequestHandler:
-    def __init__(self, engine_client, prefill_client):
+    def __init__(self, engine_client: EngineClient, prefill_client):
         self.engine_client = engine_client
         self.prefill_client = prefill_client
+        self.openai_serving_chat = None
+        self.initialized = False
         print("RequestHandler initialized")
+
+    async def init(self):
+        models = OpenAIServingModels(
+            engine_client=self.engine_client,
+            model_config=await self.engine_client.get_model_config(),
+            base_model_paths=[BaseModelPath(
+                name="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+                model_path="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+            )]
+        )
+        self.openai_serving_chat = OpenAIServingChat(
+            engine_client=self.engine_client,
+            model_config=await self.engine_client.get_model_config(),
+            models=models,
+            request_logger=None,
+            response_role="assistant",
+            chat_template=None,
+            chat_template_content_format="auto",
+        )
+        self.initialized = True
 
     def get_remote_prefill_request_callback(self):
         async def callback(request: RemotePrefillRequest) -> RemotePrefillResponse:
@@ -25,12 +55,15 @@ class RequestHandler:
                 return msgspec.json.decode(response.data().encode("utf-8"), type=RemotePrefillResponse)
         return callback
 
-    async def generate(self, raw_request: str):
-        print("Got request")
-        request: Request = msgspec.json.decode(raw_request.encode("utf-8"), type=Request)
-        print(f"Request: {request}")
+    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
+    async def generate(self, request):
 
-        if request.do_remote_prefill:
+        if not self.initialized:
+            await self.init()
+
+        do_remote_prefill = True # TODO: this should be decided by the algorithm
+
+        if do_remote_prefill:
             remote_prefill_params = RemotePrefillParams(
                 is_remote_prefill=True,
                 remote_prefill_request_callback=self.get_remote_prefill_request_callback(),
@@ -38,13 +71,15 @@ class RequestHandler:
         else:
             remote_prefill_params = None
 
-        async for output in self.engine_client.generate(
-            request_id=request.request_id,
-            prompt=request.prompt,
-            sampling_params=request.sampling_params,
+        async for raw_response in await self.openai_serving_chat.create_chat_completion(
+            request,
             remote_prefill_params=remote_prefill_params,
         ):
-            yield output.outputs[0].text
+            if raw_response.startswith("data: [DONE]"):
+                break
+            response = json.loads(raw_response.lstrip("data: "))
+            yield response
+        
 
 
 # This is only used for metadata exchange between prefill and decode
