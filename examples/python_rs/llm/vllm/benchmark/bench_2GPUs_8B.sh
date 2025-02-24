@@ -23,6 +23,7 @@ ENDPOINT_URL="http://$ENDPOINT_HOST:$ENDPOINT_PORT"
 
 MEAN_INPUT_TOKENS=3000
 MEAN_OUTPUT_TOKENS=150
+MAX_CONCURRENCY_POWERS=8
 
 MAX_MODEL_LEN=$((MEAN_INPUT_TOKENS + MEAN_OUTPUT_TOKENS + 100))
 
@@ -91,7 +92,7 @@ ARTIFACT_DIR_PREFIX="./artifacts/$CONFIG_PREFIX"
 
 mkdir -p $ARTIFACT_DIR_PREFIX
 
-for p in {0..8}; do
+for p in {0..$MAX_CONCURRENCY_POWERS}; do
     CONCURRENCY=$((2**p))
     CONCURRENCY_STR="$CONCURRENCY.0"
     DATE=$(date +%Y%m%d_%H%M%S)
@@ -108,6 +109,52 @@ for p in {0..8}; do
         --load-type concurrency \
         --load-value $CONCURRENCY
 done
+
+
+pkill -f nats-server   || true
+pkill -f etcd          || true
+pkill -f "http --host $ENDPOINT_HOST --port $ENDPOINT_PORT" || true
+pkill -f python3 || true
+
+# Start vllm serve baseline using 2 GPUs
+
+vllm serve \
+    $CHAT_MODEL_NAME \
+    --tensor-parallel-size 2 \
+    --port $ENDPOINT_PORT \
+    --host $ENDPOINT_HOST &
+
+sleep 15
+
+echo "Running vllm serve baseline benchmark..."
+
+CONFIG_PREFIX="baseline_tp2dp1"
+
+ARTIFACT_DIR_PREFIX="./artifacts/$CONFIG_PREFIX"
+
+mkdir -p $ARTIFACT_DIR_PREFIX
+
+for p in {0..$MAX_CONCURRENCY_POWERS}; do
+    CONCURRENCY=$((2**p))
+    CONCURRENCY_STR="$CONCURRENCY.0"
+    DATE=$(date +%Y%m%d_%H%M%S)
+    ARTIFACT_DIR="$ARTIFACT_DIR_PREFIX/concurrency_$CONCURRENCY_STR"_$DATE
+    echo "Running benchmark for concurrency $CONCURRENCY..."
+    python3 /workspace/examples/python_rs/llm/vllm/benchmark/run_benchmark.py \
+        --isl-cached 0 \
+        --isl-uncached $MEAN_INPUT_TOKENS \
+        --osl $MEAN_OUTPUT_TOKENS \
+        --model $CHAT_MODEL_NAME \
+        --tokenizer $CHAT_MODEL_NAME \
+        --url $ENDPOINT_URL \
+        --artifact-dir $ARTIFACT_DIR \
+        --load-type concurrency \
+        --load-value $CONCURRENCY
+done
+
+# Kill all python3 processes from vllm serve
+
+pkill -f python3 || true
 
 echo "Generating plots..."
 
