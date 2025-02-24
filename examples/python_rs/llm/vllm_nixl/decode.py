@@ -1,39 +1,91 @@
 import zmq
 import msgspec
-import time
 import asyncio
-from vllm import LLMEngine
+import uvloop
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.sampling_params import SamplingParams
 from vllm.config import KVTransferConfig
 from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams, RemotePrefillResponse
 from vllm.entrypoints.openai.api_server import build_async_engine_client_from_engine_args
 
-_ctx = None
-_socket = None
+from triton_distributed_rs import DistributedRuntime, triton_worker
+
+from protocol import Request
+
+class RequestHandler:
+    def __init__(self, engine_client, socket):
+        self.engine_client = engine_client
+        self.socket = socket
+
+        # Send metadata to prefill
+        metadata = engine_client.nixl_metadata
+        assert metadata is not None
+        print("[socket.send] Sending metadata to prefill")
+        encoded_metadata = msgspec.msgpack.encode(metadata)
+        self.socket.send(encoded_metadata)
+        print("RequestHandler initialized")
+
+    def get_remote_prefill_request_callback(self):
+        def callback(request: RemotePrefillRequest) -> RemotePrefillResponse:
+            self.socket.send(msgspec.msgpack.encode(request))
+            response = msgspec.msgpack.decode(self.socket.recv(), type=RemotePrefillResponse)
+            # response = RemotePrefillResponse(
+            #     request_id=request.request_id,
+            #     first_token_id=435,
+            # )
+            return response
+        return callback
+
+    async def generate(self, raw_request):
+        print("Got request")
+        request: Request = msgspec.json.decode(raw_request.encode("utf-8"), type=Request)
+        print(f"Request: {request}")
+
+        if request.do_remote_prefill:
+            remote_prefill_params = RemotePrefillParams(
+                is_remote_prefill=True,
+                remote_prefill_request_callback=self.get_remote_prefill_request_callback(),
+            )
+        else:
+            remote_prefill_params = None
+
+        async for output in self.engine_client.generate(
+            request_id=request.request_id,
+            prompt=request.prompt,
+            sampling_params=request.sampling_params,
+            remote_prefill_params=remote_prefill_params,
+        ):
+            yield output.outputs[0].text
 
 
+# This is only used for metadata exchange between prefill and decode
+# Should be replaced with etcd
 def init_zmq(hostname="localhost", port=5432):
     global _ctx, _socket
-    _ctx = zmq.Context()
-    _socket = _ctx.socket(zmq.PAIR)
-    _socket.connect(f"tcp://{hostname}:{port}")
+    ctx = zmq.Context()
+    socket = ctx.socket(zmq.PAIR)
+    socket.connect(f"tcp://{hostname}:{port}")
+
+    return socket
 
 
-def get_remote_prefill_request_callback(socket):
-    def callback(request: RemotePrefillRequest) -> RemotePrefillResponse:
-        print(f"Main callback: Sending remote prefill request: {request}")
-        socket.send(msgspec.msgpack.encode(request))
-        response = msgspec.msgpack.decode(socket.recv(), type=RemotePrefillResponse)
-        print(f"Main callback: Received remote prefill response: {response}")
-        return response
-    return callback
+@triton_worker()
+async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
+    socket = init_zmq()
 
+    component = runtime.namespace("test-nixl").component("vllm")
+    await component.create_service()
 
-async def main():
-    init_zmq()
+    endpoint = component.endpoint("generate")
 
-    args = AsyncEngineArgs(
+    async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
+
+        await endpoint.serve_endpoint(RequestHandler(engine_client, socket).generate)
+
+if __name__ == "__main__":
+    uvloop.install()
+
+    engine_args = AsyncEngineArgs(
         model="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
         enforce_eager=True,
         kv_transfer_config=KVTransferConfig(kv_connector="TritonNixlConnector"),
@@ -46,29 +98,5 @@ async def main():
         tensor_parallel_size=1,
     )
 
-
-
-    async with build_async_engine_client_from_engine_args(args) as engine_client:
-
-        # Send metadata to prefill
-        metadata = engine_client.nixl_metadata
-        assert metadata is not None
-        print("[socket.send] Sending metadata to prefill")
-        encoded_metadata = msgspec.msgpack.encode(metadata)
-        _socket.send(encoded_metadata)
-        print(f"Sent metadata to prefill")
-        
-        async for output in engine_client.generate(
-            request_id="0",
-            prompt="A B C D E",
-            sampling_params=SamplingParams(max_tokens=5, temperature=0.0),
-            remote_prefill_params=RemotePrefillParams(
-                is_remote_prefill=True,
-                remote_prefill_request_callback=get_remote_prefill_request_callback(_socket),
-            )
-        ):
-            print(f"Output: {output.outputs[0].text}")
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(worker(engine_args))
 
