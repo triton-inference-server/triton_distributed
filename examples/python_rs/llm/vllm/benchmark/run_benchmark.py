@@ -207,11 +207,28 @@ def parse_args():
         default=300,
         help="Benchmark timeout",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+
+    LOGGER.setFormatter(
+        logging.Formatter(
+            "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
+
+    if args.verbose:
+        LOGGER.setLevel(logging.DEBUG)
+    else:
+        LOGGER.setLevel(logging.INFO)
 
     # If --request-count was not provided, compute it if load-type=concurrency
     if args.request_count is None:
