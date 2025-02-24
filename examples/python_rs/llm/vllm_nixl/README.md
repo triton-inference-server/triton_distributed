@@ -49,10 +49,11 @@ python client.py --prompt "A B C D E"
 - [x] Conditional remote prefill
 - [x] Manual example with tp > 1
 - [x] Run on triton distributed runtime
-- [ ] add oai http endpoint
-- [ ] Add etcd for discovery
-- [ ] Enable async output processing
-- [ ] Enable chunked prefill
+- [ ] [Piotr] add oai http endpoint
+- [ ] [Piotr] Sample only on decode, do note return remote prefill response
+- [ ] [Neelay] Add etcd for discovery
+- [ ] [Alec] Enable chunked prefill
+- [ ] Enable async output processing - could be working
 - [ ] Process many remote prefill in one iteration
 - [ ] Support recompute preemption
 - [ ] Make sure decode does not preempt blocks before xfer finishes
@@ -63,4 +64,3 @@ python client.py --prompt "A B C D E"
 - [ ] Check if all transfers finished before moving to decode
 - [ ] Support variable tp
 - [ ] Nice etcd for discovery
-- [ ] Yield first token 

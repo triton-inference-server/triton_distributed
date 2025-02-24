@@ -1,5 +1,4 @@
 import zmq
-from vllm import LLMEngine
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.config import KVTransferConfig
 from vllm.inputs.data import TokensPrompt
@@ -34,14 +33,6 @@ class RequestHandler:
             decode_block_ids=request.block_ids,
             decode_engine_id=request.engine_id,
         )
-
-        # response = RemotePrefillResponse(
-        #     request_id=request.request_id,
-        #     first_token_id=435,
-        # )
-
-        # json_response = msgspec.json.encode(response).decode("utf-8")
-        # yield json_response
 
         async for output in self.engine_client.generate(
             request_id=request.request_id,
