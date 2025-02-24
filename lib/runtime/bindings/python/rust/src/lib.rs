@@ -77,9 +77,9 @@ where
 
 #[pyclass]
 #[derive(Clone)]
-struct DistributedRuntime {
-    inner: rs::DistributedRuntime,
-    event_loop: PyObject,
+pub struct DistributedRuntime {
+    pub inner: rs::DistributedRuntime,
+    pub event_loop: PyObject,
 }
 
 #[pyclass]
@@ -97,9 +97,9 @@ struct Namespace {
 
 #[pyclass]
 #[derive(Clone)]
-struct Component {
-    inner: rs::component::Component,
-    event_loop: PyObject,
+pub struct Component {
+    pub inner: rs::component::Component,
+    pub event_loop: PyObject,
 }
 
 #[pyclass]

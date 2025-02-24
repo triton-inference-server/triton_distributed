@@ -26,8 +26,8 @@ repository = "https://github.com/triton-inference-server/triton_distributed"
 path = "src/lib.rs"
 name = "_runtime"
 # "cdylib" is necessary to produce a shared library for Python to import from.
-crate-type = ["cdylib"]
-
+# "rlib" is necessary to produce a crate for use in another rust library.
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 triton-distributed-runtime = { path = "../../../../runtime" }
