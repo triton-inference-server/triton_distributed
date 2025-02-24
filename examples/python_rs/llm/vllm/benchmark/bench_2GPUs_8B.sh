@@ -44,13 +44,15 @@ echo "Waiting for etcd server to start..."
 sleep 5
 
 echo "Starting HTTP server endpoint..."
-http --host $ENDPOINT_HOST --port $ENDPOINT_PORT
+http --host $ENDPOINT_HOST --port $ENDPOINT_PORT &
 
+echo "Waiting for HTTP server to start..."
 sleep 5
 
 echo "Adding model to HTTP server..."
 llmctl http add chat-models $CHAT_MODEL_NAME triton-init.vllm.generate
 
+echo "Waiting for model to be added..."
 sleep 15
 
 echo "Activating Triton environment..."
