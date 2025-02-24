@@ -4,37 +4,42 @@ from _bentoml_sdk import Service, ServiceConfig
 from _bentoml_sdk.images import Image
 from compoundai.sdk.decorators import NovaEndpoint
 
-T = TypeVar("T", bound=object)
+from typing_extensions import TypedDict
 
-@dataclass
-class NovaConfig:
+
+class NovaSchema(TypedDict, total=False):
     """Configuration for Nova components"""
-    enabled: bool = False
-    name: str = None
-    namespace: str = None
+    enabled: bool
+    name: Optional[str]
+    namespace: Optional[str]
+
+
+class CompoundServiceConfig(ServiceConfig):
+    """Extended ServiceConfig that includes Nova-specific configuration"""
+    nova: NovaSchema
+
+T = TypeVar("T", bound=object)
 
 class CompoundService(Service[T]):
     """A custom service class that extends BentoML's base Service with Nova capabilities"""
-    
+
     def __init__(
         self,
-        config: ServiceConfig,
+        config: CompoundServiceConfig,
         inner: type[T],
         image: Optional[Image] = None,
-        envs: list[dict[str, Any]] = None,
-        nova_config: NovaConfig | None = None,
+        envs: List[Dict[str, Any]] = None,
     ):
         super().__init__(config=config, inner=inner, image=image, envs=envs or [])
+        
+        # Set defaults on nova object
+        # TODO: Implement with dataclass or some other way with better validation
+        self._nova_config = config.get("nova", {})
+        self._nova_config["name"] = self._nova_config.get("name", inner.__name__)
+        self._nova_config["namespace"] = self._nova_config.get("namespace", "default")
+        self._nova_config["enabled"] = self._nova_config.get("enabled", False)
 
-        # Initialize Nova configuration
-        self._nova_config = nova_config if nova_config else NovaConfig(
-            name=inner.__name__,
-            namespace="default"
-        )
-        if self._nova_config.name is None:
-            self._nova_config.name = inner.__name__
-
-        # Register Nova endpoints
+        # Register Nova endpoints.
         self._nova_endpoints: Dict[str, NovaEndpoint] = {}
         for field in dir(inner):
             value = getattr(inner, field)
@@ -43,14 +48,13 @@ class CompoundService(Service[T]):
 
     def is_nova_component(self) -> bool:
         """Check if this service is configured as a Nova component"""
-        return self._nova_config.enabled
+        return self._nova_config["enabled"]
 
     def nova_address(self) -> Tuple[str, str]:
         """Get the Nova address for this component in namespace/name format"""
         if not self.is_nova_component():
             raise ValueError("Service is not configured as a Nova component")
-        
-        return (self._nova_config.namespace, self._nova_config.name)
+        return (self._nova_config["namespace"], self._nova_config["name"])
 
     def get_nova_endpoints(self) -> Dict[str, NovaEndpoint]:
         """Get all registered Nova endpoints"""
@@ -65,32 +69,28 @@ class CompoundService(Service[T]):
     def list_nova_endpoints(self) -> List[str]:
         """List names of all registered Nova endpoints"""
         return list(self._nova_endpoints.keys())
-    
-    # todo: add another function to bind an instance of the inner to the self within these methods
+
+
 
 def service(
-    inner: type[T] | None = None,
+    inner: Optional[type[T]] = None,
     /,
     *,
-    image: Image | None = None,
-    envs: list[dict[str, Any]] | None = None,
-    nova: Dict[str, Any] | NovaConfig | None = None,
+    image: Optional[Image] = None,
+    envs: Optional[List[Dict[str, Any]]] = None,
     **kwargs: Any,
 ) -> Any:
     """Enhanced service decorator that supports Nova configuration
-    
+
     Args:
-        nova: Nova configuration, either as a NovaConfig object or dict with keys:
-            - enabled: bool (default True)
+        nova: Nova configuration, either as a NovaSchema dict or an object with keys:
+            - enabled: bool (default False)
             - name: str (default: class name)
             - namespace: str (default: "default")
         **kwargs: Existing BentoML service configuration
     """
     config = kwargs
-
-    # Parse dict into NovaConfig object
-    if nova and isinstance(nova, dict):
-        nova = NovaConfig(**nova)
+    print("kwargs", kwargs)
 
     def decorator(inner: type[T]) -> CompoundService[T]:
         if isinstance(inner, Service):
@@ -100,7 +100,6 @@ def service(
             inner=inner,
             image=image,
             envs=envs or [],
-            nova_config=nova,
         )
 
     return decorator(inner) if inner is not None else decorator
