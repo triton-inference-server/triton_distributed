@@ -4687,8 +4687,8 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-subscriber",
- "triton-distributed",
- "triton-llm",
+ "triton-distributed-llm",
+ "triton-distributed-runtime",
 ]
 
 [[package]]
@@ -5069,7 +5069,39 @@ dependencies = [
 ]
 
 [[package]]
-name = "triton-distributed"
+name = "triton-distributed-llm"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "axum 0.8.1",
+ "blake3",
+ "bytes",
+ "chrono",
+ "derive_builder",
+ "either",
+ "futures",
+ "indexmap 2.7.1",
+ "mistralrs",
+ "prometheus",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "triton-distributed-runtime",
+ "unicode-segmentation",
+ "uuid 1.13.2",
+ "validator",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "triton-distributed-runtime"
 version = "0.2.0"
 dependencies = [
  "anyhow",
@@ -5107,38 +5139,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-subscriber",
- "uuid 1.13.2",
- "validator",
- "xxhash-rust",
-]
-
-[[package]]
-name = "triton-llm"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "async-stream",
- "async-trait",
- "axum 0.8.1",
- "blake3",
- "bytes",
- "chrono",
- "derive_builder",
- "either",
- "futures",
- "indexmap 2.7.1",
- "mistralrs",
- "prometheus",
- "regex",
- "serde",
- "serde_json",
- "thiserror 2.0.11",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "triton-distributed",
- "unicode-segmentation",
  "uuid 1.13.2",
  "validator",
  "xxhash-rust",
