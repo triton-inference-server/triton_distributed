@@ -31,26 +31,25 @@ CHAT_MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
 
 nats-server \
     -js \
-    --trace \
     -p 4222 \
     -m 8222 &
 
 echo "Waiting for NATS server to start..."
-sleep 15
+sleep 5
 
 echo "Starting etcd server..."
-etcd
+etcd &
 
 echo "Waiting for etcd server to start..."
-sleep 15
+sleep 5
 
 echo "Starting HTTP server endpoint..."
-http --host $ENDPOINT_HOST --port $ENDPOINT_PORT &
+http --host $ENDPOINT_HOST --port $ENDPOINT_PORT
 
-sleep 15
+sleep 5
 
 echo "Adding model to HTTP server..."
-llmctl http add chat-models $CHAT_MODEL_NAME triton-init.vllm.generate&
+llmctl http add chat-models $CHAT_MODEL_NAME triton-init.vllm.generate
 
 sleep 15
 
