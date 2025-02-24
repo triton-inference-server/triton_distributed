@@ -23,6 +23,7 @@ ENDPOINT_URL="http://$ENDPOINT_HOST:$ENDPOINT_PORT"
 
 MEAN_INPUT_TOKENS=3000
 MEAN_OUTPUT_TOKENS=150
+IO_PREFIX="isl_cached_0_isl_uncached_${MEAN_INPUT_TOKENS}_osl_${MEAN_OUTPUT_TOKENS}"
 
 MAX_MODEL_LEN=$((MEAN_INPUT_TOKENS + MEAN_OUTPUT_TOKENS + 100))
 
@@ -96,15 +97,12 @@ echo "Running benchmark..."
 
 CONFIG_PREFIX="prefill_tp2dp2_generate_tp4dp1"
 
-ARTIFACT_DIR_PREFIX="./artifacts/$CONFIG_PREFIX"
+ARTIFACT_DIR_PREFIX="./artifacts/$IO_PREFIX/$CONFIG_PREFIX"
 
 mkdir -p $ARTIFACT_DIR_PREFIX
 
 for p in {0..8}; do
     CONCURRENCY=$((2**p))
-    CONCURRENCY_STR="$CONCURRENCY.0"
-    DATE=$(date +%Y%m%d_%H%M%S)
-    ARTIFACT_DIR="$ARTIFACT_DIR_PREFIX/concurrency_$CONCURRENCY_STR"_$DATE
     echo "Running benchmark for concurrency $CONCURRENCY..."
     python3 /workspace/examples/python_rs/llm/vllm/benchmark/run_benchmark.py \
         --isl-cached 0 \
@@ -113,7 +111,7 @@ for p in {0..8}; do
         --model $CHAT_MODEL_NAME \
         --tokenizer $CHAT_MODEL_NAME \
         --url $ENDPOINT_URL \
-        --artifact-dir $ARTIFACT_DIR \
+        --artifact-dir $ARTIFACT_DIR_PREFIX \
         --load-type concurrency \
         --load-value $CONCURRENCY
 done
@@ -138,15 +136,12 @@ echo "Running vllm serve baseline benchmark..."
 
 CONFIG_PREFIX="baseline_tp8dp1"
 
-ARTIFACT_DIR_PREFIX="./artifacts/$CONFIG_PREFIX"
+ARTIFACT_DIR_PREFIX="./artifacts/$IO_PREFIX/$CONFIG_PREFIX"
 
 mkdir -p $ARTIFACT_DIR_PREFIX
 
 for p in {0..8}; do
     CONCURRENCY=$((2**p))
-    CONCURRENCY_STR="$CONCURRENCY.0"
-    DATE=$(date +%Y%m%d_%H%M%S)
-    ARTIFACT_DIR="$ARTIFACT_DIR_PREFIX/concurrency_$CONCURRENCY_STR"_$DATE
     echo "Running benchmark for concurrency $CONCURRENCY..."
     python3 /workspace/examples/python_rs/llm/vllm/benchmark/run_benchmark.py \
         --isl-cached 0 \
@@ -155,7 +150,7 @@ for p in {0..8}; do
         --model $CHAT_MODEL_NAME \
         --tokenizer $CHAT_MODEL_NAME \
         --url $ENDPOINT_URL \
-        --artifact-dir $ARTIFACT_DIR \
+        --artifact-dir $ARTIFACT_DIR_PREFIX \
         --load-type concurrency \
         --load-value $CONCURRENCY
 done
@@ -166,6 +161,8 @@ pkill -f python3 || true
 
 echo "Generating plots..."
 
+# Seaborn and matplotlib are not installed in the Triton environment
+deactivate
 python3 /workspace/examples/python_rs/llm/vllm/benchmark/process_gap_results.py ./artifacts/
 
 echo "Done!"

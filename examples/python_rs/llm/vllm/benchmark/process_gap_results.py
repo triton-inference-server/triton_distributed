@@ -20,6 +20,7 @@
 
 import argparse
 import json
+import logging
 import os
 import re
 from collections import defaultdict
@@ -29,6 +30,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+
+LOGGER = logging.getLogger(__name__)
 
 
 def parse_tp_dp(name):
@@ -353,7 +356,7 @@ def create_pareto_graph(base_path, results, title):
 def main(base_path, title):
     latest_run_dirs = get_latest_run_dirs(base_path)
     extracted_values = extract_val_and_concurrency(base_path, latest_run_dirs)
-    print(extracted_values)
+    LOGGER.info(extracted_values)
 
     create_graph(base_path, extracted_values, title)
     create_pareto_graph(base_path, extracted_values, title)
