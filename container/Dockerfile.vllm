@@ -69,12 +69,12 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Working directory
 WORKDIR /workspace
 
-COPY runtime/rust /workspace/runtime/rust
-RUN cd runtime/rust && \
+COPY lib/runtime /workspace/lib/runtime
+RUN cd lib/runtime && \
     cargo build --release --locked && cargo doc --no-deps
 
 # Build OpenAI HTTP Service binaries
-COPY llm/rust /workspace/llm/rust
+COPY lib/llm /workspace/lib/llm
 COPY examples/rust /workspace/examples/rust
 RUN cd examples/rust && \
     cargo build --release && \
@@ -85,23 +85,35 @@ RUN cd examples/rust && \
 # COPY applications/...
 
 # Generate C bindings for kv cache routing in vLLM
-COPY llm/rust /workspace/llm/rust
-RUN cd llm/rust/ && \
+RUN cd lib/llm/bindings/c && \
 cargo build --release --locked && cargo doc --no-deps
 
-# Build triton_distributed_rs wheel
-COPY python-wheel /workspace/python-wheel
-RUN cd python-wheel && \
-    uv build && \
-    uv pip install dist/triton_distributed_rs*cp312*.whl
+# Install uv, create virtualenv for general use, and build triton_distributed_runtime wheel
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN mkdir /opt/triton && \
+    uv venv /opt/triton/venv --python 3.12 && \
+    source /opt/triton/venv/bin/activate && \
+    uv pip install maturin[patchelf] && \
+    cd lib/runtime/bindings/python && \
+    maturin build --release && \
+    uv pip install rust/target/wheels/triton_distributed_runtime*cp312*.whl
+
+# Build triton_distributed_llm wheel
+RUN source /opt/triton/venv/bin/activate && \
+    cd lib/llm/bindings/python && \
+    maturin build --release && \
+    uv pip install /workspace/lib/llm/target/wheels/triton_distributed_llm*cp312*.whl
 
 # Package the bindings
-RUN mkdir -p /opt/triton/llm_binding/wheels && mkdir /opt/triton/llm_binding/lib
-RUN cp python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/.
-RUN cp llm/rust/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/.
-RUN cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
+RUN mkdir -p /opt/triton/bindings/wheels && \
+    mkdir /opt/triton/bindings/lib && \
+    cp lib/runtime/bindings/python/rust/target/wheels/triton_distributed_runtime*cp312*.whl /opt/triton/bindings/wheels/. && \
+    cp lib/llm/target/wheels/triton_distributed_llm*cp312*.whl /opt/triton/bindings/wheels/. && \
+    cp lib/llm/target/release/libtriton_distributed_llm_capi.so /opt/triton/bindings/lib/. && \
+    cp -r lib/llm/bindings/c/include /opt/triton/bindings/.
+
 # Tell vllm to use the Triton LLM C API for KV Cache Routing
-ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
+ENV VLLM_KV_CAPI_PATH="/opt/triton/bindings/lib/libtriton_distributed_llm_capi.so"
 
 # FIXME: Copy more specific folders in for dev/debug after directory restructure
 COPY . /workspace
@@ -127,7 +139,7 @@ RUN apt update -y && \
 ENV VIRTUAL_ENV=/opt/triton/venv
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
-ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_llm_capi.so"
+ENV VLLM_KV_CAPI_PATH="/opt/triton/llm_binding/lib/libtriton_distributed_llm_capi.so"
 
 # Copy binaries
 COPY --from=dev /usr/local/bin/http /usr/local/bin/http
@@ -146,7 +158,6 @@ COPY --from=dev ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 # if test dependencies start to negatively impact deployment environment/size.
 COPY pyproject.toml /workspace/pyproject.toml
 COPY container/deps/vllm /workspace/container/deps/vllm
-COPY python-wheel/python /workspace/python-wheel/python
 # Add library for KV routing
 COPY --from=dev ${VLLM_KV_CAPI_PATH} ${VLLM_KV_CAPI_PATH}
 # Copy minimal set of files for deployment/examples

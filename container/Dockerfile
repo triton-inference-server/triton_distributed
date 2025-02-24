@@ -133,7 +133,7 @@ RUN cd lib/runtime && \
     cargo build --release --locked && cargo doc --no-deps
 
 # Build OpenAI HTTP Service binaries
-COPY llm/rust /workspace/llm/rust
+COPY lib/llm /workspace/lib/llm
 COPY examples/rust /workspace/examples/rust
 RUN cd examples/rust && \
     cargo build --release && \
@@ -141,12 +141,10 @@ RUN cd examples/rust && \
     cp target/release/llmctl /usr/local/bin/
 
 # Generate C bindings. Note that this is required for TRTLLM backend re-build
-COPY llm/rust /workspace/llm/rust
-RUN cd llm/rust/ && \
+RUN cd lib/llm/bindings/c/ && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Install uv, create virtualenv for general use, and build triton_distributed_rs wheel
-#COPY python-wheel /workspace/python-wheel
+# Install uv, create virtualenv for general use, and build triton_distributed_runtime wheel
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
@@ -156,17 +154,24 @@ RUN mkdir /opt/triton && \
     maturin build --release && \
     uv pip install rust/target/wheels/triton_distributed_runtime*cp312*.whl
 
-# Package the bindings
-RUN mkdir -p /opt/triton/llm_binding/wheels && \
-    mkdir /opt/triton/llm_binding/lib && \
-    cp lib/runtime/bindings/python/rust/target/wheels/triton_distributed_runtime*cp312*.whl /opt/triton/llm_binding/wheels/. && \
-    cp llm/rust/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/. && \
-    cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
+# Build triton_distributed_llm wheel
+RUN source /opt/triton/venv/bin/activate && \
+    cd lib/llm/bindings/python && \
+    maturin build --release && \
+    uv pip install /workspace/lib/llm/target/wheels/triton_distributed_llm*cp312*.whl
 
-# Install triton_distributed_rs wheel globally in container for tests that
+# Package the bindings
+RUN mkdir -p /opt/triton/bindings/wheels && \
+    mkdir /opt/triton/bindings/lib && \
+    cp lib/runtime/bindings/python/rust/target/wheels/triton_distributed_runtime*cp312*.whl /opt/triton/bindings/wheels/. && \
+    cp lib/llm/target/wheels/triton_distributed_llm*cp312*.whl /opt/triton/bindings/wheels/. && \
+    cp lib/llm/target/release/libtriton_distributed_llm_capi.so /opt/triton/bindings/lib/. && \
+    cp -r lib/llm/bindings/c/include /opt/triton/bindings/.
+
+# Install triton_distributed_runtime and triton_distributed_llm wheels globally in container for tests that
 # currently run without virtual environment activated.
 # TODO: In future, we may use a virtualenv for everything and remove this.
-RUN pip install /opt/triton/llm_binding/wheels/triton_distributed_runtime*cp312*.whl
+RUN pip install /opt/triton/bindings/wheels/triton_distributed_*cp312*.whl
 
 # Copy everything in after install steps to avoid re-running build/install
 # commands on unrelated changes in other dirs.
