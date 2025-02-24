@@ -121,7 +121,7 @@ class Processor(ProcessMixIn):
                     sampling_params=sampling_params,
                     request_id=request_id,
                 ).model_dump_json(),
-                uuid.UUID(worker_id).int,
+                int(worker_id),
             )
 
         output = self.generate_responses(engine_generator)

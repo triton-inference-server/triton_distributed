@@ -71,7 +71,7 @@ class Router:
 
             vllm_logger.info(f"Scheduling to worker_id: {worker_id}")
 
-            yield worker_id
+            yield str(worker_id)
 
         else:
             # TODO: Do we implement round_robin and random here?

@@ -28,42 +28,11 @@ from triton_distributed_rs import (
     triton_worker,
 )
 from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.engine.metrics_types import StatLoggerBase, Stats, SupportsMetricsInfo
 from vllm.logger import logger as vllm_logger
 from vllm.sampling_params import RequestOutputKind
 
 vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
-
-class KvStatLogger(StatLoggerBase):
-    def __init__(
-        self,
-        vllm_scheduler: vllm.core.scheduler.Scheduler,
-        metrics_publisher: KvMetricsPublisher,
-    ):
-        # Must query initialized scheduler for max infos
-        self.request_total_slots = vllm_scheduler.scheduler_config.max_num_seqs
-        self.kv_total_blocks = vllm_scheduler.block_manager.num_total_gpu_blocks
-
-        # KV metrics
-        self.metrics_publisher = metrics_publisher
-        self.metrics_publisher.publish(
-            0,
-            self.request_total_slots,
-            0,
-            self.kv_total_blocks,
-        )
-
-    def log(self, stats: Stats) -> None:
-        self.metrics_publisher.publish(
-            stats.num_running_sys,
-            self.request_total_slots,
-            int(stats.gpu_cache_usage_sys * self.kv_total_blocks),
-            self.kv_total_blocks,
-        )
-
-    def info(self, type: str, obj: SupportsMetricsInfo) -> None:
-        pass
 
 
 class VllmEngine(BaseVllmEngine):
@@ -74,13 +43,13 @@ class VllmEngine(BaseVllmEngine):
     def __init__(
         self, engine_args: AsyncEngineArgs, metrics_publisher: KvMetricsPublisher
     ):
+        self.metrics_publisher = metrics_publisher
         self.engine_args = engine_args
         super().__init__(engine_args)
-        # Attach logger for continuous metrics publishing
-        self.stat_logger = KvStatLogger(
-            self.engine_client.engine.scheduler[0], metrics_publisher
-        )
-        self.engine_client.add_logger("kv_metrics", self.stat_logger)
+
+    async def initialize(self):
+        await super().initialize()
+        self.engine_client.set_metrics_publisher(self.metrics_publisher)
 
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
     async def generate(self, request) -> AsyncIterator:
@@ -130,6 +99,13 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
     vllm_engine = VllmEngine(engine_args, metrics_publisher)
     await vllm_engine.initialize()
+    # Initially send dummy metrics to kick start,
+    # vLLM will not update stat until forward pass is triggered
+    metrics_publisher.publish(
+            0,
+            1024,
+            0,
+            1024, )
 
     await worker_endpoint.serve_endpoint(vllm_engine.generate)
 
