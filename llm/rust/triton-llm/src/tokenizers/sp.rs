@@ -13,24 +13,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(feature = "sentencepiece")]
 use crate::tokenizers::{
     traits::{Decoder, Encoder, Tokenizer},
     Encoding, Error, Result, TokenIdType,
 };
 
-#[cfg(feature = "sentencepiece")]
 use sentencepiece::SentencePieceProcessor;
 
 /// A tokenizer implementation using the SentencePiece tokenization algorithm.
 /// This tokenizer can encode text into tokens and decode tokens back into text.
-#[cfg(feature = "sentencepiece")]
 pub struct SentencePieceTokenizer {
     /// The underlying SentencePiece processor instance
     spp: SentencePieceProcessor,
 }
 
-#[cfg(feature = "sentencepiece")]
 impl SentencePieceTokenizer {
     /// Creates a new SentencePieceTokenizer from a model file.
     ///
@@ -47,7 +43,6 @@ impl SentencePieceTokenizer {
     }
 }
 
-#[cfg(feature = "sentencepiece")]
 impl Encoder for SentencePieceTokenizer {
     /// Encodes a string input into tokens using the SentencePiece model.
     ///
@@ -80,7 +75,6 @@ impl Encoder for SentencePieceTokenizer {
     }
 }
 
-#[cfg(feature = "sentencepiece")]
 impl Decoder for SentencePieceTokenizer {
     /// Decodes a sequence of token IDs back into text.
     ///
@@ -112,5 +106,4 @@ impl Decoder for SentencePieceTokenizer {
 }
 
 /// Implement the Tokenizer trait for SentencePieceTokenizer
-#[cfg(feature = "sentencepiece")]
 impl Tokenizer for SentencePieceTokenizer {}

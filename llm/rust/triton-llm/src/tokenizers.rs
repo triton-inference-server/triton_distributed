@@ -14,6 +14,8 @@
 // limitations under the License.
 
 pub mod hf;
+
+#[cfg(feature = "sentencepiece")]
 pub mod sp;
 
 // TODO: Add tokenizer benchmarks
