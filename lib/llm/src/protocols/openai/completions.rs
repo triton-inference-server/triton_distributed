@@ -32,6 +32,8 @@ use super::{
     MAX_TOP_P, MIN_FREQUENCY_PENALTY, MIN_PRESENCE_PENALTY, MIN_TEMPERATURE, MIN_TOP_P,
 };
 
+use triton_distributed_runtime::protocols::annotated::AnnotationsProvider;
+
 /// Legacy OpenAI CompletionRequest
 ///
 /// Reference: <https://platform.openai.com/docs/api-reference/completions>
@@ -392,21 +394,21 @@ impl NvExtProvider for CompletionRequest {
     }
 }
 
-// impl AnnotationsProvider for CompletionRequest {
-//     fn annotations(&self) -> Option<Vec<String>> {
-//         self.nvext
-//             .as_ref()
-//             .and_then(|nvext| nvext.annotations.clone())
-//     }
+impl AnnotationsProvider for CompletionRequest {
+    fn annotations(&self) -> Option<Vec<String>> {
+        self.nvext
+            .as_ref()
+            .and_then(|nvext| nvext.annotations.clone())
+    }
 
-//     fn has_annotation(&self, annotation: &str) -> bool {
-//         self.nvext
-//             .as_ref()
-//             .and_then(|nvext| nvext.annotations.as_ref())
-//             .map(|annotations| annotations.contains(&annotation.to_string()))
-//             .unwrap_or(false)
-//     }
-// }
+    fn has_annotation(&self, annotation: &str) -> bool {
+        self.nvext
+            .as_ref()
+            .and_then(|nvext| nvext.annotations.as_ref())
+            .map(|annotations| annotations.contains(&annotation.to_string()))
+            .unwrap_or(false)
+    }
+}
 
 impl OpenAISamplingOptionsProvider for CompletionRequest {
     fn get_temperature(&self) -> Option<f32> {

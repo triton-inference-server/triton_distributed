@@ -62,7 +62,10 @@ RUN ln -sf /bin/bash /bin/sh
 RUN apt update -y && \
     apt install -y \
     build-essential \
-    protobuf-compiler && \
+    protobuf-compiler \
+    cmake \
+    libssl-dev \
+    pkg-config && \
     curl https://sh.rustup.rs -sSf | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
