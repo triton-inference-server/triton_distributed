@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+set -x
+
 ENDPOINT_HOST="localhost"
 ENDPOINT_PORT="8080"
 ENDPOINT_URL="http://$ENDPOINT_HOST:$ENDPOINT_PORT"
@@ -25,43 +28,38 @@ MAX_MODEL_LEN=$((MEAN_INPUT_TOKENS + MEAN_OUTPUT_TOKENS + 100))
 
 CHAT_MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
 
-# Start NATS server
-
 nats-server \
     -js \
     --trace \
     -p 4222 \
     -m 8222 &
 
+echo "Waiting for NATS server to start..."
 sleep 15
 
-# Start etcd server
-
+echo "Starting etcd server..."
 etcd
 
+echo "Waiting for etcd server to start..."
 sleep 15
 
-# Start HTTP server endpoint
-
-
-
+echo "Starting HTTP server endpoint..."
 http --host $ENDPOINT_HOST --port $ENDPOINT_PORT &
 
 sleep 15
 
-# Add model to HTTP server
-
+echo "Adding model to HTTP server..."
 llmctl http add chat-models $CHAT_MODEL_NAME triton-init.vllm.generate&
 
 sleep 15
 
-# Activate Triton environment
+echo "Activating Triton environment..."
 
 source /opt/triton/venv/bin/activate
 cd /workspace/examples/python_rs/llm/vllm
 
 
-# Start prefill worker
+echo "Starting prefill worker..."
 
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
             --model $CHAT_MODEL_NAME \
@@ -72,7 +70,7 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregat
             --kv-transfer-config \
             '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2}'
 
-# Start decode worker
+echo "Starting decode worker..."
 
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1 python3 -m disaggregated.decode_worker \
         --model $CHAT_MODEL_NAME \
@@ -85,42 +83,34 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1 python3 -m disaggregat
 
 
 
-# Run benchmark
+echo "Running benchmark..."
 
 CONFIG_PREFIX="prefill_tp1dp1_generate_t1d1
+
+ARTIFACT_DIR_PREFIX="./artifacts/$CONFIG_PREFIX"
+
+mkdir -p $ARTIFACT_DIR_PREFIX
 
 for p in {0..8}; do
     CONCURRENCY=$((2**p))
     CONCURRENCY_STR="$CONCURRENCY.0"
-    # If request count should be 10 times concurrency, but not less than 100 and
-    # not more than 2 times concurrency if it is more than 256
-
-    # Step 1: Set request_count to 10 times concurrency
-    REQUEST_COUNT=$(( 10 * CONCURRENCY ))
-
-    # Step 2: Ensure request_count is at least 100
-    if [ "$REQUEST_COUNT" -lt 100 ]; then
-        REQUEST_COUNT=100
-    fi
-
-    # Step 3: If concurrency > 256, request_count must not exceed 2 * concurrency
-    if [ "$CONCURRENCY" -gt 256 ]; then
-        MAX_COUNT=$(( 2 * CONCURRENCY ))
-        if [ "$REQUEST_COUNT" -gt "$MAX_COUNT" ]; then
-            REQUEST_COUNT=$MAX_COUNT
-        fi
-    fi
     DATE=$(date +%Y%m%d_%H%M%S)
-    ARTIFACT_DIR="./artifacts/$CONFIG_PREFIX/concurrency_$CONCURRENCY_STR"_$DATE
+    ARTIFACT_DIR="$ARTIFACT_DIR_PREFIX/concurrency_$CONCURRENCY_STR"_$DATE
+    echo "Running benchmark for concurrency $CONCURRENCY..."
     python3 /workspace/examples/python_rs/llm/vllm/benchmark/run_benchmark.py \
         --isl-cached 0 \
         --isl-uncached $MEAN_INPUT_TOKENS \
         --osl $MEAN_OUTPUT_TOKENS \
         --model $CHAT_MODEL_NAME \
         --tokenizer $CHAT_MODEL_NAME \
-        --url localhost:8080 \
+        --url $ENDPOINT_URL \
         --artifact-dir $ARTIFACT_DIR \
-        --request-count $REQUEST_COUNT \
         --load-type concurrency \
         --load-value $CONCURRENCY
 done
+
+echo "Generating plots..."
+
+python3 /workspace/examples/python_rs/llm/vllm/benchmark/process_gap_results.py ./artifacts/
+
+echo "Done!"

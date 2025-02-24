@@ -6,7 +6,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -67,8 +67,10 @@ def wait_for_server(url, timeout=300):
                 raise ValueError(f"Server is not responding: {e}")
 
 
-# Function to run the benchmark
 def run_benchmark(args):
+    """Waits for the server and then runs the benchmark command."""
+
+    # Wait until server is responding
     wait_for_server(args.url + "/v1/chat/completions", args.benchmark_timeout)
 
     # Create a directory for the test
@@ -81,12 +83,15 @@ def run_benchmark(args):
 
     # Construct the benchmark command
     command = (
-        f"genai-perf profile -m {args.model} --endpoint-type chat --streaming --num-dataset-entries 1000 "
-        f"--service-kind openai --endpoint v1/chat/completions --request-count {args.request_count} --warmup-request-count 10 "
-        f"--random-seed 123 --synthetic-input-tokens-stddev 0 --output-tokens-stddev 0 "
-        f"--tokenizer {args.tokenizer} --synthetic-input-tokens-mean {args.isl_uncached} --output-tokens-mean {args.osl} "
-        f"--extra-inputs seed:100 --extra-inputs min_tokens:{args.osl} --extra-inputs max_tokens:{args.osl} "
-        f"--profile-export-file my_profile_export.json --url {args.url} --artifact-dir {args.run_folder} "
+        f"genai-perf profile -m {args.model} --endpoint-type chat --streaming "
+        f"--num-dataset-entries 1000 --service-kind openai --endpoint v1/chat/completions "
+        f"--request-count {args.request_count} --warmup-request-count 10 --random-seed 123 "
+        f"--synthetic-input-tokens-stddev 0 --output-tokens-stddev 0 "
+        f"--tokenizer {args.tokenizer} --synthetic-input-tokens-mean {args.isl_uncached} "
+        f"--output-tokens-mean {args.osl} --extra-inputs seed:100 "
+        f"--extra-inputs min_tokens:{args.osl} --extra-inputs max_tokens:{args.osl} "
+        f"--profile-export-file my_profile_export.json "
+        f"--url {args.url} --artifact-dir {run_folder} "
         f"--num-prefix-prompts 1 --prefix-prompt-length {args.isl_cached} "
     )
     if args.load_type == "rps":
@@ -102,16 +107,16 @@ def run_benchmark(args):
 
     # Print information about the run
     LOGGER.info(
-        f"ISL cached: {args.isl_cached}, ISL uncached: {args.isl_uncached}, OSL: {args.osl}, {args.load_type}: {args.load_value}"
+        f"ISL cached: {args.isl_cached}, ISL uncached: {args.isl_uncached}, OSL: {args.osl}, "
+        f"{args.load_type}: {args.load_value}, request-count: {args.request_count}"
     )
     LOGGER.info(f"Saving artifacts in: {args.artifact_dir}")
     LOGGER.info(f"Command: {command}")
-    # Save the command to a file in artifacts folder with execution permissions and shebang
+    # Save the command to a file in the artifacts folder
     with open(os.path.join(args.artifact_dir, "run.sh"), "w") as f:
         f.write("#!/bin/bash\n")
         f.write(command)
-        f.close()
-        subprocess.run(["chmod", "+x", os.path.join(args.artifact_dir, "run.sh")])
+    subprocess.run(["chmod", "+x", os.path.join(args.artifact_dir, "run.sh")])
 
     # Prepare output file
     output_file = os.path.join(args.artifact_dir, "output.txt")
@@ -122,11 +127,13 @@ def run_benchmark(args):
             command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
         for line in process.stdout:
-            LOGGER.debug(line.decode(), end="")
-            f.write(line.decode())
+            decoded_line = line.decode()
+            LOGGER.debug(decoded_line, end="")
+            f.write(decoded_line)
         for line in process.stderr:
-            LOGGER.debug(line.decode(), end="")
-            f.write(line.decode())
+            decoded_line = line.decode()
+            LOGGER.debug(decoded_line, end="")
+            f.write(decoded_line)
 
     process.wait()
 
@@ -175,11 +182,12 @@ def parse_args():
         default="artifacts/",
         help="Directory to save artifacts",
     )
+    # Changed to default=None so we can compute if needed
     parser.add_argument(
         "--request-count",
         type=int,
-        required=True,
-        help="Number of requests to send",
+        default=None,
+        help="Number of requests to send. If not provided AND load-type=concurrency, it will be computed.",
     )
     parser.add_argument(
         "--load-type",
@@ -204,6 +212,29 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    # If --request-count was not provided, compute it if load-type=concurrency
+    if args.request_count is None:
+        if args.load_type == "concurrency":
+            concurrency = int(args.load_value)
+            request_count = 10 * concurrency
+            # Enforce at least 100
+            if request_count < 100:
+                request_count = 100
+            # If concurrency is over 256, cap at 2×concurrency
+            if concurrency > 256 and request_count > 2 * concurrency:
+                request_count = 2 * concurrency
+
+            LOGGER.info(
+                f"No --request-count specified; computed request-count = {request_count}"
+            )
+            args.request_count = request_count
+        else:
+            raise ValueError(
+                "No --request-count specified and load-type is 'rps'. "
+                "Please specify --request-count explicitly for RPS usage."
+            )
+
     run_benchmark(args)
 
 
