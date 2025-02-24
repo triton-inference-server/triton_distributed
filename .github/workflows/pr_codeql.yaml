@@ -28,7 +28,7 @@ name: "CodeQL"
 
 on:
   pull_request:
-    paths: 
+    paths:
       - '**/*.py'
       - '**/requirements.txt'
       - '**/pyproject.toml'
