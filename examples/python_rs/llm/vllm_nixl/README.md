@@ -53,14 +53,13 @@ python client.py --prompt "A B C D E"
 - [ ] [Piotr] Sample only on decode, do note return remote prefill response
 - [ ] [Neelay] Add etcd for discovery
 - [ ] [Alec] Enable chunked prefill
+- [ ] Support mixed tp
 - [ ] Enable async output processing - could be working
 - [ ] Process many remote prefill in one iteration
 - [ ] Support recompute preemption
 - [ ] Make sure decode does not preempt blocks before xfer finishes
-- [ ] Support pp > 1
 - [ ] Layer wise transfer
 - [ ] Non blocking send in prefill (cache manager should check xfer status)
 - [ ] Test under load
 - [ ] Check if all transfers finished before moving to decode
-- [ ] Support variable tp
-- [ ] Nice etcd for discovery
+- [ ] Support pp > 1
