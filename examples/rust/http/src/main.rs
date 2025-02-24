@@ -67,11 +67,10 @@ async fn app(runtime: Runtime) -> Result<()> {
 
     for model_type in ModelType::all() {
         let etcd_path = format!("{}/models/{}/", etcd_root, model_type.as_str());
-        let etcd_path_pop = format!("{}/models/", etcd_root);
 
         let state = Arc::new(ModelWatchState {
-            prefix_to_name: etcd_path.clone(),
-            prefix_to_type: etcd_path_pop.clone(),
+            prefix: etcd_path.clone(),
+            model_type: model_type,
             manager: manager.clone(),
             drt: distributed.clone(),
         });

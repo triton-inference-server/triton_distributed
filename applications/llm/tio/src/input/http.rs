@@ -38,7 +38,7 @@ pub async fn run(
             // Listen for models registering themselves in etcd, add them to HTTP service
             let state = Arc::new(discovery::ModelWatchState {
                 prefix: service_name.clone(),
-                model_type: ModelType::Chat,
+                model_type: ModelType::Chat, // Tio currently supports only chat models
                 manager: http_service.model_manager().clone(),
                 drt: distributed_runtime.clone(),
             });

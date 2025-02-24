@@ -207,13 +207,12 @@ async fn add_model(
         endpoint_name
     );
 
-    // parse endpoint
     let parts: Vec<&str> = endpoint_name.split('.').collect();
 
     if parts.len() < 2 {
-        raise!("Endpoint name '{}' is to short. Format should be 'component.endpoint' or 'namespace.component.endpoint'", endpoint_name);
+        raise!("Endpoint name '{}' is too short. Format should be 'component.endpoint' or 'namespace.component.endpoint'", endpoint_name);
     } else if parts.len() > 3 {
-        raise!("Endpoint name '{}' is to long. Format should be 'component.endpoint' or 'namespace.component.endpoint'", endpoint_name);
+        raise!("Endpoint name '{}' is too long. Format should be 'component.endpoint' or 'namespace.component.endpoint'", endpoint_name);
     }
 
     // create model entry

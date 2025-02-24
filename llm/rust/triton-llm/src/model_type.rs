@@ -14,15 +14,16 @@
 // limitations under the License.
 
 use serde::{Deserialize, Serialize};
+use strum::Display;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Copy, Debug, Clone, Display, Serialize, Deserialize, Eq, PartialEq)]
 pub enum ModelType {
     Chat,
     Completion,
 }
 
 impl ModelType {
-    pub fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &str {
         match self {
             Self::Chat => "chat",
             Self::Completion => "completion",

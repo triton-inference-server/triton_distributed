@@ -51,8 +51,8 @@ pub struct ModelEntry {
 }
 
 pub struct ModelWatchState {
-    pub prefix_to_name: String,
-    pub prefix_to_type: String,
+    pub prefix: String,
+    pub model_type: ModelType,
     pub manager: ModelManager,
     pub drt: DistributedRuntime,
 }
@@ -86,38 +86,33 @@ pub async fn model_watcher(state: Arc<ModelWatchState>, events_rx: Receiver<Watc
     tracing::debug!("model watcher stopped");
 }
 
-async fn handle_delete(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(String, String)> {
+async fn handle_delete(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(&str, ModelType)> {
     log::debug!("removing model");
 
     let key = kv.key_str()?;
     tracing::debug!("key: {}", key);
 
-    let model_name = key.trim_start_matches(&state.prefix_to_name);
-    let model_type = key.trim_start_matches(&state.prefix_to_type)
-        .trim_end_matches(&format!("/{}", model_name));
+    let model_name = key.trim_start_matches(&state.prefix);
 
-    match model_type {
-        "chat" => state.manager.remove_chat_completions_model(model_name)?,
-        "completion" => state.manager.remove_completions_model(model_name)?,
-        unknown => log::warn!("Unknown model type: {}. No Action Taken.", unknown),
+    match state.model_type {
+        ModelType::Chat => state.manager.remove_chat_completions_model(model_name)?,
+        ModelType::Completion => state.manager.remove_completions_model(model_name)?,
     };
 
-    Ok((model_name.to_string(), model_type.to_string()))
+    Ok((model_name, state.model_type.clone()))
 }
 
 // Handles a PUT event from etcd, this usually means adding a new model to the list of served
 // models.
 //
 // If this method errors, for the near term, we will delete the offending key.
-async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(String, String)> {
+async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(&str, ModelType)> {
     log::debug!("adding model");
 
     let key = kv.key_str()?;
     tracing::debug!("key: {}", key);
 
-    let model_name = key.trim_start_matches(&state.prefix_to_name);
-    let model_type = key.trim_start_matches(&state.prefix_to_type)
-        .trim_end_matches(&format!("/{}", model_name));
+    let model_name = key.trim_start_matches(&state.prefix);
     let model_entry = serde_json::from_slice::<ModelEntry>(kv.value())?;
 
     if model_entry.name != model_name {
@@ -127,9 +122,16 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(Strin
             model_name
         );
     }
+    if model_entry.model_type != state.model_type {
+        raise!(
+            "model type mismatch: {} != {}",
+            model_entry.model_type,
+            state.model_type
+        );
+    }
 
-    match model_type {
-        "chat" => {
+    match state.model_type {
+        ModelType::Chat => {
             let client = state
                 .drt
                 .namespace(model_entry.endpoint.namespace)?
@@ -137,9 +139,9 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(Strin
                 .endpoint(model_entry.endpoint.name)
                 .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
                 .await?;
-            state.manager.add_chat_completions_model(model_name, Arc::new(client))?;
+            state.manager.add_chat_completions_model(&model_name, Arc::new(client))?;
         }
-        "completion" => {
+        ModelType::Completion => {
             let client = state
                 .drt
                 .namespace(model_entry.endpoint.namespace)?
@@ -147,10 +149,9 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(Strin
                 .endpoint(model_entry.endpoint.name)
                 .client::<CompletionRequest, Annotated<CompletionResponse>>()
                 .await?;
-            state.manager.add_completions_model(model_name, Arc::new(client))?;
+            state.manager.add_completions_model(&model_name, Arc::new(client))?;
         }
-        unknown => log::warn!("Unknown model type: {}. No Action Taken.", unknown),
     }
 
-    Ok((model_name.to_string(), model_type.to_string()))
+    Ok((model_name, state.model_type.clone()))
 }
