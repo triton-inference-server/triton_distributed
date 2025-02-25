@@ -16,11 +16,11 @@
 use clap::{Parser, Subcommand};
 use tracing as log;
 
-use triton_distributed::{
+use triton_distributed_llm::http::service::discovery::ModelEntry;
+use triton_distributed_runtime::{
     distributed::DistributedConfig, logging, protocols::Endpoint, raise, DistributedRuntime,
     Result, Runtime, Worker,
 };
-use triton_llm::http::service::discovery::ModelEntry;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
