@@ -49,6 +49,7 @@ class VllmEngine(BaseVllmEngine):
 
     async def initialize(self):
         await super().initialize()
+        assert self.engine_client is not None, "engine_client was not initialized"
         self.engine_client.set_metrics_publisher(self.metrics_publisher)
 
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)

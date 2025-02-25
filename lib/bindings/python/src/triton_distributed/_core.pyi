@@ -152,7 +152,7 @@ class KvMetricsPublisher:
 
     ...
 
-    def __init__(self) -> KvMetricsPublisher:
+    def __init__(self) -> None:
         """
         Create a `KvMetricsPublisher` object
         """
