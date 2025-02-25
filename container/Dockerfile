@@ -147,19 +147,23 @@ COPY lib/bindings /workspace/lib/bindings
 RUN cd lib/bindings/c/ && \
     cargo build --release --locked && cargo doc --no-deps
 
+# Copy python wheel metadata
+COPY pyproject.toml /workspace/
+COPY README.md /workspace/
+COPY LICENSE /workspace/
+
 # Install uv, create virtualenv for general use, and build triton_distributed  wheel
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
-    cd lib/bindings/python && \
-    uv build && \
-    uv pip install /workspace/lib/bindings/python/dist/triton_distributed*cp312*.whl
+    uv build --out-dir /workspace/dist && \
+    uv pip install /workspace/dist/triton_distributed*cp312*.whl
 
 # Package the bindings
 RUN mkdir -p /opt/triton/bindings/wheels && \
     mkdir /opt/triton/bindings/lib && \
-    cp lib/bindings/python/dist/triton_distributed*cp312*.whl /opt/triton/bindings/wheels/. && \
+    cp /workspace/dist/triton_distributed*cp312*.whl /opt/triton/bindings/wheels/. && \
     cp lib/bindings/c/target/release/libtriton_distributed_llm_capi.so /opt/triton/bindings/lib/. && \
     cp -r lib/bindings/c/include /opt/triton/bindings/.
 

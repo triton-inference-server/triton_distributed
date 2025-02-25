@@ -25,7 +25,22 @@ license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "pytest>=8.3.4",
+    "pydantic>=2.10.6",
+    "uvloop>=0.21.0",
 ]
+
+[tool.maturin]
+module-name = "triton_distributed._core"
+# Point to the Rust crate directory
+manifest-path = "lib/bindings/python/Cargo.toml"
+# Include all Python packages
+python-packages = ["triton_distributed"]
+# Specify the Python source directory
+python-source = "lib/bindings/python/src"
+
+[build-system]
+requires = ["maturin>=1.0,<2.0", "patchelf"]
+build-backend = "maturin"
 
 [tool.codespell]
 # note: pre-commit passes explicit lists of files here, which this skip file list doesn't override -
