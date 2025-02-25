@@ -21,18 +21,18 @@ import uvloop
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
 from common.protocol import MyRequestOutput, vLLMGenerateRequest
-from triton_distributed_rs import (
-    DistributedRuntime,
-    KvMetricsPublisher,
-    triton_endpoint,
-    triton_worker,
-)
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 from vllm.sampling_params import RequestOutputKind
 
-vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
+from triton_distributed.llm import KvMetricsPublisher
+from triton_distributed.runtime import (
+    DistributedRuntime,
+    triton_endpoint,
+    triton_worker,
+)
 
+vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
 
 class VllmEngine(BaseVllmEngine):
@@ -49,6 +49,7 @@ class VllmEngine(BaseVllmEngine):
 
     async def initialize(self):
         await super().initialize()
+        assert self.engine_client is not None, "engine_client was not initialized"
         self.engine_client.set_metrics_publisher(self.metrics_publisher)
 
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
@@ -102,10 +103,11 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     # Initially send dummy metrics to kick start,
     # vLLM will not update stat until forward pass is triggered
     metrics_publisher.publish(
-            0,
-            1024,
-            0,
-            1024, )
+        0,
+        1024,
+        0,
+        1024,
+    )
 
     await worker_endpoint.serve_endpoint(vllm_engine.generate)
 
