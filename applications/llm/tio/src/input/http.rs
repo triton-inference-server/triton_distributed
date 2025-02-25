@@ -15,8 +15,8 @@
 
 use std::sync::Arc;
 
-use triton_distributed::{DistributedRuntime, Runtime};
-use triton_llm::http::service::{discovery, service_v2};
+use triton_distributed_runtime::{DistributedRuntime, Runtime};
+use triton_distributed_llm::http::service::{discovery, service_v2};
 
 use crate::EngineConfig;
 

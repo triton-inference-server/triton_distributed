@@ -20,8 +20,8 @@ edition = "2021"
 
 [dependencies]
 # local
-triton-distributed = { path = "../../../runtime/rust" }
-triton-llm = { path = "../../../llm/rust/triton-llm" }
+triton-distributed-runtime = { path = "../../../lib/runtime" }
+triton-distributed-llm = { path = "../../../lib/llm" }
 
 # workspace - todo
 
