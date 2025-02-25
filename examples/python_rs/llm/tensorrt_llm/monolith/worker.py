@@ -17,7 +17,7 @@
 import asyncio
 import threading
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import uvloop
 from common.parser import parse_tensorrt_llm_args
@@ -48,7 +48,7 @@ class TensorrtLLMEngine:
     def _init_engine(self):
         logger.info("Initializing engine")
         # Run the engine in a separate thread running the AsyncIO event loop.
-        self._llm_engine = None
+        self._llm_engine: Optional[Any] = None
         self._llm_engine_start_cv = threading.Condition()
         self._llm_engine_shutdown_event = asyncio.Event()
         self._event_thread = threading.Thread(
@@ -138,11 +138,14 @@ class TensorrtLLMEngine:
         self._ongoing_request_count += 1
         logger.debug(f"Received request: {request}")
         sampling_params = SamplingParams(**request.sampling_params)
-        async for response in self._llm_engine.generate_async(
-            request.prompt, sampling_params, streaming=request.streaming
-        ):
-            logger.debug(f"Generated response: {response}")
-            yield response.outputs[0].text
+        if self._llm_engine is not None:
+            async for response in self._llm_engine.generate_async(
+                request.prompt, sampling_params, streaming=request.streaming
+            ):
+                logger.debug(f"Generated response: {response}")
+                yield response.outputs[0].text
+        else:
+            raise RuntimeError("Engine not initialized")
         self._ongoing_request_count -= 1
 
 

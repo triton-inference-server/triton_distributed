@@ -76,7 +76,7 @@ def _init_engine_args(engine_args_filepath):
     return _get_llm_args(trtllm_engine_config)
 
 
-def parse_tensorrt_llm_args() -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def parse_tensorrt_llm_args() -> Tuple[Any, Tuple[Dict[str, Any], Dict[str, Any]]]:
     parser = argparse.ArgumentParser(description="A TensorRT-LLM Worker parser")
     parser.add_argument(
         "--engine_args", type=str, required=True, help="Path to the engine args file"
@@ -89,4 +89,4 @@ def parse_tensorrt_llm_args() -> Tuple[Dict[str, Any], Dict[str, Any]]:
         default=None,
     )
     args = parser.parse_args()
-    return args, _init_engine_args(args.engine_args)
+    return (args, _init_engine_args(args.engine_args))

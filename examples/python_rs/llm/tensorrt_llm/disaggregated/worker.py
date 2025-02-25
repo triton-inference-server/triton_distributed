@@ -18,7 +18,7 @@ import asyncio
 import os
 import threading
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import uvloop
 from common.parser import parse_tensorrt_llm_args
@@ -32,6 +32,7 @@ from tensorrt_llm._utils import set_mpi_comm
 from tensorrt_llm.llmapi import DisaggregatedParams, KvCacheConfig, MpiCommSession
 from tensorrt_llm.llmapi.disagg_utils import (
     CtxGenServerConfig,
+    DisaggServerConfig,
     parse_disagg_config_file,
     split_world_comm,
 )
@@ -50,7 +51,7 @@ class TensorrtLLMEngine:
     def __init__(
         self,
         engine_args: Tuple[Dict[str, Any], Dict[str, Any]],
-        disagg_config: Dict[str, Any],
+        disagg_config: DisaggServerConfig,
         instance_idx: int,
         sub_comm,
     ):
@@ -67,7 +68,7 @@ class TensorrtLLMEngine:
         logger.info("Initializing engine")
 
         # Run the engine in a separate thread running the AsyncIO event loop.
-        self._llm_engine = None
+        self._llm_engine: Optional[Any] = None
         self._llm_engine_start_cv = threading.Condition()
         self._llm_engine_shutdown_event = asyncio.Event()
         self._event_thread = threading.Thread(
@@ -179,20 +180,23 @@ class TensorrtLLMEngine:
                 .encode("latin1")
             )
 
-        async for response in self._llm_engine.generate_async(
-            request.prompt,
-            sampling_params,
-            streaming=request.streaming,
-            disaggregated_params=disaggregated_params,
-        ):
-            logger.debug(f"Generated response: {response}")
-            if self.server_config.type == "ctx":
-                yield DisaggregatedResponse(
-                    text=response.outputs[0].text,
-                    disaggregated_params=response.outputs[0].disaggregated_params,
-                ).model_dump_json()
-            else:
-                yield response.outputs[0].text
+        if self._llm_engine is not None:
+            async for response in self._llm_engine.generate_async(
+                request.prompt,
+                sampling_params,
+                streaming=request.streaming,
+                disaggregated_params=disaggregated_params,
+            ):
+                logger.debug(f"Generated response: {response}")
+                if self.server_config.type == "ctx":
+                    yield DisaggregatedResponse(
+                        text=response.outputs[0].text,
+                        disaggregated_params=response.outputs[0].disaggregated_params,
+                    ).model_dump_json()
+                else:
+                    yield response.outputs[0].text
+        else:
+            raise RuntimeError("Engine not initialized")
         self._ongoing_request_count -= 1
 
 
@@ -200,7 +204,7 @@ class TensorrtLLMEngine:
 async def worker(
     runtime: DistributedRuntime,
     engine_args: Tuple[Dict[str, Any], Dict[str, Any]],
-    disagg_config: Dict[str, Any],
+    disagg_config: DisaggServerConfig,
     instance_idx: int,
     sub_comm,
 ):
@@ -233,7 +237,9 @@ if __name__ == "__main__":
             "llmapi_disaggregated_config file does not exist or not provided"
         )
 
-    disagg_config = parse_disagg_config_file(args.llmapi_disaggregated_config)
+    disagg_config: DisaggServerConfig = parse_disagg_config_file(
+        args.llmapi_disaggregated_config
+    )
 
     logger.info(f"Parsed disaggregated config: {disagg_config}")
 
