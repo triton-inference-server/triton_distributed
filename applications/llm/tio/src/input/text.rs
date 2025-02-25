@@ -19,12 +19,21 @@ use std::{
     sync::Arc,
 };
 use triton_distributed_llm::{
+    backend::Backend,
+    preprocessor::OpenAIPreprocessor,
     protocols::openai::chat_completions::MessageRole,
-    types::openai::chat_completions::{
-        ChatCompletionRequest, OpenAIChatCompletionsStreamingEngine,
+    types::{
+        openai::chat_completions::{
+            ChatCompletionRequest, ChatCompletionResponseDelta,
+            OpenAIChatCompletionsStreamingEngine,
+        },
+        Annotated,
     },
 };
-use triton_distributed_runtime::{pipeline::Context, runtime::CancellationToken};
+use triton_distributed_runtime::{
+    pipeline::{Context, ManyOut, Operator, ServiceBackend, ServiceFrontend, SingleIn, Source},
+    runtime::CancellationToken,
+};
 
 use crate::EngineConfig;
 
@@ -56,6 +65,32 @@ pub async fn run(
         } => {
             tracing::info!("Model: {service_name}");
             (service_name, engine, false)
+        }
+        EngineConfig::StaticCore {
+            service_name,
+            engine: inner_engine,
+            card,
+        } => {
+            let frontend = ServiceFrontend::<
+                SingleIn<ChatCompletionRequest>,
+                ManyOut<Annotated<ChatCompletionResponseDelta>>,
+            >::new();
+            let preprocessor = OpenAIPreprocessor::new(*card.clone())
+                .await?
+                .into_operator();
+            let backend = Backend::from_mdc(*card.clone()).await?.into_operator();
+            let engine = ServiceBackend::from_engine(inner_engine);
+
+            let pipeline = frontend
+                .link(preprocessor.forward_edge())?
+                .link(backend.forward_edge())?
+                .link(engine)?
+                .link(backend.backward_edge())?
+                .link(preprocessor.backward_edge())?
+                .link(frontend)?;
+
+            tracing::info!("Model: {service_name} with pre-processing");
+            (service_name, pipeline, true)
         }
     };
     main_loop(cancel_token, &service_name, engine, inspect_template).await

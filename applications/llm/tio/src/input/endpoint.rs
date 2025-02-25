@@ -14,9 +14,18 @@
 // limitations under the License.
 
 use triton_distributed_llm::http::service::discovery::ModelEntry;
-use triton_distributed_runtime::{
-    pipeline::network::Ingress, protocols::Endpoint, DistributedRuntime, Runtime,
+use triton_distributed_llm::{
+    backend::Backend,
+    preprocessor::OpenAIPreprocessor,
+    types::{
+        openai::chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
+        Annotated,
+    },
 };
+use triton_distributed_runtime::pipeline::{
+    network::Ingress, ManyOut, Operator, SegmentSource, ServiceBackend, SingleIn, Source,
+};
+use triton_distributed_runtime::{protocols::Endpoint, DistributedRuntime, Runtime};
 
 use crate::{EngineConfig, ENDPOINT_SCHEME};
 
@@ -28,59 +37,85 @@ pub async fn run(
     // This will attempt to connect to NATS and etcd
     let distributed = DistributedRuntime::from_settings(runtime.clone()).await?;
 
-    match engine_config {
+    let cancel_token = runtime.primary_token().clone();
+    let elements: Vec<&str> = path.split('/').collect();
+    if elements.len() != 3 {
+        anyhow::bail!(
+            "An endpoint URL must have format {ENDPOINT_SCHEME}namespace/component/endpoint"
+        );
+    }
+
+    let endpoint = Endpoint {
+        namespace: elements[0].to_string(),
+        component: elements[1].to_string(),
+        name: elements[2].to_string(),
+    };
+    let etcd_client = distributed.etcd_client();
+
+    let (ingress, service_name) = match engine_config {
         EngineConfig::StaticFull {
             service_name,
             engine,
+        } => (Ingress::for_engine(engine)?, service_name),
+        EngineConfig::StaticCore {
+            service_name,
+            engine: inner_engine,
+            card,
         } => {
-            let cancel_token = runtime.primary_token().clone();
-            let elements: Vec<&str> = path.split('/').collect();
-            if elements.len() != 3 {
-                anyhow::bail!("An endpoint URL must have format {ENDPOINT_SCHEME}namespace/component/endpoint");
-            }
-
-            // Register with etcd
-            let endpoint = Endpoint {
-                namespace: elements[0].to_string(),
-                component: elements[1].to_string(),
-                name: elements[2].to_string(),
-            };
-            let model_registration = ModelEntry {
-                name: service_name.to_string(),
-                endpoint,
-            };
-            let etcd_client = distributed.etcd_client();
-            etcd_client
-                .kv_create(
-                    path.clone(),
-                    serde_json::to_vec_pretty(&model_registration)?,
-                    None,
-                )
-                .await?;
-
-            // Start the model
-            let ingress = Ingress::for_engine(engine)?;
-            let rt_fut = distributed
-                .namespace(elements[0])?
-                .component(elements[1])?
-                .service_builder()
-                .create()
+            let frontend = SegmentSource::<
+                SingleIn<ChatCompletionRequest>,
+                ManyOut<Annotated<ChatCompletionResponseDelta>>,
+            >::new();
+            let preprocessor = OpenAIPreprocessor::new(*card.clone())
                 .await?
-                .endpoint(elements[2])
-                .endpoint_builder()
-                .handler(ingress)
-                .start();
-            tokio::select! {
-                _ = rt_fut => {
-                    tracing::debug!("Endpoint ingress ended");
-                }
-                _ = cancel_token.cancelled() => {
-                }
-            }
-            Ok(())
+                .into_operator();
+            let backend = Backend::from_mdc(*card.clone()).await?.into_operator();
+            let engine = ServiceBackend::from_engine(inner_engine);
+
+            let pipeline = frontend
+                .link(preprocessor.forward_edge())?
+                .link(backend.forward_edge())?
+                .link(engine)?
+                .link(backend.backward_edge())?
+                .link(preprocessor.backward_edge())?
+                .link(frontend)?;
+
+            (Ingress::for_pipeline(pipeline)?, service_name)
         }
         EngineConfig::Dynamic(_) => {
             anyhow::bail!("Cannot use endpoint for both in and out");
         }
+    };
+
+    let model_registration = ModelEntry {
+        name: service_name.to_string(),
+        endpoint,
+    };
+    etcd_client
+        .kv_create(
+            path.clone(),
+            serde_json::to_vec_pretty(&model_registration)?,
+            None,
+        )
+        .await?;
+
+    let rt_fut = distributed
+        .namespace(elements[0])?
+        .component(elements[1])?
+        .service_builder()
+        .create()
+        .await?
+        .endpoint(elements[2])
+        .endpoint_builder()
+        .handler(ingress)
+        .start();
+
+    tokio::select! {
+        _ = rt_fut => {
+            tracing::debug!("Endpoint ingress ended");
+        }
+        _ = cancel_token.cancelled() => {
+        }
     }
+    Ok(())
 }
