@@ -47,7 +47,7 @@ async fn make_mdc_from_repo(
     //TODO: remove this once we have nim-hub support. See the NOTE above.
     let downloaded_path = maybe_download_model(local_path, hf_repo, hf_revision).await;
     let display_name = format!("{}--{}", hf_repo, hf_revision);
-    let mut mdc = ModelDeploymentCard::from_local_path(downloaded_path, Some(display_name))
+    let mut mdc = ModelDeploymentCard::from_local_path(downloaded_path, Some(&display_name))
         .await
         .unwrap();
     mdc.prompt_context = mixins;
