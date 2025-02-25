@@ -13,6 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+[project]
+name = "triton-distributed"
+version = "0.2.1"
+description = "Distributed Inference Framework"
+readme = "README.md"
+authors = [
+    { name = "NVIDIA Inc.", email = "sw-dl-triton@nvidia.com" },
+]
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "pytest>=8.3.4",
+]
+
 [tool.codespell]
 # note: pre-commit passes explicit lists of files here, which this skip file list doesn't override -
 # this is only to allow you to run codespell interactively
@@ -20,7 +34,7 @@
 
 # TODO add skip files for generated code
 # skip = "./.git,./.github,./src/grpc_generated"
-skip = "./.git,./.github"
+skip = "./.git,./.github,./lib/llm/tests/data"
 
 # ignore short words, and typename parameters like OffsetT
 ignore-regex = "\\b(.{1,4}|[A-Z]\\w*T)\\b"

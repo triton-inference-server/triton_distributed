@@ -25,7 +25,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use triton_distributed::{
+use triton_distributed_runtime::{
     error, logging,
     traits::events::EventPublisher,
     utils::{Duration, Instant},
