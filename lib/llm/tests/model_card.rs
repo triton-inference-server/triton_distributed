@@ -14,7 +14,9 @@
 // limitations under the License.
 
 use tempfile::tempdir;
-use triton_distributed_llm::model_card::model::{ModelDeploymentCard, PromptFormatterArtifact, TokenizerKind};
+use triton_distributed_llm::model_card::model::{
+    ModelDeploymentCard, PromptFormatterArtifact, TokenizerKind,
+};
 
 const HF_PATH: &str = "tests/data/sample-models/TinyLlama_v1.1";
 

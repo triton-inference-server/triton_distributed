@@ -30,7 +30,7 @@ on:
     - 'lib/runtime/**'
     - 'lib/llm/**'
     - 'lib/bindings/**'
-    - 'applications/llm/tio/**'
+    - 'applications/llm/**'
     - 'examples/rust/**'
     - '**.rs'
     - 'Cargo.toml'
@@ -40,7 +40,7 @@ jobs:
   pre-merge-rust:
     runs-on: ubuntu-latest
     strategy:
-      matrix: { dir: ['lib/runtime', 'lib/llm', 'lib/bindings/c', 'lib/bindings/python', 'applications/llm/tio', 'examples/rust'] }
+      matrix: { dir: ['lib/runtime', 'lib/llm', 'lib/bindings/c', 'lib/bindings/python', 'applications/llm/tio', 'applications/llm/count', 'examples/rust'] }
     permissions:
       contents: read
     steps:
