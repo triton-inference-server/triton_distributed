@@ -11,7 +11,9 @@ def temp_metadata_file(engine_id, metadata: NixlMetadata):
     os.makedirs(METADATA_DIR, exist_ok=True)
     path = f"{METADATA_DIR}/{engine_id}.nixl_meta"
     with open(path, "wb") as f:
-        f.write(msgspec.msgpack.encode(metadata))
+        encoded = msgspec.msgpack.encode(metadata)
+        print(f"Size of encoded metadata: {len(encoded)}")
+        f.write(encoded)
     try:
         yield path
     finally:
