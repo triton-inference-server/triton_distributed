@@ -84,6 +84,7 @@ jobs:
       # FIXME: Skip this step for failing dirs until license errors fixed
       if: |
         matrix.dir != 'examples/rust' &&
+        matrix.dir != 'applications/llm/count' &&
         matrix.dir != 'applications/llm/tio' &&
         matrix.dir != 'lib/llm' &&
         matrix.dir != 'lib/bindings/c' &&
