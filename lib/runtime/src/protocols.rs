@@ -14,6 +14,10 @@
 // limitations under the License.
 
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
+use std::str::FromStr;
+
+use crate::pipeline::PipelineError;
 
 pub mod annotated;
 
@@ -25,6 +29,14 @@ pub struct Component {
     pub namespace: String,
 }
 
+/// Represents an endpoint with a namespace, component, and name.
+///
+/// An `Endpoint` is defined by a three-part string separated by `/`:
+/// - **namespace**
+/// - **component**
+/// - **name**
+///
+/// Example format: `"namespace/component/endpoint"`
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Endpoint {
     /// Name of the endpoint.
@@ -35,6 +47,67 @@ pub struct Endpoint {
 
     /// Namespace of the component.
     pub namespace: String,
+}
+
+impl TryFrom<&str> for Endpoint {
+    type Error = PipelineError;
+
+    /// Attempts to create an `Endpoint` from a string.
+    ///
+    /// # Arguments
+    /// - `path`: A string in the format `"namespace/component/endpoint"`.
+    ///
+    /// # Errors
+    /// Returns a `PipelineError::InvalidFormat` if the input string does not
+    /// have exactly three parts separated by `/`.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// use std::convert::TryFrom;
+    /// use triton_distributed::protocols::Endpoint;
+    ///
+    /// let endpoint = Endpoint::try_from("namespace/component/endpoint").unwrap();
+    /// assert_eq!(endpoint.namespace, "namespace");
+    /// assert_eq!(endpoint.component, "component");
+    /// assert_eq!(endpoint.name, "endpoint");
+    /// ```
+    fn try_from(path: &str) -> Result<Self, Self::Error> {
+        let elements: Vec<&str> = path.split('/').collect();
+        if elements.len() != 3 {
+            return Err(PipelineError::InvalidEndpointFormat);
+        }
+
+        Ok(Endpoint {
+            namespace: elements[0].to_string(),
+            component: elements[1].to_string(),
+            name: elements[2].to_string(),
+        })
+    }
+}
+
+impl FromStr for Endpoint {
+    type Err = PipelineError;
+
+    /// Parses an `Endpoint` from a string using the standard Rust `.parse::<T>()` pattern.
+    ///
+    /// This is implemented in terms of [`TryFrom<&str>`].
+    ///
+    /// # Errors
+    /// Returns an `PipelineError::InvalidFormat` if the input does not match `"namespace/component/endpoint"`.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// use std::str::FromStr;
+    /// use triton_distributed::protocols::Endpoint;
+    ///
+    /// let endpoint: Endpoint = "namespace/component/endpoint".parse().unwrap();
+    /// assert_eq!(endpoint.namespace, "namespace");
+    /// assert_eq!(endpoint.component, "component");
+    /// assert_eq!(endpoint.name, "endpoint");
+    /// ```
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Endpoint::try_from(s)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -60,6 +133,8 @@ pub struct ModelMetaData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::convert::TryFrom;
+    use std::str::FromStr;
 
     #[test]
     fn test_component_creation() {
@@ -129,5 +204,111 @@ mod tests {
         assert_eq!(metadata.component.name, "test_component");
         assert_eq!(metadata.component.namespace, "test_namespace");
         assert_eq!(metadata.router_type, RouterType::PushRoundRobin);
+    }
+
+    #[test]
+    fn test_valid_endpoint_try_from() {
+        let input = "namespace1/component1/endpoint1";
+        let endpoint = Endpoint::try_from(input).expect("Valid endpoint should parse successfully");
+
+        assert_eq!(endpoint.namespace, "namespace1");
+        assert_eq!(endpoint.component, "component1");
+        assert_eq!(endpoint.name, "endpoint1");
+    }
+
+    #[test]
+    fn test_valid_endpoint_from_str() {
+        let input = "namespace2/component2/endpoint2";
+        let endpoint = Endpoint::from_str(input).expect("Valid endpoint should parse successfully");
+
+        assert_eq!(endpoint.namespace, "namespace2");
+        assert_eq!(endpoint.component, "component2");
+        assert_eq!(endpoint.name, "endpoint2");
+    }
+
+    #[test]
+    fn test_valid_endpoint_parse() {
+        let input = "namespace3/component3/endpoint3";
+        let endpoint: Endpoint = input
+            .parse()
+            .expect("Valid endpoint should parse successfully");
+
+        assert_eq!(endpoint.namespace, "namespace3");
+        assert_eq!(endpoint.component, "component3");
+        assert_eq!(endpoint.name, "endpoint3");
+    }
+
+    #[test]
+    fn test_invalid_endpoint_try_from() {
+        let input = "invalid_endpoint_format";
+
+        let result = Endpoint::try_from(input);
+        assert!(result.is_err(), "Parsing should fail for an invalid format");
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "An endpoint URL must have the format: namespace/component/endpoint"
+        );
+    }
+
+    #[test]
+    fn test_invalid_endpoint_from_str() {
+        let input = "onlyhas/two";
+
+        let result = Endpoint::from_str(input);
+        assert!(result.is_err(), "Parsing should fail for an invalid format");
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "An endpoint URL must have the format: namespace/component/endpoint"
+        );
+    }
+
+    #[test]
+    fn test_invalid_endpoint_parse() {
+        let input = "too/many/segments/in/url";
+
+        let result: Result<Endpoint, _> = input.parse();
+        assert!(result.is_err(), "Parsing should fail for an invalid format");
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "An endpoint URL must have the format: namespace/component/endpoint"
+        );
+    }
+
+    #[test]
+    fn test_empty_endpoint_string() {
+        let input = "";
+
+        let result = Endpoint::try_from(input);
+        assert!(result.is_err(), "Parsing should fail for an empty string");
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "An endpoint URL must have the format: namespace/component/endpoint"
+        );
+    }
+
+    #[test]
+    fn test_whitespace_endpoint_string() {
+        let input = "   ";
+
+        let result = Endpoint::try_from(input);
+        assert!(
+            result.is_err(),
+            "Parsing should fail for a whitespace string"
+        );
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "An endpoint URL must have the format: namespace/component/endpoint"
+        );
+    }
+
+    #[test]
+    fn test_leading_trailing_slashes() {
+        let input = "/namespace/component/endpoint/";
+
+        let result = Endpoint::try_from(input);
+        assert!(
+            result.is_err(),
+            "Parsing should fail for leading/trailing slashes"
+        );
     }
 }

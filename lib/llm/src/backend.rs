@@ -87,7 +87,7 @@ impl Backend {
 
         let tokenizer = match &mdc.tokenizer {
             TokenizerKind::HfTokenizerJson(file) => {
-                HfTokenizer::from_file(&file).map_err(Error::msg)?
+                HfTokenizer::from_file(file).map_err(Error::msg)?
             }
         };
 

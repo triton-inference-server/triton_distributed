@@ -7,9 +7,9 @@
     "settings": {
         "rust-analyzer.linkedProjects": [
             "applications/llm/count/Cargo.toml",
-            "llm/rust/Cargo.toml",
-            "runtime/rust/Cargo.toml",
-            "python-wheel/Cargo.toml",
+            "lib/llm/Cargo.toml",
+            "lib/runtime/Cargo.toml",
+            "lib/bindings/python/Cargo.toml",
             "examples/rust/Cargo.toml"
         ],
         "rust-analyzer.procMacro.enable": true,

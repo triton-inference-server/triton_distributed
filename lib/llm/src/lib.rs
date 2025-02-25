@@ -24,6 +24,7 @@ pub mod engines;
 pub mod http;
 pub mod kv_router;
 pub mod model_card;
+pub mod model_type;
 pub mod preprocessor;
 pub mod protocols;
 pub mod tokenizers;

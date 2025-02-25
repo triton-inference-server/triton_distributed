@@ -23,14 +23,11 @@ use triton_distributed_runtime::{component::Component, DistributedRuntime};
 pub mod indexer;
 pub mod protocols;
 pub mod publisher;
-// [WIP] enable service_builder() through worker for metrics reporting
-// pub mod worker;
 mod scheduler;
 mod scoring;
 
 use crate::kv_router::{
     indexer::{KvIndexer, KvIndexerInterface, RouterEvent},
-    protocols::KV_BLOCK_SIZE,
     scheduler::{Endpoint, KvScheduler, Service},
     scoring::ProcessedEndpoints,
 };
@@ -113,7 +110,7 @@ impl KvRouter {
     }
 
     // [TODO] indexer needs to take 'lora_id' as parameter
-    pub async fn schedule(&self, token_ids: &Vec<u32>, _lora_id: u64) -> Result<String> {
+    pub async fn schedule(&self, token_ids: &Vec<u32>, _lora_id: u64) -> Result<i64> {
         // Extracting part of the code in KvRouter::generate() for only
         // the decision making part, routing is done by the caller
         let isl_tokens = token_ids.len();
@@ -122,25 +119,8 @@ impl KvRouter {
             .find_matches_for_request(token_ids.as_slice())
             .await?;
         log::debug!("KV router overlap_scores: {:?}", overlap_scores);
-        // [FIXME] Python binding results in "endpoint subscriber shutdown" error,
-        // need to investigate whether it happens in pure rust as well and then
-        // root cause it. Before that, not doing intelligent scheduling for rapid
-        // development..
-        // [FIXME] also need to fix that scheduler returns worker subject which is not
-        // the same as worker id (uuid). Seems like it adds additional annotation on top of uuid.
-        // Need to double check
-        // 'worker_subject' should be the same as worker id used for direct routing
-        // let worker_subject = self.scheduler.schedule(overlap_scores, isl_tokens).await?;
-        let mut selected_worker_subject = Option::<String>::None;
-        for (worker_subject, overlap_score) in &overlap_scores.scores {
-            if ((*overlap_score as usize * KV_BLOCK_SIZE) as f64 / isl_tokens as f64) >= 0.5 {
-                selected_worker_subject = Some(worker_subject.to_string());
-            }
-        }
-        match selected_worker_subject {
-            None => Err(anyhow::anyhow!("No worker found")),
-            Some(worker_subject) => Ok(worker_subject),
-        }
+        let worker_id = self.scheduler.schedule(overlap_scores, isl_tokens).await?;
+        Ok(worker_id)
     }
 }
 
@@ -167,7 +147,7 @@ async fn collect_endpoints(
             .unwrap();
 
         // [FIXME] Endpoint is parsed from nats stats handler which may not include 'data' field
-        // if the service hasn't registered the handler.
+        // if the service hasn't registered the handler. Need to be tolerant to this.
         // Another option is to make sure the router is configured properly that
         // it listens to the right subject (where other publisher has stats).
         let services: Vec<Service> = values

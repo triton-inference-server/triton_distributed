@@ -16,9 +16,9 @@
 use anyhow::Ok;
 
 use serde::{Deserialize, Serialize};
-use triton_llm::model_card::model::{ModelDeploymentCard, PromptContextMixin};
-use triton_llm::preprocessor::prompt::PromptFormatter;
-use triton_llm::protocols::openai::chat_completions::{
+use triton_distributed_llm::model_card::model::{ModelDeploymentCard, PromptContextMixin};
+use triton_distributed_llm::preprocessor::prompt::PromptFormatter;
+use triton_distributed_llm::protocols::openai::chat_completions::{
     ChatCompletionMessage, ChatCompletionRequest, Tool, ToolChoiceType,
 };
 
@@ -33,10 +33,9 @@ use std::path::PathBuf;
 /// set in the environment variable `HF_TOKEN`.
 /// The model is downloaded and cached in `tests/data/sample-models` directory.
 /// make sure the token has access to `meta-llama/Llama-3.1-70B-Instruct` model
-
 fn check_hf_token() -> bool {
     let hf_token = std::env::var("HF_TOKEN").ok();
-    return hf_token.is_some();
+    hf_token.is_some()
 }
 
 async fn make_mdc_from_repo(
@@ -48,7 +47,7 @@ async fn make_mdc_from_repo(
     //TODO: remove this once we have nim-hub support. See the NOTE above.
     let downloaded_path = maybe_download_model(local_path, hf_repo, hf_revision).await;
     let display_name = format!("{}--{}", hf_repo, hf_revision);
-    let mut mdc = ModelDeploymentCard::from_local_path(downloaded_path, Some(display_name))
+    let mut mdc = ModelDeploymentCard::from_local_path(downloaded_path, Some(&display_name))
         .await
         .unwrap();
     mdc.prompt_context = mixins;
@@ -71,7 +70,7 @@ async fn maybe_download_model(local_path: &str, model: &str, revision: &str) -> 
     for file in &files_to_download {
         downloaded_path = repo_builder.get(file).await.unwrap();
     }
-    return downloaded_path.parent().unwrap().display().to_string();
+    downloaded_path.parent().unwrap().display().to_string()
 }
 
 async fn make_mdcs() -> Vec<ModelDeploymentCard> {

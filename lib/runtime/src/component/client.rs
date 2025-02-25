@@ -148,9 +148,14 @@ where
         })
     }
 
-    /// String identifying namepoint/component/endpoint
+    /// String identifying <namespace>/<component>/<endpoint>
     pub fn path(&self) -> String {
         self.endpoint.path()
+    }
+
+    /// String identifying <namespace>/component/<component>/<endpoint>
+    pub fn etcd_path(&self) -> String {
+        self.endpoint.etcd_path()
     }
 
     pub fn endpoint_ids(&self) -> &tokio::sync::watch::Receiver<Vec<i64>> {
