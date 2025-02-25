@@ -62,8 +62,9 @@ curl localhost:8181/v1/chat/completions \
 - [x] Conditional remote prefill
 - [x] Manual example with tp > 1
 - [x] Run on triton distributed runtime
-- [x] [Piotr] add oai http endpoint
-- [ ] [Piotr] Sample only on decode, do note return remote prefill response
+- [x] add oai http endpoint
+- [x] Sample only on decode, do note return remote prefill response
+- [x] Check if all transfers finished before moving to decode
 - [ ] [Neelay] Add etcd for discovery
 - [ ] [Alec] Enable chunked prefill
 - [ ] Support mixed tp
@@ -74,5 +75,4 @@ curl localhost:8181/v1/chat/completions \
 - [ ] Layer wise transfer
 - [ ] Non blocking send in prefill (cache manager should check xfer status)
 - [ ] Test under load
-- [ ] Check if all transfers finished before moving to decode
 - [ ] Support pp > 1
