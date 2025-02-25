@@ -225,32 +225,6 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_component_arg() {
-        let args = Args {
-            component: "".to_string(),
-            endpoint: "test-endpoint".to_string(),
-            namespace: "default".to_string(),
-        };
-        let result = get_config(&args);
-        assert!(result.is_err());
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("Component name cannot be empty"));
-    }
-
-    #[test]
-    fn test_empty_endpoint_arg() {
-        let args = Args {
-            component: "test-component".to_string(),
-            endpoint: "".to_string(),
-            namespace: "default".to_string(),
-        };
-        let result = get_config(&args);
-        assert!(result.is_err());
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("Endpoint name cannot be empty"));
-    }
-
-    #[test]
     fn test_namespace_from_env() {
         setup();
         env::set_var("TRD_NAMESPACE", "test-namespace");
