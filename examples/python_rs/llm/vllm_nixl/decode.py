@@ -107,8 +107,6 @@ if __name__ == "__main__":
         disable_async_output_proc=True, # TODO add support for async output processing
         preemption_mode="swap", # TODO add support for recompute
         pipeline_parallel_size=1, # TODO add support for pipeline parallel > 1
-        gpu_memory_utilization=0.25, # for dev to speed up mem registration
-        max_model_len=100, # for dev to reduce required memory
         tensor_parallel_size=2,
     )
 
