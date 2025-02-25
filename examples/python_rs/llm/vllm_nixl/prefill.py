@@ -2,7 +2,7 @@ import zmq
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.config import KVTransferConfig
 from vllm.inputs.data import TokensPrompt
-from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams, RemotePrefillResponse
+from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams
 from vllm.distributed.device_communicators.nixl import NixlMetadata
 from vllm.entrypoints.openai.api_server import build_async_engine_client_from_engine_args
 import msgspec
@@ -34,19 +34,13 @@ class RequestHandler:
             decode_engine_id=request.engine_id,
         )
 
-        async for output in self.engine_client.generate(
+        async for _ in self.engine_client.generate(
             request_id=request.request_id,
             prompt=TokensPrompt(prompt_token_ids=request.prompt_token_ids),
             sampling_params=sampling_params,
             remote_prefill_params=remote_prefill_params,
         ):
-            print(f"Output: {output.outputs[0].text}")
-            remote_prefill_response = RemotePrefillResponse(
-                request_id=output.request_id,
-                first_token_id=output.outputs[0].token_ids[0],
-            )
-            json_response = msgspec.json.encode(remote_prefill_response).decode("utf-8")
-            yield json_response
+            yield 
 
 
 # This is only used for metadata exchange between prefill and decode
