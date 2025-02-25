@@ -23,4 +23,3 @@ CODEOWNERS @triton-inference-server/devops @nnshah1
 # Legal
 /LICENSE @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
 /ATTRIBUTIONS.md @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
-Cargo.lock @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12 @guanluo @rmccorm4
