@@ -13,20 +13,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::kv_router::{indexer::RouterEvent, protocols::KvCacheEvent, KV_EVENT_SUBJECT};
+use crate::kv_router::{indexer::RouterEvent, protocols::*, KV_EVENT_SUBJECT};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing as log;
 use triton_distributed_runtime::{component::Component, DistributedRuntime, Result};
-use uuid::Uuid;
 
-pub struct KvPublisher {
+pub struct KvEventPublisher {
     tx: mpsc::UnboundedSender<KvCacheEvent>,
 }
 
-impl KvPublisher {
-    pub fn new(drt: DistributedRuntime, backend: Component, worker_id: Uuid) -> Result<Self> {
+impl KvEventPublisher {
+    pub fn new(drt: DistributedRuntime, backend: Component, worker_id: i64) -> Result<Self> {
         let (tx, rx) = mpsc::unbounded_channel::<KvCacheEvent>();
-        let p = KvPublisher { tx };
+        let p = KvEventPublisher { tx };
 
         start_publish_task(drt, backend, worker_id, rx);
         Ok(p)
@@ -41,12 +41,10 @@ impl KvPublisher {
 fn start_publish_task(
     drt: DistributedRuntime,
     backend: Component,
-    worker_id: Uuid,
+    worker_id: i64,
     mut rx: mpsc::UnboundedReceiver<KvCacheEvent>,
 ) {
     let client = drt.nats_client().client().clone();
-    // [FIXME] service name is for metrics polling?
-    // let service_name = backend.service_name();
     let kv_subject = backend.event_subject(KV_EVENT_SUBJECT);
     log::info!("Publishing KV Events to subject: {}", kv_subject);
 
@@ -60,4 +58,38 @@ fn start_publish_task(
                 .unwrap();
         }
     });
+}
+
+pub struct KvMetricsPublisher {
+    tx: tokio::sync::watch::Sender<Arc<ForwardPassMetrics>>,
+    rx: tokio::sync::watch::Receiver<Arc<ForwardPassMetrics>>,
+}
+
+impl KvMetricsPublisher {
+    pub fn new() -> Result<Self> {
+        let (tx, rx) = tokio::sync::watch::channel(Arc::new(ForwardPassMetrics::default()));
+        Ok(KvMetricsPublisher { tx, rx })
+    }
+
+    pub fn publish(
+        &self,
+        metrics: Arc<ForwardPassMetrics>,
+    ) -> Result<(), tokio::sync::watch::error::SendError<Arc<ForwardPassMetrics>>> {
+        log::debug!("Publish metrics: {:?}", metrics);
+        self.tx.send(metrics)
+    }
+
+    pub async fn create_service(&self, component: Component) -> Result<()> {
+        let mut metrics_rx = self.rx.clone();
+        let _ = component
+            .service_builder()
+            .stats_handler(Some(Box::new(move |name, stats| {
+                log::debug!("[IN worker?] Stats for service {}: {:?}", name, stats);
+                let metrics = metrics_rx.borrow_and_update().clone();
+                serde_json::to_value(&*metrics).unwrap()
+            })))
+            .create()
+            .await?;
+        Ok(())
+    }
 }

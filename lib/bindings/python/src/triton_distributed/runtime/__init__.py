@@ -20,7 +20,8 @@ from typing import Any, AsyncGenerator, Callable, Type
 
 from pydantic import BaseModel, ValidationError
 
-from triton_distributed._core import DistributedRuntime
+from triton_distributed._core import Client as Client
+from triton_distributed._core import DistributedRuntime as DistributedRuntime
 
 
 def triton_worker():
