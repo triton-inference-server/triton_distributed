@@ -2570,27 +2570,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libtriton-llm"
-version = "0.1.1"
-dependencies = [
- "anyhow",
- "async-once-cell",
- "cbindgen",
- "futures",
- "libc",
- "once_cell",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-subscriber",
- "triton-distributed",
- "triton-llm",
- "uuid 1.13.1",
-]
-
-[[package]]
 name = "linked-hash-map"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5427,51 +5406,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "triton-distributed"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "async-nats",
- "async-once-cell",
- "async-stream",
- "async-trait",
- "async_zmq",
- "blake3",
- "bytes",
- "chrono",
- "derive-getters",
- "derive_builder",
- "educe",
- "either",
- "etcd-client",
- "figment",
- "futures",
- "humantime",
- "local-ip-address",
- "log",
- "nid",
- "nix",
- "nuid",
- "once_cell",
- "prometheus",
- "rand",
- "regex",
- "serde",
- "serde_json",
- "socket2",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "tracing-subscriber",
- "uuid 1.13.1",
- "validator",
- "xxhash-rust",
-]
-
-[[package]]
-name = "triton-llm"
+name = "triton-distributed-llm"
 version = "0.2.0"
 dependencies = [
  "anyhow",
@@ -5512,8 +5447,52 @@ dependencies = [
  "toktrie 0.6.28",
  "toktrie_hf_tokenizers 0.6.28",
  "tracing",
- "triton-distributed",
+ "triton-distributed-runtime",
  "unicode-segmentation",
+ "uuid 1.13.1",
+ "validator",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "triton-distributed-runtime"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "async-nats",
+ "async-once-cell",
+ "async-stream",
+ "async-trait",
+ "async_zmq",
+ "blake3",
+ "bytes",
+ "chrono",
+ "derive-getters",
+ "derive_builder",
+ "educe",
+ "either",
+ "etcd-client",
+ "figment",
+ "futures",
+ "humantime",
+ "local-ip-address",
+ "log",
+ "nid",
+ "nix",
+ "nuid",
+ "once_cell",
+ "prometheus",
+ "rand",
+ "regex",
+ "serde",
+ "serde_json",
+ "socket2",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
  "uuid 1.13.1",
  "validator",
  "xxhash-rust",
