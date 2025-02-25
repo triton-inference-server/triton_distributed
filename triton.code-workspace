@@ -7,10 +7,15 @@
     "settings": {
         "rust-analyzer.linkedProjects": [
             "applications/llm/count/Cargo.toml",
+            "applications/llm/tio/Cargo.toml",
             "lib/llm/Cargo.toml",
             "lib/runtime/Cargo.toml",
             "lib/bindings/python/Cargo.toml",
-            "examples/rust/Cargo.toml"
+            "lib/bindings/c/Cargo.toml",
+            "examples/rust/hello_world/Cargo.toml",
+            "examples/rust/http/Cargo.toml",
+            "examples/rust/llmctl/Cargo.toml",
+            "examples/rust/service_metrics/Cargo.toml"
         ],
         "rust-analyzer.procMacro.enable": true,
     },

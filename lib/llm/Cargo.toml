@@ -13,14 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[workspace.package]
-version = "0.2.0"
-edition = "2021"
-authors = ["NVIDIA"]
-license = "Apache-2.0"
-homepage = "https://github.com/triton-inference-server/triton_distributed"
-repository = "https://github.com/triton-inference-server/triton_distributed"
-
 [package]
 name = "triton-distributed-llm"
 version.workspace = true
@@ -28,6 +20,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 homepage.workspace = true
+repository.workspace = true
 
 [features]
 mistralrs = ["dep:mistralrs"]
@@ -35,66 +28,37 @@ metal = ["mistralrs/metal"]
 cuda = ["mistralrs/cuda"]
 sentencepiece = ["dep:sentencepiece"]
 
-[workspace.dependencies]
-# local or crates.io
-triton-distributed-runtime = { version = "0.2.0", path = "../runtime" }
-
-# crates.io
-anyhow = { version = "1" }
-async-stream = { version = "0.3" }
-async-trait = { version = "0.1" }
-bytes = "1"
-derive_builder = "0.20"
-futures = "0.3"
-serde = { version = "1", features = ["derive"] }
-thiserror = { version = "2.0.11" }
-tokio = { version = "1", features = ["full"] }
-tokio-stream = { version = "0.1" }
-tokio-util = { version = "0.7", features = ["codec", "net"] }
-tracing = { version = "0.1" }
-validator = { version = "0.20.0", features = ["derive"] }
-uuid = { version = "1", features = ["v4", "serde"] }
-xxhash-rust = { version = "0.8", features = ["xxh3", "const_xxh3"] }
-
 [dependencies]
-
 # repo
-triton-distributed-runtime = { workspace = true }
+triton-distributed-runtime.workspace = true
 
-# workspace
-anyhow = { workspace = true }
-async-stream = { workspace = true }
-async-trait = { workspace = true }
-bytes = { workspace = true }
-derive_builder = {workspace = true }
-futures =  { workspace = true }
-serde = { workspace = true }
-thiserror = { workspace = true }
-tokio = { workspace = true }
-tokio-stream = { workspace = true }
-tokio-util = { workspace = true }
-tracing = { workspace = true }
-validator = { workspace = true }
-uuid = { workspace = true }
-xxhash-rust = { workspace = true }
-
-blake3 = "1"
+# workspace dependencies
+anyhow.workspace = true
+async-stream.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+derive_builder.workspace = true
+futures.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+validator.workspace = true
+uuid.workspace = true
+xxhash-rust.workspace = true
+blake3.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+regex.workspace = true
+prometheus.workspace = true
 
 # protocols
-chrono = { version = "0.4", default-features = false, features = [
-  "alloc",
-  "std",
-  "clock",
-  "now",
-  "serde",
-] }
-serde_json = { version = "1" }
-regex = "1"
 unicode-segmentation = "1.12"
 
 # http-service
 axum = "0.8"
-prometheus = { version = "0.13" }
 
 # mistralrs
 either = { version = "1.13" }
