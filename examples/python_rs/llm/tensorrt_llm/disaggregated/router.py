@@ -68,6 +68,7 @@ class Router:
         )
         logger.debug(f"Sending request {request} to ctx server: {ctx_client}")
 
+        request.sampling_params["max_tokens"] = 1
         ctx_resp = [
             resp async for resp in await ctx_client.generate(request.model_dump_json())
         ]

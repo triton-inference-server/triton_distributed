@@ -341,16 +341,6 @@ python3 -m common.client \
     --component router
 ```
 
-Tanmay[WIP]: Running into some issues when running the client:
-```
-File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
-  File "/usr/local/lib/python3.12/dist-packages/triton_distributed.runtime/__init__.py", line 33, in wrapper
-    await func(runtime, *args, **kwargs)
-  File "/workspace/examples/python_rs/llm/tensorrt_llm/common/client.py", line 68, in worker
-    async for resp in stream:
-ValueError: a python exception was caught while processing the async generator: ValueError: a python exception was caught while processing the async generator: ValueError: Unknown finish reason: FinishReason.NOT_FINISHED
-```
-
 For more details on the disaggregated deployment, please refer to the [TRT-LLM example](#TODO).
 
 
