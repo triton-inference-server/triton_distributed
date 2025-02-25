@@ -16,11 +16,16 @@
 use clap::Parser;
 use std::sync::Arc;
 
-use triton_distributed_llm::http::service::{
-    discovery::{model_watcher, ModelWatchState},
-    service_v2::HttpService,
+use triton_distributed_llm::{
+    http::service::{
+        discovery::{model_watcher, ModelWatchState},
+        service_v2::HttpService,
+    },
+    model_type::ModelType,
 };
-use triton_distributed_runtime::{logging, DistributedRuntime, Result, Runtime, Worker};
+use triton_distributed_runtime::{
+    logging, transports::etcd::PrefixWatcher, DistributedRuntime, Result, Runtime, Worker,
+};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -50,10 +55,8 @@ fn main() -> Result<()> {
 
 async fn app(runtime: Runtime) -> Result<()> {
     let distributed = DistributedRuntime::from_settings(runtime.clone()).await?;
-
     let args = Args::parse();
 
-    // create the http service and acquire the model manager
     let http_service = HttpService::builder()
         .port(args.port)
         .host(args.host)
@@ -71,21 +74,29 @@ async fn app(runtime: Runtime) -> Result<()> {
     let component = distributed
         .namespace(&args.namespace)?
         .component(&args.component)?;
-
     let etcd_root = component.etcd_path();
-    let etcd_path = format!("{}/models/chat/", etcd_root);
 
-    let state = Arc::new(ModelWatchState {
-        prefix: etcd_path.clone(),
-        manager,
-        drt: distributed.clone(),
-    });
+    // Create watchers for all model types
+    let mut watcher_tasks = Vec::new();
 
-    let etcd_client = distributed.etcd_client();
-    let models_watcher = etcd_client.kv_get_and_watch_prefix(etcd_path).await?;
+    for model_type in ModelType::all() {
+        let etcd_path = format!("{}/models/{}/", etcd_root, model_type.as_str());
 
-    let (_prefix, _watcher, receiver) = models_watcher.dissolve();
-    let _watcher_task = tokio::spawn(model_watcher(state, receiver));
+        let state = Arc::new(ModelWatchState {
+            prefix: etcd_path.clone(),
+            model_type,
+            manager: manager.clone(),
+            drt: distributed.clone(),
+        });
 
+        let etcd_client = distributed.etcd_client();
+        let models_watcher: PrefixWatcher = etcd_client.kv_get_and_watch_prefix(etcd_path).await?;
+
+        let (_prefix, _watcher, receiver) = models_watcher.dissolve();
+        let watcher_task = tokio::spawn(model_watcher(state, receiver));
+        watcher_tasks.push(watcher_task);
+    }
+
+    // Run the service
     http_service.run(runtime.child_token()).await
 }

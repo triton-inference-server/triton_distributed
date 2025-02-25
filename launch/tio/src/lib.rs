@@ -26,7 +26,7 @@ use triton_distributed_llm::{
         Annotated,
     },
 };
-use triton_distributed_runtime::{component::Client, DistributedRuntime};
+use triton_distributed_runtime::{component::Client, protocols::Endpoint, DistributedRuntime};
 
 mod input;
 mod opt;
@@ -136,17 +136,15 @@ pub async fn run(
             }
         }
         Output::Endpoint(path) => {
-            let elements: Vec<&str> = path.split('/').collect();
-            if elements.len() != 3 {
-                anyhow::bail!("An endpoint URL must have format {ENDPOINT_SCHEME}namespace/component/endpoint");
-            }
+            let endpoint: Endpoint = path.parse()?;
+
             // This will attempt to connect to NATS and etcd
             let distributed_runtime = DistributedRuntime::from_settings(runtime.clone()).await?;
 
             let client = distributed_runtime
-                .namespace(elements[0])?
-                .component(elements[1])?
-                .function(elements[2])?
+                .namespace(endpoint.namespace)?
+                .component(endpoint.component)?
+                .endpoint(endpoint.name)
                 .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
                 .await?;
 

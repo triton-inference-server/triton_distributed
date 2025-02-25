@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,65 +13,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use triton_distributed_llm::{
     backend::Backend,
-    http::service::{discovery, service_v2},
+    http::service::discovery::ModelEntry,
+    model_type::ModelType,
     preprocessor::OpenAIPreprocessor,
     types::{
         openai::chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
         Annotated,
     },
 };
-use triton_distributed_runtime::{
-    pipeline::{ManyOut, Operator, ServiceBackend, ServiceFrontend, SingleIn, Source},
-    DistributedRuntime, Runtime,
+use triton_distributed_runtime::pipeline::{
+    network::Ingress, ManyOut, Operator, SegmentSource, ServiceBackend, SingleIn, Source,
 };
+use triton_distributed_runtime::{protocols::Endpoint, DistributedRuntime, Runtime};
 
 use crate::EngineConfig;
 
-/// Build and run an HTTP service
 pub async fn run(
     runtime: Runtime,
-    http_port: u16,
+    path: String,
     engine_config: EngineConfig,
 ) -> anyhow::Result<()> {
-    let http_service = service_v2::HttpService::builder()
-        .port(http_port)
-        .enable_chat_endpoints(true)
-        .enable_cmpl_endpoints(true)
-        .build()?;
-    match engine_config {
-        EngineConfig::Dynamic(client) => {
-            let service_name = client.path();
-            let distributed_runtime = DistributedRuntime::from_settings(runtime.clone()).await?;
-            // Listen for models registering themselves in etcd, add them to HTTP service
-            let state = Arc::new(discovery::ModelWatchState {
-                prefix: service_name.clone(),
-                manager: http_service.model_manager().clone(),
-                drt: distributed_runtime.clone(),
-            });
-            let etcd_client = distributed_runtime.etcd_client();
-            let models_watcher = etcd_client.kv_get_and_watch_prefix(service_name).await?;
-            let (_prefix, _watcher, receiver) = models_watcher.dissolve();
-            let _watcher_task = tokio::spawn(discovery::model_watcher(state, receiver));
-        }
+    // This will attempt to connect to NATS and etcd
+    let distributed = DistributedRuntime::from_settings(runtime.clone()).await?;
+
+    let cancel_token = runtime.primary_token().clone();
+    let endpoint: Endpoint = path.parse()?;
+
+    let etcd_client = distributed.etcd_client();
+
+    let (ingress, service_name) = match engine_config {
         EngineConfig::StaticFull {
             service_name,
             engine,
-            ..
-        } => {
-            http_service
-                .model_manager()
-                .add_chat_completions_model(&service_name, engine)?;
-        }
+        } => (Ingress::for_engine(engine)?, service_name),
         EngineConfig::StaticCore {
             service_name,
             engine: inner_engine,
             card,
         } => {
-            let frontend = ServiceFrontend::<
+            let frontend = SegmentSource::<
                 SingleIn<ChatCompletionRequest>,
                 ManyOut<Annotated<ChatCompletionResponseDelta>>,
             >::new();
@@ -88,10 +70,44 @@ pub async fn run(
                 .link(backend.backward_edge())?
                 .link(preprocessor.backward_edge())?
                 .link(frontend)?;
-            http_service
-                .model_manager()
-                .add_chat_completions_model(&service_name, pipeline)?;
+
+            (Ingress::for_pipeline(pipeline)?, service_name)
+        }
+        EngineConfig::Dynamic(_) => {
+            anyhow::bail!("Cannot use endpoint for both in and out");
+        }
+    };
+
+    let model_registration = ModelEntry {
+        name: service_name.to_string(),
+        endpoint: endpoint.clone(),
+        model_type: ModelType::Chat,
+    };
+    etcd_client
+        .kv_create(
+            path.clone(),
+            serde_json::to_vec_pretty(&model_registration)?,
+            None,
+        )
+        .await?;
+
+    let rt_fut = distributed
+        .namespace(endpoint.namespace)?
+        .component(endpoint.component)?
+        .service_builder()
+        .create()
+        .await?
+        .endpoint(endpoint.name)
+        .endpoint_builder()
+        .handler(ingress)
+        .start();
+
+    tokio::select! {
+        _ = rt_fut => {
+            tracing::debug!("Endpoint ingress ended");
+        }
+        _ = cancel_token.cancelled() => {
         }
     }
-    http_service.run(runtime.primary_token()).await
+    Ok(())
 }
