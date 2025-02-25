@@ -13,19 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Triton LLM
-//!
-//! The `triton-llm` crate is a Rust library that provides a set of traits and types for building
-//! distributed LLM inference solutions.
+use serde::{Deserialize, Serialize};
+use strum::Display;
 
-pub mod backend;
-pub mod common;
-pub mod engines;
-pub mod http;
-pub mod kv_router;
-pub mod model_card;
-pub mod model_type;
-pub mod preprocessor;
-pub mod protocols;
-pub mod tokenizers;
-pub mod types;
+#[derive(Copy, Debug, Clone, Display, Serialize, Deserialize, Eq, PartialEq)]
+pub enum ModelType {
+    Chat,
+    Completion,
+}
+
+impl ModelType {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Chat => "chat",
+            Self::Completion => "completion",
+        }
+    }
+
+    pub fn all() -> Vec<Self> {
+        vec![Self::Chat, Self::Completion]
+    }
+}
