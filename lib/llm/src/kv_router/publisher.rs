@@ -18,7 +18,6 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing as log;
 use triton_distributed_runtime::{component::Component, DistributedRuntime, Result};
-use uuid::Uuid;
 
 pub struct KvEventPublisher {
     tx: mpsc::UnboundedSender<KvCacheEvent>,
