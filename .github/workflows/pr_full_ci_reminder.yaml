@@ -19,6 +19,8 @@ on:
     types: [opened]
 jobs:
   pr_reminder:
+    if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+
     runs-on: ubuntu-latest
     steps:
       - name: Reminder to run full CI on PR
@@ -36,8 +38,7 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body: `👋 Hi ${CONTRIBUTOR}! Thank you for contributing to ${REPOSITORY}.\n\n` +
-                'Just a reminder: PRs do not trigger full CI run by default. Instead, it will only run the `PR fastcheck` CI which starts running only a small and essential subset of CI tests to quickly catch errors.' +
-                'Once the PR is approved and ready to go, your PR reviewer(s) can run CI to test the changes comprehensively before merging.\n\n' +
-                'To run CI, PR reviewers can either: Add `ready` label to the PR or enable auto-merge.\n\n' +
+                'Just a reminder: The `PR fastcheck` CI runs an essential subset of the testing framework to quickly catch errors.' +
+                'Your PR reviewers may elect to test the changes comprehensively before approving your changes.\n\n' +
                 '🚀'
             })
