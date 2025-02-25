@@ -27,6 +27,9 @@
 //! connection between the client and server per stream. The ZMQ transport will enable the
 //! equivalent of a connection pool per upstream service at the cost of needing an extra internal
 //! routing step per service endpoint.
+//!
+//! This is an experimental module and not for use in production (yet)
+//!
 
 use async_trait::async_trait;
 use async_zmq::{Context, Dealer, Message, Router, Sink, SinkExt, StreamExt};

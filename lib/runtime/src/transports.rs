@@ -21,4 +21,6 @@
 pub mod etcd;
 pub mod nats;
 pub mod tcp;
+
+#[cfg(feature = "zmq")]
 pub mod zmq;
