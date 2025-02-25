@@ -48,15 +48,13 @@ const DEFAULT_ANNOTATED_SETTING: Option<bool> = Some(true);
 /// import the module.
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
-
     // Sets up RUST_LOG environment variable for logging through the python-wheel
     // Example: RUST_LOG=debug python3 -m ...
     let subscriber = FmtSubscriber::builder()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     m.add_class::<DistributedRuntime>()?;
     m.add_class::<CancellationToken>()?;

@@ -18,12 +18,6 @@ use async_stream::stream;
 use prometheus::{proto::MetricType, Registry};
 use reqwest::StatusCode;
 use std::sync::Arc;
-use triton_distributed_runtime::{
-    pipeline::{
-        async_trait, AsyncEngine, AsyncEngineContextProvider, ManyOut, ResponseStream, SingleIn,
-    },
-    CancellationToken,
-};
 use triton_distributed_llm::http::service::{
     error::HttpError,
     metrics::{Endpoint, RequestType, Status},
@@ -36,6 +30,12 @@ use triton_distributed_llm::protocols::{
         completions::{CompletionRequest, CompletionResponse},
     },
     Annotated,
+};
+use triton_distributed_runtime::{
+    pipeline::{
+        async_trait, AsyncEngine, AsyncEngineContextProvider, ManyOut, ResponseStream, SingleIn,
+    },
+    CancellationToken,
 };
 
 struct CounterEngine {}

@@ -21,10 +21,10 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use tracing as log;
 use uuid::Uuid;
 
-use triton_distributed_runtime::{DistributedRuntime, Worker};
 use triton_distributed_llm::kv_router::{
     indexer::compute_block_hash_for_seq, protocols::*, publisher::KvPublisher,
 };
+use triton_distributed_runtime::{DistributedRuntime, Worker};
 static WK: OnceCell<Worker> = OnceCell::new();
 static DRT: AsyncOnceCell<DistributedRuntime> = AsyncOnceCell::new();
 // [FIXME] shouldn't the publisher be instance passing between API calls?

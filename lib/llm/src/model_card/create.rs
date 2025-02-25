@@ -40,7 +40,7 @@ impl ModelDeploymentCard {
     /// - Required model files are missing or invalid
     pub async fn from_local_path(
         local_root_dir: impl AsRef<Path>,
-        model_name: Option<String>,
+        model_name: Option<&str>,
     ) -> anyhow::Result<Self> {
         let local_root_dir = local_root_dir.as_ref();
         check_valid_local_repo_path(local_root_dir)?;
@@ -53,10 +53,9 @@ impl ModelDeploymentCard {
             local_root_dir
                 .file_name()
                 .and_then(|n| n.to_str())
-                .ok_or_else(|| anyhow::anyhow!("Invalid model directory name"))?
-                .to_string(),
+                .ok_or_else(|| anyhow::anyhow!("Invalid model directory name"))?,
         );
-        Self::from_repo(&repo_id, &model_name).await
+        Self::from_repo(&repo_id, model_name).await
     }
 
     /// TODO: This will be implemented after nova-hub is integrated with the model-card

@@ -14,7 +14,9 @@
 // limitations under the License.
 
 use tempfile::tempdir;
-use triton_distributed_llm::model_card::model::{ModelDeploymentCard, PromptFormatterArtifact, TokenizerKind};
+use triton_distributed_llm::model_card::model::{
+    ModelDeploymentCard, PromptFormatterArtifact, TokenizerKind,
+};
 
 const HF_PATH: &str = "tests/data/sample-models/TinyLlama_v1.1";
 
@@ -46,7 +48,6 @@ async fn test_tokenizer_from_hf_like_local_repo() {
     // Verify tokenizer file was found
     match mdc.tokenizer {
         TokenizerKind::HfTokenizerJson(_) => (),
-        _ => panic!("Expected HfTokenizerJson"),
     }
 }
 

@@ -3635,7 +3635,68 @@ dependencies = [
 ]
 
 [[package]]
-name = "triton-distributed"
+name = "triton-distributed-llm"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "axum 0.8.1",
+ "blake3",
+ "bs62",
+ "bytes",
+ "chrono",
+ "derive_builder",
+ "either",
+ "erased-serde",
+ "futures",
+ "galil-seiferas",
+ "indexmap 2.7.1",
+ "itertools 0.14.0",
+ "minijinja",
+ "minijinja-contrib",
+ "prometheus",
+ "regex",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokenizers",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "toktrie",
+ "toktrie_hf_tokenizers",
+ "tracing",
+ "triton-distributed-runtime",
+ "unicode-segmentation",
+ "uuid",
+ "validator",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "triton-distributed-py3"
+version = "0.2.0"
+dependencies = [
+ "futures",
+ "once_cell",
+ "pyo3",
+ "pyo3-async-runtimes",
+ "pythonize",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-subscriber",
+ "triton-distributed-llm",
+ "triton-distributed-runtime",
+]
+
+[[package]]
+name = "triton-distributed-runtime"
 version = "0.2.0"
 dependencies = [
  "anyhow",
@@ -3676,67 +3737,6 @@ dependencies = [
  "uuid",
  "validator",
  "xxhash-rust",
-]
-
-[[package]]
-name = "triton-llm"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "async-stream",
- "async-trait",
- "axum 0.8.1",
- "blake3",
- "bs62",
- "bytes",
- "chrono",
- "derive_builder",
- "either",
- "erased-serde",
- "futures",
- "galil-seiferas",
- "indexmap 2.7.1",
- "itertools 0.14.0",
- "minijinja",
- "minijinja-contrib",
- "prometheus",
- "regex",
- "semver",
- "serde",
- "serde_json",
- "thiserror 2.0.11",
- "tokenizers",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "toktrie",
- "toktrie_hf_tokenizers",
- "tracing",
- "triton-distributed",
- "unicode-segmentation",
- "uuid",
- "validator",
- "xxhash-rust",
-]
-
-[[package]]
-name = "triton_distributed_py3"
-version = "0.2.0"
-dependencies = [
- "futures",
- "once_cell",
- "pyo3",
- "pyo3-async-runtimes",
- "pythonize",
- "serde",
- "serde_json",
- "thiserror 2.0.11",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-subscriber",
- "triton-distributed",
- "triton-llm",
 ]
 
 [[package]]
