@@ -23,15 +23,15 @@ from triton_distributed.runtime import DistributedRuntime, triton_worker
 @triton_worker()
 async def worker(runtime: DistributedRuntime):
     """
-    Instantiate a `backend` client and call the `generate` endpoint
+    Instantiate a `backend` client and call the `generate` function
     """
-    # get endpoint
-    endpoint = (
-        runtime.namespace("triton-init").component("backend").endpoint("generate")
+    # get function
+    function = (
+        runtime.namespace("triton-init").component("backend").function("generate")
     )
 
     # create client
-    client = await endpoint.client()
+    client = await function.client()
 
     # list the endpoints
     print(client.endpoint_ids())

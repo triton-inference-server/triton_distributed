@@ -27,13 +27,13 @@ async def worker(runtime: DistributedRuntime):
     foo = (
         await runtime.namespace("examples/bls")
         .component("foo")
-        .endpoint("generate")
+        .function("generate")
         .client()
     )
     bar = (
         await runtime.namespace("examples/bls")
         .component("bar")
-        .endpoint("generate")
+        .function("generate")
         .client()
     )
 

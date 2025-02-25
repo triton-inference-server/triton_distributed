@@ -22,7 +22,7 @@ use super::*;
 #[builder(pattern = "owned", build_fn(private, name = "build_internal"))]
 pub struct EndpointConfig {
     #[builder(private)]
-    endpoint: Endpoint,
+    function: Function,
 
     // todo: move lease to component/service
     /// Lease
@@ -36,37 +36,36 @@ pub struct EndpointConfig {
 }
 
 impl EndpointConfigBuilder {
-    pub(crate) fn from_endpoint(endpoint: Endpoint) -> Self {
-        Self::default().endpoint(endpoint)
+    pub(crate) fn from_endpoint(function: Function) -> Self {
+        Self::default().function(function)
     }
 
     pub async fn start(self) -> Result<()> {
-        let (endpoint, lease, handler) = self.build_internal()?.dissolve();
-        let lease = lease.unwrap_or(endpoint.drt().primary_lease());
+        let (function, lease, handler) = self.build_internal()?.dissolve();
+        let lease = lease.unwrap_or(function.drt().primary_lease());
 
         tracing::debug!(
-            "Starting endpoint: {}",
-            endpoint.etcd_path_with_id(lease.id())
+            "Starting function: {}",
+            function.etcd_path_with_id(lease.id())
         );
 
-        let group = endpoint
-            .component
-            .drt
+        let group = function
+            .drt()
             .component_registry
             .services
             .lock()
             .await
-            .get(&endpoint.component.etcd_path())
-            .map(|service| service.group(endpoint.component.service_name()))
-            .ok_or(error!("Service not found"))?;
+            .get(&function.component().etcd_path())
+            .map(|service| service.group(function.component().service_name()))
+            .ok_or(error!("Service not found; the component must create a service before it can start an endpoint to host a function"))?;
 
         // let group = service.group(service_name.as_str());
 
         // creates an endpoint for the service
         let service_endpoint = group
-            .endpoint(&endpoint.name_with_id(lease.id()))
+            .endpoint(&function.name_with_id(lease.id()))
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to start endpoint: {e}"))?;
+            .map_err(|e| anyhow::anyhow!("Failed to start endpoint for function: {e}"))?;
 
         let cancel_token = lease.child_token();
 
@@ -85,21 +84,20 @@ impl EndpointConfigBuilder {
 
         // client.register_service()
         let info = ComponentEndpointInfo {
-            component: endpoint.component.name.clone(),
-            endpoint: endpoint.name.clone(),
-            namespace: endpoint.component.namespace.clone(),
+            component: function.component().name.clone(),
+            function: function.name().to_string(),
+            namespace: function.component().namespace.clone(),
             lease_id: lease.id(),
-            transport: TransportType::NatsTcp(endpoint.subject_to(lease.id())),
+            transport: TransportType::NatsTcp(function.subject_to(lease.id())),
         };
 
         let info = serde_json::to_vec_pretty(&info)?;
 
-        if let Err(e) = endpoint
-            .component
-            .drt
+        if let Err(e) = function
+            .drt()
             .etcd_client
             .kv_create(
-                endpoint.etcd_path_with_id(lease.id()),
+                function.etcd_path_with_id(lease.id()),
                 info,
                 Some(lease.id()),
             )

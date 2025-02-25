@@ -34,7 +34,7 @@ async def worker(runtime: DistributedRuntime):
     pipeline = (
         await runtime.namespace("examples/pipeline")
         .component("frontend")
-        .endpoint("generate")
+        .function("generate")
         .client()
     )
 

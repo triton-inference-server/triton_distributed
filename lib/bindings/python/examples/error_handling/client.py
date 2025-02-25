@@ -27,15 +27,15 @@ async def worker(runtime: DistributedRuntime):
 
 async def init(runtime: DistributedRuntime, ns: str):
     """
-    Instantiate a `backend` client and call the `generate` endpoint
+    Instantiate a `backend` client and call the `generate` function
     """
-    # get endpoint
-    endpoint = runtime.namespace(ns).component("backend").endpoint("generate")
+    # get function
+    function = runtime.namespace(ns).component("backend").function("generate")
 
     # create client
-    client = await endpoint.client()
+    client = await function.client()
 
-    # wait for an endpoint to be ready
+    # wait for an function to be ready
     await client.wait_for_endpoints()
 
     # issue request

@@ -15,9 +15,12 @@
 
 //! The [Component] module defines the top-level API for building distributed applications.
 //!
-//! A distributed application consists of a set of [Component] that can host one
-//! or more [Endpoint]. Each [Endpoint] is a network-accessible service
-//! that can be accessed by other [Component] in the distributed application.
+//! [Components][Component] are addressed via a hierarchy of:
+//! - [Namespace]
+//! - [Component]
+//! - [Function]
+//!
+//! A [Component] can host one or more [Functions][Function].
 //!
 //! A [Component] is made discoverable by registering it with the distributed runtime under
 //! a [`Namespace`].
@@ -39,6 +42,17 @@
 //! path. This allows the [Component] to take dynamic actions depending on the watch
 //! triggers.
 //!
+//!
+//!
+//! [Components'][Component] can be served/hosted by creating a [Service] and adding one or more
+//! [Endpoints][Endpoint] to the [Service].
+//!
+//! A [Component's][Component] [Function] can be called by any member of the distributed runtime
+//! by creating a [Client] bound to the [Component's][Component] [Endpoint][Endpoint].
+//!
+//! A distributed application consists of a set of [Component] that can host one
+//! or more [Endpoint]. Each [Endpoint] is a network-accessible service
+//! that can be accessed by other [Component] in the distributed application.
 //! TODO: Top-level Overview of Endpoints/Functions
 
 use crate::{discovery::Lease, service::ServiceSet};
@@ -61,11 +75,14 @@ use validator::{Validate, ValidationError};
 
 mod client;
 mod endpoint;
+mod function;
 mod namespace;
 mod registry;
 mod service;
 
 pub use client::Client;
+pub use function::Function;
+pub use namespace::Namespace;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -81,7 +98,7 @@ pub struct Registry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComponentEndpointInfo {
     pub component: String,
-    pub endpoint: String,
+    pub function: String,
     pub namespace: String,
     pub lease_id: i64,
     pub transport: TransportType,
@@ -92,7 +109,7 @@ pub struct ComponentEndpointInfo {
 /// a [Service] then adding one or more [Endpoint] to the [Service].
 ///
 /// You can also issue a request to a [Component]'s [Endpoint] by creating a [Client].
-#[derive(Educe, Builder, Clone)]
+#[derive(Educe, Builder, Clone, Validate)]
 #[educe(Debug)]
 #[builder(pattern = "owned")]
 pub struct Component {
@@ -108,6 +125,7 @@ pub struct Component {
     // todo - restrict the namespace to a-z0-9-_A-Z
     /// Namespace
     #[builder(setter(into))]
+    #[validate(custom(function = "validate_allowed_chars"))]
     namespace: String,
 }
 
@@ -145,18 +163,15 @@ impl Component {
         &self.drt
     }
 
-    pub fn endpoint(&self, endpoint: impl Into<String>) -> Endpoint {
-        Endpoint {
-            component: self.clone(),
-            name: endpoint.into(),
-        }
+    pub fn function(&self, name: impl Into<String>) -> Result<Function> {
+        Function::new(self.clone(), name.into())
     }
 
-    /// Get keys from etcd on the slug, splitting the endpoints and only returning the
-    /// set of unique endpoints.
-    pub async fn list_endpoints(&self) -> Vec<Endpoint> {
-        unimplemented!("endpoints")
-    }
+    // /// Get keys from etcd on the slug, splitting the endpoints and only returning the
+    // /// set of unique endpoints.
+    // pub async fn list_function(&self) -> Vec<Function> {
+    //     unimplemented!("endpoints")
+    // }
 
     pub async fn scrape_stats(&self, duration: Duration) -> Result<ServiceSet> {
         let service_name = self.service_name();
@@ -165,17 +180,6 @@ impl Component {
             .collect_services(&service_name, duration)
             .await
     }
-
-    /// TODO
-    ///
-    /// This method will scrape the stats for all available services
-    /// Returns a stream of `ServiceInfo` objects.
-    /// This should be consumed by a `[tokio::time::timeout_at`] because each services
-    /// will only respond once, but there is no way to know when all services have responded.
-    pub async fn stats_stream(&self) -> Result<()> {
-        unimplemented!("collect_stats")
-    }
-
     pub fn service_builder(&self) -> service::ServiceConfigBuilder {
         service::ServiceConfigBuilder::from_component(self.clone())
     }
@@ -187,127 +191,10 @@ impl ComponentBuilder {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Endpoint {
-    component: Component,
-
-    // todo - restrict alphabet
-    /// Endpoint name
-    name: String,
-}
-
-impl DistributedRuntimeProvider for Endpoint {
-    fn drt(&self) -> &DistributedRuntime {
-        self.component.drt()
-    }
-}
-
-impl RuntimeProvider for Endpoint {
-    fn rt(&self) -> &Runtime {
-        self.component.rt()
-    }
-}
-
-impl Endpoint {
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn component(&self) -> &Component {
-        &self.component
-    }
-
-    pub fn path(&self) -> String {
-        format!("{}/{}", self.component.path(), self.name)
-    }
-
-    pub fn etcd_path(&self) -> String {
-        format!("{}/{}", self.component.etcd_path(), self.name)
-    }
-
-    pub fn etcd_path_with_id(&self, lease_id: i64) -> String {
-        format!("{}:{:x}", self.etcd_path(), lease_id)
-    }
-
-    pub fn name_with_id(&self, lease_id: i64) -> String {
-        format!("{}-{:x}", self.name, lease_id)
-    }
-
-    pub fn subject(&self) -> String {
-        format!("{}.{}", self.component.service_name(), self.name)
-    }
-
-    /// Subject to an instance of the [Endpoint] with a specific lease id
-    pub fn subject_to(&self, lease_id: i64) -> String {
-        format!(
-            "{}.{}",
-            self.component.service_name(),
-            self.name_with_id(lease_id)
-        )
-    }
-
-    pub async fn client<Req, Resp>(&self) -> Result<client::Client<Req, Resp>>
-    where
-        Req: Serialize + Send + Sync + 'static,
-        Resp: for<'de> Deserialize<'de> + Send + Sync + 'static,
-    {
-        client::Client::new(self.clone()).await
-    }
-
-    pub fn endpoint_builder(&self) -> endpoint::EndpointConfigBuilder {
-        endpoint::EndpointConfigBuilder::from_endpoint(self.clone())
-    }
-}
-
-#[derive(Educe, Builder, Clone, Validate)]
-#[educe(Debug)]
-#[builder(pattern = "owned")]
-pub struct Namespace {
-    #[builder(private)]
-    #[educe(Debug(ignore))]
-    runtime: DistributedRuntime,
-
-    #[validate()]
-    name: String,
-}
-
-impl DistributedRuntimeProvider for Namespace {
-    fn drt(&self) -> &DistributedRuntime {
-        &self.runtime
-    }
-}
-
-impl RuntimeProvider for Namespace {
-    fn rt(&self) -> &Runtime {
-        self.runtime.rt()
-    }
-}
-
-impl Namespace {
-    pub(crate) fn new(runtime: DistributedRuntime, name: String) -> Result<Self> {
-        Ok(NamespaceBuilder::default()
-            .runtime(runtime)
-            .name(name)
-            .build()?)
-    }
-
-    /// Create a [`Component`] in the namespace
-    pub fn component(&self, name: impl Into<String>) -> Result<Component> {
-        Ok(ComponentBuilder::from_runtime(self.runtime.clone())
-            .name(name)
-            .namespace(self.name.clone())
-            .build()?)
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-}
-
 // Custom validator function
 fn validate_allowed_chars(input: &str) -> Result<(), ValidationError> {
     // Define the allowed character set using a regex
-    let regex = regex::Regex::new(r"^[a-z0-9-_]+$").unwrap();
+    let regex = regex::Regex::new(r"^[a-z][a-z0-9-_]*[a-z0-9]$").unwrap();
 
     if regex.is_match(input) {
         Ok(())

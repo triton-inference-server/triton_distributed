@@ -72,12 +72,12 @@ class VllmEngine(BaseVllmEngine):
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     """
-    Serve the triton-init.vllm.generate endpoint.
+    Serve the triton-init.vllm.generate function.
     """
     worker_component = runtime.namespace("triton-init").component("vllm")
     await worker_component.create_service()
 
-    worker_endpoint = worker_component.endpoint("generate")
+    worker_endpoint = worker_component.function("generate")
 
     # KV Publisher and Aggregator requires a UUID (str)
     # KV Router requires a lease_id (int)
@@ -85,7 +85,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     # If VLLM_WORKER_ID is not set, KV Routing will fail
     VLLM_WORKER_ID = uuid.UUID(int=worker_endpoint.lease_id())
     os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
-    vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
+    vllm_logger.info(f"Generate function ID: {VLLM_WORKER_ID}")
 
     vllm_engine = VllmEngine(engine_args)
     await vllm_engine.initialize()

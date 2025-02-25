@@ -22,7 +22,7 @@ from triton_distributed.runtime import DistributedRuntime, triton_worker
 
 class RequestHandler:
     """
-    Request handler for the generate endpoint
+    Request handler for the generate function
     """
 
     async def generate(self, request):
@@ -38,15 +38,15 @@ async def worker(runtime: DistributedRuntime):
 
 async def init(runtime: DistributedRuntime, ns: str):
     """
-    Instantiate a `backend` component and serve the `generate` endpoint
+    Instantiate a `backend` component and serve the `generate` function
     A `Component` can serve multiple endpoints
     """
     component = runtime.namespace(ns).component("backend")
     await component.create_service()
 
-    endpoint = component.endpoint("generate")
+    function = component.function("generate")
     print("Started server instance")
-    await endpoint.serve_endpoint(RequestHandler().generate)
+    await function.serve_endpoint(RequestHandler().generate)
 
 
 if __name__ == "__main__":

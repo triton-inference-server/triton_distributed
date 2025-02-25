@@ -34,8 +34,8 @@ async def worker(runtime: DistributedRuntime):
     component = runtime.namespace("examples/bls").component("bar")
     await component.create_service()
 
-    endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(RequestHandler().generate)
+    function = component.function("generate")
+    await function.serve_endpoint(RequestHandler().generate)
 
 
 asyncio.run(worker())

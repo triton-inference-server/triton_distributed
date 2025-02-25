@@ -141,25 +141,25 @@ class Processor(ProcessMixIn):
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     """
     Set up clients to the router and workers.
-    Serve the triton-init.process.chat/completions endpoint.
+    Serve the triton-init.process.chat/completions function.
     """
     workers_client = (
         await runtime.namespace("triton-init")
         .component("vllm")
-        .endpoint("generate")
+        .function("generate")
         .client()
     )
 
     router_client = (
         await runtime.namespace("triton-init")
         .component("router")
-        .endpoint("generate")
+        .function("generate")
         .client()
     )
 
     preprocess_component = runtime.namespace("triton-init").component("process")
     await preprocess_component.create_service()
-    preprocess_endpoint = preprocess_component.endpoint("chat/completions")
+    preprocess_endpoint = preprocess_component.function("chat/completions")
 
     processor = Processor(engine_args, router_client, workers_client)
     assert isinstance(processor, ProcessMixIn)

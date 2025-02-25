@@ -19,6 +19,41 @@ use super::*;
 
 use crate::traits::events::EventPublisher;
 
+#[derive(Educe, Builder, Clone, Validate)]
+#[educe(Debug)]
+#[builder(pattern = "owned")]
+pub struct Namespace {
+    #[builder(private)]
+    #[educe(Debug(ignore))]
+    runtime: DistributedRuntime,
+
+    #[validate(custom(function = "validate_allowed_chars"))]
+    name: String,
+}
+
+impl Namespace {
+    pub(crate) fn new(runtime: DistributedRuntime, name: String) -> Result<Self> {
+        Ok(NamespaceBuilder::default()
+            .runtime(runtime)
+            .name(name)
+            .build()?)
+    }
+
+    /// Create a [`Component`] in the namespace
+    pub fn component(&self, name: impl Into<String>) -> Result<Component> {
+        let component = ComponentBuilder::from_runtime(self.runtime.clone())
+            .name(name)
+            .namespace(self.name.clone())
+            .build()?;
+
+        Ok(component)
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
 #[async_trait]
 impl EventPublisher for Namespace {
     fn subject(&self) -> String {
@@ -46,6 +81,18 @@ impl EventPublisher for Namespace {
             .client()
             .publish(subject, bytes.into())
             .await?)
+    }
+}
+
+impl DistributedRuntimeProvider for Namespace {
+    fn drt(&self) -> &DistributedRuntime {
+        &self.runtime
+    }
+}
+
+impl RuntimeProvider for Namespace {
+    fn rt(&self) -> &Runtime {
+        self.runtime.rt()
     }
 }
 
