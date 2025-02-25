@@ -34,7 +34,6 @@ use std::time::SystemTime;
 
 use super::TokenIdType;
 
-pub mod kv_routing;
 pub mod llm_backend;
 pub mod postprocessor;
 pub mod preprocessor;

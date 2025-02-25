@@ -13,22 +13,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use triton_distributed_llm::backend::Backend;
-use triton_distributed_llm::model_card::model::ModelDeploymentCard;
-
-#[tokio::test]
-async fn test_sequence_factory() {
-    let mdc = ModelDeploymentCard::from_local_path("tests/data/sample-models/TinyLlama_v1.1", None)
-        .await
-        .unwrap();
-
-    let operator = Backend::from_mdc(mdc).await.unwrap();
-
-    let mut decode_stream = operator.tokenizer.decode_stream(false);
-    let output = decode_stream.step(1).unwrap();
-    assert_eq!(output, Some("<s>".to_string()));
-
-    let mut decode_stream = operator.tokenizer.decode_stream(true);
-    let output = decode_stream.step(1).unwrap();
-    assert_eq!(output, None);
-}
+pub mod echo_core;
+pub mod echo_full;

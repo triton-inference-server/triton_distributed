@@ -57,6 +57,7 @@ impl PromptFormatter {
 /// 2. Map template: Contains 'tool_use' and/or 'default' templates
 ///    - tool_use: Template for tool-based interactions
 ///    - default: Template for standard chat interactions
+///
 ///   If the map contains both keys, the `tool_use` template is registered as the `tool_use` template
 ///   and the `default` template is registered as the `default` template.
 struct JinjaEnvironment {

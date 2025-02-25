@@ -15,8 +15,20 @@
 
 use std::sync::Arc;
 
-use triton_distributed_runtime::{DistributedRuntime, Runtime};
-use triton_distributed_llm::http::service::{discovery, service_v2};
+use triton_distributed_llm::{
+    backend::Backend,
+    http::service::{discovery, service_v2},
+    model_type::ModelType,
+    preprocessor::OpenAIPreprocessor,
+    types::{
+        openai::chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
+        Annotated,
+    },
+};
+use triton_distributed_runtime::{
+    pipeline::{ManyOut, Operator, ServiceBackend, ServiceFrontend, SingleIn, Source},
+    DistributedRuntime, Runtime,
+};
 
 use crate::EngineConfig;
 
@@ -38,6 +50,7 @@ pub async fn run(
             // Listen for models registering themselves in etcd, add them to HTTP service
             let state = Arc::new(discovery::ModelWatchState {
                 prefix: service_name.clone(),
+                model_type: ModelType::Chat, // Tio currently supports only chat models
                 manager: http_service.model_manager().clone(),
                 drt: distributed_runtime.clone(),
             });
@@ -54,6 +67,32 @@ pub async fn run(
             http_service
                 .model_manager()
                 .add_chat_completions_model(&service_name, engine)?;
+        }
+        EngineConfig::StaticCore {
+            service_name,
+            engine: inner_engine,
+            card,
+        } => {
+            let frontend = ServiceFrontend::<
+                SingleIn<ChatCompletionRequest>,
+                ManyOut<Annotated<ChatCompletionResponseDelta>>,
+            >::new();
+            let preprocessor = OpenAIPreprocessor::new(*card.clone())
+                .await?
+                .into_operator();
+            let backend = Backend::from_mdc(*card.clone()).await?.into_operator();
+            let engine = ServiceBackend::from_engine(inner_engine);
+
+            let pipeline = frontend
+                .link(preprocessor.forward_edge())?
+                .link(backend.forward_edge())?
+                .link(engine)?
+                .link(backend.backward_edge())?
+                .link(preprocessor.backward_edge())?
+                .link(frontend)?;
+            http_service
+                .model_manager()
+                .add_chat_completions_model(&service_name, pipeline)?;
         }
     }
     http_service.run(runtime.primary_token()).await

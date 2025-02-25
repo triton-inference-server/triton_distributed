@@ -15,13 +15,18 @@
 
 use std::path::PathBuf;
 
-use triton_distributed_runtime::{component::Client, DistributedRuntime};
-use triton_distributed_llm::types::{
-    openai::chat_completions::{
-        ChatCompletionRequest, ChatCompletionResponseDelta, OpenAIChatCompletionsStreamingEngine,
+use triton_distributed_llm::{
+    backend::ExecutionContext,
+    model_card::model::ModelDeploymentCard,
+    types::{
+        openai::chat_completions::{
+            ChatCompletionRequest, ChatCompletionResponseDelta,
+            OpenAIChatCompletionsStreamingEngine,
+        },
+        Annotated,
     },
-    Annotated,
 };
+use triton_distributed_runtime::{component::Client, protocols::Endpoint, DistributedRuntime};
 
 mod input;
 mod opt;
@@ -65,6 +70,13 @@ pub enum EngineConfig {
         service_name: String,
         engine: OpenAIChatCompletionsStreamingEngine,
     },
+
+    /// A core engine expects to be wrapped with pre/post processors that handle tokenization.
+    StaticCore {
+        service_name: String,
+        engine: ExecutionContext,
+        card: Box<ModelDeploymentCard>,
+    },
 }
 
 pub async fn run(
@@ -87,6 +99,15 @@ pub async fn run(
             .and_then(|p| p.iter().last())
             .map(|n| n.to_string_lossy().into_owned())
     });
+    // If model path is a directory we can build a model deployment card from it
+    let maybe_card = match &model_path {
+        Some(model_path) if model_path.is_dir() => {
+            ModelDeploymentCard::from_local_path(model_path, model_name.as_deref())
+                .await
+                .ok()
+        }
+        Some(_) | None => None,
+    };
 
     // Create the engine matching `out`
     let engine_config = match out_opt {
@@ -101,18 +122,29 @@ pub async fn run(
                 engine: output::echo_full::make_engine_full(),
             }
         }
-        Output::Endpoint(path) => {
-            let elements: Vec<&str> = path.split('/').collect();
-            if elements.len() != 3 {
-                anyhow::bail!("An endpoint URL must have format {ENDPOINT_SCHEME}namespace/component/endpoint");
+        Output::EchoCore => {
+            let Some(mut card) = maybe_card.clone() else {
+                anyhow::bail!(
+                    "out=echo_core need to find the tokenizer. Pass flag --model-path <path>"
+                );
+            };
+            card.requires_preprocessing = true;
+            EngineConfig::StaticCore {
+                service_name: card.service_name.clone(),
+                engine: output::echo_core::make_engine_core(),
+                card: Box::new(card),
             }
+        }
+        Output::Endpoint(path) => {
+            let endpoint: Endpoint = path.parse()?;
+
             // This will attempt to connect to NATS and etcd
             let distributed_runtime = DistributedRuntime::from_settings(runtime.clone()).await?;
 
             let client = distributed_runtime
-                .namespace(elements[0])?
-                .component(elements[1])?
-                .endpoint(elements[2])
+                .namespace(endpoint.namespace)?
+                .component(endpoint.component)?
+                .endpoint(endpoint.name)
                 .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
                 .await?;
 
@@ -138,7 +170,8 @@ pub async fn run(
             };
             EngineConfig::StaticFull {
                 service_name: model_name,
-                engine: triton_distributed_llm::engines::mistralrs::make_engine(&model_path).await?,
+                engine: triton_distributed_llm::engines::mistralrs::make_engine(&model_path)
+                    .await?,
             }
         }
     };

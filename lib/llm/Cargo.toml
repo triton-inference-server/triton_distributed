@@ -55,6 +55,7 @@ tracing = { version = "0.1" }
 validator = { version = "0.20.0", features = ["derive"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 xxhash-rust = { version = "0.8", features = ["xxh3", "const_xxh3"] }
+strum = { version = "0.27", features = ["derive"] }
 
 [dependencies]
 
@@ -77,6 +78,7 @@ tracing = { workspace = true }
 validator = { workspace = true }
 uuid = { workspace = true }
 xxhash-rust = { workspace = true }
+strum = { workspace = true }
 
 blake3 = "1"
 
