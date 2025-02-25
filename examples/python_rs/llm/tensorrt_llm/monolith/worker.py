@@ -26,7 +26,12 @@ from tensorrt_llm import SamplingParams
 from tensorrt_llm._torch import LLM
 from tensorrt_llm._torch.pyexecutor.config import PyTorchConfig
 from tensorrt_llm.logger import logger
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+
+from triton_distributed.runtime import (
+    DistributedRuntime,
+    triton_endpoint,
+    triton_worker,
+)
 
 logger.set_level("info")
 

@@ -27,7 +27,8 @@ from tensorrt_llm.llmapi.disagg_utils import (
     parse_disagg_config_file,
 )
 from tensorrt_llm.logger import logger
-from triton_distributed_rs import DistributedRuntime, triton_worker
+
+from triton_distributed.runtime import DistributedRuntime, triton_worker
 
 logger.set_level("info")
 
