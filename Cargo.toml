@@ -19,7 +19,7 @@ members = [
     "lib/llm",
     "lib/bindings/python",
     "lib/bindings/c",
-    "applications/llm/tio",
+    "launch/tio",
     "applications/llm/count",
     "examples/rust/hello_world",
     "examples/rust/http",
