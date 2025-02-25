@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import subprocess
+import threading
 import time
 from datetime import datetime
 
@@ -67,6 +68,20 @@ def wait_for_server(url, model, timeout=300):
             time.sleep(5)
             if time.time() - start > timeout:
                 raise ValueError(f"Server is not responding: {e}")
+
+
+## Add output threads for stdout and stderr
+
+
+def run_output_thread(output_file, log_file, print_func):
+    """Thread for outputting the process stdout and stderr to a file."""
+    if output_file is None:
+        LOGGER.debug("No output file specified")
+        return
+    for line in output_file:
+        decoded_line = line.decode()
+        print_func(decoded_line)
+        log_file.write(decoded_line)
 
 
 def run_benchmark(args):
@@ -130,14 +145,16 @@ def run_benchmark(args):
         process = subprocess.Popen(
             command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        for line in process.stdout:
-            decoded_line = line.decode()
-            LOGGER.debug(decoded_line, end="")
-            f.write(decoded_line)
-        for line in process.stderr:
-            decoded_line = line.decode()
-            LOGGER.debug(decoded_line, end="")
-            f.write(decoded_line)
+        error_thread = threading.Thread(
+            target=run_output_thread, args=(process.stderr, f, LOGGER.error)
+        )
+        error_thread.start()
+        output_thread = threading.Thread(
+            target=run_output_thread, args=(process.stdout, f, LOGGER.debug)
+        )
+        output_thread.start()
+        error_thread.join()
+        output_thread.join()
 
     process.wait()
 
