@@ -16,9 +16,9 @@
 use anyhow::Ok;
 
 use serde::{Deserialize, Serialize};
-use triton_llm::model_card::model::{ModelDeploymentCard, PromptContextMixin};
-use triton_llm::preprocessor::prompt::PromptFormatter;
-use triton_llm::protocols::openai::chat_completions::{
+use triton_distributed_llm::model_card::model::{ModelDeploymentCard, PromptContextMixin};
+use triton_distributed_llm::preprocessor::prompt::PromptFormatter;
+use triton_distributed_llm::protocols::openai::chat_completions::{
     ChatCompletionMessage, ChatCompletionRequest, Tool, ToolChoiceType,
 };
 

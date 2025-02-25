@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use triton_llm::backend::Backend;
-use triton_llm::model_card::model::ModelDeploymentCard;
+use triton_distributed_llm::backend::Backend;
+use triton_distributed_llm::model_card::model::ModelDeploymentCard;
 
 #[tokio::test]
 async fn test_sequence_factory() {
