@@ -27,7 +27,7 @@ IO_PREFIX="isl_cached_0_isl_uncached_${MEAN_INPUT_TOKENS}_osl_${MEAN_OUTPUT_TOKE
 
 MAX_MODEL_LEN=$((MEAN_INPUT_TOKENS + MEAN_OUTPUT_TOKENS + 100))
 
-CHAT_MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-70B"
+CHAT_MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 
 nats-server \
     -js \
@@ -63,39 +63,33 @@ cd /workspace/examples/python_rs/llm/vllm
 
 echo "Starting prefill worker..."
 
-VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0,1 python3 -m disaggregated.prefill_worker \
+for i in {0..8}; do
+    VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
             --model $CHAT_MODEL_NAME \
             --max-model-len $MAX_MODEL_LEN \
-            --gpu-memory-utilization 0.8 \
-            --tensor-parallel-size 2 \
+            --gpu-memory-utilization 0.1 \
+            --tensor-parallel-size 1 \
             --kv-transfer-config \
-            '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":3}' &
-
-echo "Starting prefill worker..."
-
-VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=2,3 python3 -m disaggregated.prefill_worker \
-            --model $CHAT_MODEL_NAME \
-            --max-model-len $MAX_MODEL_LEN \
-            --gpu-memory-utilization 0.8 \
-            --tensor-parallel-size 2 \
-            --kv-transfer-config \
-            '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":1,"kv_parallel_size":3}' &
+            '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":$i,"kv_parallel_size":16}' &
+done
 
 
 echo "Starting decode worker..."
 
-VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=4,5,6,7 python3 -m disaggregated.decode_worker \
-        --model $CHAT_MODEL_NAME \
-        --max-model-len $MAX_MODEL_LEN \
-        --gpu-memory-utilization 0.8 \
-        --tensor-parallel-size 4 \
-        --kv-transfer-config \
-        '{"kv_connector":"TritonNcclConnector","kv_role":"kv_consumer","kv_rank":2,"kv_parallel_size":3}' &
+for i in {8..16}; do
+    VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1 python3 -m disaggregated.decode_worker \
+            --model $CHAT_MODEL_NAME \
+            --max-model-len $MAX_MODEL_LEN \
+            --gpu-memory-utilization 0.1 \
+            --tensor-parallel-size 1 \
+            --kv-transfer-config \
+            '{"kv_connector":"TritonNcclConnector","kv_role":"kv_consumer","kv_rank":$i,"kv_parallel_size":16}' &
+done
 
 
 echo "Running benchmark..."
 
-CONFIG_PREFIX="prefill_tp2dp2_generate_tp4dp1"
+CONFIG_PREFIX="prefill_tp1dp1_generate_t1d1"
 
 ARTIFACT_DIR_PREFIX="./artifacts/$IO_PREFIX/$CONFIG_PREFIX"
 
@@ -126,7 +120,7 @@ pkill -f python3 || true
 
 VLLM_CONFIGURE_LOGGING=0 vllm serve \
     $CHAT_MODEL_NAME \
-    --tensor-parallel-size 8 \
+    --tensor-parallel-size 2 \
     --port $ENDPOINT_PORT \
     --host $ENDPOINT_HOST &
 
@@ -134,7 +128,7 @@ sleep 15
 
 echo "Running vllm serve baseline benchmark..."
 
-CONFIG_PREFIX="baseline_tp8dp1"
+CONFIG_PREFIX="baseline_tp2dp1"
 
 ARTIFACT_DIR_PREFIX="./artifacts/$IO_PREFIX/$CONFIG_PREFIX"
 
