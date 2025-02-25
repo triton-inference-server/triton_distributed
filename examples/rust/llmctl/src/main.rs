@@ -79,8 +79,18 @@ macro_rules! define_type_subcommands {
 }
 
 define_type_subcommands!(
-    (Chat, "chat", ["chat-model", "chat-models"], "Add a chat model"),
-    (Completion, "completion", ["completions", "completion-model"], "Add a completion model"),
+    (
+        Chat,
+        "chat",
+        ["chat-model", "chat-models"],
+        "Add a chat model"
+    ),
+    (
+        Completion,
+        "completion",
+        ["completions", "completion-model"],
+        "Add a completion model"
+    ),
     // Add new model types here:
 );
 
@@ -169,12 +179,24 @@ async fn handle_command(runtime: Runtime, namespace: String, command: Commands) 
             match command {
                 HttpCommands::Add { model_type } => {
                     let (model_type, model_name, endpoint_name) = model_type.into_parts();
-                    add_model(&distributed, namespace.to_string(), model_type, model_name, &endpoint_name).await?;
+                    add_model(
+                        &distributed,
+                        namespace.to_string(),
+                        model_type,
+                        model_name,
+                        &endpoint_name,
+                    )
+                    .await?;
                 }
                 HttpCommands::List { model_type } => {
                     match model_type {
                         Some(model_type) => {
-                            list_models(&distributed, namespace.clone(), Some(model_type.model_type())).await?;
+                            list_models(
+                                &distributed,
+                                namespace.clone(),
+                                Some(model_type.model_type()),
+                            )
+                            .await?;
                         }
                         None => {
                             // List all model types
@@ -219,7 +241,10 @@ async fn add_model(
         namespace: if parts.len() == 3 {
             parts[0].to_string()
         } else {
-            println!("Using the public namespace: {} for model: {}", namespace, model_name);
+            println!(
+                "Using the public namespace: {} for model: {}",
+                namespace, model_name
+            );
             namespace.clone()
         },
         component: parts[parts.len() - 2].to_string(),
@@ -229,7 +254,7 @@ async fn add_model(
     let model = ModelEntry {
         name: model_name.to_string(),
         endpoint,
-        model_type: model_type.clone(),
+        model_type,
     };
 
     // add model to etcd
@@ -238,7 +263,7 @@ async fn add_model(
         "{}/models/{}/{}",
         component.etcd_path(),
         model_type.as_str(),
-        model_name.to_string()
+        model_name
     );
     let etcd_client = distributed.etcd_client();
 
@@ -254,13 +279,9 @@ async fn add_model(
         list_single_model(distributed, namespace, model_type, model_name).await?;
     } else {
         etcd_client
-        .kv_create(path, serde_json::to_vec_pretty(&model)?, None)
-        .await?;
-        println!(
-            "Added new {} model {}",
-            model_type.as_str(),
-            model_name,
-        );
+            .kv_create(path, serde_json::to_vec_pretty(&model)?, None)
+            .await?;
+        println!("Added new {} model {}", model_type.as_str(), model_name,);
         list_single_model(distributed, namespace, model_type, model_name).await?;
     }
 
@@ -292,25 +313,25 @@ async fn list_single_model(
         "{}/models/{}/{}",
         component.etcd_path(),
         model_type.as_str(),
-        model_name.to_string()
+        model_name
     );
 
     let mut models = Vec::new();
     let etcd_client = distributed.etcd_client();
     let kvs = etcd_client.kv_get_prefix(&path).await?;
 
-        for kv in kvs {
-            if let (Ok(_key), Ok(model)) = (
-                kv.key_str(),
-                serde_json::from_slice::<ModelEntry>(kv.value()),
-            ) {
-                models.push(ModelRow {
-                    model_type: model_type.as_str().to_string(),
-                    name: model_name.clone(),
-                    namespace: model.endpoint.namespace,
-                    component: model.endpoint.component,
-                    endpoint: model.endpoint.name,
-                });
+    for kv in kvs {
+        if let (Ok(_key), Ok(model)) = (
+            kv.key_str(),
+            serde_json::from_slice::<ModelEntry>(kv.value()),
+        ) {
+            models.push(ModelRow {
+                model_type: model_type.as_str().to_string(),
+                name: model_name.clone(),
+                namespace: model.endpoint.namespace,
+                component: model.endpoint.component,
+                endpoint: model.endpoint.name,
+            });
         }
     }
 
@@ -331,17 +352,13 @@ async fn list_models(
     let component = distributed.namespace(&namespace)?.component("http")?;
 
     let mut models = Vec::new();
-    let model_types = match &model_type {
-        Some(mt) => vec![mt.clone()],
+    let model_types = match model_type {
+        Some(mt) => vec![mt],
         None => ModelType::all(),
     };
 
     for mt in model_types {
-        let prefix = format!(
-            "{}/models/{}/",
-            component.etcd_path(),
-            mt.as_str(),
-        );
+        let prefix = format!("{}/models/{}/", component.etcd_path(), mt.as_str(),);
 
         let etcd_client = distributed.etcd_client();
         let kvs = etcd_client.kv_get_prefix(&prefix).await?;
@@ -364,13 +381,21 @@ async fn list_models(
 
     if models.is_empty() {
         match &model_type {
-            Some(mt) => println!("No {} models found in the public namespace: {}", mt.as_str(), namespace),
+            Some(mt) => println!(
+                "No {} models found in the public namespace: {}",
+                mt.as_str(),
+                namespace
+            ),
             None => println!("No models found in the public namespace: {}", namespace),
         }
     } else {
         let table = tabled::Table::new(models);
         match &model_type {
-            Some(mt) => println!("Listing {} models in the public namespace: {}", mt.as_str(), namespace),
+            Some(mt) => println!(
+                "Listing {} models in the public namespace: {}",
+                mt.as_str(),
+                namespace
+            ),
             None => println!("Listing all models in the public namespace: {}", namespace),
         }
         println!("{}", table);
@@ -398,7 +423,12 @@ async fn remove_model(
     let mut kv_client = distributed.etcd_client().etcd_client().kv_client();
     match kv_client.delete(prefix.as_bytes(), None).await {
         Ok(_response) => {
-            println!("{} model {} removed from the public namespace: {}", model_type.as_str(), name, namespace);
+            println!(
+                "{} model {} removed from the public namespace: {}",
+                model_type.as_str(),
+                name,
+                namespace
+            );
         }
         Err(e) => {
             log::error!("Error removing model {}: {}", name, e);

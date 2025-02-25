@@ -20,18 +20,17 @@ use tokio::sync::mpsc::Receiver;
 
 use triton_distributed_runtime::{
     protocols::{self, annotated::Annotated},
+    raise,
     transports::etcd::{KeyValue, WatchEvent},
-    DistributedRuntime, Result, raise,
+    DistributedRuntime, Result,
 };
 
 use super::ModelManager;
+use crate::model_type::ModelType;
 use crate::protocols::openai::chat_completions::{
     ChatCompletionRequest, ChatCompletionResponseDelta,
 };
-use crate::protocols::openai::completions::{
-    CompletionRequest, CompletionResponse
-};
-use crate::model_type::ModelType;
+use crate::protocols::openai::completions::{CompletionRequest, CompletionResponse};
 use tracing;
 /// [ModelEntry] is a struct that contains the information for the HTTP service to discover models
 /// from the etcd cluster.
@@ -65,7 +64,7 @@ pub async fn model_watcher(state: Arc<ModelWatchState>, events_rx: Receiver<Watc
         match event {
             WatchEvent::Put(kv) => match handle_put(&kv, state.clone()).await {
                 Ok((model_name, model_type)) => {
-                    tracing::info!("added {} model: {}",model_type, model_name);
+                    tracing::info!("added {} model: {}", model_type, model_name);
                 }
                 Err(e) => {
                     tracing::error!("error adding model: {}", e);
@@ -98,7 +97,7 @@ async fn handle_delete(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(&s
         ModelType::Completion => state.manager.remove_completions_model(model_name)?,
     };
 
-    Ok((model_name, state.model_type.clone()))
+    Ok((model_name, state.model_type))
 }
 
 // Handles a PUT event from etcd, this usually means adding a new model to the list of served
@@ -138,7 +137,9 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(&str,
                 .endpoint(model_entry.endpoint.name)
                 .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
                 .await?;
-            state.manager.add_chat_completions_model(&model_name, Arc::new(client))?;
+            state
+                .manager
+                .add_chat_completions_model(model_name, Arc::new(client))?;
         }
         ModelType::Completion => {
             let client = state
@@ -148,9 +149,11 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(&str,
                 .endpoint(model_entry.endpoint.name)
                 .client::<CompletionRequest, Annotated<CompletionResponse>>()
                 .await?;
-            state.manager.add_completions_model(&model_name, Arc::new(client))?;
+            state
+                .manager
+                .add_completions_model(model_name, Arc::new(client))?;
         }
     }
 
-    Ok((model_name, state.model_type.clone()))
+    Ok((model_name, state.model_type))
 }

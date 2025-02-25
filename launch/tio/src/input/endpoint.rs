@@ -15,20 +15,20 @@
 
 use triton_distributed_llm::{
     backend::Backend,
+    http::service::discovery::ModelEntry,
+    model_type::ModelType,
     preprocessor::OpenAIPreprocessor,
     types::{
         openai::chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
         Annotated,
     },
-    http::service::discovery::ModelEntry,
-    model_type::ModelType
 };
 use triton_distributed_runtime::pipeline::{
     network::Ingress, ManyOut, Operator, SegmentSource, ServiceBackend, SingleIn, Source,
 };
 use triton_distributed_runtime::{protocols::Endpoint, DistributedRuntime, Runtime};
 
-use crate::{EngineConfig, ENDPOINT_SCHEME};
+use crate::EngineConfig;
 
 pub async fn run(
     runtime: Runtime,
@@ -39,18 +39,8 @@ pub async fn run(
     let distributed = DistributedRuntime::from_settings(runtime.clone()).await?;
 
     let cancel_token = runtime.primary_token().clone();
-    let elements: Vec<&str> = path.split('/').collect();
-    if elements.len() != 3 {
-        anyhow::bail!(
-            "An endpoint URL must have format {ENDPOINT_SCHEME}namespace/component/endpoint"
-        );
-    }
+    let endpoint: Endpoint = path.parse()?;
 
-    let endpoint = Endpoint {
-        namespace: elements[0].to_string(),
-        component: elements[1].to_string(),
-        name: elements[2].to_string(),
-    };
     let etcd_client = distributed.etcd_client();
 
     let (ingress, service_name) = match engine_config {
@@ -90,7 +80,7 @@ pub async fn run(
 
     let model_registration = ModelEntry {
         name: service_name.to_string(),
-        endpoint,
+        endpoint: endpoint.clone(),
         model_type: ModelType::Chat,
     };
     etcd_client
@@ -102,12 +92,12 @@ pub async fn run(
         .await?;
 
     let rt_fut = distributed
-        .namespace(elements[0])?
-        .component(elements[1])?
+        .namespace(endpoint.namespace)?
+        .component(endpoint.component)?
         .service_builder()
         .create()
         .await?
-        .endpoint(elements[2])
+        .endpoint(endpoint.name)
         .endpoint_builder()
         .handler(ingress)
         .start();

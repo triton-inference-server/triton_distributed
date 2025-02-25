@@ -18,12 +18,12 @@ use std::sync::Arc;
 use triton_distributed_llm::{
     backend::Backend,
     http::service::{discovery, service_v2},
+    model_type::ModelType,
     preprocessor::OpenAIPreprocessor,
     types::{
         openai::chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
         Annotated,
     },
-    model_type::ModelType
 };
 use triton_distributed_runtime::{
     pipeline::{ManyOut, Operator, ServiceBackend, ServiceFrontend, SingleIn, Source},

@@ -21,9 +21,11 @@ use triton_distributed_llm::{
         discovery::{model_watcher, ModelWatchState},
         service_v2::HttpService,
     },
-    model_type::ModelType
+    model_type::ModelType,
 };
-use triton_distributed_runtime::{logging, DistributedRuntime, Result, Runtime, Worker, transports::etcd::PrefixWatcher};
+use triton_distributed_runtime::{
+    logging, transports::etcd::PrefixWatcher, DistributedRuntime, Result, Runtime, Worker,
+};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -60,7 +62,7 @@ async fn app(runtime: Runtime) -> Result<()> {
         .host(args.host)
         .build()?;
     let manager = http_service.model_manager().clone();
-    
+
     // todo - use the IntoComponent trait to register the component
     // todo - start a service
     // todo - we want the service to create an entry and register component definition
@@ -69,7 +71,9 @@ async fn app(runtime: Runtime) -> Result<()> {
     // written to etcd
     // the cli when operating on an `http` component will validate the namespace.component is
     // registered with HttpServiceComponentDefinition
-    let component = distributed.namespace(&args.namespace)?.component(&args.component)?;
+    let component = distributed
+        .namespace(&args.namespace)?
+        .component(&args.component)?;
     let etcd_root = component.etcd_path();
 
     // Create watchers for all model types
@@ -80,7 +84,7 @@ async fn app(runtime: Runtime) -> Result<()> {
 
         let state = Arc::new(ModelWatchState {
             prefix: etcd_path.clone(),
-            model_type: model_type,
+            model_type,
             manager: manager.clone(),
             drt: distributed.clone(),
         });
