@@ -71,7 +71,7 @@ jobs:
         NVBUILD_VERBOSITY: DETAILED
       timeout-minutes: 2
       working-directory: /workspace
-  
+
   codeql:
     name: Analyze Python Codebase
     runs-on: ubuntu-latest
