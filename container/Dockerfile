@@ -147,7 +147,7 @@ COPY lib/bindings /workspace/lib/bindings
 RUN cd lib/bindings/c/ && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Copy python wheel metadata
+# Copy Python wheel configuration files
 COPY pyproject.toml /workspace/
 COPY README.md /workspace/
 COPY LICENSE /workspace/

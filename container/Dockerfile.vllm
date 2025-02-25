@@ -92,6 +92,11 @@ COPY lib/bindings /workspace/lib/bindings
 RUN cd lib/bindings/c && \
 cargo build --release --locked && cargo doc --no-deps
 
+# Copy Python wheel configuration files
+COPY pyproject.toml /workspace/
+COPY README.md /workspace/
+COPY LICENSE /workspace/
+
 # Build triton_distributed wheel
 RUN source /opt/triton/venv/bin/activate && \
     uv build --out-dir /workspace/dist && \
