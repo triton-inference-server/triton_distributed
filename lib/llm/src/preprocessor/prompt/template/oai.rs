@@ -25,28 +25,32 @@ use tracing;
 
 impl OAIChatLikeRequest for ChatCompletionRequest {
     fn messages(&self) -> Value {
-        Value::from_serialize(&self.messages)
+        Value::from_serialize(&self.chat_completion_request.messages)
     }
 
     fn tools(&self) -> Option<Value> {
-        if self.tools.is_none() {
+        if self.chat_completion_request.tools.is_none() {
             None
         } else {
-            Some(Value::from_serialize(&self.tools))
+            Some(Value::from_serialize(&self.chat_completion_request.tools))
         }
     }
 
     fn tool_choice(&self) -> Option<Value> {
-        if self.tool_choice.is_none() {
+        if self.chat_completion_request.tool_choice.is_none() {
             None
         } else {
-            Some(Value::from_serialize(&self.tool_choice))
+            Some(Value::from_serialize(
+                &self.chat_completion_request.tool_choice,
+            ))
         }
     }
 
     fn should_add_generation_prompt(&self) -> bool {
-        if let Some(last) = self.messages.last() {
-            last.role == MessageRole::user
+        if let Some(_last) = self.chat_completion_request.messages.last() {
+            // TODO THIS IS CLEARLY WRONG HOLDING OFF FIXING FOR NOW
+            // last.role == MessageRole::user
+            false
         } else {
             true
         }

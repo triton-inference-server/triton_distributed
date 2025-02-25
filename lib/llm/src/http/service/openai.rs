@@ -220,17 +220,21 @@ async fn chat_completions(
     let request_id = uuid::Uuid::new_v4().to_string();
 
     // todo - decide on default
-    let streaming = request.stream.unwrap_or(false);
+    let streaming = request.chat_completion_request.stream.unwrap_or(false);
 
     // update the request to always stream
-    let request = ChatCompletionRequest {
+    let inner_request = async_openai::types::CreateChatCompletionRequest {
         stream: Some(true),
-        ..request
+        ..request.chat_completion_request
+    };
+    let request = ChatCompletionRequest {
+        chat_completion_request: inner_request,
+        nvext: None,
     };
 
     // todo - make the protocols be optional for model name
     // todo - when optional, if none, apply a default
-    let model = &request.model;
+    let model = &request.chat_completion_request.model;
 
     // todo - determine the proper error code for when a request model is not present
     tracing::trace!("Getting chat completions engine for model: {}", model);

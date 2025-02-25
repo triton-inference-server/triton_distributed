@@ -26,10 +26,10 @@ impl ChatCompletionRequest {
     pub fn response_generator(&self) -> DeltaGenerator {
         let options = DeltaGeneratorOptions {
             enable_usage: true,
-            enable_logprobs: self.logprobs.unwrap_or(false),
+            enable_logprobs: self.chat_completion_request.logprobs.unwrap_or(false),
         };
 
-        DeltaGenerator::new(self.model.clone(), options)
+        DeltaGenerator::new(self.chat_completion_request.model.clone(), options)
     }
 }
 
