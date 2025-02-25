@@ -128,7 +128,7 @@ class Client:
 
 class KvRouter:
     """
-    The runtime object for a distributed NOVA applications
+    A router will determine which worker should handle a given request.
     """
 
     ...
@@ -138,9 +138,36 @@ class KvRouter:
         Create a `KvRouter` object that is associated with the `component`
         """
 
-    def schedule(self, token_ids: List[int], lora_id: int) -> str:
+    def schedule(self, token_ids: List[int], lora_id: int) -> int:
         """
         Return the worker id that should handle the given token ids,
         exception will be raised if there is no worker available.
+        """
+        ...
+
+class KvMetricsPublisher:
+    """
+    A metrics publisher will provide KV metrics to the router.
+    """
+
+    ...
+
+    def __init__(self) -> None:
+        """
+        Create a `KvMetricsPublisher` object
+        """
+
+    def create_service(self, component: Component) -> None:
+        """
+        Similar to Component.create_service, but only service created through
+        this method will interact with KV router of the same component.
+        """
+
+    def publish(self, request_active_slots: int,
+        request_total_slots: int,
+        kv_active_blocks: int,
+        kv_total_blocks: int) -> None:
+        """
+        Update the KV metrics being reported.
         """
         ...

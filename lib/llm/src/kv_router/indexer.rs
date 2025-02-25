@@ -79,7 +79,7 @@ pub enum KvRouterError {
 }
 
 /// Identifier of a LLM worker which emits events to the router.
-pub type WorkerId = uuid::Uuid;
+pub type WorkerId = i64;
 
 /// A shared reference to a [`RadixBlock`].
 type SharedRadixBlock = Rc<RefCell<RadixBlock>>;
