@@ -73,7 +73,7 @@ jobs:
       working-directory: /workspace
 
   codeql:
-    name: Analyze Python Codebase
+    name: Analyze Codebase
     runs-on: ubuntu-latest
     permissions:
       actions: read
