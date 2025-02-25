@@ -20,13 +20,14 @@ from ctypes import c_char_p, c_int64, c_uint32
 
 import uvloop
 from common.protocol import Request, Response
-from triton_distributed_rs import (
+from vllm.logger import logger as vllm_logger
+
+from triton_distributed.llm import KvMetricsPublisher
+from triton_distributed.runtime import (
     DistributedRuntime,
-    KvMetricsPublisher,
     triton_endpoint,
     triton_worker,
 )
-from vllm.logger import logger as vllm_logger
 
 
 class TritonResult:

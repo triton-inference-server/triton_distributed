@@ -18,13 +18,14 @@ import asyncio
 
 import uvloop
 from common.protocol import Request, Response
-from triton_distributed_rs import (
+from vllm.logger import logger as vllm_logger
+
+from triton_distributed.llm import KvRouter
+from triton_distributed.runtime import (
     DistributedRuntime,
-    KvRouter,
     triton_endpoint,
     triton_worker,
 )
-from vllm.logger import logger as vllm_logger
 
 
 class Router:
