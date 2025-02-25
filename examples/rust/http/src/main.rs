@@ -13,15 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
 use clap::Parser;
+use std::sync::Arc;
 
-use triton_distributed::{logging, DistributedRuntime, Result, Runtime, Worker};
-use triton_llm::http::service::{
-    discovery::{model_watcher, ModelWatchState},
-    service_v2::HttpService,
+use triton_distributed_llm::{
+    http::service::{
+        discovery::{model_watcher, ModelWatchState},
+        service_v2::HttpService,
+    },
+    model_type::ModelType
 };
-use triton_llm::model_type::ModelType;  // Import the shared ModelType
+use triton_distributed_runtime::{logging, DistributedRuntime, Result, Runtime, Worker, transports::etcd::PrefixWatcher};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -58,7 +60,15 @@ async fn app(runtime: Runtime) -> Result<()> {
         .host(args.host)
         .build()?;
     let manager = http_service.model_manager().clone();
-
+    
+    // todo - use the IntoComponent trait to register the component
+    // todo - start a service
+    // todo - we want the service to create an entry and register component definition
+    // todo - the component definition should be the type of component and it's config
+    // in this example we will have an HttpServiceComponentDefinition object which will be
+    // written to etcd
+    // the cli when operating on an `http` component will validate the namespace.component is
+    // registered with HttpServiceComponentDefinition
     let component = distributed.namespace(&args.namespace)?.component(&args.component)?;
     let etcd_root = component.etcd_path();
 
@@ -76,7 +86,7 @@ async fn app(runtime: Runtime) -> Result<()> {
         });
 
         let etcd_client = distributed.etcd_client();
-        let models_watcher: triton_distributed::transports::etcd::PrefixWatcher = etcd_client.kv_get_and_watch_prefix(etcd_path).await?;
+        let models_watcher: PrefixWatcher = etcd_client.kv_get_and_watch_prefix(etcd_path).await?;
 
         let (_prefix, _watcher, receiver) = models_watcher.dissolve();
         let watcher_task = tokio::spawn(model_watcher(state, receiver));

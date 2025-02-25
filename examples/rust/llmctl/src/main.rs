@@ -16,12 +16,11 @@
 use clap::{Parser, Subcommand};
 use tracing as log;
 
-use triton_distributed::{
+use triton_distributed_llm::{http::service::discovery::ModelEntry, model_type::ModelType};
+use triton_distributed_runtime::{
     distributed::DistributedConfig, logging, protocols::Endpoint, raise, DistributedRuntime,
     Result, Runtime, Worker,
 };
-use triton_llm::http::service::discovery::ModelEntry;
-use triton_llm::model_type::ModelType;
 
 // Macro to define model types and associated commands
 macro_rules! define_type_subcommands {

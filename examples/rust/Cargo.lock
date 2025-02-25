@@ -1257,7 +1257,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 name = "hello_world"
 version = "0.2.0"
 dependencies = [
- "triton-distributed",
+ "triton-distributed-runtime",
 ]
 
 [[package]]
@@ -1285,8 +1285,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "triton-distributed",
- "triton-llm",
+ "triton-distributed-llm",
+ "triton-distributed-runtime",
 ]
 
 [[package]]
@@ -1732,8 +1732,8 @@ dependencies = [
  "tabled",
  "tokio",
  "tracing",
- "triton-distributed",
- "triton-llm",
+ "triton-distributed-llm",
+ "triton-distributed-runtime",
 ]
 
 [[package]]
@@ -2897,7 +2897,7 @@ version = "0.2.0"
 dependencies = [
  "futures",
  "tokio",
- "triton-distributed",
+ "triton-distributed-runtime",
 ]
 
 [[package]]
@@ -3579,7 +3579,49 @@ dependencies = [
 ]
 
 [[package]]
-name = "triton-distributed"
+name = "triton-distributed-llm"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "axum 0.8.1",
+ "blake3",
+ "bs62",
+ "bytes",
+ "chrono",
+ "derive_builder",
+ "either",
+ "erased-serde",
+ "futures",
+ "galil-seiferas",
+ "indexmap 2.7.1",
+ "itertools 0.14.0",
+ "minijinja",
+ "minijinja-contrib",
+ "prometheus",
+ "regex",
+ "semver",
+ "serde",
+ "serde_json",
+ "strum",
+ "thiserror 2.0.11",
+ "tokenizers",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "toktrie",
+ "toktrie_hf_tokenizers",
+ "tracing",
+ "triton-distributed-runtime",
+ "unicode-segmentation",
+ "uuid",
+ "validator",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "triton-distributed-runtime"
 version = "0.2.0"
 dependencies = [
  "anyhow",
@@ -3617,48 +3659,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-subscriber",
- "uuid",
- "validator",
- "xxhash-rust",
-]
-
-[[package]]
-name = "triton-llm"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "async-stream",
- "async-trait",
- "axum 0.8.1",
- "blake3",
- "bs62",
- "bytes",
- "chrono",
- "derive_builder",
- "either",
- "erased-serde",
- "futures",
- "galil-seiferas",
- "indexmap 2.7.1",
- "itertools 0.14.0",
- "minijinja",
- "minijinja-contrib",
- "prometheus",
- "regex",
- "semver",
- "serde",
- "serde_json",
- "strum",
- "thiserror 2.0.11",
- "tokenizers",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "toktrie",
- "toktrie_hf_tokenizers",
- "tracing",
- "triton-distributed",
- "unicode-segmentation",
  "uuid",
  "validator",
  "xxhash-rust",

@@ -22,8 +22,6 @@ from common.chat_processor import ChatProcessor, ProcessMixIn
 from common.parser import parse_vllm_args
 from common.protocol import MyRequestOutput, Tokens, vLLMGenerateRequest
 from transformers import AutoTokenizer
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
-from triton_distributed_rs._core import Client
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
@@ -32,6 +30,13 @@ from vllm.entrypoints.openai.protocol import (
 from vllm.logger import logger as vllm_logger
 from vllm.outputs import RequestOutput
 from vllm.transformers_utils.tokenizer import AnyTokenizer
+
+from triton_distributed._core import Client
+from triton_distributed.runtime import (
+    DistributedRuntime,
+    triton_endpoint,
+    triton_worker,
+)
 
 
 class Processor(ProcessMixIn):

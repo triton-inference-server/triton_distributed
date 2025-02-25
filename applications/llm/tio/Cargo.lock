@@ -4766,8 +4766,8 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-subscriber",
- "triton-distributed",
- "triton-llm",
+ "triton-distributed-llm",
+ "triton-distributed-runtime",
 ]
 
 [[package]]
@@ -5175,7 +5175,50 @@ dependencies = [
 ]
 
 [[package]]
-name = "triton-distributed"
+name = "triton-distributed-llm"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "axum 0.8.1",
+ "blake3",
+ "bs62",
+ "bytes",
+ "chrono",
+ "derive_builder",
+ "either",
+ "erased-serde",
+ "futures",
+ "galil-seiferas",
+ "indexmap 2.7.1",
+ "itertools 0.14.0",
+ "minijinja",
+ "minijinja-contrib",
+ "mistralrs",
+ "prometheus",
+ "regex",
+ "semver",
+ "serde",
+ "serde_json",
+ "strum 0.27.1",
+ "thiserror 2.0.11",
+ "tokenizers",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "toktrie 0.6.28",
+ "toktrie_hf_tokenizers 0.6.28",
+ "tracing",
+ "triton-distributed-runtime",
+ "unicode-segmentation",
+ "uuid 1.14.0",
+ "validator",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "triton-distributed-runtime"
 version = "0.2.0"
 dependencies = [
  "anyhow",
@@ -5213,49 +5256,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-subscriber",
- "uuid 1.14.0",
- "validator",
- "xxhash-rust",
-]
-
-[[package]]
-name = "triton-llm"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "async-stream",
- "async-trait",
- "axum 0.8.1",
- "blake3",
- "bs62",
- "bytes",
- "chrono",
- "derive_builder",
- "either",
- "erased-serde",
- "futures",
- "galil-seiferas",
- "indexmap 2.7.1",
- "itertools 0.14.0",
- "minijinja",
- "minijinja-contrib",
- "mistralrs",
- "prometheus",
- "regex",
- "semver",
- "serde",
- "serde_json",
- "strum 0.27.1",
- "thiserror 2.0.11",
- "tokenizers",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "toktrie 0.6.28",
- "toktrie_hf_tokenizers 0.6.28",
- "tracing",
- "triton-distributed",
- "unicode-segmentation",
  "uuid 1.14.0",
  "validator",
  "xxhash-rust",

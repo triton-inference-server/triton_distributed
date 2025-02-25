@@ -18,7 +18,7 @@ use std::env;
 use clap::Parser;
 
 use tio::{Input, Output};
-use triton_distributed::logging;
+use triton_distributed_runtime::logging;
 
 const HELP: &str = r#"
 tio is a single binary that wires together the various inputs (http, text, network) and workers (network, engine), that runs the services. It is the simplest way to use triton-distributed locally.
@@ -45,15 +45,15 @@ fn main() -> anyhow::Result<()> {
     logging::init();
 
     // max_worker_threads and max_blocking_threads from env vars or config file.
-    let rt_config = triton_distributed::RuntimeConfig::from_settings()?;
+    let rt_config = triton_distributed_runtime::RuntimeConfig::from_settings()?;
 
     // One per process. Wraps a Runtime with holds two tokio runtimes.
-    let worker = triton_distributed::Worker::from_config(rt_config)?;
+    let worker = triton_distributed_runtime::Worker::from_config(rt_config)?;
 
     worker.execute(tio_wrapper)
 }
 
-async fn tio_wrapper(runtime: triton_distributed::Runtime) -> anyhow::Result<()> {
+async fn tio_wrapper(runtime: triton_distributed_runtime::Runtime) -> anyhow::Result<()> {
     let mut in_opt = None;
     let mut out_opt = None;
     let args: Vec<String> = env::args().skip(1).collect();

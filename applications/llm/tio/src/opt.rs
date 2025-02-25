@@ -59,6 +59,9 @@ pub enum Output {
     /// Accept un-preprocessed requests, echo the prompt back as the response
     EchoFull,
 
+    /// Accept preprocessed requests, echo the tokens back as the response
+    EchoCore,
+
     /// Publish requests to a namespace/component/endpoint path.
     Endpoint(String),
 
@@ -76,6 +79,7 @@ impl TryFrom<&str> for Output {
             "mistralrs" => Ok(Output::MistralRs),
 
             "echo_full" => Ok(Output::EchoFull),
+            "echo_core" => Ok(Output::EchoCore),
 
             endpoint_path if endpoint_path.starts_with(ENDPOINT_SCHEME) => {
                 let path = endpoint_path.strip_prefix(ENDPOINT_SCHEME).unwrap();
@@ -94,6 +98,7 @@ impl fmt::Display for Output {
             Output::MistralRs => "mistralrs",
 
             Output::EchoFull => "echo_full",
+            Output::EchoCore => "echo_core",
 
             Output::Endpoint(path) => path,
         };
