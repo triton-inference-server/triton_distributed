@@ -15,13 +15,13 @@
 
 use std::path::PathBuf;
 
-use triton_distributed_runtime::{component::Client, DistributedRuntime};
 use triton_distributed_llm::types::{
     openai::chat_completions::{
         ChatCompletionRequest, ChatCompletionResponseDelta, OpenAIChatCompletionsStreamingEngine,
     },
     Annotated,
 };
+use triton_distributed_runtime::{component::Client, DistributedRuntime};
 
 mod input;
 mod opt;
@@ -138,7 +138,8 @@ pub async fn run(
             };
             EngineConfig::StaticFull {
                 service_name: model_name,
-                engine: triton_distributed_llm::engines::mistralrs::make_engine(&model_path).await?,
+                engine: triton_distributed_llm::engines::mistralrs::make_engine(&model_path)
+                    .await?,
             }
         }
     };

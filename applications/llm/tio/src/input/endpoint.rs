@@ -13,10 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use triton_distributed_llm::http::service::discovery::ModelEntry;
 use triton_distributed_runtime::{
     pipeline::network::Ingress, protocols::Endpoint, DistributedRuntime, Runtime,
 };
-use triton_distributed_llm::http::service::discovery::ModelEntry;
 
 use crate::{EngineConfig, ENDPOINT_SCHEME};
 
