@@ -44,6 +44,9 @@ repos:
     additional_dependencies: [tomli]
     args: ["--toml", "pyproject.toml"]
     exclude: (?x)^(.*stemmer.*|.*stop_words.*|^CHANGELOG.md$|.*lib/llm/tests/data.*)
+    always_run: true
+    verbose: true
+    stage: [warn]
 
 # More details about these pre-commit hooks here:
 # https://pre-commit.com/hooks.html
