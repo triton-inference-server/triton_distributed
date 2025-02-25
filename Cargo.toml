@@ -65,3 +65,4 @@ blake3 = "1"
 regex = "1"
 chrono = { version = "0.4", default-features = false, features = ["alloc", "std", "clock", "now", "serde"] }
 prometheus = { version = "0.13" }
+strum = { version = "0.27", features = ["derive"] }
