@@ -146,7 +146,7 @@ pub async fn run(
             let client = distributed_runtime
                 .namespace(elements[0])?
                 .component(elements[1])?
-                .endpoint(elements[2])
+                .function(elements[2])?
                 .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
                 .await?;
 
