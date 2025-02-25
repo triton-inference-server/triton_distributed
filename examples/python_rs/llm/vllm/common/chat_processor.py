@@ -14,17 +14,20 @@
 # limitations under the License.
 
 import json
-from typing import AsyncIterator, List, Protocol, runtime_checkable
+import time
+from typing import Any, AsyncIterator, List, Protocol, runtime_checkable
 
 from vllm import TokensPrompt
 from vllm.config import ModelConfig
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.chat_utils import ConversationMessage
 from vllm.entrypoints.openai.protocol import (
+    CompletionRequest,
     ChatCompletionRequest,
     RequestResponseMetadata,
 )
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
+from vllm.entrypoints.openai.serving_completion import OpenAIServingCompletion
 from vllm.entrypoints.openai.serving_engine import RequestPrompt
 from vllm.transformers_utils.tokenizer import AnyTokenizer
 
@@ -33,31 +36,45 @@ from vllm.transformers_utils.tokenizer import AnyTokenizer
 class ProcessMixInRequired(Protocol):
     engine_args: AsyncEngineArgs
     chat_processor: "ChatProcessor | None"
+    completions_processor: "CompletionsProcessor | None"
     model_config: ModelConfig
 
 
 class ProcessMixIn(ProcessMixInRequired):
     """
     Mixin for pre and post processing for vLLM
-    Requires engine_args, engine_client, chat_processor, model_config to be initialized
+    Requires engine_args, engine_client, processor, model_config to be initialized
     """
 
     engine_args: AsyncEngineArgs
     chat_processor: "ChatProcessor | None"
+    completions_processor: "CompletionsProcessor | None"
     model_config: ModelConfig
 
     def __init__(self):
         pass
 
+    def _get_processor(self, raw_request: dict):
+        # Determine the processor type based on the request structure
+        if hasattr(raw_request, 'messages'):
+            return self.chat_processor
+        else:
+            return self.completions_processor
+
     async def _parse_raw_request(self, raw_request):
-        if self.chat_processor is None:
-            raise RuntimeError("chat_processor has not been initialized")
-        request = self.chat_processor.parse_raw_request(raw_request)
-        (
-            conversation,
-            request_prompt,
-            engine_prompt,
-        ) = await self.chat_processor.preprocess(raw_request)
+        processor = self._get_processor(raw_request)
+        if processor is None:
+            raise RuntimeError("Processor has not been initialized")
+        request = processor.parse_raw_request(raw_request)
+        preprocess_result = await processor.preprocess(raw_request)
+
+        if isinstance(processor, ChatProcessor):
+            conversation, request_prompt, engine_prompt = preprocess_result
+        else:
+            request_prompt, engine_prompt = preprocess_result
+            conversation = None
+
+
         default_max_tokens = self.model_config.max_model_len - len(
             engine_prompt["prompt_token_ids"]
         )
@@ -70,15 +87,15 @@ class ProcessMixIn(ProcessMixInRequired):
         return request, conversation, request_prompt, engine_prompt, sampling_params
 
     async def _stream_response(self, request, generator, request_id, conversation):
-        if self.chat_processor is None:
-            raise RuntimeError("chat_processor has not been initialized")
-        return self.chat_processor.stream_response(
+        processor = self._get_processor(request)
+        if processor is None:
+            raise RuntimeError("processor has not been initialized")
+        return processor.stream_response(
             request,
             generator,
             request_id,
             conversation,
         )
-
 
 class ChatProcessor:
     def __init__(self, tokenizer: AnyTokenizer, model_config: ModelConfig):
@@ -145,4 +162,67 @@ class ChatProcessor:
             if raw_response.startswith("data: [DONE]"):
                 break
             response = json.loads(raw_response.lstrip("data: "))
+            yield response
+
+class CompletionsProcessor:
+    def __init__(self, tokenizer: AnyTokenizer, model_config: ModelConfig):
+        self.tokenizer = tokenizer
+        self.model_config = model_config
+        self.openai_serving = OpenAIServingCompletion(
+            engine_client=None,
+            model_config=model_config,
+            models=None,
+            request_logger=None,
+        )
+
+    def parse_raw_request(self, raw_request: dict) -> CompletionRequest:
+        return CompletionRequest(
+            model=raw_request.model,
+            prompt=raw_request.prompt,
+            max_tokens=raw_request.max_tokens,
+            temperature=raw_request.temperature,
+            top_p=raw_request.top_p,
+            top_k=raw_request.top_k,
+            stream=raw_request.stream,
+        )
+
+    async def preprocess(self, raw_request: dict) -> tuple[ConversationMessage, RequestPrompt, TokensPrompt]:
+        request = self.parse_raw_request(raw_request)
+
+        (
+            request_prompts,
+            engine_prompts,
+        ) = await self.openai_serving._preprocess_completion(
+            request,
+            self.tokenizer,
+            input_or_inputs=request.prompt,
+            truncate_prompt_tokens=request.truncate_prompt_tokens,
+            add_special_tokens=request.add_special_tokens,
+        )
+
+        return request_prompts[0], engine_prompts[0]
+
+    async def stream_response(
+        self,
+        request: CompletionRequest,
+        result_generator: AsyncIterator,
+        request_id: str,
+        conversation: None,
+    ):
+        request_metadata = RequestResponseMetadata(request_id=request_id)
+        assert request.stream, "Only stream is supported"
+        async for raw_response in self.openai_serving.completion_stream_generator(
+            request,
+            result_generator,
+            request_id,
+            int(time.time()), # created_time
+            request.model,
+            1, # num_prompts
+            self.tokenizer,
+            request_metadata,
+        ):
+            if raw_response.startswith("data: [DONE]"):
+                break
+            response = json.loads(raw_response.lstrip("data: "))
+            
             yield response

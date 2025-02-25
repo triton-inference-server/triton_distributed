@@ -14,16 +14,19 @@
 # limitations under the License.
 
 import asyncio
+from enum import Enum
 import uuid
-from typing import AsyncIterator
+from typing import AsyncIterator, Union, Tuple
 
 import uvloop
-from common.chat_processor import ChatProcessor, ProcessMixIn
+from common.chat_processor import CompletionsProcessor, ChatProcessor, ProcessMixIn
 from common.parser import parse_vllm_args
 from common.protocol import MyRequestOutput, Tokens, vLLMGenerateRequest
 from transformers import AutoTokenizer
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.protocol import (
+    CompletionRequest,
+    CompletionStreamResponse,
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
 )
@@ -38,6 +41,10 @@ from triton_distributed.runtime import (
     triton_worker,
 )
 
+
+class RequestType(Enum):
+    CHAT = "chat"
+    COMPLETION = "completion"
 
 class Processor(ProcessMixIn):
     """
@@ -54,6 +61,7 @@ class Processor(ProcessMixIn):
         self.model_config = self.engine_args.create_model_config()
         self.tokenizer = self._create_tokenizer(engine_args)
         self.chat_processor = ChatProcessor(self.tokenizer, self.model_config)
+        self.completions_processor = CompletionsProcessor(self.tokenizer, self.model_config)
         self.router_client = router_client
         self.workers_client = workers_client
 
@@ -71,27 +79,7 @@ class Processor(ProcessMixIn):
         )
         return base_tokenizer
 
-    async def generate_responses(
-        self, engine_generator
-    ) -> AsyncIterator[RequestOutput]:
-        async for resp in engine_generator:
-            # Deserialize the response from the engine
-            # Creates correct vLLM objects for each field
-            output = MyRequestOutput.model_validate_json(resp.data())
-
-            # OpenAIServingChat.chat_completion_stream_generator() method expects a RequestOutput object
-            yield RequestOutput(
-                request_id=output.request_id,
-                prompt=output.prompt,
-                prompt_token_ids=output.prompt_token_ids,
-                prompt_logprobs=output.prompt_logprobs,
-                outputs=output.outputs,
-                finished=output.finished,
-                metrics=output.metrics,
-            )
-
-    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
-    async def generate(self, raw_request):
+    async def _generate(self, raw_request, request_type: RequestType):
         request_id = str(uuid.uuid4())
         vllm_logger.debug(f"Got raw request: {raw_request}")
         (
@@ -129,13 +117,48 @@ class Processor(ProcessMixIn):
                 int(worker_id),
             )
 
-        output = self.generate_responses(engine_generator)
+        output = self.generate_responses(engine_generator, request_type)
 
         async for response in await self._stream_response(
             request, output, request_id, conversation
         ):
             yield response
 
+    async def generate_responses(
+        self, engine_generator, request_type
+    ) -> AsyncIterator[Union[RequestOutput, Tuple[int, RequestOutput]]]:
+        prompt_idx = 0
+        async for resp in engine_generator:
+            # Deserialize the response from the engine
+            # Creates correct vLLM objects for each field
+            output = MyRequestOutput.model_validate_json(resp.data())
+
+            # OpenAIServingChat.chat_completion_stream_generator() method expects a RequestOutput object
+            request_output = RequestOutput(
+                request_id=output.request_id,
+                prompt=output.prompt,
+                prompt_token_ids=output.prompt_token_ids,
+                prompt_logprobs=output.prompt_logprobs,
+                outputs=output.outputs,
+                finished=output.finished,
+                metrics=output.metrics,
+            )
+
+            if request_type == RequestType.CHAT:
+                yield request_output
+            else:
+                yield (prompt_idx, request_output)
+        prompt_idx += 1
+
+    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
+    async def generate_chat(self, raw_request):
+        async for response in self._generate(raw_request, RequestType.CHAT):
+            yield response
+
+    @triton_endpoint(CompletionRequest, CompletionStreamResponse)
+    async def generate_completions(self, raw_request):
+        async for response in self._generate(raw_request, RequestType.COMPLETION):
+            yield response
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
@@ -159,11 +182,17 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
     preprocess_component = runtime.namespace("triton-init").component("process")
     await preprocess_component.create_service()
-    preprocess_endpoint = preprocess_component.endpoint("chat/completions")
+
+    chat_endpoint = preprocess_component.endpoint("chat/completions")
+    completions_endpoint = preprocess_component.endpoint("completions")
 
     processor = Processor(engine_args, router_client, workers_client)
     assert isinstance(processor, ProcessMixIn)
-    await preprocess_endpoint.serve_endpoint(processor.generate)
+
+    await asyncio.gather(
+        chat_endpoint.serve_endpoint(processor.generate_chat),
+        completions_endpoint.serve_endpoint(processor.generate_completions),
+    )
 
 
 if __name__ == "__main__":
