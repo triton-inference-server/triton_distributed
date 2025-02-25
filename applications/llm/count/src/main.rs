@@ -23,6 +23,7 @@
 //!   - Request Slots: [Active, Total]
 //!   - KV Cache Blocks: [Active, Total]
 
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 
 use triton_distributed::{
@@ -34,24 +35,35 @@ use triton_distributed::{
 
 use tracing as log;
 
-// enum MetricTypes {
-//     LLMWorkerLoadCapacity(LLMWorkerLoadCapacityConfig),
-// }
+/// CLI arguments for the count application
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Component to scrape metrics from
+    #[arg(long)]
+    component: String,
 
-fn get_config() -> Result<LLMWorkerLoadCapacityConfig> {
-    let component_name = std::env::var("TRD_COUNT_SCRAPE_COMPONENT")?;
-    if component_name.is_empty() {
-        return Err(error!("TRD_COUNT_SCRAPE_COMPONENT is not set"));
+    /// Endpoint to scrape metrics from
+    #[arg(long)]
+    endpoint: String,
+
+    /// Namespace to operate in
+    #[arg(long, env = "TRD_NAMESPACE", default_value = "default")]
+    namespace: String,
+}
+
+fn get_config(args: &Args) -> Result<LLMWorkerLoadCapacityConfig> {
+    if args.component.is_empty() {
+        return Err(error!("Component name cannot be empty"));
     }
 
-    let endpoint_name = std::env::var("TRD_COUNT_SCRAPE_ENDPOINT")?;
-    if endpoint_name.is_empty() {
-        return Err(error!("TRD_COUNT_SCRAPE_ENDPOINT is not set"));
+    if args.endpoint.is_empty() {
+        return Err(error!("Endpoint name cannot be empty"));
     }
 
     Ok(LLMWorkerLoadCapacityConfig {
-        component_name,
-        endpoint_name,
+        component_name: args.component.clone(),
+        endpoint_name: args.endpoint.clone(),
     })
 }
 
@@ -74,22 +86,20 @@ pub struct LLMWorkerLoadCapacity {
 
 fn main() -> Result<()> {
     logging::init();
+    let args = Args::parse();
     let worker = Worker::from_settings()?;
-    worker.execute(app)
+    worker.execute(|runtime| app(runtime, args))
 }
 
 // TODO - refactor much of this back into the library
-async fn app(runtime: Runtime) -> Result<()> {
+async fn app(runtime: Runtime, args: Args) -> Result<()> {
     // we will start by assuming that there is no oscar and no planner
-    // to that end, we will use an env to get a singular config for scraping a single backend
-    let config = get_config()?;
+    // to that end, we will use CLI args to get a singular config for scraping a single backend
+    let config = get_config(&args)?;
 
     let drt = DistributedRuntime::from_settings(runtime.clone()).await?;
 
-    // todo move to distributed and standardize and move into file/env/cli config
-    let namespace = std::env::var("TRD_NAMESPACE").unwrap_or("default".to_string());
-
-    let namespace = drt.namespace(namespace)?;
+    let namespace = drt.namespace(args.namespace)?;
     let component = namespace.component("count")?;
 
     // there should only be one count
@@ -202,4 +212,63 @@ pub struct ProcessedEndpoints {
 
     /// {component}.{endpoint}
     pub address: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    fn setup() {
+        // Clear relevant environment variables before each test
+        env::remove_var("TRD_NAMESPACE");
+    }
+
+    #[test]
+    fn test_empty_component_arg() {
+        let args = Args {
+            component: "".to_string(),
+            endpoint: "test-endpoint".to_string(),
+            namespace: "default".to_string(),
+        };
+        let result = get_config(&args);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Component name cannot be empty"));
+    }
+
+    #[test]
+    fn test_empty_endpoint_arg() {
+        let args = Args {
+            component: "test-component".to_string(),
+            endpoint: "".to_string(),
+            namespace: "default".to_string(),
+        };
+        let result = get_config(&args);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Endpoint name cannot be empty"));
+    }
+
+    #[test]
+    fn test_namespace_from_env() {
+        setup();
+        env::set_var("TRD_NAMESPACE", "test-namespace");
+
+        // Parse args with no explicit namespace
+        let args = Args::parse_from(&["count", "--component", "comp", "--endpoint", "end"]);
+
+        // Verify namespace was taken from environment variable
+        assert_eq!(args.namespace, "test-namespace");
+    }
+
+    #[test]
+    fn test_namespace_default() {
+        setup();
+        // Parse args with no explicit namespace and no env var
+        let args = Args::parse_from(&["count", "--component", "comp", "--endpoint", "end"]);
+
+        // Verify default namespace is used
+        assert_eq!(args.namespace, "default");
+    }
 }
