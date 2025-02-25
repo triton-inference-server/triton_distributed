@@ -231,7 +231,7 @@ python3 -m common.client \
     --prompt "Describe the capital of France" \
     --max-tokens 10 \
     --temperature 0.5 \
-    --component tensorrt_llm
+    --component tensorrt-llm
 ```
 
 The output should look similar to:
@@ -319,7 +319,7 @@ Reason: 2 TP2 generation servers are 2 servers but 4 workers/mpi executor.
 
 ```bash
 cd /workspace/examples/python_rs/llm/tensorrt_llm/
-mpirun --allow-run-as-root -n WORLD_SIZE python3 -m disaggregated.worker --engine_args model.json -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml &
+mpirun --allow-run-as-root --oversubscribe -n WORLD_SIZE python3 -m disaggregated.worker --engine_args model.json -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml &
 ```
 If using the provided single_node_config.yaml, WORLD_SIZE should be 3.
 
