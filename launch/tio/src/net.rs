@@ -108,7 +108,7 @@ impl LinkDataError {
 
 impl std::fmt::Display for LinkDataError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let err_message = "couldn't get interface link data";
+        let err_message = "could not get interface link data";
         if let Some(interface) = self.interface.as_ref() {
             write!(f, "{err_message} for {interface}")
         } else {

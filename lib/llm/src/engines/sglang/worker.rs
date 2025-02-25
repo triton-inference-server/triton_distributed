@@ -194,7 +194,7 @@ impl<'py> FromPyObject<'py> for SgLangFinishReason {
         let json_str = obj.str()?.to_string().replace("'", "\"");
         let as_map: HashMap<String, serde_json::Value> =
             serde_json::from_str(&json_str).map_err(|err| {
-                tracing::error!("SgLangFinishReason JSON conver err: {err}. JSON: {json_str}");
+                tracing::error!("SgLangFinishReason JSON convert err: {err}. JSON: {json_str}");
                 PyTypeError::new_err(format!("serde_json err: {err}. JSON: {json_str}"))
             })?;
         let Some(type_serde) = as_map.get("type") else {
