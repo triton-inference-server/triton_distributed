@@ -34,6 +34,7 @@ mistralrs = ["dep:mistralrs"]
 metal = ["mistralrs/metal"]
 cuda = ["mistralrs/cuda"]
 sentencepiece = ["dep:sentencepiece"]
+sglang = ["dep:async_zmq"]
 
 [workspace.dependencies]
 # local or crates.io
@@ -81,6 +82,7 @@ xxhash-rust = { workspace = true }
 strum = { workspace = true }
 
 blake3 = "1"
+regex = "1"
 
 # protocols
 chrono = { version = "0.4", default-features = false, features = [
@@ -91,7 +93,6 @@ chrono = { version = "0.4", default-features = false, features = [
   "serde",
 ] }
 serde_json = { version = "1" }
-regex = "1"
 unicode-segmentation = "1.12"
 
 # http-service
@@ -102,6 +103,17 @@ prometheus = { version = "0.13" }
 either = { version = "1.13" }
 indexmap = { version = "2.6" }
 mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "5e689c9", optional = true }
+
+# sglang
+async_zmq = { version = "0.4.0", optional = true }
+libc = "0.2"
+pyo3 = { version = "0.23.3", default-features = false, features = [
+  "macros",
+  "experimental-async",
+  "experimental-inspect",
+  "py-clone",
+] }
+serde-pickle = "1.2.0"
 
 # tokenizers
 tokenizers = { version = "0.21.0", default-features = false, features = [
