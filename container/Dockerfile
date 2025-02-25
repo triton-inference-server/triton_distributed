@@ -130,6 +130,12 @@ RUN apt-get install tmux -y
 # Working directory
 WORKDIR /workspace
 
+# Copy Python wheel configuration files
+COPY pyproject.toml /workspace/
+COPY README.md /workspace/
+COPY LICENSE /workspace/
+
+# Build Rust runtime
 COPY lib/runtime /workspace/lib/runtime
 RUN cd lib/runtime && \
     cargo build --release --locked && cargo doc --no-deps
@@ -146,11 +152,6 @@ RUN cd examples/rust && \
 COPY lib/bindings /workspace/lib/bindings
 RUN cd lib/bindings/c/ && \
     cargo build --release --locked && cargo doc --no-deps
-
-# Copy Python wheel configuration files
-COPY pyproject.toml /workspace/
-COPY README.md /workspace/
-COPY LICENSE /workspace/
 
 # Install uv, create virtualenv for general use, and build triton_distributed  wheel
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

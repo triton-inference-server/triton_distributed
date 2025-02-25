@@ -72,6 +72,12 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Working directory
 WORKDIR /workspace
 
+# Copy Python wheel configuration files
+COPY pyproject.toml /workspace/
+COPY README.md /workspace/
+COPY LICENSE /workspace/
+
+# Build Rust runtime
 COPY lib/runtime /workspace/lib/runtime
 RUN cd lib/runtime && \
     cargo build --release --locked && cargo doc --no-deps
@@ -91,11 +97,6 @@ RUN cd examples/rust && \
 COPY lib/bindings /workspace/lib/bindings
 RUN cd lib/bindings/c && \
 cargo build --release --locked && cargo doc --no-deps
-
-# Copy Python wheel configuration files
-COPY pyproject.toml /workspace/
-COPY README.md /workspace/
-COPY LICENSE /workspace/
 
 # Build triton_distributed wheel
 RUN source /opt/triton/venv/bin/activate && \
