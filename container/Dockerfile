@@ -164,7 +164,7 @@ RUN mkdir /opt/triton && \
 # Package the bindings
 RUN mkdir -p /opt/triton/bindings/wheels && \
     mkdir /opt/triton/bindings/lib && \
-    cp /workspace/dist/triton_distributed*cp312*.whl /opt/triton/bindings/wheels/. && \
+    cp dist/triton_distributed*cp312*.whl /opt/triton/bindings/wheels/. && \
     cp lib/bindings/c/target/release/libtriton_distributed_llm_capi.so /opt/triton/bindings/lib/. && \
     cp -r lib/bindings/c/include /opt/triton/bindings/.
 
