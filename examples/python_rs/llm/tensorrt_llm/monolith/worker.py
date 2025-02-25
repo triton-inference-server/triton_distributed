@@ -158,5 +158,5 @@ async def worker(
 
 if __name__ == "__main__":
     uvloop.install()
-    engine_args = parse_tensorrt_llm_args()
+    _, engine_args = parse_tensorrt_llm_args()
     asyncio.run(worker(engine_args))

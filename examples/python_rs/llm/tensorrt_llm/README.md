@@ -34,6 +34,7 @@ Start required services (etcd and NATS):
         - example: `nats-server -js --trace`
     - [etcd](https://etcd.io) server
         - follow instructions in [etcd installation](https://etcd.io/docs/v3.5/install/) to start an `etcd-server` locally
+        - example: `etcd --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://0.0.0.0:2379`
 
 
 ## Building the Environment
@@ -89,18 +90,19 @@ Run the server and client components in separate terminal sessions:
 
 **Server:**
 
-#### 1.1 Single-Node Single-GPU
+Note: The following commands are tested on machines withH100x8 GPUs
+
+#### Option 1.1 Single-Node Single-GPU
 
 ```bash
 # Launch worker
 cd /workspace/examples/python_rs/llm/tensorrt_llm
-python3 -m monolith.worker --engine_args model.json
-
+mpirun --allow-run-as-root -n 1 --oversubscribe python3 -m monolith.worker --engine_args model.json
 ```
 
 Upon successful launch, the output should look similar to:
 
-```
+```bash
 [TensorRT-LLM][INFO] KV cache block reuse is disabled
 [TensorRT-LLM][INFO] Max KV cache pages per sequence: 2048
 [TensorRT-LLM][INFO] Number of tokens per block: 64.
@@ -109,9 +111,116 @@ Upon successful launch, the output should look similar to:
 [02/14/2025-09:38:53] [TRT-LLM] [I] Engine loaded and ready to serve...
 ```
 
-#### 1.2 Single-Node Multi-GPU
+Output from nvidia-smi:
 
-#### 1.3 Multi-Node Multi-GPU
+```bash
+root@eos0520:/workspace/examples/python_rs/llm/tensorrt_llm# nvidia-smi
+Mon Feb 24 17:39:10 2025
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 535.129.03             Driver Version: 535.129.03   CUDA Version: 12.8     |
+|-----------------------------------------+----------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
+|                                         |                      |               MIG M. |
+|=========================================+======================+======================|
+|   0  NVIDIA H100 80GB HBM3          On  | 00000000:1B:00.0 Off |                    0 |
+| N/A   28C    P0             110W / 700W |  72805MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   1  NVIDIA H100 80GB HBM3          On  | 00000000:43:00.0 Off |                    0 |
+| N/A   28C    P0              72W / 700W |      7MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   2  NVIDIA H100 80GB HBM3          On  | 00000000:52:00.0 Off |                    0 |
+| N/A   26C    P0              69W / 700W |      7MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   3  NVIDIA H100 80GB HBM3          On  | 00000000:61:00.0 Off |                    0 |
+| N/A   27C    P0              73W / 700W |      7MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   4  NVIDIA H100 80GB HBM3          On  | 00000000:9D:00.0 Off |                    0 |
+| N/A   27C    P0              73W / 700W |      7MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   5  NVIDIA H100 80GB HBM3          On  | 00000000:C3:00.0 Off |                    0 |
+| N/A   27C    P0              72W / 700W |      7MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   6  NVIDIA H100 80GB HBM3          On  | 00000000:D1:00.0 Off |                    0 |
+| N/A   26C    P0              71W / 700W |      7MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   7  NVIDIA H100 80GB HBM3          On  | 00000000:DF:00.0 Off |                    0 |
+| N/A   26C    P0              71W / 700W |      7MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+```
+
+Note the high memory usage of GPU0, while other GPUs have minimal usage. This is expected behavior as the model is loaded on GPU0.
+
+#### Option 1.2 Single-Node Multi-GPU
+
+Update `tensor_parallel_size` in the `model.json` to load the model with the desired number of GPUs.
+For this example, we will load the model with 4 GPUs.
+
+```bash
+# Launch worker
+cd /workspace/examples/python_rs/llm/tensorrt_llm
+mpirun --allow-run-as-root -n 1 --oversubscribe python3 -m monolith.worker --engine_args model.json
+```
+
+Output from nvidia-smi:
+
+```bash
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 535.129.03             Driver Version: 535.129.03   CUDA Version: 12.8     |
+|-----------------------------------------+----------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
+|                                         |                      |               MIG M. |
+|=========================================+======================+======================|
+|   0  NVIDIA H100 80GB HBM3          On  | 00000000:1B:00.0 Off |                    0 |
+| N/A   28C    P0             110W / 700W |  73073MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   1  NVIDIA H100 80GB HBM3          On  | 00000000:43:00.0 Off |                    0 |
+| N/A   29C    P0             116W / 700W |  73121MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   2  NVIDIA H100 80GB HBM3          On  | 00000000:52:00.0 Off |                    0 |
+| N/A   27C    P0             110W / 700W |  73121MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   3  NVIDIA H100 80GB HBM3          On  | 00000000:61:00.0 Off |                    0 |
+| N/A   28C    P0             113W / 700W |  72881MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   4  NVIDIA H100 80GB HBM3          On  | 00000000:9D:00.0 Off |                    0 |
+| N/A   26C    P0              73W / 700W |      7MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   5  NVIDIA H100 80GB HBM3          On  | 00000000:C3:00.0 Off |                    0 |
+| N/A   26C    P0              71W / 700W |      7MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   6  NVIDIA H100 80GB HBM3          On  | 00000000:D1:00.0 Off |                    0 |
+| N/A   26C    P0              71W / 700W |      7MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+|   7  NVIDIA H100 80GB HBM3          On  | 00000000:DF:00.0 Off |                    0 |
+| N/A   25C    P0              71W / 700W |      7MiB / 81559MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+
+```
+
+Note that first 4 GPUs are loaded with the model and the remaining 4 GPUs are idle.
+
+
+#### Option 1.3 Multi-Node Multi-GPU
+
+Tanmay[WIP]
 
 **Client:**
 
@@ -121,7 +230,8 @@ Upon successful launch, the output should look similar to:
 python3 -m common.client \
     --prompt "Describe the capital of France" \
     --max-tokens 10 \
-    --temperature 0.5
+    --temperature 0.5 \
+    --component tensorrt_llm
 ```
 
 The output should look similar to:
@@ -140,9 +250,10 @@ Annotated(data=', Paris, in terms of its history, culture', event=None, comment=
 
 ### 2. Disaggregated Deployment
 
+#### 2.1 Single-Node Disaggregated Deployment
+
 **Environment**
 This is the latest image with tensorrt_llm supporting distributed serving with pytorch workflow in LLM API.
-TODO: can use TRT-LLM main in dockerfile now.
 
 
 Run the container interactively with the following command:
@@ -210,6 +321,7 @@ Reason: 2 TP2 generation servers are 2 servers but 4 workers/mpi executor.
 cd /workspace/examples/python_rs/llm/tensorrt_llm/
 mpirun --allow-run-as-root -n WORLD_SIZE python3 -m disaggregated.worker --engine_args model.json -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml &
 ```
+If using the provided single_node_config.yaml, WORLD_SIZE should be 3.
 
 **Launch the router**
 
@@ -229,14 +341,20 @@ python3 -m common.client \
     --component router
 ```
 
+Tanmay[WIP]: Running into some issues when running the client:
+```
+File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+  File "/usr/local/lib/python3.12/dist-packages/triton_distributed_rs/__init__.py", line 33, in wrapper
+    await func(runtime, *args, **kwargs)
+  File "/workspace/examples/python_rs/llm/tensorrt_llm/common/client.py", line 68, in worker
+    async for resp in stream:
+ValueError: a python exception was caught while processing the async generator: ValueError: a python exception was caught while processing the async generator: ValueError: Unknown finish reason: FinishReason.NOT_FINISHED
+```
+
 For more details on the disaggregated deployment, please refer to the [TRT-LLM example](#TODO).
 
 
-### 3. Multi-Node Deployment
-
-#### 3.1 Monolithic Deployment
-
-#### 3.2 Disaggregated Deployment
+### 3. Multi-Node Disaggregated Deployment
 
 To run the disaggregated deployment across multiple nodes, we need to launch the servers using MPI, pass the correct NATS and etcd endpoints to each server and update the LLMAPI disaggregated config file to use the correct endpoints.
 
