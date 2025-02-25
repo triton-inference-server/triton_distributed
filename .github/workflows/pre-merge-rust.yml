@@ -26,9 +26,12 @@ on:
     branches:
     - main
     paths:
-    - 'runtime/rust/**'
-    - 'llm/rust/**'
-    - 'applications/llm/bin/tio/**'
+    - pre-merge-rust.yml
+    - 'lib/runtime/**'
+    - 'lib/llm/**'
+    - 'lib/bindings/**'
+    - 'launch/**'
+    - 'examples/rust/**'
     - '**.rs'
     - 'Cargo.toml'
     - 'Cargo.lock'
@@ -36,6 +39,8 @@ on:
 jobs:
   pre-merge-rust:
     runs-on: ubuntu-latest
+    strategy:
+      matrix: { dir: ['lib/runtime', 'lib/llm', 'lib/bindings/c', 'lib/bindings/python', 'launch/tio', 'applications/llm/count', 'examples/rust'] }
     permissions:
       contents: read
     steps:
@@ -64,27 +69,30 @@ jobs:
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
     - name: Set up Rust Toolchain Components
       run: rustup component add rustfmt clippy
-    - name: Run Cargo Check on runtime
-      working-directory: runtime/rust
+    - name: Run Cargo Check
+      working-directory: ${{ matrix.dir }}
       run: cargo check --locked
-    - name: Run Cargo Check on tio
-      working-directory: applications/llm/bin/tio
-      run: cargo check --locked
+      timeout-minutes: 5
     - name: Verify Code Formatting
-      working-directory: runtime/rust
+      working-directory: ${{ matrix.dir }}
       run: cargo fmt -- --check
-    - name: Run Clippy Checks on runtime
-      working-directory: runtime/rust
-      run: cargo clippy --no-deps --all-targets -- -D warnings
-    - name: Run Clippy Checks on tio
-      working-directory: applications/llm/bin/tio
+    - name: Run Clippy Checks
+      working-directory: ${{ matrix.dir }}
       run: cargo clippy --no-deps --all-targets -- -D warnings
     - name: Install and Run cargo-deny
-      working-directory: runtime/rust
+      working-directory: ${{ matrix.dir }}
+      # FIXME: Skip this step for failing dirs until license errors fixed
+      if: |
+        matrix.dir != 'examples/rust' &&
+        matrix.dir != 'applications/llm/count' &&
+        matrix.dir != 'launch/tio' &&
+        matrix.dir != 'lib/llm' &&
+        matrix.dir != 'lib/bindings/c' &&
+        matrix.dir != 'lib/bindings/python'
       run: |
-        cargo-deny --version || cargo install cargo-deny
+        cargo-deny --version || cargo install cargo-deny@0.16.4
         cargo-deny check --hide-inclusion-graph licenses
       timeout-minutes: 5
     - name: Run Unit Tests
-      working-directory: runtime/rust
+      working-directory: ${{ matrix.dir }}
       run: cargo test --locked --all-targets

@@ -15,7 +15,7 @@
 
 use hello_world::DEFAULT_NAMESPACE;
 use std::sync::Arc;
-use triton_distributed::{
+use triton_distributed_runtime::{
     logging,
     pipeline::{
         async_trait, network::Ingress, AsyncEngine, AsyncEngineContextProvider, Error, ManyOut,

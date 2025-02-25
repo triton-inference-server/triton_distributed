@@ -21,9 +21,9 @@ import uuid
 import msgspec
 import uvloop
 from common.base_engine import BaseVllmEngine
+from common.chat_processor import ProcessMixIn
 from common.parser import parse_vllm_args
 from common.protocol import PrefillRequest
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
@@ -31,8 +31,14 @@ from vllm.entrypoints.openai.protocol import (
 )
 from vllm.logger import logger as vllm_logger
 
+from triton_distributed.runtime import (
+    DistributedRuntime,
+    triton_endpoint,
+    triton_worker,
+)
 
-class VllmDecodeEngine(BaseVllmEngine):
+
+class VllmDecodeEngine(BaseVllmEngine, ProcessMixIn):
     """
     Request handler for the generate endpoint
     """
