@@ -5,7 +5,7 @@ import asyncio
 import uvloop
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.config import KVTransferConfig
-from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams, RemotePrefillResponse
+from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams
 from vllm.entrypoints.openai.api_server import build_async_engine_client_from_engine_args
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
@@ -48,11 +48,9 @@ class RequestHandler:
         self.initialized = True
 
     def get_remote_prefill_request_callback(self):
-        async def callback(request: RemotePrefillRequest) -> RemotePrefillResponse:
+        async def callback(request: RemotePrefillRequest):
             json_request = msgspec.json.encode(request).decode("utf-8")
-            stream = await self.prefill_client.generate(json_request)
-            async for response in stream:
-                return msgspec.json.decode(response.data().encode("utf-8"), type=RemotePrefillResponse)
+            self.prefill_client.generate(json_request)
         return callback
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
