@@ -15,15 +15,15 @@
 
 import json
 import time
-from typing import Optional, AsyncIterator, List, Protocol, runtime_checkable, Union, Tuple
+from typing import AsyncIterator, List, Optional, Protocol, Union, runtime_checkable
 
 from vllm import TokensPrompt
 from vllm.config import ModelConfig
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.chat_utils import ConversationMessage
 from vllm.entrypoints.openai.protocol import (
-    CompletionRequest,
     ChatCompletionRequest,
+    CompletionRequest,
     RequestResponseMetadata,
 )
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
@@ -54,7 +54,9 @@ class ProcessMixIn(ProcessMixInRequired):
     def __init__(self):
         pass
 
-    def _get_processor(self, raw_request: Union[CompletionRequest, ChatCompletionRequest]):
+    def _get_processor(
+        self, raw_request: Union[CompletionRequest, ChatCompletionRequest]
+    ):
         # Determine the processor type based on the request structure
         if isinstance(raw_request, ChatCompletionRequest):
             processor = self.chat_processor
@@ -65,7 +67,9 @@ class ProcessMixIn(ProcessMixInRequired):
 
         return processor
 
-    async def _parse_raw_request(self, raw_request: Union[CompletionRequest, ChatCompletionRequest]):
+    async def _parse_raw_request(
+        self, raw_request: Union[CompletionRequest, ChatCompletionRequest]
+    ):
         processor = self._get_processor(raw_request)
         if processor is None:
             raise RuntimeError("Processor has not been initialized")
@@ -81,7 +85,13 @@ class ProcessMixIn(ProcessMixInRequired):
             self.model_config.logits_processor_pattern,
             default_sampling_params,
         )
-        return request, preprocess_result.conversation, preprocess_result.request_prompt, preprocess_result.engine_prompt, sampling_params
+        return (
+            request,
+            preprocess_result.conversation,
+            preprocess_result.request_prompt,
+            preprocess_result.engine_prompt,
+            sampling_params,
+        )
 
     async def _stream_response(self, request, generator, request_id, conversation):
         processor = self._get_processor(request)
@@ -93,9 +103,15 @@ class ProcessMixIn(ProcessMixInRequired):
             request_id,
             conversation,
         )
-    
+
+
 class PreprocessResult:
-    def __init__(self, conversation: Optional[ConversationMessage], request_prompt: RequestPrompt, engine_prompt: TokensPrompt):
+    def __init__(
+        self,
+        conversation: Optional[ConversationMessage],
+        request_prompt: RequestPrompt,
+        engine_prompt: TokensPrompt,
+    ):
         self.conversation = conversation
         self.request_prompt = request_prompt
         self.engine_prompt = engine_prompt
@@ -115,12 +131,12 @@ class ChatProcessor:
             chat_template_content_format="auto",
         )
 
-    def parse_raw_request(self, raw_request: ChatCompletionRequest) -> ChatCompletionRequest:
+    def parse_raw_request(
+        self, raw_request: ChatCompletionRequest
+    ) -> ChatCompletionRequest:
         return ChatCompletionRequest.parse_obj(raw_request)
 
-    async def preprocess(
-        self, raw_request: ChatCompletionRequest
-    ) -> PreprocessResult:
+    async def preprocess(self, raw_request: ChatCompletionRequest) -> PreprocessResult:
         request = self.parse_raw_request(raw_request)
 
         (
@@ -169,6 +185,7 @@ class ChatProcessor:
             response = json.loads(raw_response.lstrip("data: "))
             yield response
 
+
 class CompletionsProcessor:
     def __init__(self, tokenizer: AnyTokenizer, model_config: ModelConfig):
         self.tokenizer = tokenizer
@@ -213,14 +230,14 @@ class CompletionsProcessor:
             request,
             result_generator,
             request_id,
-            int(time.time()), # created_time
+            int(time.time()),  # created_time
             request.model,
-            1, # num_prompts
+            1,  # num_prompts
             self.tokenizer,
             request_metadata,
         ):
             if raw_response.startswith("data: [DONE]"):
                 break
             response = json.loads(raw_response.lstrip("data: "))
-            
+
             yield response

@@ -14,21 +14,21 @@
 # limitations under the License.
 
 import asyncio
-from enum import Enum
 import uuid
-from typing import AsyncIterator, Union, Tuple
+from enum import Enum
+from typing import AsyncIterator, Tuple, Union
 
 import uvloop
-from common.chat_processor import CompletionsProcessor, ChatProcessor, ProcessMixIn
+from common.chat_processor import ChatProcessor, CompletionsProcessor, ProcessMixIn
 from common.parser import parse_vllm_args
 from common.protocol import MyRequestOutput, Tokens, vLLMGenerateRequest
 from transformers import AutoTokenizer
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.protocol import (
-    CompletionRequest,
-    CompletionStreamResponse,
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
+    CompletionRequest,
+    CompletionStreamResponse,
 )
 from vllm.logger import logger as vllm_logger
 from vllm.outputs import RequestOutput
@@ -46,6 +46,7 @@ class RequestType(Enum):
     CHAT = "chat"
     COMPLETION = "completion"
 
+
 class Processor(ProcessMixIn):
     """
     vLLM pre and post processing
@@ -61,7 +62,9 @@ class Processor(ProcessMixIn):
         self.model_config = self.engine_args.create_model_config()
         self.tokenizer = self._create_tokenizer(engine_args)
         self.chat_processor = ChatProcessor(self.tokenizer, self.model_config)
-        self.completions_processor = CompletionsProcessor(self.tokenizer, self.model_config)
+        self.completions_processor = CompletionsProcessor(
+            self.tokenizer, self.model_config
+        )
         self.router_client = router_client
         self.workers_client = workers_client
 
@@ -79,7 +82,11 @@ class Processor(ProcessMixIn):
         )
         return base_tokenizer
 
-    async def _generate(self, raw_request: Union[CompletionRequest, ChatCompletionRequest], request_type: RequestType):
+    async def _generate(
+        self,
+        raw_request: Union[CompletionRequest, ChatCompletionRequest],
+        request_type: RequestType,
+    ):
         request_id = str(uuid.uuid4())
         vllm_logger.debug(f"Got raw request: {raw_request}")
         (
@@ -151,7 +158,9 @@ class Processor(ProcessMixIn):
                 # Completion requests can have multiple prompts and stream generator requires the prompt index
                 yield (prompt_idx, request_output)
             else:
-                raise NotImplementedError(f"Request type {request_type} not implemented")
+                raise NotImplementedError(
+                    f"Request type {request_type} not implemented"
+                )
         prompt_idx += 1
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
@@ -163,6 +172,7 @@ class Processor(ProcessMixIn):
     async def generate_completions(self, raw_request):
         async for response in self._generate(raw_request, RequestType.COMPLETION):
             yield response
+
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
