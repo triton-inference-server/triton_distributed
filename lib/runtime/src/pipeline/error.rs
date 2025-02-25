@@ -87,6 +87,9 @@ pub enum PipelineError {
     #[error("Generate Error: {0}")]
     GenerateError(Error),
 
+    #[error("An endpoint URL must have the format: namespace/component/endpoint")]
+    InvalidEndpointFormat,
+
     #[error("NATS Request Error: {0}")]
     NatsRequestError(#[from] NatsError<async_nats::jetstream::context::RequestErrorKind>),
 
