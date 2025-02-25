@@ -30,7 +30,7 @@ on:
     - 'lib/runtime/**'
     - 'lib/llm/**'
     - 'lib/bindings/**'
-    - 'applications/llm/**'
+    - 'launch/**'
     - 'examples/rust/**'
     - '**.rs'
     - 'Cargo.toml'
