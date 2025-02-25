@@ -19,8 +19,12 @@ VLLM_USE_PRECOMPILED=1 uv pip install -e "vllm  @ <path to vllm repo @ ptarasiew
 
 ## Run example
 
-Run in container. In terminal 0:
+Run in container. Clean up metadata files:
+```
+rm -r /tmp/nixl
+```
 
+In terminal 0:
 ```
 llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B test-nixl.process.chat/completions
 TRT_LOG=DEBUG http --port 8181

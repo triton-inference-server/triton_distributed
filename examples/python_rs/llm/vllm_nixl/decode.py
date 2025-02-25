@@ -1,4 +1,3 @@
-import zmq
 import msgspec
 import json
 import asyncio
@@ -18,6 +17,7 @@ from vllm.entrypoints.openai.serving_models import OpenAIServingModels, BaseMode
 from triton_distributed_rs import DistributedRuntime, triton_worker, triton_endpoint
 
 from protocol import Request
+from common import temp_metadata_file
 
 class RequestHandler:
     def __init__(self, engine_client: EngineClient, prefill_client):
@@ -79,20 +79,8 @@ class RequestHandler:
             yield response
         
 
-
-# This is only used for metadata exchange between prefill and decode
-# Should be replaced with etcd
-def init_zmq(hostname="localhost", port=5432):
-    ctx = zmq.Context()
-    socket = ctx.socket(zmq.PAIR)
-    socket.connect(f"tcp://{hostname}:{port}")
-
-    return socket
-
-
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
-    socket = init_zmq()
 
     component = runtime.namespace("test-nixl").component("vllm")
     await component.create_service()
@@ -105,13 +93,8 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
         # This should be replaced with etcd
         metadata = engine_client.nixl_metadata
-        assert metadata is not None
-        print("[socket.send] Sending metadata to prefill")
-        encoded_metadata = msgspec.msgpack.encode(metadata)
-        socket.send(encoded_metadata)
-        print("[socket.send] Sent metadata to prefill")
-
-        await endpoint.serve_endpoint(RequestHandler(engine_client, prefill_client).generate)
+        with temp_metadata_file(metadata.engine_id, metadata):
+            await endpoint.serve_endpoint(RequestHandler(engine_client, prefill_client).generate)
 
 if __name__ == "__main__":
     uvloop.install()

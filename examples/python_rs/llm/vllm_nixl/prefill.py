@@ -1,4 +1,3 @@
-import zmq
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.config import KVTransferConfig
 from vllm.inputs.data import TokensPrompt
@@ -11,6 +10,8 @@ import uvloop
 
 
 from triton_distributed_rs import DistributedRuntime, triton_worker
+
+from common import temp_metadata_file, find_remote_metadata
 
 
 class RequestHandler:
@@ -43,19 +44,8 @@ class RequestHandler:
             yield 
 
 
-# This is only used for metadata exchange between prefill and decode
-# Should be replaced with etcd
-def init_zmq(hostname="localhost", port=5432):
-    ctx = zmq.Context()
-    socket = ctx.socket(zmq.PAIR)
-    socket.bind(f"tcp://{hostname}:{port}")
-    return socket
-
-
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
-    socket = init_zmq()
-
     component = runtime.namespace("test-nixl").component("prefill")
     await component.create_service()
 
@@ -64,13 +54,26 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
 
         # This should be replaced with etcd
-        print("[socket.recv] Receiving metadata from decode")
-        msg = socket.recv()
-        decode_meta = msgspec.msgpack.decode(msg, type=NixlMetadata)
-        await engine_client.add_remote_nixl_metadata(decode_meta)
-        print(f"Added remote metadata")
+        metadata = engine_client.nixl_metadata
+        with temp_metadata_file(metadata.engine_id, metadata):
+            print(f"Waiting for remote metadata for engine {metadata.engine_id}")
+            remote_metadata = []
+            while not remote_metadata:
+                await asyncio.sleep(1)
+                remote_metadata = find_remote_metadata(metadata.engine_id)
 
-        await endpoint.serve_endpoint(RequestHandler(engine_client).generate)
+            print(f"Found {len(remote_metadata)} remote metadata for engine {metadata.engine_id}")
+            for remote_metadata in remote_metadata:
+                await engine_client.add_remote_nixl_metadata(remote_metadata)
+            await endpoint.serve_endpoint(RequestHandler(engine_client).generate)
+
+        # # This should be replaced with etcd
+        # print("[socket.recv] Receiving metadata from decode")
+        # msg = socket.recv()
+        # decode_meta = msgspec.msgpack.decode(msg, type=NixlMetadata)
+        # await engine_client.add_remote_nixl_metadata(decode_meta)
+        # print(f"Added remote metadata")
+
 
 if __name__ == "__main__":
     uvloop.install()
