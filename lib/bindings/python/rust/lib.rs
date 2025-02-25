@@ -34,6 +34,7 @@ use triton_distributed_runtime::{
 use triton_distributed_llm::{self as llm_rs};
 
 mod engine;
+mod http;
 mod llm;
 
 type JsonServerStreamingIngress =
@@ -63,6 +64,9 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Endpoint>()?;
     m.add_class::<Client>()?;
     m.add_class::<AsyncResponseStream>()?;
+    m.add_class::<http::HttpService>()?;
+    m.add_class::<http::HttpError>()?;
+    m.add_class::<http::HttpAsyncEngine>()?;
     m.add_class::<llm::kv::KvRouter>()?;
     m.add_class::<llm::kv::KvMetricsPublisher>()?;
     m.add_class::<llm::model_card::ModelDeploymentCard>()?;
