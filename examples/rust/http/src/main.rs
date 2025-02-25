@@ -16,8 +16,8 @@
 use clap::Parser;
 use std::sync::Arc;
 
-use triton_distributed::{logging, DistributedRuntime, Result, Runtime, Worker};
-use triton_llm::http::service::{
+use triton_distributed_runtime::{logging, DistributedRuntime, Result, Runtime, Worker};
+use triton_distributed_llm::http::service::{
     discovery::{model_watcher, ModelWatchState},
     service_v2::HttpService,
 };

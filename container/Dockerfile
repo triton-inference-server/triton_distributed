@@ -28,7 +28,6 @@ USER root
 RUN apt-get update && \
     apt-get install --no-install-recommends --yes  gdb protobuf-compiler cmake libssl-dev pkg-config
 
-
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
@@ -131,15 +130,12 @@ RUN apt-get install tmux -y
 # Working directory
 WORKDIR /workspace
 
-COPY icp /workspace/icp
-RUN /workspace/icp/protos/gen_python.sh
-
-COPY runtime /workspace/runtime
-RUN cd runtime/rust && \
+COPY lib/runtime /workspace/lib/runtime
+RUN cd lib/runtime && \
     cargo build --release --locked && cargo doc --no-deps
 
 # Build OpenAI HTTP Service binaries
-COPY llm/rust /workspace/llm/rust
+COPY lib/llm /workspace/lib/llm
 COPY examples/rust /workspace/examples/rust
 RUN cd examples/rust && \
     cargo build --release && \
@@ -147,49 +143,34 @@ RUN cd examples/rust && \
     cp target/release/llmctl /usr/local/bin/
 
 # Generate C bindings. Note that this is required for TRTLLM backend re-build
-COPY llm/rust /workspace/llm/rust
-RUN cd llm/rust/ && \
+COPY lib/bindings /workspace/lib/bindings
+RUN cd lib/bindings/c/ && \
     cargo build --release --locked && cargo doc --no-deps
 
-# Install uv, create virtualenv for general use, and build triton_distributed_rs wheel
-COPY python-wheel /workspace/python-wheel
+# Install uv, create virtualenv for general use, and build triton_distributed  wheel
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
-    cd python-wheel && \
+    cd lib/bindings/python && \
     uv build && \
-    uv pip install dist/triton_distributed_rs*cp312*.whl
+    uv pip install /workspace/lib/bindings/python/dist/triton_distributed*cp312*.whl
 
 # Package the bindings
-RUN mkdir -p /opt/triton/llm_binding/wheels && \
-    mkdir /opt/triton/llm_binding/lib && \
-    cp python-wheel/dist/triton_distributed_rs*cp312*.whl /opt/triton/llm_binding/wheels/. && \
-    cp llm/rust/target/release/libtriton_llm_capi.so /opt/triton/llm_binding/lib/. && \
-    cp -r llm/rust/libtriton-llm/include /opt/triton/llm_binding/.
+RUN mkdir -p /opt/triton/bindings/wheels && \
+    mkdir /opt/triton/bindings/lib && \
+    cp lib/bindings/python/dist/triton_distributed*cp312*.whl /opt/triton/bindings/wheels/. && \
+    cp lib/bindings/c/target/release/libtriton_distributed_llm_capi.so /opt/triton/bindings/lib/. && \
+    cp -r lib/bindings/c/include /opt/triton/bindings/.
 
-# Install triton_distributed_rs wheel globally in container for tests that
+# Install triton_distributed_runtime and triton_distributed_llm wheels globally in container for tests that
 # currently run without virtual environment activated.
 # TODO: In future, we may use a virtualenv for everything and remove this.
-RUN pip install /opt/triton/llm_binding/wheels/triton_distributed_rs*cp312*.whl
-
-# Install python packages
-ARG PYTHON_PACKAGE_VERSION=0.0.1.dev+unknown
-
-# SETUPTOOLS_SCM_PRETEND_VERSION allows dynamically setting the package versions during build/install.
-# This allows having versioned packages during development between releases, such as commit IDs.
-#
-# Normally SCM version is taken directly from .git but this is not available in the Dockerfile
-# and so we pass in via a buildarg
-RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_ICP=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/icp/python
-RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRITON_DISTRIBUTED_RUNTIME=${PYTHON_PACKAGE_VERSION} pip install -e /workspace/runtime/python
+RUN pip install /opt/triton/bindings/wheels/triton_distributed*cp312*.whl
 
 # Copy everything in after install steps to avoid re-running build/install
 # commands on unrelated changes in other dirs.
 COPY . /workspace
-
-# Sets pythonpath for python modules
-ENV PYTHONPATH="${PYTHONPATH}:/workspace/examples/python:/opt/tritonserver/python/openai/openai_frontend"
 
 # Enable system UCX
 ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true

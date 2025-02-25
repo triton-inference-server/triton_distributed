@@ -27,11 +27,11 @@ on:
     - main
     paths:
     - pre-merge-rust.yml
+    - 'lib/runtime/**'
+    - 'lib/llm/**'
+    - 'lib/bindings/**'
     - 'applications/llm/tio/**'
-    - 'llm/rust/**'
     - 'examples/rust/**'
-    - 'python-wheel/rust/**'
-    - 'runtime/rust/**'
     - '**.rs'
     - 'Cargo.toml'
     - 'Cargo.lock'
@@ -40,7 +40,7 @@ jobs:
   pre-merge-rust:
     runs-on: ubuntu-latest
     strategy:
-      matrix: { dir: ['runtime/rust', 'applications/llm/tio', 'examples/rust', 'llm/rust', 'python-wheel'] }
+      matrix: { dir: ['lib/runtime', 'lib/llm', 'lib/bindings/c', 'lib/bindings/python', 'applications/llm/tio', 'examples/rust'] }
     permissions:
       contents: read
     steps:
@@ -85,8 +85,9 @@ jobs:
       if: |
         matrix.dir != 'examples/rust' &&
         matrix.dir != 'applications/llm/tio' &&
-        matrix.dir != 'llm/rust' &&
-        matrix.dir != 'python-wheel'
+        matrix.dir != 'lib/llm' &&
+        matrix.dir != 'lib/bindings/c' &&
+        matrix.dir != 'lib/bindings/python'
       run: |
         cargo-deny --version || cargo install cargo-deny@0.16.4
         cargo-deny check --hide-inclusion-graph licenses
