@@ -21,9 +21,7 @@ class RequestHandler:
         
 
     async def generate(self, raw_request: str):
-        print("Got request")
         request: RemotePrefillRequest = msgspec.json.decode(raw_request.encode("utf-8"), type=RemotePrefillRequest)
-        print(f"Request: {request}")
 
         sampling_params = request.sampling_params
         sampling_params.max_tokens = 1
