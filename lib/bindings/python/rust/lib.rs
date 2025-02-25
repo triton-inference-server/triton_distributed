@@ -26,9 +26,7 @@ use tokio::sync::Mutex;
 use tracing_subscriber::FmtSubscriber;
 
 use triton_distributed_runtime::{
-    self as rs,
-    pipeline::{EngineStream, ManyOut, SingleIn},
-    protocols::annotated::Annotated as RsAnnotated,
+    self as rs, pipeline::EngineStream, protocols::annotated::Annotated as RsAnnotated,
     traits::DistributedRuntimeProvider,
 };
 
@@ -36,9 +34,6 @@ use triton_distributed_llm::{self as llm_rs};
 
 mod engine;
 mod llm;
-
-type JsonServerStreamingIngress =
-    Ingress<SingleIn<serde_json::Value>, ManyOut<RsAnnotated<serde_json::Value>>>;
 
 static INIT: OnceCell<()> = OnceCell::new();
 
