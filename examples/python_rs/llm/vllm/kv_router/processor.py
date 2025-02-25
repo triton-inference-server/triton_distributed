@@ -79,7 +79,7 @@ class Processor(ProcessMixIn):
         )
         return base_tokenizer
 
-    async def _generate(self, raw_request, request_type: RequestType):
+    async def _generate(self, raw_request: Union[CompletionRequest, ChatCompletionRequest], request_type: RequestType):
         request_id = str(uuid.uuid4())
         vllm_logger.debug(f"Got raw request: {raw_request}")
         (
@@ -117,15 +117,15 @@ class Processor(ProcessMixIn):
                 int(worker_id),
             )
 
-        output = self.generate_responses(engine_generator, request_type)
+        output = self._generate_responses(engine_generator, request_type)
 
         async for response in await self._stream_response(
             request, output, request_id, conversation
         ):
             yield response
 
-    async def generate_responses(
-        self, engine_generator, request_type
+    async def _generate_responses(
+        self, engine_generator: AsyncIterator[RequestOutput], request_type: RequestType
     ) -> AsyncIterator[Union[RequestOutput, Tuple[int, RequestOutput]]]:
         prompt_idx = 0
         async for resp in engine_generator:
@@ -145,9 +145,13 @@ class Processor(ProcessMixIn):
             )
 
             if request_type == RequestType.CHAT:
+                # For chat requests, yield the request_output directly.
                 yield request_output
-            else:
+            elif request_type == RequestType.COMPLETION:
+                # Completion requests can have multiple prompts and stream generator requires the prompt index
                 yield (prompt_idx, request_output)
+            else:
+                raise NotImplementedError(f"Request type {request_type} not implemented")
         prompt_idx += 1
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
@@ -187,7 +191,6 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     completions_endpoint = preprocess_component.endpoint("completions")
 
     processor = Processor(engine_args, router_client, workers_client)
-    assert isinstance(processor, ProcessMixIn)
 
     await asyncio.gather(
         chat_endpoint.serve_endpoint(processor.generate_chat),

@@ -15,7 +15,7 @@
 
 import json
 import time
-from typing import Any, AsyncIterator, List, Protocol, runtime_checkable
+from typing import Optional, AsyncIterator, List, Protocol, runtime_checkable, Union, Tuple
 
 from vllm import TokensPrompt
 from vllm.config import ModelConfig
@@ -54,29 +54,26 @@ class ProcessMixIn(ProcessMixInRequired):
     def __init__(self):
         pass
 
-    def _get_processor(self, raw_request: dict):
+    def _get_processor(self, raw_request: Union[CompletionRequest, ChatCompletionRequest]):
         # Determine the processor type based on the request structure
-        if hasattr(raw_request, 'messages'):
-            return self.chat_processor
+        if isinstance(raw_request, ChatCompletionRequest):
+            processor = self.chat_processor
+        elif isinstance(raw_request, CompletionRequest):
+            processor = self.completions_processor
         else:
-            return self.completions_processor
+            raise ValueError(f"Unknown request type: {type(raw_request)}")
 
-    async def _parse_raw_request(self, raw_request):
+        return processor
+
+    async def _parse_raw_request(self, raw_request: Union[CompletionRequest, ChatCompletionRequest]):
         processor = self._get_processor(raw_request)
         if processor is None:
             raise RuntimeError("Processor has not been initialized")
         request = processor.parse_raw_request(raw_request)
         preprocess_result = await processor.preprocess(raw_request)
 
-        if isinstance(processor, ChatProcessor):
-            conversation, request_prompt, engine_prompt = preprocess_result
-        else:
-            request_prompt, engine_prompt = preprocess_result
-            conversation = None
-
-
         default_max_tokens = self.model_config.max_model_len - len(
-            engine_prompt["prompt_token_ids"]
+            preprocess_result.engine_prompt["prompt_token_ids"]
         )
         default_sampling_params = self.model_config.get_diff_sampling_param()
         sampling_params = request.to_sampling_params(
@@ -84,7 +81,7 @@ class ProcessMixIn(ProcessMixInRequired):
             self.model_config.logits_processor_pattern,
             default_sampling_params,
         )
-        return request, conversation, request_prompt, engine_prompt, sampling_params
+        return request, preprocess_result.conversation, preprocess_result.request_prompt, preprocess_result.engine_prompt, sampling_params
 
     async def _stream_response(self, request, generator, request_id, conversation):
         processor = self._get_processor(request)
@@ -96,6 +93,13 @@ class ProcessMixIn(ProcessMixInRequired):
             request_id,
             conversation,
         )
+    
+class PreprocessResult:
+    def __init__(self, conversation: Optional[ConversationMessage], request_prompt: RequestPrompt, engine_prompt: TokensPrompt):
+        self.conversation = conversation
+        self.request_prompt = request_prompt
+        self.engine_prompt = engine_prompt
+
 
 class ChatProcessor:
     def __init__(self, tokenizer: AnyTokenizer, model_config: ModelConfig):
@@ -111,12 +115,12 @@ class ChatProcessor:
             chat_template_content_format="auto",
         )
 
-    def parse_raw_request(self, raw_request: dict) -> ChatCompletionRequest:
+    def parse_raw_request(self, raw_request: ChatCompletionRequest) -> ChatCompletionRequest:
         return ChatCompletionRequest.parse_obj(raw_request)
 
     async def preprocess(
-        self, raw_request: dict
-    ) -> tuple[ConversationMessage, RequestPrompt, TokensPrompt]:
+        self, raw_request: ChatCompletionRequest
+    ) -> PreprocessResult:
         request = self.parse_raw_request(raw_request)
 
         (
@@ -139,7 +143,7 @@ class ChatProcessor:
             add_special_tokens=request.add_special_tokens,
         )
 
-        return conversation[0], request_prompts[0], engine_prompts[0]
+        return PreprocessResult(conversation[0], request_prompts[0], engine_prompts[0])
 
     async def stream_response(
         self,
@@ -149,7 +153,8 @@ class ChatProcessor:
         conversation: List,
     ):
         request_metadata = RequestResponseMetadata(request_id=request_id)
-        assert request.stream, "Only stream is supported"
+        if not request.stream:
+            raise ValueError("Only streaming responses are supported")
         async for raw_response in self.openai_serving.chat_completion_stream_generator(
             request,
             result_generator,
@@ -175,18 +180,10 @@ class CompletionsProcessor:
             request_logger=None,
         )
 
-    def parse_raw_request(self, raw_request: dict) -> CompletionRequest:
-        return CompletionRequest(
-            model=raw_request.model,
-            prompt=raw_request.prompt,
-            max_tokens=raw_request.max_tokens,
-            temperature=raw_request.temperature,
-            top_p=raw_request.top_p,
-            top_k=raw_request.top_k,
-            stream=raw_request.stream,
-        )
+    def parse_raw_request(self, raw_request: CompletionRequest) -> CompletionRequest:
+        return CompletionRequest.parse_obj(raw_request)
 
-    async def preprocess(self, raw_request: dict) -> tuple[ConversationMessage, RequestPrompt, TokensPrompt]:
+    async def preprocess(self, raw_request: CompletionRequest) -> PreprocessResult:
         request = self.parse_raw_request(raw_request)
 
         (
@@ -200,17 +197,18 @@ class CompletionsProcessor:
             add_special_tokens=request.add_special_tokens,
         )
 
-        return request_prompts[0], engine_prompts[0]
+        return PreprocessResult(None, request_prompts[0], engine_prompts[0])
 
     async def stream_response(
         self,
         request: CompletionRequest,
         result_generator: AsyncIterator,
         request_id: str,
-        conversation: None,
+        conversation: Optional[List[ConversationMessage]] = None,
     ):
         request_metadata = RequestResponseMetadata(request_id=request_id)
-        assert request.stream, "Only stream is supported"
+        if not request.stream:
+            raise ValueError("Only streaming responses are supported")
         async for raw_response in self.openai_serving.completion_stream_generator(
             request,
             result_generator,
