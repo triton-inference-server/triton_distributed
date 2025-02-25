@@ -154,7 +154,7 @@ where
 
     /// String identifying <namespace>/component/<component>/<function>
     pub fn etcd_path(&self) -> String {
-        self.endpoint.etcd_path()
+        self.function.etcd_path()
     }
 
     pub fn endpoint_ids(&self) -> &tokio::sync::watch::Receiver<Vec<i64>> {

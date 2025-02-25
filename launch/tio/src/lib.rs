@@ -33,7 +33,7 @@ mod opt;
 mod output;
 pub use opt::{Input, Output};
 
-/// How we identify a namespace/component/endpoint URL.
+/// How we identify a namespace/component/function URL.
 /// Technically the '://' is not part of the scheme but it eliminates several string
 /// concatenations.
 const ENDPOINT_SCHEME: &str = "tdr://";
@@ -136,15 +136,15 @@ pub async fn run(
             }
         }
         Output::Endpoint(path) => {
-            let endpoint: Endpoint = path.parse()?;
+            let function: Endpoint = path.parse()?;
 
             // This will attempt to connect to NATS and etcd
             let distributed_runtime = DistributedRuntime::from_settings(runtime.clone()).await?;
 
             let client = distributed_runtime
-                .namespace(endpoint.namespace)?
-                .component(endpoint.component)?
-                .endpoint(endpoint.name)
+                .namespace(function.namespace)?
+                .component(function.component)?
+                .function(function.name)?
                 .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
                 .await?;
 
