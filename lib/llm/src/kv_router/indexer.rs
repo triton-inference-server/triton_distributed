@@ -932,8 +932,8 @@ mod tests {
     fn test_radix_tree() {
         let mut trie = RadixTree::new();
 
-        let worker_1 = uuid::Uuid::new_v4();
-        let worker_2 = uuid::Uuid::new_v4();
+        let worker_1 = 0;
+        let worker_2 = 1;
 
         trie.apply_event(create_store_event(worker_1, 1, vec![1, 2, 3], None));
 
@@ -1135,8 +1135,8 @@ mod tests {
     fn test_remove_worker() {
         let mut trie = RadixTree::new();
 
-        let worker_0 = uuid::Uuid::new_v4();
-        let worker_1 = uuid::Uuid::new_v4();
+        let worker_0 = 0;
+        let worker_1 = 1;
 
         assert!(trie
             .find_matches(vec![LocalBlockHash(0)], false)
@@ -1159,8 +1159,8 @@ mod tests {
     fn test_early_stopping() {
         let mut trie = RadixTree::new();
 
-        let worker_0 = uuid::Uuid::new_v4();
-        let worker_1 = uuid::Uuid::new_v4();
+        let worker_0 = 0;
+        let worker_1 = 1;
 
         trie.apply_event(create_store_event(worker_0, 0, vec![0, 1, 2], None));
         trie.apply_event(create_store_event(worker_1, 0, vec![0], None));
@@ -1276,7 +1276,7 @@ mod tests {
     #[case(8)]
     #[tokio::test]
     async fn test_apply_event(#[case] num_shards: usize) {
-        let worker_id = uuid::Uuid::new_v4();
+        let worker_id = 0;
 
         let token = CancellationToken::new();
         let mut kv_indexer = make_indexer(&token, num_shards);
@@ -1327,7 +1327,7 @@ mod tests {
             ));
         }
 
-        let worker_id = uuid::Uuid::new_v4();
+        let worker_id = 0;
 
         let event = create_store_event(worker_id, 0, vec![1, 2, 3, 4], None);
         kv_indexer.apply_event(event).await;
@@ -1367,7 +1367,7 @@ mod tests {
 
     #[test]
     fn test_router_event_new() {
-        let worker_id = uuid::Uuid::new_v4();
+        let worker_id = 0;
         let kv_cache_event = KvCacheEvent {
             event_id: 1,
             data: KvCacheEventData::Stored(KvCacheStoreData {

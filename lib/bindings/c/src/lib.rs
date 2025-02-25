@@ -18,8 +18,6 @@ use libc::c_char;
 use once_cell::sync::OnceCell;
 use std::ffi::CStr;
 use std::sync::atomic::{AtomicU32, Ordering};
-use tracing as log;
-use uuid::Uuid;
 
 use triton_distributed_llm::kv_router::{
     indexer::compute_block_hash_for_seq, protocols::*, publisher::KvEventPublisher,
@@ -39,7 +37,7 @@ fn initialize_tracing() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    log::debug!("Tracing initialized");
+    tracing::debug!("Tracing initialized");
 }
 
 #[repr(u32)]
@@ -141,7 +139,7 @@ fn triton_create_kv_publisher(
     component: String,
     worker_id: i64,
 ) -> Result<KvEventPublisher, anyhow::Error> {
-    log::info!("Creating KV Publisher for model: {}", component);
+    tracing::info!("Creating KV Publisher for model: {}", component);
     match DRT
         .get()
         .ok_or(anyhow::Error::msg("Could not get Distributed Runtime"))
@@ -197,7 +195,7 @@ fn kv_event_create_stored_from_parts(
                 })
                 .is_ok()
             {
-                log::warn!(
+                tracing::warn!(
                     "Block size must be 64 tokens to be published. Block size is: {}",
                     num_toks
                 );
