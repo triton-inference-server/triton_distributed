@@ -40,6 +40,7 @@ use super::{
     validate_logit_bias, ContentProvider, OpenAISamplingOptionsProvider,
     OpenAIStopConditionsProvider,
 };
+
 use triton_distributed_runtime::protocols::annotated::AnnotationsProvider;
 
 /// Request object which is used to generate chat completions.

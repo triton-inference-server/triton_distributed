@@ -2570,6 +2570,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "libtriton-llm"
+version = "0.1.1"
+dependencies = [
+ "anyhow",
+ "async-once-cell",
+ "cbindgen",
+ "futures",
+ "libc",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-subscriber",
+ "triton-distributed",
+ "triton-llm",
+ "uuid 1.13.1",
+]
+
+[[package]]
 name = "linked-hash-map"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3268,9 +3289,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.20.3"
+version = "1.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "945462a4b81e43c4e3ba96bd7b49d834c6f61198356aa858733bc4acf3cbe62e"
+checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 
 [[package]]
 name = "onig"
@@ -5406,7 +5427,51 @@ dependencies = [
 ]
 
 [[package]]
-name = "triton-distributed-llm"
+name = "triton-distributed"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "async-nats",
+ "async-once-cell",
+ "async-stream",
+ "async-trait",
+ "async_zmq",
+ "blake3",
+ "bytes",
+ "chrono",
+ "derive-getters",
+ "derive_builder",
+ "educe",
+ "either",
+ "etcd-client",
+ "figment",
+ "futures",
+ "humantime",
+ "local-ip-address",
+ "log",
+ "nid",
+ "nix",
+ "nuid",
+ "once_cell",
+ "prometheus",
+ "rand",
+ "regex",
+ "serde",
+ "serde_json",
+ "socket2",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "uuid 1.13.1",
+ "validator",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "triton-llm"
 version = "0.2.0"
 dependencies = [
  "anyhow",
@@ -5447,52 +5512,8 @@ dependencies = [
  "toktrie 0.6.28",
  "toktrie_hf_tokenizers 0.6.28",
  "tracing",
- "triton-distributed-runtime",
+ "triton-distributed",
  "unicode-segmentation",
- "uuid 1.13.1",
- "validator",
- "xxhash-rust",
-]
-
-[[package]]
-name = "triton-distributed-runtime"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "async-nats",
- "async-once-cell",
- "async-stream",
- "async-trait",
- "async_zmq",
- "blake3",
- "bytes",
- "chrono",
- "derive-getters",
- "derive_builder",
- "educe",
- "either",
- "etcd-client",
- "figment",
- "futures",
- "humantime",
- "local-ip-address",
- "log",
- "nid",
- "nix",
- "nuid",
- "once_cell",
- "prometheus",
- "rand",
- "regex",
- "serde",
- "serde_json",
- "socket2",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "tracing-subscriber",
  "uuid 1.13.1",
  "validator",
  "xxhash-rust",

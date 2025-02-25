@@ -33,6 +33,7 @@ homepage.workspace = true
 mistralrs = ["dep:mistralrs"]
 metal = ["mistralrs/metal"]
 cuda = ["mistralrs/cuda"]
+sentencepiece = ["dep:sentencepiece"]
 
 [workspace.dependencies]
 # local or crates.io
