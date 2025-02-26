@@ -9,7 +9,7 @@ import asyncio
 import uvloop
 
 
-from triton_distributed_rs import DistributedRuntime, triton_worker
+from triton_distributed.runtime import DistributedRuntime, triton_worker
 
 from common import temp_metadata_file, find_remote_metadata
 

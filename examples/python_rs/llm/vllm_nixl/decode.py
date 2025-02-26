@@ -14,7 +14,7 @@ from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 from vllm.engine.multiprocessing.client import EngineClient
 from vllm.entrypoints.openai.serving_models import OpenAIServingModels, BaseModelPath
 
-from triton_distributed_rs import DistributedRuntime, triton_worker, triton_endpoint
+from triton_distributed.runtime import DistributedRuntime, triton_worker, triton_endpoint
 
 from protocol import Request
 from common import temp_metadata_file

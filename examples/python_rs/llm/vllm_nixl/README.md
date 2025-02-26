@@ -1,7 +1,7 @@
 ## Build docker
 
 ```
-./container/build.sh --framework VLLM --target dev --build-context nixl=<path to nixl repo @ main>
+./container/build.sh --framework VLLM --target dev --build-context nixl=<path to downloaded nixl repo @ main>
 ```
 
 ## Run container
@@ -9,13 +9,6 @@
 ```
 ./container/run.sh --framework VLLM --target dev -it
 ```
-
-## Install vllm patch
-
-```
-VLLM_USE_PRECOMPILED=1 uv pip install -e "vllm  @ <path to vllm repo @ ptarasiewicz/nixl-disagg>"
-```
-
 
 ## Run example
 
@@ -26,7 +19,7 @@ rm -r /tmp/nixl
 
 In terminal 0:
 ```
-llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B test-nixl.process.chat/completions
+llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B test-nixl.vllm.generate
 TRT_LOG=DEBUG http --port 8181
 ```
 
@@ -55,7 +48,8 @@ curl localhost:8181/v1/chat/completions \
     "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
     "messages": [
       {"role": "user", "content": "What is the capital of France?"}
-    ]
+    ],
+    "max_tokens": 10
   }'
 ```
 
@@ -74,14 +68,14 @@ genai-perf profile \
   --synthetic-input-tokens-stddev 0 \
   --output-tokens-stddev 0 \
   --tokenizer deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
-  --synthetic-input-tokens-mean 80 \
-  --output-tokens-mean 10 \
-  --extra-inputs min_tokens:10 \
-  --extra-inputs max_tokens:10 \
+  --synthetic-input-tokens-mean 3000 \
+  --output-tokens-mean 150 \
+  --extra-inputs min_tokens:150 \
+  --extra-inputs max_tokens:150 \
   --profile-export-file my_profile_export.json \
   --artifact-dir artifacts/ \
-  --concurrency 1 \
-  --request-count 10 \
+  --concurrency 10 \
+  --request-count 40 \
   -- -v \
   --async
 ```
