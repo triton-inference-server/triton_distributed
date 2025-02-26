@@ -159,7 +159,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
-    uv build --out-dir /workspace/dist && \
+    uv build --wheel --out-dir /workspace/dist && \
     uv pip install /workspace/dist/triton_distributed*cp312*.whl
 
 # Package the bindings

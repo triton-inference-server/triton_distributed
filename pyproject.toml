@@ -38,6 +38,9 @@ python-packages = ["triton_distributed"]
 # Specify the Python source directory
 python-source = "lib/bindings/python/src"
 
+[tool.uv]
+config-settings = { build-args = '--auditwheel repair --manylinux' }
+
 [build-system]
 requires = ["maturin>=1.0,<2.0", "patchelf"]
 build-backend = "maturin"
