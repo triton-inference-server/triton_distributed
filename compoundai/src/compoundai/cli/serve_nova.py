@@ -1,23 +1,28 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import os
-import typing as t
 import random
 import string
-import click
-from triton_distributed_rs import triton_worker, DistributedRuntime, triton_endpoint
+import typing as t
 from typing import Any
-import inspect
 
+import click
+from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+
+from compoundai import tdist_context
 
 logger = logging.getLogger("compoundai.serve.nova")
+logger.setLevel(logging.INFO)
+
 
 def generate_run_id():
     """Generate a random 6-character run ID"""
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
 
 @click.command()
 @click.argument("bento_identifier", type=click.STRING, required=False, default=".")
@@ -29,10 +34,7 @@ def generate_run_id():
     help="JSON string of runners map, default sets to envars `BENTOML_RUNNER_MAP`",
 )
 @click.option(
-    "--worker-env", 
-    type=click.STRING, 
-    default=None, 
-    help="Environment variables"
+    "--worker-env", type=click.STRING, default=None, help="Environment variables"
 )
 @click.option(
     "--worker-id",
@@ -55,6 +57,12 @@ def main(
     from bentoml._internal.log import configure_server_logging
 
     run_id = generate_run_id()
+    # print(f"bento_identifier: {bento_identifier}")
+    # logger.info(f"service_name: {service_name}")
+    # logger.info(f"runner_map: {runner_map}")
+    # logger.info(f"worker_env: {worker_env}")
+    # logger.info(f"worker_id: {worker_id}")
+    # global tdist_context
 
     # Import service first to check configuration
     service = import_service(bento_identifier)
@@ -84,9 +92,13 @@ def main(
         if worker_id is not None:
             server_context.worker_index = worker_id
         class_instance = service.inner()
-        
+
+        # tdist_context = {}
+        # setattr(class_instance, "tdist_context", tdist_context)
+
         @triton_worker()
         async def worker(runtime: DistributedRuntime):
+            tdist_context["runtime"] = runtime
             if service_name and service_name != service.name:
                 server_context.service_type = "service"
             else:
@@ -96,22 +108,32 @@ def main(
 
             # Get Nova configuration and create component
             namespace, component_name = service.nova_address()
-            logger.info(f"[{run_id}] Registering component {namespace}/{component_name}")
+            logger.info(
+                f"[{run_id}] Registering component {namespace}/{component_name}"
+            )
             component = runtime.namespace(namespace).component(component_name)
-            
+            tdist_context["component"] = component
+
             try:
                 # Create service first
-                await component.create_service()
+                service = await component.create_service()
+                tdist_context["service"] = service
+                logger.info(f"tdist_context: {tdist_context}")
+                breakpoint()
                 logger.info(f"[{run_id}] Created {service.name} component")
 
                 # Run startup hooks before setting up endpoints
                 for name, member in vars(class_instance.__class__).items():
-                    if callable(member) and getattr(member, "__bentoml_startup_hook__", False):
+                    if callable(member) and getattr(
+                        member, "__bentoml_startup_hook__", False
+                    ):
                         logger.info(f"[{run_id}] Running startup hook: {name}")
                         result = getattr(class_instance, name)()
                         if inspect.isawaitable(result):
                             await result
-                            logger.info(f"[{run_id}] Completed async startup hook: {name}")
+                            logger.info(
+                                f"[{run_id}] Completed async startup hook: {name}"
+                            )
                         else:
                             logger.info(f"[{run_id}] Completed startup hook: {name}")
 
@@ -136,19 +158,27 @@ def main(
                     # Only pass request type for now, use Any for response
                     # TODO: Handle a triton_endpoint not having types
                     # TODO: Handle multiple endpoints in a single component
-                    triton_wrapped_method = triton_endpoint(endpoint.request_type, Any)(bound_method)
+                    triton_wrapped_method = triton_endpoint(endpoint.request_type, Any)(
+                        bound_method
+                    )
                     result = await td_endpoint.serve_endpoint(triton_wrapped_method)
+
                     # WARNING: unreachable code :( because serve blocks
                     logger.info(f"[{run_id}] Result: {result}")
                     logger.info(f"[{run_id}] Registered endpoint '{name}'")
 
-                logger.info(f"[{run_id}] Started {service.name} instance with all endpoints registered")
-                logger.info(f"[{run_id}] Available endpoints: {service.list_nova_endpoints()}")
+                logger.info(
+                    f"[{run_id}] Started {service.name} instance with all endpoints registered"
+                )
+                logger.info(
+                    f"[{run_id}] Available endpoints: {service.list_nova_endpoints()}"
+                )
             except Exception as e:
                 logger.error(f"[{run_id}] Error in Nova component setup: {str(e)}")
                 raise
 
         asyncio.run(worker())
+
 
 if __name__ == "__main__":
     main()
