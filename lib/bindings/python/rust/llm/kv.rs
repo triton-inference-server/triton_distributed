@@ -77,7 +77,7 @@ impl KvMetricsPublisher {
         let rs_publisher = self.inner.clone();
         let rs_component = component.inner.clone();
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let _ = rs_publisher
+            rs_publisher
                 .create_service(rs_component)
                 .await
                 .map_err(to_pyerr)?;
@@ -85,9 +85,9 @@ impl KvMetricsPublisher {
         })
     }
 
-    fn publish<'p>(
+    fn publish(
         &self,
-        py: Python<'p>,
+        _py: Python,
         request_active_slots: u64,
         request_total_slots: u64,
         kv_active_blocks: u64,

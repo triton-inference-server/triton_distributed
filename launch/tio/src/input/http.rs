@@ -18,6 +18,7 @@ use std::sync::Arc;
 use triton_distributed_llm::{
     backend::Backend,
     http::service::{discovery, service_v2},
+    model_type::ModelType,
     preprocessor::OpenAIPreprocessor,
     types::{
         openai::chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
@@ -49,6 +50,7 @@ pub async fn run(
             // Listen for models registering themselves in etcd, add them to HTTP service
             let state = Arc::new(discovery::ModelWatchState {
                 prefix: service_name.clone(),
+                model_type: ModelType::Chat, // Tio currently supports only chat models
                 manager: http_service.model_manager().clone(),
                 drt: distributed_runtime.clone(),
             });

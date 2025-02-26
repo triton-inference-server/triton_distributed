@@ -4,14 +4,11 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # Rust
-*.rs @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12
-/runtime/rust/ @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12
-/llm/rust/ @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12
-Cargo.toml @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12
+*.rs @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12 @guanluo @rmccorm4
+Cargo.toml @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12 @guanluo @rmccorm4
 
 # Python Libraries
-/runtime/python/ @nnshah1 @tanmayv25 @piotrm-nvidia @ptarasiewiczNV @nv-blazejkubiak
-/icp/ @nnshah1 @tanmayv25 @piotrm-nvidia @ptarasiewiczNV @nv-blazejkubiak
+*.py @nnshah1 @tanmayv25 @piotrm-nvidia @ptarasiewiczNV @nv-blazejkubiak @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12 @guanluo @rmccorm4
 
 # Container/Environments
 /container/ @rmccorm4 @tanmayv25 @ptarasiewiczNV @ishandhanani @alec-flowers @nnshah1 @nv-anants
@@ -20,14 +17,9 @@ Cargo.toml @ryanolson @grahamking @paulhendricks @biswapanda @tmonty12
 /deploy/Kubernetes/ @whoisj @hutm @biswapanda
 
 # CI/CD
-/.github/ @triton-inference-server/devops
-CODEOWNERS @triton-inference-server/devops
+/.github/ @triton-inference-server/devops @nnshah1
+CODEOWNERS @triton-inference-server/devops @nnshah1
 
 # Legal
 /LICENSE @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
 /ATTRIBUTIONS.md @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv
-Cargo.lock @nv-anants @nvda-mesharma @glos-nv @dmitry-tokarev-nv @ryanolson @grahamking @paulhendricks
-
-# Documentation updates:
-*.md @triton-inference-server/devops
-**/*.md @triton-inference-server/devops
