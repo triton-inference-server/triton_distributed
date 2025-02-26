@@ -58,7 +58,11 @@ class ProcessMixIn(ProcessMixInRequired):
         self, raw_request: Union[CompletionRequest, ChatCompletionRequest]
     ):
         # Determine the processor type based on the request structure
-        return self.chat_processor if isinstance(raw_request, ChatCompletionRequest) else self.completions_processor
+        return (
+            self.chat_processor
+            if isinstance(raw_request, ChatCompletionRequest)
+            else self.completions_processor
+        )
 
     async def _parse_raw_request(
         self, raw_request: Union[CompletionRequest, ChatCompletionRequest]
