@@ -248,9 +248,7 @@ impl Request {
             .build()
             .unwrap();
 
-        let request = ChatCompletionRequest { inner, nvext: None };
-
-        request
+        ChatCompletionRequest { inner, nvext: None }
     }
 }
 

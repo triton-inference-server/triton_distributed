@@ -18,9 +18,8 @@ use std::{sync::Arc, time::Duration};
 use async_stream::stream;
 use async_trait::async_trait;
 
-use triton_distributed_llm::protocols::openai::chat_completions::FinishReason;
 use triton_distributed_llm::protocols::openai::chat_completions::{
-    ChatCompletionRequest, ChatCompletionResponseDelta, Content,
+    ChatCompletionRequest, ChatCompletionResponseDelta,
 };
 use triton_distributed_llm::types::openai::chat_completions::OpenAIChatCompletionsStreamingEngine;
 use triton_distributed_runtime::engine::{AsyncEngine, AsyncEngineContextProvider, ResponseStream};
@@ -53,25 +52,42 @@ impl
         let (request, context) = incoming_request.transfer(());
         let deltas = request.response_generator();
         let ctx = context.context();
-        let req = request.messages.into_iter().last().unwrap();
-        let prompt = match req.content {
-            Content::Text(prompt) => prompt,
-            _ => {
-                anyhow::bail!("Invalid request content field, expected Content::Text");
+        let req = request.inner.messages.into_iter().last().unwrap();
+
+        let prompt = match req {
+            async_openai::types::ChatCompletionRequestMessage::User(user_msg) => {
+                match user_msg.content {
+                    async_openai::types::ChatCompletionRequestUserMessageContent::Text(prompt) => {
+                        prompt
+                    }
+                    _ => anyhow::bail!("Invalid request content field, expected Content::Text"),
+                }
             }
+            _ => anyhow::bail!("Invalid request type, expected User message"),
         };
+
         let output = stream! {
             let mut id = 1;
             for c in prompt.chars() {
                 // we are returning characters not tokens, so speed up some
                 tokio::time::sleep(TOKEN_ECHO_DELAY/2).await;
-                let delta = deltas.create_choice(0, Some(c.to_string()), None, None);
-                yield Annotated{ id: Some(id.to_string()), data: Some(delta), event: None, comment: None };
+                let inner = deltas.create_choice(0, Some(c.to_string()), None, None);
+                let response = ChatCompletionResponseDelta {
+                    inner,
+                    nvext: None,
+                };
+                yield Annotated{ id: Some(id.to_string()), data: Some(response), event: None, comment: None };
                 id += 1;
             }
-            let stop_delta = deltas.create_choice(0, None, Some(FinishReason::stop), None);
-            yield Annotated { id: Some(id.to_string()), data: Some(stop_delta), event: None, comment: None };
+
+            let inner = deltas.create_choice(0, None, Some(async_openai::types::FinishReason::Stop), None);
+            let response = ChatCompletionResponseDelta {
+                inner,
+                nvext: None,
+            };
+            yield Annotated { id: Some(id.to_string()), data: Some(response), event: None, comment: None };
         };
+
         Ok(ResponseStream::new(Box::pin(output), ctx))
     }
 }

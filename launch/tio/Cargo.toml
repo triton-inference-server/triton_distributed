@@ -45,3 +45,4 @@ tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "local-time", "json"] }
 triton-distributed-runtime = { path = "../../lib/runtime" }
 triton-distributed-llm = { path = "../../lib/llm" }
+async-openai = "0.27.2"

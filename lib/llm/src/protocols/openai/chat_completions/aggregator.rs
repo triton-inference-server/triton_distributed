@@ -158,9 +158,12 @@ impl DeltaAggregator {
         Ok(response)
     }
 }
+
 // todo - handle tool calls
+#[allow(deprecated)]
 impl From<DeltaChoice> for async_openai::types::ChatChoice {
     fn from(delta: DeltaChoice) -> Self {
+        // ALLOW: function_call is deprecated
         async_openai::types::ChatChoice {
             message: async_openai::types::ChatCompletionResponseMessage {
                 role: delta.role.expect("delta should have a Role"),

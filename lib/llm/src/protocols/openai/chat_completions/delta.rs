@@ -14,13 +14,7 @@
 // limitations under the License.
 
 use super::{ChatCompletionRequest, ChatCompletionResponseDelta};
-
-// use super::{
-//     ChatCompletionChoiceDelta, ChatCompletionContent, ChatCompletionRequest,
-//     ChatCompletionResponseDelta, FinishReason, MessageRole, ServiceTier,
-// };
 use crate::protocols::common;
-use crate::protocols::openai::CompletionUsage;
 
 impl ChatCompletionRequest {
     // put this method on the request
@@ -93,6 +87,7 @@ impl DeltaGenerator {
         self.usage.prompt_tokens = isl;
     }
 
+    #[allow(deprecated)]
     pub fn create_choice(
         &self,
         index: u32,
@@ -100,7 +95,8 @@ impl DeltaGenerator {
         finish_reason: Option<async_openai::types::FinishReason>,
         logprobs: Option<async_openai::types::ChatChoiceLogprobs>,
     ) -> async_openai::types::CreateChatCompletionStreamResponse {
-        // Update for tool calling
+        // TODO: Update for tool calling
+        // ALLOW: function_call is deprecated
         let delta = async_openai::types::ChatCompletionStreamResponseDelta {
             role: if self.msg_counter == 0 {
                 Some(async_openai::types::Role::Assistant)

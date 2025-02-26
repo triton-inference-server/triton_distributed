@@ -49,10 +49,7 @@ impl OAIChatLikeRequest for ChatCompletionRequest {
 
     fn should_add_generation_prompt(&self) -> bool {
         if let Some(last) = self.inner.messages.last() {
-            match last {
-                ChatCompletionRequestMessage::User(_) => true,
-                _ => false,
-            }
+            matches!(last, ChatCompletionRequestMessage::User(_))
         } else {
             true
         }
