@@ -15,10 +15,6 @@
 
 use super::*;
 
-use async_openai::types::{
-    ChatCompletionRequestMessage, ChatCompletionRequestUserMessage,
-    ChatCompletionRequestUserMessageContent,
-};
 use minijinja::{context, value::Value};
 
 use crate::protocols::openai::{
@@ -49,7 +45,10 @@ impl OAIChatLikeRequest for ChatCompletionRequest {
 
     fn should_add_generation_prompt(&self) -> bool {
         if let Some(last) = self.inner.messages.last() {
-            matches!(last, ChatCompletionRequestMessage::User(_))
+            matches!(
+                last,
+                async_openai::types::ChatCompletionRequestMessage::User(_)
+            )
         } else {
             true
         }
@@ -58,10 +57,14 @@ impl OAIChatLikeRequest for ChatCompletionRequest {
 
 impl OAIChatLikeRequest for CompletionRequest {
     fn messages(&self) -> minijinja::value::Value {
-        let message = ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
-            content: ChatCompletionRequestUserMessageContent::Text(self.prompt.clone()),
-            name: None,
-        });
+        let message = async_openai::types::ChatCompletionRequestMessage::User(
+            async_openai::types::ChatCompletionRequestUserMessage {
+                content: async_openai::types::ChatCompletionRequestUserMessageContent::Text(
+                    self.prompt.clone(),
+                ),
+                name: None,
+            },
+        );
 
         // Convert to a JSON string first
         let json_string =

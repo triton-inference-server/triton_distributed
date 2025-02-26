@@ -199,7 +199,6 @@ impl ChatCompletionResponse {
 mod tests {
 
     use super::*;
-    use async_openai::types::CreateChatCompletionStreamResponse;
     use futures::stream;
 
     #[allow(deprecated)]
@@ -224,7 +223,7 @@ mod tests {
             logprobs: None,
         };
 
-        let inner = CreateChatCompletionStreamResponse {
+        let inner = async_openai::types::CreateChatCompletionStreamResponse {
             id: "test_id".to_string(),
             model: "meta/llama-3.1-8b-instruct".to_string(),
             created: 1234567890,
