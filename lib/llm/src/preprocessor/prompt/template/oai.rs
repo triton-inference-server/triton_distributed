@@ -15,42 +15,44 @@
 
 use super::*;
 
+use async_openai::types::{
+    ChatCompletionRequestMessage, ChatCompletionRequestUserMessage,
+    ChatCompletionRequestUserMessageContent,
+};
 use minijinja::{context, value::Value};
 
 use crate::protocols::openai::{
-    chat_completions::{ChatCompletionMessage, ChatCompletionRequest, Content, MessageRole},
-    completions::CompletionRequest,
+    chat_completions::ChatCompletionRequest, completions::CompletionRequest,
 };
 use tracing;
 
 impl OAIChatLikeRequest for ChatCompletionRequest {
     fn messages(&self) -> Value {
-        Value::from_serialize(&self.chat_completion_request.messages)
+        Value::from_serialize(&self.inner.messages)
     }
 
     fn tools(&self) -> Option<Value> {
-        if self.chat_completion_request.tools.is_none() {
+        if self.inner.tools.is_none() {
             None
         } else {
-            Some(Value::from_serialize(&self.chat_completion_request.tools))
+            Some(Value::from_serialize(&self.inner.tools))
         }
     }
 
     fn tool_choice(&self) -> Option<Value> {
-        if self.chat_completion_request.tool_choice.is_none() {
+        if self.inner.tool_choice.is_none() {
             None
         } else {
-            Some(Value::from_serialize(
-                &self.chat_completion_request.tool_choice,
-            ))
+            Some(Value::from_serialize(&self.inner.tool_choice))
         }
     }
 
     fn should_add_generation_prompt(&self) -> bool {
-        if let Some(_last) = self.chat_completion_request.messages.last() {
-            // TODO THIS IS CLEARLY WRONG HOLDING OFF FIXING FOR NOW
-            // last.role == MessageRole::user
-            false
+        if let Some(last) = self.inner.messages.last() {
+            match last {
+                ChatCompletionRequestMessage::User(_) => true,
+                _ => false,
+            }
         } else {
             true
         }
@@ -58,13 +60,18 @@ impl OAIChatLikeRequest for ChatCompletionRequest {
 }
 
 impl OAIChatLikeRequest for CompletionRequest {
-    fn messages(&self) -> Value {
-        let message = ChatCompletionMessage {
-            role: MessageRole::user,
-            content: Content::Text(self.prompt.clone()),
+    fn messages(&self) -> minijinja::value::Value {
+        let message = ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
+            content: ChatCompletionRequestUserMessageContent::Text(self.prompt.clone()),
             name: None,
-        };
-        Value::from_serialize(vec![message])
+        });
+
+        // Convert to a JSON string first
+        let json_string =
+            serde_json::to_string(&vec![message]).expect("Serialization to JSON string failed");
+
+        // Convert to MiniJinja Value
+        minijinja::value::Value::from_safe_string(json_string)
     }
 
     fn should_add_generation_prompt(&self) -> bool {

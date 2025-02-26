@@ -147,9 +147,9 @@ trait OpenAISamplingOptionsProvider {
 }
 
 trait OpenAIStopConditionsProvider {
-    fn get_max_tokens(&self) -> Option<i32>;
+    fn get_max_tokens(&self) -> Option<u32>;
 
-    fn get_min_tokens(&self) -> Option<i32>;
+    fn get_min_tokens(&self) -> Option<u32>;
 
     fn get_stop(&self) -> Option<Vec<String>>;
 
@@ -321,6 +321,7 @@ pub trait DeltaGeneratorExt<ResponseType: Send + Sync + 'static + std::fmt::Debu
         response: common::llm_backend::BackendOutput,
     ) -> Result<ResponseType>;
 }
+
 #[cfg(test)]
 mod tests {
 

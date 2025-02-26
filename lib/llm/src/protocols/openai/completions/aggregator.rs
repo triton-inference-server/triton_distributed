@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
-//
+
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//
+
 // http://www.apache.org/licenses/LICENSE-2.0
-//
+
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,6 +21,7 @@ use futures::StreamExt;
 use super::{CompletionChoice, CompletionResponse, CompletionUsage, LogprobResult};
 use crate::protocols::{
     codec::{Message, SseCodecError},
+    common::FinishReason,
     convert_sse_stream, Annotated, DataStream,
 };
 
@@ -38,7 +39,7 @@ pub struct DeltaAggregator {
 struct DeltaChoice {
     index: u64,
     text: String,
-    finish_reason: Option<crate::protocols::openai::chat_completions::FinishReason>,
+    finish_reason: Option<FinishReason>,
     logprobs: Option<LogprobResult>,
 }
 
@@ -110,11 +111,7 @@ impl DeltaAggregator {
                         // todo - handle logprobs
 
                         if let Some(finish_reason) = choice.finish_reason {
-                            let reason =
-                                crate::protocols::openai::chat_completions::FinishReason::from_str(
-                                    &finish_reason,
-                                )
-                                .ok();
+                            let reason = FinishReason::from_str(&finish_reason).ok();
                             state_choice.finish_reason = reason;
                         }
                     }
