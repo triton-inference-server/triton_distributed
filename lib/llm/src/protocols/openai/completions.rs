@@ -248,7 +248,7 @@ impl CompletionRequestBuilder {
     /// let request = CompletionRequest::builder()
     ///     .model("mixtral-8x7b-instruct-v0.1")
     ///     .prompt("Hello")
-    ///     .max_tokens(16)
+    ///     .max_tokens(16_u32)
     ///     .build()
     ///     .expect("Failed to build CompletionRequest");
     /// ```
