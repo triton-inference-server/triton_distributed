@@ -17,13 +17,8 @@ use super::*;
 use serde::{Deserialize, Serialize};
 
 #[async_trait]
-impl<T: Data, U: Data> PushWorkHandler for Ingress<SingleIn<T>, ManyOut<U>>
-where
-    T: Data + for<'de> Deserialize<'de> + std::fmt::Debug,
-    U: Data + Serialize + std::fmt::Debug,
-{
-    async fn handle_payload(&self, payload: Bytes) -> Result<(), PipelineError> {
-        // decode the control message and the request
+impl IngressHandler for Ingress<SingleIn<Bytes>, ManyOut<Bytes>> {
+    async fn handle_payload(&self, payload: Bytes) -> Result<()> {
         let msg = TwoPartCodec::default()
             .decode_message(payload)?
             .into_message_type();
@@ -42,22 +37,22 @@ where
                     Err(err) => {
                         let json_str = String::from_utf8_lossy(&header);
                         return Err(PipelineError::DeserializationError(
-                            format!("Failed deserializing to RequestControlMessage. err={err}, json_str={json_str}"),
-                        ));
+                        format!("Failed deserializing to RequestControlMessage. err={err}, json_str={json_str}"),
+                    ))?;
                     }
                 };
-                let request: T = serde_json::from_slice(&data)?;
-                (control_msg, request)
+                (control_msg, data)
             }
             _ => {
-                return Err(PipelineError::Generic(String::from("Unexpected message from work queue; unable extract a TwoPartMessage with a header and data")));
+                return Err(PipelineError::Generic(String::from("Unexpected message from work queue; unable extract a TwoPartMessage with a header and data")))?;
             }
         };
 
         // extend request with context
         tracing::trace!("received control message: {:?}", control_msg);
-        tracing::trace!("received request: {:?}", request);
-        let request: context::Context<T> = Context::with_id(request, control_msg.id);
+        tracing::trace!("received body size: {}", request.len());
+
+        let request: context::Context<Bytes> = Context::with_id(request, control_msg.id);
 
         // todo - eventually have a handler class which will returned an abstracted object, but for now,
         // we only support tcp here, so we can just unwrap the connection info
@@ -99,9 +94,7 @@ where
 
         while let Some(resp) = stream.next().await {
             tracing::trace!("Sending response: {:?}", resp);
-            let resp_bytes = serde_json::to_vec(&resp)
-                .expect("fatal error: invalid response object - this should never happen");
-            if (publisher.send(resp_bytes.into()).await).is_err() {
+            if (publisher.send(resp).await).is_err() {
                 tracing::error!("Failed to publish response for stream {}", context.id());
                 context.stop_generating();
                 break;

@@ -27,6 +27,7 @@ keywords = ["llm", "genai", "inference", "nvidia", "distributed", "triton"]
 
 [features]
 default = []
+zmq = ["dep:async_zmq"]
 integration = []
 
 [dependencies]
@@ -35,7 +36,7 @@ anyhow = { version = "1" }
 async-nats = { version = "0.38", features = ["service"] }
 async-stream = { version = "0.3" }
 async-trait = { version = "0.1" }
-async_zmq = "0.4.0"
+async_zmq = { version = "0.4.0", optional=true }
 blake3 = "1"
 bytes = "1"
 chrono = "0.4"

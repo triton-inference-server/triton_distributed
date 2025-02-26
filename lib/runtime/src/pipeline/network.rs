@@ -29,8 +29,12 @@ use codec::{TwoPartCodec, TwoPartMessage, TwoPartMessageType};
 use derive_builder::Builder;
 use futures::StreamExt;
 // io::Cursor, TryStreamExt
-use super::{AsyncEngine, AsyncEngineContext, AsyncEngineContextProvider, ResponseStream};
+use super::{
+    AsyncEngine, AsyncEngineContext, AsyncEngineContextProvider, Operator, PipelineOperator,
+    ResponseStream,
+};
 use serde::{Deserialize, Serialize};
+use tracing as log;
 
 use super::{
     context, AsyncTransportEngine, Context, Data, Error, ManyOut, PipelineError, PipelineIO,
@@ -276,6 +280,16 @@ struct RequestControlMessage {
     connection_info: ConnectionInfo,
 }
 
+// #[async_trait]
+// pub trait PushWorkHandler: Send + Sync {
+//     async fn handle_payload(&self, payload: Bytes) -> Result<(), PipelineError>;
+// }
+
+#[async_trait]
+pub trait IngressHandler: Send + Sync {
+    async fn handle_payload(&self, payload: Bytes) -> Result<()>;
+}
+
 pub struct Ingress<Req: PipelineIO, Resp: PipelineIO> {
     segment: OnceLock<Arc<SegmentSource<Req, Resp>>>,
 }
@@ -298,19 +312,32 @@ impl<Req: PipelineIO, Resp: PipelineIO> Ingress<Req, Resp> {
         ingress.attach(segment)?;
         Ok(ingress)
     }
+}
 
-    pub fn for_pipeline(segment: Arc<SegmentSource<Req, Resp>>) -> Result<Arc<Self>> {
+impl Ingress<SingleIn<Bytes>, ManyOut<Bytes>> {
+    pub fn for_generic_engine(
+        segment: Arc<SegmentSource<SingleIn<Bytes>, ManyOut<Bytes>>>,
+    ) -> Result<Arc<Self>> {
         let ingress = Ingress::new();
         ingress.attach(segment)?;
         Ok(ingress)
     }
 
-    pub fn for_engine(engine: ServiceEngine<Req, Resp>) -> Result<Arc<Self>> {
-        let frontend = SegmentSource::<Req, Resp>::new();
+    pub fn for_engine<T, U>(engine: ServiceEngine<SingleIn<T>, ManyOut<U>>) -> Result<Arc<Self>>
+    where
+        T: Data + Serialize + for<'de> Deserialize<'de>,
+        U: Data + Serialize + for<'de> Deserialize<'de>,
+    {
+        let frontend = SegmentSource::new();
+        let transformer = JsonTransformer::create_operator::<T, U>();
         let backend = ServiceBackend::from_engine(engine);
 
         // create the pipeline
-        let pipeline = frontend.link(backend)?.link(frontend)?;
+        let pipeline = frontend
+            .link(transformer.forward_edge())?
+            .link(backend)?
+            .link(transformer.backward_edge())?
+            .link(frontend)?;
 
         let ingress = Ingress::new();
         ingress.attach(pipeline)?;
@@ -319,7 +346,43 @@ impl<Req: PipelineIO, Resp: PipelineIO> Ingress<Req, Resp> {
     }
 }
 
+pub struct JsonTransformer {}
+
+impl JsonTransformer {
+    pub fn create_operator<T, U>(
+    ) -> Arc<PipelineOperator<SingleIn<Bytes>, ManyOut<Bytes>, SingleIn<T>, ManyOut<U>>>
+    where
+        T: Data + Serialize + for<'de> Deserialize<'de>,
+        U: Data + Serialize + for<'de> Deserialize<'de>,
+    {
+        let transformer = Arc::new(JsonTransformer {});
+        transformer.into_operator()
+    }
+}
+
 #[async_trait]
-pub trait PushWorkHandler: Send + Sync {
-    async fn handle_payload(&self, payload: Bytes) -> Result<(), PipelineError>;
+impl<T, U> Operator<SingleIn<Bytes>, ManyOut<Bytes>, SingleIn<T>, ManyOut<U>> for JsonTransformer
+where
+    T: Data + Serialize + for<'de> Deserialize<'de>,
+    U: Data + Serialize + for<'de> Deserialize<'de>,
+{
+    async fn generate(
+        &self,
+        request: SingleIn<Bytes>,
+        next: Arc<dyn AsyncEngine<SingleIn<T>, ManyOut<U>, Error>>,
+    ) -> Result<ManyOut<Bytes>, Error> {
+        let request = request.try_map(|bytes| serde_json::from_slice::<T>(&bytes))?;
+        let stream = next.generate(request).await?;
+        let ctx = stream.context();
+        let stream = stream.filter_map(|msg| async move {
+            match serde_json::to_vec(&msg) {
+                Ok(r) => Some(Bytes::from(r)),
+                Err(err) => {
+                    log::warn!(%err,"Failed to serialize JSON to response");
+                    None
+                }
+            }
+        });
+        Ok(ResponseStream::new(Box::pin(stream), ctx))
+    }
 }

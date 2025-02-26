@@ -20,14 +20,13 @@ use pyo3::types::PyString;
 use pyo3::IntoPyObjectExt;
 use pyo3::{exceptions::PyException, prelude::*};
 use rs::pipeline::network::Ingress;
+use serde_json::Value;
 use std::{fmt::Display, sync::Arc};
 use tokio::sync::Mutex;
 use tracing_subscriber::FmtSubscriber;
 
 use triton_distributed_runtime::{
-    self as rs,
-    pipeline::{EngineStream, ManyOut, SingleIn},
-    protocols::annotated::Annotated as RsAnnotated,
+    self as rs, pipeline::EngineStream, protocols::annotated::Annotated as RsAnnotated,
     traits::DistributedRuntimeProvider,
 };
 
@@ -35,9 +34,6 @@ use triton_distributed_llm::{self as llm_rs};
 
 mod engine;
 mod llm;
-
-type JsonServerStreamingIngress =
-    Ingress<SingleIn<serde_json::Value>, ManyOut<RsAnnotated<serde_json::Value>>>;
 
 static INIT: OnceCell<()> = OnceCell::new();
 
@@ -217,7 +213,7 @@ impl Endpoint {
             generator,
             self.event_loop.clone(),
         )?);
-        let ingress = JsonServerStreamingIngress::for_engine(engine).map_err(to_pyerr)?;
+        let ingress = Ingress::for_engine::<Value, RsAnnotated<Value>>(engine).map_err(to_pyerr)?;
         let builder = self.inner.endpoint_builder().handler(ingress);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             builder.start().await.map_err(to_pyerr)?;

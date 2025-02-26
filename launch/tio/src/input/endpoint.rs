@@ -71,7 +71,7 @@ pub async fn run(
                 .link(preprocessor.backward_edge())?
                 .link(frontend)?;
 
-            (Ingress::for_pipeline(pipeline)?, service_name)
+            (Ingress::for_engine(pipeline)?, service_name)
         }
         EngineConfig::Dynamic(_) => {
             anyhow::bail!("Cannot use endpoint for both in and out");
