@@ -78,6 +78,7 @@ impl ServiceConfigBuilder {
                 builder
                     .description(description)
                     .stats_handler(move |name, stats| {
+                        log::trace!("stats_handler: {name}, {stats:?}");
                         let mut guard = stats_handler_registry.lock().unwrap();
                         match guard.get_mut(&name) {
                             Some(handler) => handler(stats),

@@ -62,7 +62,6 @@ impl EndpointConfigBuilder {
         );
 
         let service_name = endpoint.component.service_name();
-        let endpoint_name = endpoint.etcd_path_with_id(lease.id());
 
         // acquire the registry lock
         let registry = endpoint.drt().component_registry.inner.lock().await;
@@ -88,7 +87,7 @@ impl EndpointConfigBuilder {
             handler_map
                 .lock()
                 .unwrap()
-                .insert(endpoint_name, stats_handler);
+                .insert(endpoint.subject_to(lease.id()), stats_handler);
         }
 
         // creates an endpoint for the service
