@@ -134,7 +134,7 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(&str,
                 .drt
                 .namespace(model_entry.endpoint.namespace)?
                 .component(model_entry.endpoint.component)?
-                .endpoint(model_entry.endpoint.name)
+                .function(model_entry.endpoint.name)?
                 .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
                 .await?;
             state
@@ -146,7 +146,7 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(&str,
                 .drt
                 .namespace(model_entry.endpoint.namespace)?
                 .component(model_entry.endpoint.component)?
-                .endpoint(model_entry.endpoint.name)
+                .function(model_entry.endpoint.name)?
                 .client::<CompletionRequest, Annotated<CompletionResponse>>()
                 .await?;
             state

@@ -80,17 +80,17 @@ class VllmEngine(BaseVllmEngine):
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     """
-    Serve the triton-init.vllm.generate endpoint.
+    Serve the triton-init.vllm.generate function.
     """
     metrics_publisher = KvMetricsPublisher()
     worker_component = runtime.namespace("triton-init").component("vllm")
     await metrics_publisher.create_service(worker_component)
 
-    worker_endpoint = worker_component.endpoint("generate")
+    worker_endpoint = worker_component.function("generate")
 
     VLLM_WORKER_ID = worker_endpoint.lease_id()
     os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
-    vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
+    vllm_logger.info(f"Generate function ID: {VLLM_WORKER_ID}")
 
     VLLM_KV_NAMESPACE = "triton-init"
     os.environ["VLLM_KV_NAMESPACE"] = str(VLLM_KV_NAMESPACE)

@@ -37,7 +37,7 @@ from triton_distributed.runtime import (
 
 class VllmEngine(BaseVllmEngine, ProcessMixIn):
     """
-    Request handler for the generate endpoint
+    Request handler for the generate function
     """
 
     def __init__(self, engine_args: AsyncEngineArgs):
@@ -78,16 +78,16 @@ class VllmEngine(BaseVllmEngine, ProcessMixIn):
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     """
-    Instantiate a `backend` component and serve the `generate` endpoint
+    Instantiate a `backend` component and serve the `generate` function
     A `Component` can serve multiple endpoints
     """
     component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
 
-    endpoint = component.endpoint("generate")
+    function = component.function("generate")
 
     async with VllmEngine(engine_args) as engine:
-        await endpoint.serve_endpoint(engine.generate)
+        await function.serve_endpoint(engine.generate)
 
 
 if __name__ == "__main__":

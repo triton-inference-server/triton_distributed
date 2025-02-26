@@ -50,7 +50,7 @@ enum EndpointEvent {
 
 #[derive(Clone)]
 pub struct Client<T: Data, U: Data> {
-    endpoint: Endpoint,
+    function: Function,
     router: PushRouter<T, U>,
     watch_rx: tokio::sync::watch::Receiver<Vec<i64>>,
     counter: Arc<AtomicU64>,
@@ -61,44 +61,43 @@ where
     T: Data + Serialize,
     U: Data + for<'de> Deserialize<'de>,
 {
-    pub(crate) async fn new(endpoint: Endpoint) -> Result<Self> {
+    pub(crate) async fn new(function: Function) -> Result<Self> {
         let router = AddressedPushRouter::new(
-            endpoint.component.drt.nats_client.client().clone(),
-            endpoint.component.drt.tcp_server().await?,
+            function.drt().nats_client.client().clone(),
+            function.drt().tcp_server().await?,
         )?;
 
-        // create live endpoint watcher
-        let prefix_watcher = endpoint
-            .component
-            .drt
+        // create live function watcher
+        let prefix_watcher = function
+            .drt()
             .etcd_client
-            .kv_get_and_watch_prefix(endpoint.etcd_path())
+            .kv_get_and_watch_prefix(function.etcd_path())
             .await?;
 
         let (prefix, _watcher, mut kv_event_rx) = prefix_watcher.dissolve();
 
         let (watch_tx, watch_rx) = tokio::sync::watch::channel(vec![]);
 
-        let secondary = endpoint.component.drt.runtime.secondary().clone();
+        let secondary = function.rt().secondary().clone();
 
         // this task should be included in the registry
         // currently this is created once per client, but this object/task should only be instantiated
         // once per worker/instance
         secondary.spawn(async move {
-            tracing::debug!("Starting endpoint watcher for prefix: {}", prefix);
+            tracing::debug!("Starting function watcher for prefix: {}", prefix);
             let mut map = HashMap::new();
 
             loop {
                 let kv_event = tokio::select! {
                     _ = watch_tx.closed() => {
-                        tracing::debug!("all watchers have closed; shutting down endpoint watcher for prefix: {}", prefix);
+                        tracing::debug!("all watchers have closed; shutting down function watcher for prefix: {}", prefix);
                         break;
                     }
                     kv_event = kv_event_rx.recv() => {
                         match kv_event {
                             Some(kv_event) => kv_event,
                             None => {
-                                tracing::debug!("watch stream has closed; shutting down endpoint watcher for prefix: {}", prefix);
+                                tracing::debug!("watch stream has closed; shutting down function watcher for prefix: {}", prefix);
                                 break;
                             }
                         }
@@ -112,7 +111,7 @@ where
                         if let (Ok(key), Ok(val)) = (key, val) {
                             map.insert(key.clone(), val.lease_id);
                         } else {
-                            tracing::error!("Unable to parse put endpoint event; shutting down endpoint watcher for prefix: {}", prefix);
+                            tracing::error!("Unable to parse put function event; shutting down function watcher for prefix: {}", prefix);
                             break;
                         }
                     }
@@ -120,7 +119,7 @@ where
                         match String::from_utf8(kv.key().to_vec()) {
                             Ok(key) => { map.remove(&key); }
                             Err(_) => {
-                                tracing::error!("Unable to parse delete endpoint event; shutting down endpoint watcher for prefix: {}", prefix);
+                                tracing::error!("Unable to parse delete function event; shutting down function watcher for prefix: {}", prefix);
                                 break;
                             }
                         }
@@ -130,32 +129,32 @@ where
                 let endpoint_ids: Vec<i64> = map.values().cloned().collect();
 
                 if watch_tx.send(endpoint_ids).is_err() {
-                    tracing::debug!("Unable to send watch updates; shutting down endpoint watcher for prefix: {}", prefix);
+                    tracing::debug!("Unable to send watch updates; shutting down function watcher for prefix: {}", prefix);
                     break;
                 }
 
             }
 
-            tracing::debug!("Completed endpoint watcher for prefix: {}", prefix);
+            tracing::debug!("Completed function watcher for prefix: {}", prefix);
             let _ = watch_tx.send(vec![]);
         });
 
         Ok(Client {
-            endpoint,
+            function,
             router,
             watch_rx,
             counter: Arc::new(AtomicU64::new(0)),
         })
     }
 
-    /// String identifying <namespace>/<component>/<endpoint>
+    /// String identifying namepoint/component/function
     pub fn path(&self) -> String {
-        self.endpoint.path()
+        self.function.path()
     }
 
-    /// String identifying <namespace>/component/<component>/<endpoint>
+    /// String identifying <namespace>/component/<component>/<function>
     pub fn etcd_path(&self) -> String {
-        self.endpoint.etcd_path()
+        self.function.etcd_path()
     }
 
     pub fn endpoint_ids(&self) -> &tokio::sync::watch::Receiver<Vec<i64>> {
@@ -177,7 +176,7 @@ where
         Ok(())
     }
 
-    /// Issue a request to the next available endpoint in a round-robin fashion
+    /// Issue a request to the next available function in a round-robin fashion
     pub async fn round_robin(&self, request: SingleIn<T>) -> Result<ManyOut<U>> {
         let counter = self.counter.fetch_add(1, Ordering::Relaxed);
 
@@ -186,29 +185,29 @@ where
             let count = endpoints.len();
             if count == 0 {
                 return Err(error!(
-                    "no endpoints found for endpoint {:?}",
-                    self.endpoint.etcd_path()
+                    "no endpoints found for function {:?}",
+                    self.function.etcd_path()
                 ));
             }
             let offset = counter % count as u64;
             endpoints[offset as usize]
         };
 
-        let subject = self.endpoint.subject_to(endpoint_id);
+        let subject = self.function.subject_to(endpoint_id);
         let request = request.map(|req| AddressedRequest::new(req, subject));
 
         self.router.generate(request).await
     }
 
-    /// Issue a request to a random endpoint
+    /// Issue a request to a random function
     pub async fn random(&self, request: SingleIn<T>) -> Result<ManyOut<U>> {
         let endpoint_id = {
             let endpoints = self.watch_rx.borrow();
             let count = endpoints.len();
             if count == 0 {
                 return Err(error!(
-                    "no endpoints found for endpoint {:?}",
-                    self.endpoint.etcd_path()
+                    "no endpoints found for function {:?}",
+                    self.function.etcd_path()
                 ));
             }
             let counter = rand::thread_rng().gen::<u64>();
@@ -216,13 +215,13 @@ where
             endpoints[offset as usize]
         };
 
-        let subject = self.endpoint.subject_to(endpoint_id);
+        let subject = self.function.subject_to(endpoint_id);
         let request = request.map(|req| AddressedRequest::new(req, subject));
 
         self.router.generate(request).await
     }
 
-    /// Issue a request to a specific endpoint
+    /// Issue a request to a specific function
     pub async fn direct(&self, request: SingleIn<T>, endpoint_id: i64) -> Result<ManyOut<U>> {
         let found = {
             let endpoints = self.watch_rx.borrow();
@@ -231,13 +230,13 @@ where
 
         if !found {
             return Err(error!(
-                "endpoint_id={} not found for endpoint {:?}",
+                "endpoint_id={} not found for function {:?}",
                 endpoint_id,
-                self.endpoint.etcd_path()
+                self.function.etcd_path()
             ));
         }
 
-        let subject = self.endpoint.subject_to(endpoint_id);
+        let subject = self.function.subject_to(endpoint_id);
         let request = request.map(|req| AddressedRequest::new(req, subject));
 
         self.router.generate(request).await

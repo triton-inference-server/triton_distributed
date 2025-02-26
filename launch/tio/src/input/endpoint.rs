@@ -97,7 +97,7 @@ pub async fn run(
         .service_builder()
         .create()
         .await?
-        .endpoint(endpoint.name)
+        .function(endpoint.name)?
         .endpoint_builder()
         .handler(ingress)
         .start();

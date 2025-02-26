@@ -38,16 +38,16 @@ async def worker(runtime: DistributedRuntime):
     backend = (
         await runtime.namespace("examples/pipeline")
         .component("backend")
-        .endpoint("generate")
+        .function("generate")
         .client()
     )
 
-    # create endpoint service for middle component
+    # create function service for middle component
     component = runtime.namespace("examples/pipeline").component("middle")
     await component.create_service()
 
-    endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(RequestHandler(backend).generate)
+    function = component.function("generate")
+    await function.serve_endpoint(RequestHandler(backend).generate)
 
 
 asyncio.run(worker())

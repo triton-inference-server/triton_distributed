@@ -34,7 +34,7 @@ async fn app(runtime: Runtime) -> Result<()> {
     let component = namespace.component("backend")?;
 
     let client = component
-        .endpoint("generate")
+        .function("generate")?
         .client::<String, Annotated<String>>()
         .await?;
 

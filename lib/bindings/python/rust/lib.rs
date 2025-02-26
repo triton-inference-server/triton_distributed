@@ -60,7 +60,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<CancellationToken>()?;
     m.add_class::<Namespace>()?;
     m.add_class::<Component>()?;
-    m.add_class::<Endpoint>()?;
+    m.add_class::<Function>()?;
     m.add_class::<Client>()?;
     m.add_class::<AsyncResponseStream>()?;
     m.add_class::<llm::kv::KvRouter>()?;
@@ -107,8 +107,8 @@ struct Component {
 
 #[pyclass]
 #[derive(Clone)]
-struct Endpoint {
-    inner: rs::component::Endpoint,
+struct Function {
+    inner: rs::component::Function,
     event_loop: PyObject,
 }
 
@@ -185,9 +185,9 @@ impl CancellationToken {
 
 #[pymethods]
 impl Component {
-    fn endpoint(&self, name: String) -> PyResult<Endpoint> {
-        let inner = self.inner.endpoint(name);
-        Ok(Endpoint {
+    fn function(&self, name: String) -> PyResult<Function> {
+        let inner = self.inner.function(name).map_err(to_pyerr)?;
+        Ok(Function {
             inner,
             event_loop: self.event_loop.clone(),
         })
@@ -207,7 +207,7 @@ impl Component {
 }
 
 #[pymethods]
-impl Endpoint {
+impl Function {
     fn serve_endpoint<'p>(
         &self,
         py: Python<'p>,
@@ -266,7 +266,7 @@ impl Client {
         })
     }
 
-    /// Issue a request to the endpoint using the default routing strategy.
+    /// Issue a request to the function using the default routing strategy.
     #[pyo3(signature = (request, annotated=DEFAULT_ANNOTATED_SETTING))]
     fn generate<'p>(
         &self,
@@ -277,7 +277,7 @@ impl Client {
         self.random(py, request, annotated)
     }
 
-    /// Send a request to the next endpoint in a round-robin fashion.
+    /// Send a request to the next function in a round-robin fashion.
     #[pyo3(signature = (request, annotated=DEFAULT_ANNOTATED_SETTING))]
     fn round_robin<'p>(
         &self,
@@ -301,7 +301,7 @@ impl Client {
         })
     }
 
-    /// Send a request to a random endpoint.
+    /// Send a request to a random function.
     #[pyo3(signature = (request, annotated=DEFAULT_ANNOTATED_SETTING))]
     fn random<'p>(
         &self,
@@ -325,7 +325,7 @@ impl Client {
         })
     }
 
-    /// Directly send a request to a specific endpoint.
+    /// Directly send a request to a specific function.
     #[pyo3(signature = (request, endpoint_id, annotated=DEFAULT_ANNOTATED_SETTING))]
     fn direct<'p>(
         &self,

@@ -41,7 +41,7 @@ class RoutingStrategy(Enum):
 
 class Router:
     """
-    Request handler for the generate endpoint
+    Request handler for the generate function
     """
 
     def __init__(
@@ -86,12 +86,12 @@ class Router:
 async def worker(runtime: DistributedRuntime, args: Namespace):
     """
     Set up the worker clients.
-    Serve the triton-init.router.generate endpoint.
+    Serve the triton-init.router.generate function.
     """
     workers_client = (
         await runtime.namespace("triton-init")
         .component("vllm")
-        .endpoint("generate")
+        .function("generate")
         .client()
     )
     wait_task = workers_client.wait_for_endpoints()
@@ -122,8 +122,8 @@ async def worker(runtime: DistributedRuntime, args: Namespace):
 
     router = KvRouter(runtime, kv_listener)
 
-    endpoint = router_component.endpoint("generate")
-    await endpoint.serve_endpoint(Router(router, args.routing_strategy).generate)
+    function = router_component.function("generate")
+    await function.serve_endpoint(Router(router, args.routing_strategy).generate)
 
 
 if __name__ == "__main__":

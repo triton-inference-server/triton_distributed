@@ -44,23 +44,23 @@ fn get_config() -> Result<LLMWorkerLoadCapacityConfig> {
         return Err(error!("TRD_COUNT_SCRAPE_COMPONENT is not set"));
     }
 
-    let endpoint_name = std::env::var("TRD_COUNT_SCRAPE_ENDPOINT")?;
-    if endpoint_name.is_empty() {
+    let function_name = std::env::var("TRD_COUNT_SCRAPE_ENDPOINT")?;
+    if function_name.is_empty() {
         return Err(error!("TRD_COUNT_SCRAPE_ENDPOINT is not set"));
     }
 
     Ok(LLMWorkerLoadCapacityConfig {
         component_name,
-        endpoint_name,
+        function_name,
     })
 }
 
-// we will scrape the service_name and extract the endpoint_name metrics
-// we will bcast them as {namespace}.events.l2c.{service_name}.{endpoint_name}
+// we will scrape the service_name and extract the function_name metrics
+// we will bcast them as {namespace}.events.l2c.{service_name}.{function_name}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LLMWorkerLoadCapacityConfig {
     component_name: String,
-    endpoint_name: String,
+    function_name: String,
 }
 
 /// LLM Worker Load Capacity Metrics
@@ -105,7 +105,7 @@ async fn app(runtime: Runtime) -> Result<()> {
         .context("Unable to create unique instance of Count; possibly one already exists")?;
 
     let target = namespace.component(&config.component_name)?;
-    let target_endpoint = target.endpoint(&config.endpoint_name);
+    let target_endpoint = target.function(&config.function_name)?;
 
     let service_name = target.service_name();
     let service_subject = target_endpoint.subject();
@@ -113,7 +113,7 @@ async fn app(runtime: Runtime) -> Result<()> {
     log::debug!("Scraping service {service_name} and filtering on subject {service_subject}");
     let token = drt.primary_lease().child_token();
 
-    let address = format!("{}.{}", config.component_name, config.endpoint_name,);
+    let address = format!("{}.{}", config.component_name, config.function_name,);
     let event_name = format!("l2c.{}", address);
 
     loop {
