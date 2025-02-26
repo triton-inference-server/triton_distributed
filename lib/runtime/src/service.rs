@@ -110,7 +110,7 @@ impl ServiceClient {
         }
         let deadline = tokio::time::Instant::now() + duration;
 
-        let services = stream::until_deadline(sub, deadline)
+        let services: Vec<ServiceInfo> = stream::until_deadline(sub, deadline)
             .map(|message| serde_json::from_slice::<ServiceInfo>(&message.payload))
             .filter_map(|info| async move {
                 match info {
