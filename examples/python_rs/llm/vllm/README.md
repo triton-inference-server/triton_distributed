@@ -23,9 +23,9 @@ This example demonstrates how to use Triton Distributed to serve large language 
 
 Start required services (etcd and NATS):
 
-   Option A: Using [Docker Compose](/runtime/rust/docker-compose.yml) (Recommended)
+   Option A: Using [Docker Compose](/deploy/docker-compose.yml) (Recommended)
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
    Option B: Manual Setup
