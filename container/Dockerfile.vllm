@@ -100,7 +100,7 @@ cargo build --release --locked && cargo doc --no-deps
 
 # Build triton_distributed wheel
 RUN source /opt/triton/venv/bin/activate && \
-    uv build --wheel--out-dir /workspace/dist && \
+    uv build --wheel --out-dir /workspace/dist && \
     uv pip install /workspace/dist/triton_distributed*cp312*.whl
 
 # Package the bindings
