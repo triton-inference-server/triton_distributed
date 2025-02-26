@@ -21,7 +21,7 @@ use triton_distributed_llm::{
     model_type::ModelType,
     preprocessor::OpenAIPreprocessor,
     types::{
-        openai::chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
+        openai::chat_completions::{ChatCompletionResponseDelta, NvCreateChatCompletionRequest},
         Annotated,
     },
 };
@@ -74,7 +74,7 @@ pub async fn run(
             card,
         } => {
             let frontend = ServiceFrontend::<
-                SingleIn<ChatCompletionRequest>,
+                SingleIn<NvCreateChatCompletionRequest>,
                 ManyOut<Annotated<ChatCompletionResponseDelta>>,
             >::new();
             let preprocessor = OpenAIPreprocessor::new(*card.clone())

@@ -24,12 +24,11 @@ use validator::Validate;
 mod aggregator;
 mod delta;
 
-pub use super::{CompletionTokensDetails, CompletionUsage, PromptTokensDetails};
 pub use aggregator::DeltaAggregator;
 pub use delta::DeltaGenerator;
 
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
-pub struct ChatCompletionRequest {
+pub struct NvCreateChatCompletionRequest {
     #[serde(flatten)]
     pub inner: async_openai::types::CreateChatCompletionRequest,
     pub nvext: Option<NvExt>,
@@ -53,7 +52,7 @@ pub struct ChatCompletionResponseDelta {
     pub inner: async_openai::types::CreateChatCompletionStreamResponse,
 }
 
-impl NvExtProvider for ChatCompletionRequest {
+impl NvExtProvider for NvCreateChatCompletionRequest {
     fn nvext(&self) -> Option<&NvExt> {
         self.nvext.as_ref()
     }
@@ -63,7 +62,7 @@ impl NvExtProvider for ChatCompletionRequest {
     }
 }
 
-impl AnnotationsProvider for ChatCompletionRequest {
+impl AnnotationsProvider for NvCreateChatCompletionRequest {
     fn annotations(&self) -> Option<Vec<String>> {
         self.nvext
             .as_ref()
@@ -79,7 +78,7 @@ impl AnnotationsProvider for ChatCompletionRequest {
     }
 }
 
-impl OpenAISamplingOptionsProvider for ChatCompletionRequest {
+impl OpenAISamplingOptionsProvider for NvCreateChatCompletionRequest {
     fn get_temperature(&self) -> Option<f32> {
         self.inner.temperature
     }
@@ -102,7 +101,7 @@ impl OpenAISamplingOptionsProvider for ChatCompletionRequest {
 }
 
 #[allow(deprecated)]
-impl OpenAIStopConditionsProvider for ChatCompletionRequest {
+impl OpenAIStopConditionsProvider for NvCreateChatCompletionRequest {
     fn get_max_tokens(&self) -> Option<u32> {
         // ALLOW: max_tokens is deprecated in favor of max_completion_tokens
         self.inner.max_tokens

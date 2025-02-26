@@ -19,7 +19,7 @@ use async_stream::stream;
 use async_trait::async_trait;
 
 use triton_distributed_llm::protocols::openai::chat_completions::{
-    ChatCompletionRequest, ChatCompletionResponseDelta,
+    ChatCompletionResponseDelta, NvCreateChatCompletionRequest,
 };
 use triton_distributed_llm::types::openai::chat_completions::OpenAIChatCompletionsStreamingEngine;
 use triton_distributed_runtime::engine::{AsyncEngine, AsyncEngineContextProvider, ResponseStream};
@@ -40,14 +40,14 @@ pub fn make_engine_full() -> OpenAIChatCompletionsStreamingEngine {
 #[async_trait]
 impl
     AsyncEngine<
-        SingleIn<ChatCompletionRequest>,
+        SingleIn<NvCreateChatCompletionRequest>,
         ManyOut<Annotated<ChatCompletionResponseDelta>>,
         Error,
     > for EchoEngineFull
 {
     async fn generate(
         &self,
-        incoming_request: SingleIn<ChatCompletionRequest>,
+        incoming_request: SingleIn<NvCreateChatCompletionRequest>,
     ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
         let (request, context) = incoming_request.transfer(());
         let deltas = request.response_generator();

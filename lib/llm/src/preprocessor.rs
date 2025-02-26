@@ -44,7 +44,7 @@ use triton_distributed_runtime::protocols::annotated::{Annotated, AnnotationsPro
 use crate::protocols::{
     common::{SamplingOptionsProvider, StopConditionsProvider},
     openai::{
-        chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
+        chat_completions::{ChatCompletionResponseDelta, NvCreateChatCompletionRequest},
         completions::{CompletionRequest, CompletionResponse},
         nvext::NvExtProvider,
         DeltaGeneratorExt,
@@ -251,7 +251,7 @@ impl OpenAIPreprocessor {
 #[async_trait]
 impl
     Operator<
-        SingleIn<ChatCompletionRequest>,
+        SingleIn<NvCreateChatCompletionRequest>,
         ManyOut<Annotated<ChatCompletionResponseDelta>>,
         SingleIn<BackendInput>,
         ManyOut<Annotated<BackendOutput>>,
@@ -259,7 +259,7 @@ impl
 {
     async fn generate(
         &self,
-        request: SingleIn<ChatCompletionRequest>,
+        request: SingleIn<NvCreateChatCompletionRequest>,
         next: Arc<
             dyn AsyncEngine<SingleIn<BackendInput>, ManyOut<Annotated<BackendOutput>>, Error>,
         >,

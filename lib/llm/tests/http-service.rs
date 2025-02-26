@@ -26,7 +26,7 @@ use triton_distributed_llm::http::service::{
 };
 use triton_distributed_llm::protocols::{
     openai::{
-        chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
+        chat_completions::{ChatCompletionResponseDelta, NvCreateChatCompletionRequest},
         completions::{CompletionRequest, CompletionResponse},
     },
     Annotated,
@@ -44,14 +44,14 @@ struct CounterEngine {}
 #[async_trait]
 impl
     AsyncEngine<
-        SingleIn<ChatCompletionRequest>,
+        SingleIn<NvCreateChatCompletionRequest>,
         ManyOut<Annotated<ChatCompletionResponseDelta>>,
         Error,
     > for CounterEngine
 {
     async fn generate(
         &self,
-        request: SingleIn<ChatCompletionRequest>,
+        request: SingleIn<NvCreateChatCompletionRequest>,
     ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
         let (request, context) = request.transfer(());
         let ctx = context.context();
@@ -84,14 +84,14 @@ struct AlwaysFailEngine {}
 #[async_trait]
 impl
     AsyncEngine<
-        SingleIn<ChatCompletionRequest>,
+        SingleIn<NvCreateChatCompletionRequest>,
         ManyOut<Annotated<ChatCompletionResponseDelta>>,
         Error,
     > for AlwaysFailEngine
 {
     async fn generate(
         &self,
-        _request: SingleIn<ChatCompletionRequest>,
+        _request: SingleIn<NvCreateChatCompletionRequest>,
     ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
         Err(HttpError {
             code: 403,

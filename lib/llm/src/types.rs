@@ -37,20 +37,18 @@ pub mod openai {
     pub mod chat_completions {
         use super::*;
 
-        // pub use async_openai::types::CreateChatCompletionRequest as ChatCompletionRequest;
-        // pub use protocols::openai::chat_completions::{
-        //     ChatCompletionResponse, ChatCompletionResponseDelta,
-        // };
         pub use protocols::openai::chat_completions::{
-            ChatCompletionRequest, ChatCompletionResponse, ChatCompletionResponseDelta,
+            ChatCompletionResponse, ChatCompletionResponseDelta, NvCreateChatCompletionRequest,
         };
 
         /// A [`UnaryEngine`] implementation for the OpenAI Chat Completions API
         pub type OpenAIChatCompletionsUnaryEngine =
-            UnaryEngine<ChatCompletionRequest, ChatCompletionResponse>;
+            UnaryEngine<NvCreateChatCompletionRequest, ChatCompletionResponse>;
 
         /// A [`ServerStreamingEngine`] implementation for the OpenAI Chat Completions API
-        pub type OpenAIChatCompletionsStreamingEngine =
-            ServerStreamingEngine<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>;
+        pub type OpenAIChatCompletionsStreamingEngine = ServerStreamingEngine<
+            NvCreateChatCompletionRequest,
+            Annotated<ChatCompletionResponseDelta>,
+        >;
     }
 }
