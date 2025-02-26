@@ -1,0 +1,1 @@
+The `core/` directory contains the source code for the decorators and glue code for the NOVA library.
