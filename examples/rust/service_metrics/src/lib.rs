@@ -14,3 +14,8 @@
 // limitations under the License.
 
 pub const DEFAULT_NAMESPACE: &str = "triton-init";
+
+#[derive(Serialize, Deserialize)]
+pub struct MyStats {
+    pub val: u32,
+}

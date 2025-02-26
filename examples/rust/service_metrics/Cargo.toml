@@ -27,4 +27,6 @@ triton-distributed-runtime = { workspace = true }
 
 # third-party
 futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true }

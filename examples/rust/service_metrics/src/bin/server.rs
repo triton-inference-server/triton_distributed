@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use service_metrics::DEFAULT_NAMESPACE;
+use service_metrics::{MyStats, DEFAULT_NAMESPACE};
 
 use std::sync::Arc;
 use triton_distributed_runtime::{
@@ -71,6 +71,10 @@ async fn backend(runtime: DistributedRuntime) -> Result<()> {
         .namespace(DEFAULT_NAMESPACE)?
         .component("backend")?
         .service_builder()
+        .stats_handler(|name, stats| {
+            let stats = MyStats { val: 10 };
+            serde_json::to_value(stats).unwrap()
+        })
         .create()
         .await?
         .endpoint("generate")
