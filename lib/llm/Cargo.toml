@@ -81,6 +81,7 @@ uuid = { workspace = true }
 xxhash-rust = { workspace = true }
 strum = { workspace = true }
 
+async-openai = "0.27.2"
 blake3 = "1"
 regex = "1"
 
@@ -134,7 +135,6 @@ itertools = { version = "0.14.0" }
 minijinja = { version = "2.3.1", features = ["loader"] }
 minijinja-contrib = { version = "2.3.1", features = ["pycompat"] }
 semver = { version = "1", features = ["serde"] }
-async-openai = "0.27.2"
 
 [dev-dependencies]
 proptest = "1.5.0"
