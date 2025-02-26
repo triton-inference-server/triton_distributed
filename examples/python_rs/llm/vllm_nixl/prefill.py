@@ -1,32 +1,32 @@
-from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.config import KVTransferConfig
-from vllm.inputs.data import TokensPrompt
-from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams
-from vllm.distributed.device_communicators.nixl import NixlMetadata
-from vllm.entrypoints.openai.api_server import build_async_engine_client_from_engine_args
-import msgspec
 import asyncio
-import uvloop
 
+import msgspec
+import uvloop
+from common import find_remote_metadata, parse_vllm_args, temp_metadata_file
+from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.entrypoints.openai.api_server import (
+    build_async_engine_client_from_engine_args,
+)
+from vllm.inputs.data import TokensPrompt
+from vllm.remote_prefill import RemotePrefillParams, RemotePrefillRequest
 
 from triton_distributed.runtime import DistributedRuntime, triton_worker
-
-from common import temp_metadata_file, find_remote_metadata, parse_vllm_args
 
 
 class RequestHandler:
     def __init__(self, engine_client):
         self.engine_client = engine_client
         print("RequestHandler initialized")
-        
 
     async def generate(self, raw_request: str):
-        request: RemotePrefillRequest = msgspec.json.decode(raw_request.encode("utf-8"), type=RemotePrefillRequest)
+        request: RemotePrefillRequest = msgspec.json.decode(
+            raw_request.encode("utf-8"), type=RemotePrefillRequest
+        )
 
         sampling_params = request.sampling_params
         sampling_params.max_tokens = 1
         sampling_params.min_tokens = 1
-        
+
         remote_prefill_params = RemotePrefillParams(
             is_remote_decode=True,
             decode_block_ids=request.block_ids,
@@ -39,7 +39,7 @@ class RequestHandler:
             sampling_params=sampling_params,
             remote_prefill_params=remote_prefill_params,
         ):
-            yield 
+            yield
 
 
 @triton_worker()
@@ -50,7 +50,6 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     endpoint = component.endpoint("generate")
 
     async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
-
         # This should be replaced with etcd
         metadata = engine_client.nixl_metadata
         with temp_metadata_file(metadata.engine_id, metadata):
@@ -60,7 +59,9 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
                 await asyncio.sleep(1)
                 remote_metadata = find_remote_metadata(metadata.engine_id)
 
-            print(f"Found {len(remote_metadata)} remote metadata for engine {metadata.engine_id}")
+            print(
+                f"Found {len(remote_metadata)} remote metadata for engine {metadata.engine_id}"
+            )
             for remote_metadata in remote_metadata:
                 await engine_client.add_remote_nixl_metadata(remote_metadata)
             await endpoint.serve_endpoint(RequestHandler(engine_client).generate)

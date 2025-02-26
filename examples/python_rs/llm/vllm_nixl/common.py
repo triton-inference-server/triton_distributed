@@ -1,11 +1,10 @@
 import os
-import msgspec
 from contextlib import contextmanager
 
+import msgspec
 from vllm.distributed.device_communicators.nixl import NixlMetadata
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.utils import FlexibleArgumentParser
-
 
 METADATA_DIR = "/tmp/nixl"
 
@@ -31,6 +30,7 @@ def temp_metadata_file(engine_id, metadata: NixlMetadata):
         if os.path.exists(path):
             os.remove(path)
 
+
 def find_remote_metadata(engine_id):
     # find and load metadata from METADATA_DIR that do not match engine_id
     remote_metadata = []
@@ -38,5 +38,7 @@ def find_remote_metadata(engine_id):
         if file.endswith(".nixl_meta"):
             if file.split(".")[0] != engine_id:
                 with open(os.path.join(METADATA_DIR, file), "rb") as f:
-                    remote_metadata.append(msgspec.msgpack.decode(f.read(), type=NixlMetadata))
+                    remote_metadata.append(
+                        msgspec.msgpack.decode(f.read(), type=NixlMetadata)
+                    )
     return remote_metadata
