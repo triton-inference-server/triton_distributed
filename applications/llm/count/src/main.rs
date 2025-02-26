@@ -33,7 +33,8 @@ use triton_distributed_runtime::{
     DistributedRuntime, ErrorContext, Result, Runtime, Worker,
 };
 
-use tracing as log;
+// FIXME: Remove
+use triton_distributed_runtime::protocols::annotated::Annotated;
 
 /// CLI arguments for the count application
 #[derive(Parser, Debug)]
@@ -48,8 +49,12 @@ struct Args {
     endpoint: String,
 
     /// Namespace to operate in
-    #[arg(long, env = "TRD_NAMESPACE", default_value = "default")]
+    #[arg(long, env = "TRD_NAMESPACE", default_value = "triton-init")]
     namespace: String,
+
+    /// Polling interval in seconds (minimum 1 second)
+    #[arg(long, default_value = "2")]
+    poll_interval: u64,
 }
 
 fn get_config(args: &Args) -> Result<LLMWorkerLoadCapacityConfig> {
@@ -59,6 +64,10 @@ fn get_config(args: &Args) -> Result<LLMWorkerLoadCapacityConfig> {
 
     if args.endpoint.is_empty() {
         return Err(error!("Endpoint name cannot be empty"));
+    }
+
+    if args.poll_interval < 1 {
+        return Err(error!("Polling interval must be at least 1 second"));
     }
 
     Ok(LLMWorkerLoadCapacityConfig {
@@ -96,6 +105,7 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
     // we will start by assuming that there is no oscar and no planner
     // to that end, we will use CLI args to get a singular config for scraping a single backend
     let config = get_config(&args)?;
+    tracing::info!("Config: {config:?}");
 
     let drt = DistributedRuntime::from_settings(runtime.clone()).await?;
 
@@ -105,6 +115,7 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
     // there should only be one count
     // check {component.etcd_path()}/instance for existing instances
     let key = format!("{}/instance", component.etcd_path());
+    tracing::info!("Creating unique instance of Count at {key}");
     drt.etcd_client()
         .kv_create(
             key,
@@ -120,24 +131,44 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
     let service_name = target.service_name();
     let service_subject = target_endpoint.subject();
 
-    log::debug!("Scraping service {service_name} and filtering on subject {service_subject}");
+    tracing::info!("Scraping service {service_name} and filtering on subject {service_subject}");
     let token = drt.primary_lease().child_token();
 
     let address = format!("{}.{}", config.component_name, config.endpoint_name,);
     let event_name = format!("l2c.{}", address);
 
     loop {
-        // TODO - make this configurable
-        let next = Instant::now() + Duration::from_secs(2);
+        // Use the CLI argument for the polling interval
+        let next = Instant::now() + Duration::from_secs(args.poll_interval);
+
+        // ======
+        // FIXME: Remove
+        let client = target
+            .endpoint("generate")
+            .client::<String, Annotated<String>>()
+            .await?;
+
+        client.wait_for_endpoints().await?;
+        let stream = client.random("hello world".to_string().into()).await?;
+        // ======
+
+        tracing::debug!("Client Response Stream: {stream:?}");
 
         // collect stats from each backend
-        let stream = target.scrape_stats(Duration::from_secs(1)).await?;
+        // NOTE: This call may block indefinitely if the service is not running
+        tracing::debug!("Scraping stats from {service_name}");
+        let stream = target.scrape_stats(Duration::from_secs(2)).await?;
+        tracing::debug!("Scraped Stats Stream: {stream:?}");
 
         // filter the stats by the service subject
         let endpoints = stream
             .into_endpoints()
             .filter(|e| e.subject.starts_with(&service_subject))
             .collect::<Vec<_>>();
+        tracing::debug!("Endpoints: {endpoints:?}");
+        if endpoints.is_empty() {
+            tracing::warn!("No endpoints found matching subject {}", service_subject);
+        }
 
         // extract the custom data from the stats and try to decode it as LLMWorkerLoadCapacity
         let metrics = endpoints
@@ -147,6 +178,7 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
                 None => None,
             })
             .collect::<Vec<_>>();
+        tracing::debug!("Metrics: {metrics:?}");
 
         // parse the endpoint ids
         // the ids are the last part of the subject in hexadecimal

@@ -129,6 +129,7 @@ impl Component {
     }
 
     pub fn service_name(&self) -> String {
+        tracing::debug!("Service name: {namespace}|{name}", namespace = self.namespace, name = self.name);
         Slug::from_string(format!("{}|{}", self.namespace, self.name)).to_string()
     }
 
@@ -161,6 +162,7 @@ impl Component {
     pub async fn scrape_stats(&self, duration: Duration) -> Result<ServiceSet> {
         let service_name = self.service_name();
         let service_client = self.drt().service_client();
+        tracing::debug!("Scraping stats from {service_name}");
         service_client
             .collect_services(&service_name, duration)
             .await

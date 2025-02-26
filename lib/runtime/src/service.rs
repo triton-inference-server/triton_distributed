@@ -101,6 +101,7 @@ impl ServiceClient {
         service_name: &str,
         duration: Duration,
     ) -> Result<ServiceSet> {
+        tracing::debug!("Scraping services for {service_name}");
         let sub = self.nats_client.scrape_service(service_name).await?;
         if duration.is_zero() {
             tracing::warn!("collect_services: duration is zero");
@@ -110,7 +111,8 @@ impl ServiceClient {
         }
         let deadline = tokio::time::Instant::now() + duration;
 
-        let services = stream::until_deadline(sub, deadline)
+        tracing::debug!("Collecting services until max deadline: {duration:?}");
+        let services: Vec<ServiceInfo> = stream::until_deadline(sub, deadline)
             .map(|message| serde_json::from_slice::<ServiceInfo>(&message.payload))
             .filter_map(|info| async move {
                 match info {
@@ -124,6 +126,7 @@ impl ServiceClient {
             .collect()
             .await;
 
+        tracing::debug!("Collected {} services", services.len());
         Ok(ServiceSet { services })
     }
 }

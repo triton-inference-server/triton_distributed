@@ -31,14 +31,18 @@ impl<S: Stream + Unpin> Stream for DeadlineStream<S> {
     type Item = S::Item;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        tracing::debug!("Polling next item. Now: {:?}, Deadline: {:?}", Instant::now(), self.deadline);
         // Check if we've passed the deadline
         if Instant::now() >= self.deadline {
+            tracing::debug!("Deadline expired. Now: {:?}, Deadline: {:?}", Instant::now(), self.deadline);
             // The deadline expired; end the stream now
             return Poll::Ready(None);
         }
 
         // Otherwise, poll the underlying stream
-        self.as_mut().stream.poll_next_unpin(cx)
+        let item = self.as_mut().stream.poll_next_unpin(cx);
+        tracing::debug!("Polled item. Now: {:?}, Deadline: {:?}", Instant::now(), self.deadline);
+        item
     }
 }
 
