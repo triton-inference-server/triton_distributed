@@ -86,13 +86,24 @@ Note: NATS and ETCD servers should be running and accessible from the container 
 
 ### 1. Monolithic Deployment
 
-Run the server and client components in separate terminal sessions:
+#### 1. HTTP Server
 
-**Server:**
+Run the server logging (with debug level logging):
+```bash
+TRD_LOG=DEBUG http
+```
+By default the server will run on port 8080.
+
+Add model to the server:
+```bash
+llmctl http add chat-models TinyLlama/TinyLlama-1.1B-Chat-v1.0 triton-init.tensorrt-llm.generate
+```
+
+#### 2. Workers
 
 Note: The following commands are tested on machines withH100x8 GPUs
 
-#### Option 1.1 Single-Node Single-GPU
+##### Option 1.1 Single-Node Single-GPU
 
 ```bash
 # Launch worker
@@ -113,7 +124,7 @@ Upon successful launch, the output should look similar to:
 
 `nvidia-smi` can be used to check the GPU usage and the model is loaded on single GPU.
 
-#### Option 1.2 Single-Node Multi-GPU
+##### Option 1.2 Single-Node Multi-GPU
 
 Update `tensor_parallel_size` in the `model.json` to load the model with the desired number of GPUs.
 For this example, we will load the model with 4 GPUs.
@@ -125,54 +136,77 @@ mpirun --allow-run-as-root -n 1 --oversubscribe python3 -m monolith.worker --eng
 ```
 `nvidia-smi` can be used to check the GPU usage and the model is loaded on 4 GPUs.
 
-#### Option 1.3 Multi-Node Multi-GPU
+##### Option 1.3 Multi-Node Multi-GPU
 
-Tanmay[WIP]
+TODO: Add multi-node multi-GPU example
 
-**Client:**
+#### 3. Client
 
 ```bash
-
-# Run client
-python3 -m common.client \
-    --prompt "Describe the capital of France" \
-    --max-tokens 10 \
-    --temperature 0.5 \
-    --component tensorrt-llm
+curl localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "messages": [
+      {"role": "user", "content": "What is the capital of France?"}
+    ]
+  }'
 ```
 
 The output should look similar to:
 ```
-Annotated(data=',', event=None, comment=[], id=None)
-Annotated(data=', Paris', event=None, comment=[], id=None)
-Annotated(data=', Paris,', event=None, comment=[], id=None)
-Annotated(data=', Paris, in', event=None, comment=[], id=None)
-Annotated(data=', Paris, in terms', event=None, comment=[], id=None)
-Annotated(data=', Paris, in terms of', event=None, comment=[], id=None)
-Annotated(data=', Paris, in terms of its', event=None, comment=[], id=None)
-Annotated(data=', Paris, in terms of its history', event=None, comment=[], id=None)
-Annotated(data=', Paris, in terms of its history,', event=None, comment=[], id=None)
-Annotated(data=', Paris, in terms of its history, culture', event=None, comment=[], id=None)
+{
+  "id": "ab013077-8fb2-433e-bd7d-88133fccd497",
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "The capital of France is Paris."
+      },
+      "index": 0,
+      "finish_reason": "stop"
+    }
+  ],
+  "created": 1740617803,
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "object": "chat.completion",
+  "usage": null,
+  "system_fingerprint": null
+}
 ```
 
 ### 2. Disaggregated Deployment
 
-#### 2.1 Single-Node Disaggregated Deployment
-
 **Environment**
 This is the latest image with tensorrt_llm supporting distributed serving with pytorch workflow in LLM API.
-
 
 Run the container interactively with the following command:
 ```bash
 ./container/run.sh --image IMAGE -it
 ```
 
+#### 1. HTTP Server
+
+Run the server logging (with debug level logging):
+```bash
+TRD_LOG=DEBUG http
+```
+By default the server will run on port 8080.
+
+Add model to the server:
+```bash
+llmctl http add chat-models TinyLlama/TinyLlama-1.1B-Chat-v1.0 triton-init.router.generate
+```
+
+#### 2. Workers
+
+##### Option 2.1 Single-Node Disaggregated Deployment
+
 **TRTLLM LLMAPI Disaggregated config file**
 Define disaggregated config file similar to the example [single_node_config.yaml](disaggregated/llmapi_disaggregated_configs/single_node_config.yaml). The important sections are the model, context_servers and generation_servers.
 
 
-**Launch the servers**
+1. **Launch the servers**
 
 Launch context and generation servers.\
 WORLD_SIZE is the total number of workers covering all the servers described in disaggregated configuration.\
@@ -184,23 +218,17 @@ mpirun --allow-run-as-root --oversubscribe -n WORLD_SIZE python3 -m disaggregate
 ```
 If using the provided [single_node_config.yaml](disaggregated/llmapi_disaggregated_configs/single_node_config.yaml), WORLD_SIZE should be 3 as it has 2 context servers(TP=1) and 1 generation server(TP=1).
 
-**Launch the router**
+2. **Launch the router**
 
 ```bash
 cd /workspace/examples/python_rs/llm/tensorrt_llm/
 python3 -m disaggregated.router -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml &
 ```
 
-**Send Requests**
+3. **Send Requests**
 
-```bash
-cd /workspace/examples/python_rs/llm/tensorrt_llm/
-python3 -m common.client \
-    --prompt "Describe the capital of France" \
-    --max-tokens 10 \
-    --temperature 0.5 \
-    --component router
-```
+
+
 
 For more details on the disaggregated deployment, please refer to the [TRT-LLM example](#TODO).
 

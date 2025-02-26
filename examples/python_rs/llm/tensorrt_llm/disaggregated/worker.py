@@ -18,27 +18,32 @@ import asyncio
 import os
 import threading
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import uvloop
+from common.chat_processor import ChatProcessor, merge_promises
 from common.parser import parse_tensorrt_llm_args
-from common.protocol import DisaggregatedRequest, DisaggregatedResponse
 from mpi4py.futures import MPICommExecutor
 from mpi4py.MPI import COMM_WORLD
-from tensorrt_llm import SamplingParams
 from tensorrt_llm._torch import LLM
 from tensorrt_llm._torch.pyexecutor.config import PyTorchConfig
 from tensorrt_llm._utils import set_mpi_comm
-from tensorrt_llm.llmapi import DisaggregatedParams, KvCacheConfig, MpiCommSession
+from tensorrt_llm.llmapi import KvCacheConfig, MpiCommSession
 from tensorrt_llm.llmapi.disagg_utils import (
     CtxGenServerConfig,
     DisaggServerConfig,
     parse_disagg_config_file,
     split_world_comm,
 )
+from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
+from tensorrt_llm.serve.openai_protocol import CompletionRequest, CompletionResponse
 
-from triton_distributed.runtime import DistributedRuntime, triton_worker
+from triton_distributed.runtime import (
+    DistributedRuntime,
+    triton_endpoint,
+    triton_worker,
+)
 
 logger.set_level("info")
 
@@ -63,6 +68,8 @@ class TensorrtLLMEngine:
         ]
         self.mpi_session = MpiCommSession(sub_comm, n_workers=sub_comm.Get_size())
         self._init_engine()
+        self.model = self.llm_engine_args["model"]
+        self.chat_processor = ChatProcessor(self.model, None)
 
     def _init_engine(self):
         logger.info("Initializing engine")
@@ -166,39 +173,47 @@ class TensorrtLLMEngine:
         self._llm_engine = None
         logger.info("Shutdown complete")
 
+    @triton_endpoint(CompletionRequest, CompletionResponse)
     async def generate(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
 
         self._ongoing_request_count += 1
         logger.debug(f"Received request: {request}")
-        request = DisaggregatedRequest.parse_raw(request)
-        sampling_params = SamplingParams(**request.sampling_params)
-        disaggregated_params = DisaggregatedParams(**request.disaggregated_params)
-
-        # Opaque state is  described as an additional state needing to be exchanged
-        # between context and gen instances
-        if disaggregated_params.opaque_state is not None:
-            disaggregated_params.opaque_state = (
-                disaggregated_params.opaque_state.encode("utf-8")
-                .decode("unicode_escape")
-                .encode("latin1")
-            )
-
-        async for response in self._llm_engine.generate_async(
-            request.prompt,
-            sampling_params,
-            streaming=request.streaming,
-            disaggregated_params=disaggregated_params,
+        if isinstance(request.prompt, str) or (
+            isinstance(request.prompt, list) and isinstance(request.prompt[0], int)
         ):
-            logger.debug(f"Generated response: {response}")
-            if self.server_config.type == "ctx":
-                yield DisaggregatedResponse(
-                    text=response.outputs[0].text,
-                    disaggregated_params=response.outputs[0].disaggregated_params,
-                ).model_dump_json()
-            else:
-                yield response.outputs[0].text
+            prompts = [request.prompt]
+        else:
+            prompts = request.prompt
+
+        promises: List[RequestOutput] = []
+        sampling_params = request.to_sampling_params()
+        disaggregated_params = request.to_llm_disaggregated_params()
+
+        for prompt in prompts:
+            promise = self._llm_engine.generate_async(
+                prompt,
+                sampling_params,
+                streaming=request.stream,
+                disaggregated_params=disaggregated_params,
+            )
+            promises.append(promise)
+
+        generator = merge_promises(promises)
+        num_choices = len(prompts) if request.n is None else len(prompts) * request.n
+        if request.stream:
+            response_generator = self.chat_processor.create_completion_generator(
+                request, generator, num_choices
+            )
+            async for response in response_generator:
+                yield response
+        else:
+            response = await self.chat_processor.create_completion_response(
+                request, generator, num_choices
+            )
+            yield response
+
         self._ongoing_request_count -= 1
 
 

@@ -18,15 +18,19 @@ import argparse
 import asyncio
 import copy
 from dataclasses import asdict
+from typing import List
 
 import uvloop
-from common.protocol import DisaggregatedRequest, DisaggregatedResponse, Response
-from tensorrt_llm.llmapi import DisaggregatedParams
 from tensorrt_llm.llmapi.disagg_utils import (
     CtxGenServerConfig,
     parse_disagg_config_file,
 )
 from tensorrt_llm.logger import logger
+from tensorrt_llm.serve.openai_protocol import (
+    CompletionRequest,
+    CompletionResponse,
+    DisaggregatedParams,
+)
 
 from triton_distributed.runtime import (
     DistributedRuntime,
@@ -45,15 +49,23 @@ class Router:
         self.gen_client = gen_client
         logger.info("INITIALIZED ROUTER")
 
-    @triton_endpoint(DisaggregatedRequest, Response)
+    @triton_endpoint(CompletionRequest, CompletionResponse)
     async def generate(self, request):
         gen_req = copy.deepcopy(request)
 
+        if not isinstance(request.prompt, str) and not isinstance(
+            request.prompt, List[int]
+        ):
+            raise ValueError(
+                "Disaggregated server currently only supports single prompt in request"
+            )
+
         # Send request to context server
+        request.max_tokens = 1
         request.disaggregated_params = asdict(
             DisaggregatedParams(request_type="context_only")
         )
-        request.sampling_params["max_tokens"] = 1
+
         ctx_resp = [
             resp
             async for resp in await self.ctx_client.round_robin(
@@ -65,21 +77,30 @@ class Router:
                 "Context server returned more than one response. This is currently not supported in disaggregated server."
             )
 
-        ctx_resp_obj = DisaggregatedResponse.parse_raw(ctx_resp[0].data())
-        if request.streaming:
+        ctx_response = ctx_resp[0]
+        # TODO: Context server should skip de-tokenization and return raw tokens
+        choices = ctx_response.choices
+        if len(choices) > 1:
+            raise ValueError(
+                "Disagg server returned more than one choice. This is currently not supported in disaggregated server."
+            )
+        if choices[0].disaggregated_params is None:
+            raise ValueError("Context server did not return disaggregated params")
+
+        if request.stream:
             # When streaming, the context server returns the first token and the rest of the tokens
             # are returned in the generation server. We are return the first token here to ensure
             # low TTFT
             # NOTE: this might change in the future if trtllm context server returns raw tokens
-            yield ctx_resp_obj.text
+            yield ctx_response
 
-        gen_req.disaggregated_params = ctx_resp_obj.disaggregated_params
+        gen_req.disaggregated_params = choices[0].disaggregated_params
         gen_req.disaggregated_params.request_type = "generation_only"
 
         async for response in await self.gen_client.round_robin(
             gen_req.model_dump_json()
         ):
-            yield response.data()
+            yield response
 
 
 @triton_worker()

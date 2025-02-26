@@ -15,17 +15,24 @@
 
 
 import asyncio
+import signal
 import threading
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any, Dict, Optional, Tuple
 
 import uvloop
+from common.chat_processor import ChatProcessor, parse_chat_message_content
 from common.parser import parse_tensorrt_llm_args
-from common.protocol import Request, Response
-from tensorrt_llm import SamplingParams
 from tensorrt_llm._torch import LLM
 from tensorrt_llm._torch.pyexecutor.config import PyTorchConfig
+from tensorrt_llm.executor import CppExecutorError
 from tensorrt_llm.logger import logger
+from tensorrt_llm.serve.openai_protocol import (
+    ChatCompletionRequest,
+    ChatCompletionStreamResponse,
+)
+from transformers import AutoTokenizer
 
 from triton_distributed.runtime import (
     DistributedRuntime,
@@ -44,6 +51,14 @@ class TensorrtLLMEngine:
     def __init__(self, engine_args: Tuple[Dict[str, Any], Dict[str, Any]]):
         self.pytorch_config_args, self.llm_engine_args = engine_args
         self._init_engine()
+        self.model = self.llm_engine_args["model"]
+        if "tokenizer" in self.llm_engine_args.keys():
+            tokenizer = self.llm_engine_args["tokenizer"]
+            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model)
+
+        self.chat_processor = ChatProcessor(self.model, self.tokenizer)
 
     def _init_engine(self):
         logger.info("Initializing engine")
@@ -133,21 +148,58 @@ class TensorrtLLMEngine:
         self._llm_engine = None
         logger.info("Shutdown complete")
 
-    @triton_endpoint(Request, Response)
+    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
 
         self._ongoing_request_count += 1
         logger.debug(f"Received request: {request}")
-        sampling_params = SamplingParams(**request.sampling_params)
-        async for response in self._llm_engine.generate_async(
-            request.prompt, sampling_params, streaming=request.streaming
-        ):
-            logger.debug(f"Generated response: {response}")
-            yield response.outputs[0].text
+        request_id = str(uuid.uuid4())
 
-        self._ongoing_request_count -= 1
+        try:
+            conversation = []
+            for message in request.messages:
+                conversation.extend(parse_chat_message_content(message))
+            tool_dicts = (
+                None
+                if request.tools is None
+                else [tool.model_dump() for tool in request.tools]
+            )
+            prompt: str = self.tokenizer.apply_chat_template(
+                conversation=conversation,
+                tokenize=False,
+                add_generation_prompt=request.add_generation_prompt,
+                tools=tool_dicts,
+                documents=request.documents,
+                chat_template=request.chat_template,
+                **(request.chat_template_kwargs or {}),
+            )
+            sampling_params = request.to_sampling_params()
+
+            if self._llm_engine is not None:
+                promise = self._llm_engine.generate_async(
+                    prompt,
+                    sampling_params,
+                    streaming=request.stream,
+                )
+                if request.stream:
+                    response_generator = self.chat_processor.stream_response(
+                        request, request_id, conversation, promise
+                    )
+                    async for response in response_generator:
+                        yield response
+                else:
+                    raise RuntimeError("Streaming is not supported")
+            else:
+                raise RuntimeError("Engine not initialized")
+        except CppExecutorError:
+            # If internal executor error is raised, shutdown the server
+            signal.raise_signal(signal.SIGINT)
+        except Exception as e:
+            raise RuntimeError("Failed to generate: " + str(e))
+        finally:
+            self._ongoing_request_count -= 1
 
 
 @triton_worker()
