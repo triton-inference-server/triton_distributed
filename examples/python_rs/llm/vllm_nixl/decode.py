@@ -16,8 +16,7 @@ from vllm.entrypoints.openai.serving_models import OpenAIServingModels, BaseMode
 
 from triton_distributed.runtime import DistributedRuntime, triton_worker, triton_endpoint
 
-from protocol import Request
-from common import temp_metadata_file
+from common import temp_metadata_file, parse_vllm_args
 
 class RequestHandler:
     def __init__(self, engine_client: EngineClient, prefill_client):
@@ -98,17 +97,23 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
 if __name__ == "__main__":
     uvloop.install()
+    engine_args = parse_vllm_args()
 
-    engine_args = AsyncEngineArgs(
-        model="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
-        enforce_eager=True,
-        kv_transfer_config=KVTransferConfig(kv_connector="TritonNixlConnector"),
-        enable_chunked_prefill=False, # TODO add support for chunked prefill
-        disable_async_output_proc=True, # TODO add support for async output processing
-        preemption_mode="swap", # TODO add support for recompute
-        pipeline_parallel_size=1, # TODO add support for pipeline parallel > 1
-        tensor_parallel_size=2,
-    )
+    if engine_args.enable_chunked_prefill is not False:
+        print("Chunked prefill is not supported yet, setting to False")
+        engine_args.enable_chunked_prefill = False
+
+    if engine_args.disable_async_output_proc is not True:
+        print("Async output processing is not supported yet, setting to True")
+        engine_args.disable_async_output_proc = True    
+
+    if engine_args.preemption_mode != "swap":
+        print("Preemption mode is not supported yet, setting to swap")
+        engine_args.preemption_mode = "swap"
+
+    if engine_args.pipeline_parallel_size != 1:
+        print("Pipeline parallel size is not supported yet, setting to 1")
+        engine_args.pipeline_parallel_size = 1
 
     asyncio.run(worker(engine_args))
 

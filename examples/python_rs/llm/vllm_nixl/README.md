@@ -12,11 +12,6 @@
 
 ## Run example
 
-Run in container. Clean up metadata files:
-```
-rm -r /tmp/nixl
-```
-
 In terminal 0:
 ```
 llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B test-nixl.vllm.generate
@@ -28,14 +23,22 @@ In terminal 1:
 
 ```
 cd /workspace/examples/python_rs/llm/vllm_nixl
-CUDA_VISIBLE_DEVICES=0,1 python prefill.py
+CUDA_VISIBLE_DEVICES=0 python prefill.py \
+    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --enforce-eager \
+    --kv-transfer-config \
+    '{"kv_connector":"TritonNixlConnector"}'
 ```
 
 In terminal 2:
 
 ```
 cd /workspace/examples/python_rs/llm/vllm_nixl
-CUDA_VISIBLE_DEVICES=2,3 python decode.py
+CUDA_VISIBLE_DEVICES=1 python3 decode.py \
+    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --enforce-eager \
+    --kv-transfer-config \
+    '{"kv_connector":"TritonNixlConnector"}'
 ```
 
 
@@ -78,6 +81,15 @@ genai-perf profile \
   --request-count 40 \
   -- -v \
   --async
+```
+
+## Close deployment
+
+Kill all python processes and clean up metadata files:
+
+```
+pkill -9 -f python
+rm -r /tmp/nixl
 ```
 
 ## TODOs, limitations, known issues

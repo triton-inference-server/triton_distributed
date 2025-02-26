@@ -3,8 +3,19 @@ import msgspec
 from contextlib import contextmanager
 
 from vllm.distributed.device_communicators.nixl import NixlMetadata
+from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.utils import FlexibleArgumentParser
+
 
 METADATA_DIR = "/tmp/nixl"
+
+
+def parse_vllm_args() -> AsyncEngineArgs:
+    parser = FlexibleArgumentParser()
+    parser = AsyncEngineArgs.add_cli_args(parser)
+    args = parser.parse_args()
+    return AsyncEngineArgs.from_cli_args(args)
+
 
 @contextmanager
 def temp_metadata_file(engine_id, metadata: NixlMetadata):
