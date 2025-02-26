@@ -15,6 +15,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+> **NOTE**: This example is based on an internal NVIDIA library that will soon be publicly released. The example won't work until the official release.
+
 ## Build docker
 
 ```
