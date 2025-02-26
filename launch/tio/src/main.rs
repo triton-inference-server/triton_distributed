@@ -39,10 +39,51 @@ const DEFAULT_OUT: Output = Output::MistralRs;
 #[cfg(not(feature = "mistralrs"))]
 const DEFAULT_OUT: Output = Output::EchoFull;
 
-const USAGE: &str = "USAGE: tio in=[http|text] out=[mistralrs|echo_full] [--http-port 8080] [--model-path <path>] [--model-name <served-model-name>]";
+const ZMQ_SOCKET_PREFIX: &str = "tio";
+
+const USAGE: &str = "USAGE: tio in=[http|text|tdr://<path>|none] out=[mistralrs|sglang|echo_full|echo_core] [--http-port 8080] [--model-path <path>] [--model-name <served-model-name>] [--tensor-parallel-size=1] [--num-nodes=1] [--node-rank=0] [--dist-init-addr=127.0.0.1:9876] [--base-gpu-id=0]";
 
 fn main() -> anyhow::Result<()> {
     logging::init();
+
+    // Call sub-processes before starting the Runtime machinery
+    // For anything except sub-process starting try_parse_from will error.
+    if let Ok(flags) = tio::Flags::try_parse_from(env::args()) {
+        #[allow(unused_variables)]
+        if let Some(sglang_flags) = flags.internal_sglang_process {
+            let Some(model_path) = flags.model_path_flag.as_ref() else {
+                anyhow::bail!("sglang subprocess requires --model-path");
+            };
+            if !model_path.is_dir() {
+                anyhow::bail!("sglang subprocess requires model path to be a directory containing the safetensors files");
+            }
+            if cfg!(feature = "sglang") {
+                #[cfg(feature = "sglang")]
+                {
+                    use triton_distributed_llm::engines::sglang;
+                    let gpu_config = sglang::MultiGPUConfig {
+                        tp_size: flags.tensor_parallel_size,
+                        tp_rank: sglang_flags.tp_rank,
+                        gpu_id: sglang_flags.gpu_id,
+                    };
+                    let node_config = sglang::MultiNodeConfig {
+                        num_nodes: flags.num_nodes,
+                        node_rank: flags.node_rank,
+                        dist_init_addr: flags.dist_init_addr,
+                    };
+                    return sglang::run_subprocess(
+                        ZMQ_SOCKET_PREFIX,
+                        model_path,
+                        sglang_flags.pipe_fd as std::os::fd::RawFd,
+                        node_config,
+                        gpu_config,
+                    );
+                }
+            } else {
+                panic!("Rebuild with --features=sglang");
+            }
+        }
+    }
 
     // max_worker_threads and max_blocking_threads from env vars or config file.
     let rt_config = triton_distributed_runtime::RuntimeConfig::from_settings()?;
@@ -103,5 +144,12 @@ async fn tio_wrapper(runtime: triton_distributed_runtime::Runtime) -> anyhow::Re
             .chain(env::args().skip(non_flag_params)),
     )?;
 
-    tio::run(runtime, in_opt, out_opt, flags).await
+    tio::run(
+        runtime,
+        in_opt,
+        out_opt,
+        flags,
+        Some(ZMQ_SOCKET_PREFIX.to_string()),
+    )
+    .await
 }

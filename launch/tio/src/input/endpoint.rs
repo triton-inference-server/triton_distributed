@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use triton_distributed_llm::http::service::discovery::ModelEntry;
 use triton_distributed_llm::{
     backend::Backend,
+    http::service::discovery::ModelEntry,
+    model_type::ModelType,
     preprocessor::OpenAIPreprocessor,
     types::{
         openai::chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
@@ -80,6 +81,7 @@ pub async fn run(
     let model_registration = ModelEntry {
         name: service_name.to_string(),
         endpoint: endpoint.clone(),
+        model_type: ModelType::Chat,
     };
     etcd_client
         .kv_create(
