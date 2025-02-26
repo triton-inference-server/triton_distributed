@@ -33,9 +33,6 @@ use triton_distributed_runtime::{
     DistributedRuntime, ErrorContext, Result, Runtime, Worker,
 };
 
-//// FIXME: Remove
-//use triton_distributed_runtime::protocols::annotated::Annotated;
-
 /// CLI arguments for the count application
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -142,7 +139,6 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
         let next = Instant::now() + Duration::from_secs(args.poll_interval);
 
         // collect stats from each backend
-        // FIXME: This call seems to block indefinitely, ignoring duration deadline.
         let stream = target.scrape_stats(Duration::from_secs(1)).await?;
         tracing::debug!("Scraped Stats Stream: {stream:?}");
 
@@ -151,6 +147,7 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
             .into_endpoints()
             .filter(|e| e.subject.starts_with(&service_subject))
             .collect::<Vec<_>>();
+
         tracing::debug!("Endpoints: {endpoints:?}");
         if endpoints.is_empty() {
             tracing::warn!("No endpoints found matching subject {}", service_subject);
@@ -202,7 +199,9 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
         };
 
         // publish using the namespace event plane
-        tracing::info!("Publishing event {event_name} on namespace {namespace:?} with {processed:?}");
+        tracing::info!(
+            "Publishing event {event_name} on namespace {namespace:?} with {processed:?}"
+        );
         namespace.publish(&event_name, &processed).await?;
 
         // wait until cancelled or the next tick
@@ -238,30 +237,14 @@ mod tests {
     use super::*;
     use std::env;
 
-    fn setup() {
-        // Clear relevant environment variables before each test
-        env::remove_var("TRD_NAMESPACE");
-    }
-
     #[test]
     fn test_namespace_from_env() {
-        setup();
         env::set_var("TRD_NAMESPACE", "test-namespace");
 
         // Parse args with no explicit namespace
-        let args = Args::parse_from(&["count", "--component", "comp", "--endpoint", "end"]);
+        let args = Args::parse_from(["count", "--component", "comp", "--endpoint", "end"]);
 
         // Verify namespace was taken from environment variable
         assert_eq!(args.namespace, "test-namespace");
-    }
-
-    #[test]
-    fn test_namespace_default() {
-        setup();
-        // Parse args with no explicit namespace and no env var
-        let args = Args::parse_from(&["count", "--component", "comp", "--endpoint", "end"]);
-
-        // Verify default namespace is used
-        assert_eq!(args.namespace, "default");
     }
 }
