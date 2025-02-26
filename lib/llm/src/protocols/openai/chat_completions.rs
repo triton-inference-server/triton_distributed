@@ -17,14 +17,7 @@ use super::nvext::NvExt;
 use super::nvext::NvExtProvider;
 use super::OpenAISamplingOptionsProvider;
 use super::OpenAIStopConditionsProvider;
-// use derive_builder::Builder;
-// use serde::de::{self, SeqAccess, Visitor};
-// use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
-// use serde::{Deserializer, Serializer};
-// use std::collections::HashMap;
-// use std::fmt;
-// use std::fmt::Display;
 use triton_distributed_runtime::protocols::annotated::AnnotationsProvider;
 use validator::Validate;
 
@@ -32,10 +25,8 @@ mod aggregator;
 mod delta;
 
 pub use super::{CompletionTokensDetails, CompletionUsage, PromptTokensDetails};
-// pub use aggregator::DeltaAggregator;
-// pub use delta::DeltaGenerator;
-
-// use super::{common::ChatCompletionLogprobs, ContentProvider};
+pub use aggregator::DeltaAggregator;
+pub use delta::DeltaGenerator;
 
 /// Request object which is used to generate chat completions.
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
@@ -117,22 +108,22 @@ impl OpenAISamplingOptionsProvider for ChatCompletionRequest {
     }
 }
 
+#[allow(deprecated)]
 impl OpenAIStopConditionsProvider for ChatCompletionRequest {
     fn get_max_tokens(&self) -> Option<u32> {
-        // TODO THIS IS WRONG i32 -> u32
-        // self.chat_completion_request.max_tokens
-        None
+        // ALLOW: max_tokens is deprecated in favor of max_completion_tokens
+        self.inner.max_tokens
     }
 
     fn get_min_tokens(&self) -> Option<u32> {
         // TODO THIS IS WRONG min_tokens does not exist
         None
-        // self.chat_completion_request.min_tokens
     }
 
     fn get_stop(&self) -> Option<Vec<String>> {
-        // TODO THIS IS WRONG Vec<String> -> Stop
-        // self.chat_completion_request.stop.clone()
+        // TODO THIS IS WRONG should instead do
+        // Vec<String> -> async_openai::types::Stop
+        // self.inner.stop.clone()
         None
     }
 
