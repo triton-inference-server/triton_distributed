@@ -23,13 +23,11 @@ pub mod annotated;
 pub type LeaseId = i64;
 
 /// Default namespace if user does not provide one
-const DEFAULT_NS: &str = "NS";
+const DEFAULT_NAMESPACE: &str = "NS";
 
-/// Default component name
-const DEFAULT_C: &str = "C";
+const DEFAULT_COMPONENT: &str = "C";
 
-/// Default endpoint/function name
-const DEFAULT_E: &str = "E";
+const DEFAULT_ENDPOINT: &str = "E";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Component {
@@ -71,9 +69,9 @@ impl PartialEq<Endpoint> for Vec<&str> {
 impl Default for Endpoint {
     fn default() -> Self {
         Endpoint {
-            namespace: DEFAULT_NS.to_string(),
-            component: DEFAULT_C.to_string(),
-            name: DEFAULT_E.to_string(),
+            namespace: DEFAULT_NAMESPACE.to_string(),
+            component: DEFAULT_COMPONENT.to_string(),
+            name: DEFAULT_ENDPOINT.to_string(),
         }
     }
 }
@@ -250,7 +248,10 @@ mod tests {
     #[test]
     fn test_endpoint_from() {
         let result = Endpoint::from("component");
-        assert_eq!(result, vec![DEFAULT_NS, "component", DEFAULT_E]);
+        assert_eq!(
+            result,
+            vec![DEFAULT_NAMESPACE, "component", DEFAULT_ENDPOINT]
+        );
     }
 
     #[test]
@@ -262,7 +263,7 @@ mod tests {
     #[test]
     fn test_forward_slash_separator() {
         let result = Endpoint::from("namespace/component");
-        assert_eq!(result, vec!["namespace", "component", DEFAULT_E]);
+        assert_eq!(result, vec!["namespace", "component", DEFAULT_ENDPOINT]);
     }
 
     #[test]
@@ -284,10 +285,16 @@ mod tests {
     #[test]
     fn test_empty_string() {
         let result = Endpoint::from("");
-        assert_eq!(result, vec![DEFAULT_NS, DEFAULT_C, DEFAULT_E]);
+        assert_eq!(
+            result,
+            vec![DEFAULT_NAMESPACE, DEFAULT_COMPONENT, DEFAULT_ENDPOINT]
+        );
 
         // White space is equivalent to an empty string
         let result = Endpoint::from("   ");
-        assert_eq!(result, vec![DEFAULT_NS, DEFAULT_C, DEFAULT_E]);
+        assert_eq!(
+            result,
+            vec![DEFAULT_NAMESPACE, DEFAULT_COMPONENT, DEFAULT_ENDPOINT]
+        );
     }
 }
