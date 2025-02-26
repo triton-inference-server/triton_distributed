@@ -97,7 +97,6 @@ rm -r /tmp/nixl
 - [ ] Add etcd for discovery
 - [ ] Enable chunked prefill
 - [ ] Support mixed tp
-- [ ] Enable async output processing - could be working
 - [ ] Process many remote prefill in one iteration
 - [ ] Support recompute preemption
 - [ ] Make sure decode does not preempt blocks before xfer finishes
@@ -117,3 +116,4 @@ rm -r /tmp/nixl
 - [x] add oai http endpoint
 - [x] Sample only on decode, do note return remote prefill response
 - [x] Check if all transfers finished before moving to decode
+- [x] Enable async output processing - could be working

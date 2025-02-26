@@ -74,10 +74,6 @@ if __name__ == "__main__":
         print("Chunked prefill is not supported yet, setting to False")
         engine_args.enable_chunked_prefill = False
 
-    if engine_args.disable_async_output_proc is not True:
-        print("Async output processing is not supported yet, setting to True")
-        engine_args.disable_async_output_proc = True
-
     if engine_args.pipeline_parallel_size != 1:
         print("Pipeline parallel size is not supported yet, setting to 1")
         engine_args.pipeline_parallel_size = 1
