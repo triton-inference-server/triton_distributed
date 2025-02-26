@@ -33,8 +33,8 @@ use triton_distributed_runtime::{
     DistributedRuntime, ErrorContext, Result, Runtime, Worker,
 };
 
-// FIXME: Remove
-use triton_distributed_runtime::protocols::annotated::Annotated;
+//// FIXME: Remove
+//use triton_distributed_runtime::protocols::annotated::Annotated;
 
 /// CLI arguments for the count application
 #[derive(Parser, Debug)]
@@ -143,21 +143,21 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
 
         // ======
         // FIXME: Remove
-        let client = target
-            .endpoint("generate")
-            .client::<String, Annotated<String>>()
-            .await?;
+        //let client = target
+        //    .endpoint("generate")
+        //    .client::<String, Annotated<String>>()
+        //    .await?;
 
-        client.wait_for_endpoints().await?;
-        let stream = client.random("hello world".to_string().into()).await?;
+        //client.wait_for_endpoints().await?;
+        //let stream = client.random("hello world".to_string().into()).await?;
+        //tracing::debug!("Client Response Stream: {stream:?}");
         // ======
 
-        tracing::debug!("Client Response Stream: {stream:?}");
 
         // collect stats from each backend
-        // NOTE: This call may block indefinitely if the service is not running
         tracing::debug!("Scraping stats from {service_name}");
-        let stream = target.scrape_stats(Duration::from_secs(2)).await?;
+        // FIXME: This call seems to block indefinitely, ignoring duration deadline.
+        let stream = target.scrape_stats(Duration::from_secs(1)).await?;
         tracing::debug!("Scraped Stats Stream: {stream:?}");
 
         // filter the stats by the service subject

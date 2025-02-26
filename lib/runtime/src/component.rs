@@ -129,7 +129,6 @@ impl Component {
     }
 
     pub fn service_name(&self) -> String {
-        tracing::debug!("Service name: {namespace}|{name}", namespace = self.namespace, name = self.name);
         Slug::from_string(format!("{}|{}", self.namespace, self.name)).to_string()
     }
 

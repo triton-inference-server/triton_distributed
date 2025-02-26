@@ -40,9 +40,7 @@ impl<S: Stream + Unpin> Stream for DeadlineStream<S> {
         }
 
         // Otherwise, poll the underlying stream
-        let item = self.as_mut().stream.poll_next_unpin(cx);
-        tracing::debug!("Polled item. Now: {:?}, Deadline: {:?}", Instant::now(), self.deadline);
-        item
+        self.as_mut().stream.poll_next_unpin(cx)
     }
 }
 
