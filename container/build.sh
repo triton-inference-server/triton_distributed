@@ -287,6 +287,8 @@ get_options "$@"
 # Update DOCKERFILE if framework is VLLM
 if [[ $FRAMEWORK == "VLLM" ]]; then
     DOCKERFILE=${SOURCE_DIR}/Dockerfile.vllm
+elif [[ $FRAMEWORK == "VLLM_NIXL" ]]; then
+    DOCKERFILE=${SOURCE_DIR}/Dockerfile.vllm_nixl
 fi
 
 # BUILD DEV IMAGE
