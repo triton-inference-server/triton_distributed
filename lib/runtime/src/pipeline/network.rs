@@ -329,7 +329,7 @@ impl Ingress<SingleIn<Bytes>, ManyOut<Bytes>> {
         U: Data + Serialize + for<'de> Deserialize<'de>,
     {
         let frontend = SegmentSource::new();
-        let transformer = JsonTransformer::new::<T, U>();
+        let transformer = JsonTransformer::create_operator::<T, U>();
         let backend = ServiceBackend::from_engine(engine);
 
         // create the pipeline
@@ -349,7 +349,7 @@ impl Ingress<SingleIn<Bytes>, ManyOut<Bytes>> {
 pub struct JsonTransformer {}
 
 impl JsonTransformer {
-    pub fn new<T, U>(
+    pub fn create_operator<T, U>(
     ) -> Arc<PipelineOperator<SingleIn<Bytes>, ManyOut<Bytes>, SingleIn<T>, ManyOut<U>>>
     where
         T: Data + Serialize + for<'de> Deserialize<'de>,

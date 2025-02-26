@@ -94,7 +94,7 @@ impl IngressHandler for Ingress<SingleIn<Bytes>, ManyOut<Bytes>> {
 
         while let Some(resp) = stream.next().await {
             tracing::trace!("Sending response: {:?}", resp);
-            if (publisher.send(resp.into()).await).is_err() {
+            if (publisher.send(resp).await).is_err() {
                 tracing::error!("Failed to publish response for stream {}", context.id());
                 context.stop_generating();
                 break;
