@@ -130,8 +130,8 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
 
     let service_name = target.service_name();
     let service_subject = target_endpoint.subject();
-
     tracing::info!("Scraping service {service_name} and filtering on subject {service_subject}");
+
     let token = drt.primary_lease().child_token();
 
     let address = format!("{}.{}", config.component_name, config.endpoint_name,);
@@ -141,21 +141,7 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
         // Use the CLI argument for the polling interval
         let next = Instant::now() + Duration::from_secs(args.poll_interval);
 
-        // ======
-        // FIXME: Remove
-        //let client = target
-        //    .endpoint("generate")
-        //    .client::<String, Annotated<String>>()
-        //    .await?;
-
-        //client.wait_for_endpoints().await?;
-        //let stream = client.random("hello world".to_string().into()).await?;
-        //tracing::debug!("Client Response Stream: {stream:?}");
-        // ======
-
-
         // collect stats from each backend
-        tracing::debug!("Scraping stats from {service_name}");
         // FIXME: This call seems to block indefinitely, ignoring duration deadline.
         let stream = target.scrape_stats(Duration::from_secs(1)).await?;
         tracing::debug!("Scraped Stats Stream: {stream:?}");
@@ -216,6 +202,7 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
         };
 
         // publish using the namespace event plane
+        tracing::info!("Publishing event {event_name} on namespace {namespace:?} with {processed:?}");
         namespace.publish(&event_name, &processed).await?;
 
         // wait until cancelled or the next tick
