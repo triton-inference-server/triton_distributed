@@ -136,7 +136,7 @@ fn build_samples() -> Result<Vec<CompletionSample>, String> {
 
     samples.push(CompletionSample::new(
         "should have prompt, model, and max_tokens fields",
-        |builder| builder.max_tokens(10),
+        |builder| builder.max_tokens(10_u32),
     )?);
 
     samples.push(CompletionSample::new(
