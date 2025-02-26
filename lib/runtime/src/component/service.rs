@@ -35,6 +35,7 @@ pub struct ServiceConfig {
 
     // todo - make optional - if None, then skip making the endpoint
     // and skip making the service-endpoint discoverable.
+    // When calling create_service, you can pass in a stats handler
     /// Endpoint handler
     #[educe(Debug(ignore))]
     #[builder(default)]

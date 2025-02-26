@@ -31,11 +31,8 @@ impl<S: Stream + Unpin> Stream for DeadlineStream<S> {
     type Item = S::Item;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        //tracing::debug!("Polling next item. Now: {:?}, Deadline: {:?}", Instant::now(), self.deadline);
         // Check if we've passed the deadline
-        //if Instant::now() >= self.deadline {
         if Pin::new(&mut self.sleep).poll(cx).is_ready() {
-            //tracing::debug!("Deadline expired. Now: {:?}, Deadline: {:?}", Instant::now(), self.deadline);
             // The deadline expired; end the stream now
             return Poll::Ready(None);
         }
@@ -60,44 +57,49 @@ mod tests {
 
     use super::*;
 
+    // Helper function to run the deadline stream test with given parameters
+    async fn run_deadline_test(sleep_times_ms: Vec<u64>, deadline_ms: u64) -> Vec<u64> {
+        let stream = stream::iter(sleep_times_ms);
+        let stream = stream.then(|x| {
+            let sleep = time::sleep(Duration::from_millis(x));
+            async move {
+                sleep.await;
+                x
+            }
+        });
+
+        let deadline = Instant::now() + Duration::from_millis(deadline_ms);
+        let mut result = Vec::new();
+
+        pin!(stream);
+        let mut stream = until_deadline(stream, deadline);
+
+        while let Some(x) = stream.next().await {
+            result.push(x);
+        }
+
+        result
+    }
+
     #[tokio::test]
-    async fn test_until_deadline_exceeded() {
-        let stream = stream::iter(vec![100, 100, 200]);
-        let stream = stream.then(|x| {
-            let sleep = time::sleep(Duration::from_millis(x));
-            async move {
-                sleep.await;
-                x
-            }
-        });
-        let deadline = Instant::now() + Duration::from_millis(300);
-        let mut result = Vec::new();
-        pin!(stream);
-        let mut stream = until_deadline(stream, deadline);
-        while let Some(x) = stream.next().await {
-            result.push(x);
-        }
+    async fn test_deadline_exceeded() {
+        // The sum of the sleep times should exceed the deadline
+        let sleep_times_ms = vec![100, 100, 200, 50];
+        let deadline_ms = 300;
+
+        let result = run_deadline_test(sleep_times_ms, deadline_ms).await;
+        // Since deadline is exceeded, only the items before deadline should be returned
         assert_eq!(result, vec![100, 100]);
     }
 
-    async fn test_until_complete_before_deadline() {
-        let stream = stream::iter(vec![100, 100]);
-        let stream = stream.then(|x| {
-            let sleep = time::sleep(Duration::from_millis(x));
-            async move {
-                sleep.await;
-                x
-            }
-        });
-        let deadline = Instant::now() + Duration::from_millis(300);
-        let mut result = Vec::new();
-        pin!(stream);
-        let mut stream = until_deadline(stream, deadline);
-        while let Some(x) = stream.next().await {
-            result.push(x);
-        }
-        assert_eq!(result, vec![100, 100]);
+    #[tokio::test]
+    async fn test_complete_before_deadline() {
+        // The sum of the sleep times should be less than the deadline
+        let sleep_times_ms = vec![100, 50, 50];
+        let deadline_ms = 300;
+
+        let result = run_deadline_test(sleep_times_ms, deadline_ms).await;
+        // Since deadline is not exceeded, all items should be returned from stream
+        assert_eq!(result, vec![100, 50, 50]);
     }
-
-
 }
