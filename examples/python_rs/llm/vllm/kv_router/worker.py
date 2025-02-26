@@ -15,17 +15,22 @@
 
 import asyncio
 import os
-import uuid
 from typing import AsyncIterator
 
 import uvloop
 from common.base_engine import BaseVllmEngine
 from common.parser import parse_vllm_args
 from common.protocol import MyRequestOutput, vLLMGenerateRequest
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.logger import logger as vllm_logger
 from vllm.sampling_params import RequestOutputKind
+
+from triton_distributed.llm import KvMetricsPublisher
+from triton_distributed.runtime import (
+    DistributedRuntime,
+    triton_endpoint,
+    triton_worker,
+)
 
 vllm_logger.info(f"VLLM_KV_CAPI_PATH: {os.environ['VLLM_KV_CAPI_PATH']}")
 
@@ -35,15 +40,23 @@ class VllmEngine(BaseVllmEngine):
     vLLM Inference Engine
     """
 
-    def __init__(self, engine_args: AsyncEngineArgs):
+    def __init__(
+        self, engine_args: AsyncEngineArgs, metrics_publisher: KvMetricsPublisher
+    ):
+        self.metrics_publisher = metrics_publisher
         self.engine_args = engine_args
         super().__init__(engine_args)
 
+    async def initialize(self):
+        await super().initialize()
+        assert self.engine_client is not None, "engine_client was not initialized"
+        self.engine_client.set_metrics_publisher(self.metrics_publisher)
+
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
     async def generate(self, request) -> AsyncIterator:
-        if self.engine_client is None:
-            await self.initialize()
-        assert self.engine_client is not None, "engine_client was not initialized"
+        assert (
+            self.engine_client is not None
+        ), "engine_client was not initialized, must call initialize() first"
 
         sampling_params = request.sampling_params
         # rust HTTP requires Delta streaming
@@ -69,20 +82,32 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     """
     Serve the triton-init.vllm.generate endpoint.
     """
+    metrics_publisher = KvMetricsPublisher()
     worker_component = runtime.namespace("triton-init").component("vllm")
-    await worker_component.create_service()
+    await metrics_publisher.create_service(worker_component)
 
     worker_endpoint = worker_component.endpoint("generate")
 
-    # KV Publisher and Aggregator requires a UUID (str)
-    # KV Router requires a lease_id (int)
-    # This allows us to please both, until they are unified
-    # If VLLM_WORKER_ID is not set, KV Routing will fail
-    VLLM_WORKER_ID = uuid.UUID(int=worker_endpoint.lease_id())
+    VLLM_WORKER_ID = worker_endpoint.lease_id()
     os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
     vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
 
-    vllm_engine = VllmEngine(engine_args)
+    VLLM_KV_NAMESPACE = "triton-init"
+    os.environ["VLLM_KV_NAMESPACE"] = str(VLLM_KV_NAMESPACE)
+
+    VLLM_KV_COMPONENT = "vllm"
+    os.environ["VLLM_KV_COMPONENT"] = str(VLLM_KV_COMPONENT)
+
+    vllm_engine = VllmEngine(engine_args, metrics_publisher)
+    await vllm_engine.initialize()
+    # Initially send dummy metrics to kick start,
+    # vLLM will not update stat until forward pass is triggered
+    metrics_publisher.publish(
+        0,
+        1024,
+        0,
+        1024,
+    )
 
     await worker_endpoint.serve_endpoint(vllm_engine.generate)
 

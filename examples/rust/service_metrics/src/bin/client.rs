@@ -16,11 +16,9 @@
 use futures::StreamExt;
 use service_metrics::DEFAULT_NAMESPACE;
 
-use triton_distributed::{
-    logging,
-    protocols::annotated::Annotated,
-    utils::{stream, Duration, Instant},
-    DistributedRuntime, Result, Runtime, Worker,
+use triton_distributed_runtime::{
+    logging, protocols::annotated::Annotated, utils::Duration, DistributedRuntime, Result, Runtime,
+    Worker,
 };
 
 fn main() -> Result<()> {
