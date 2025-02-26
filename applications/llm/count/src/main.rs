@@ -135,7 +135,6 @@ async fn app(runtime: Runtime, args: Args) -> Result<()> {
     let event_name = format!("l2c.{}", address);
 
     loop {
-        // Use the CLI argument for the polling interval
         let next = Instant::now() + Duration::from_secs(args.poll_interval);
 
         // collect stats from each backend
