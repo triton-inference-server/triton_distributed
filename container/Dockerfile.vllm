@@ -78,6 +78,7 @@ RUN apt-get update -y && apt-get -y install curl \
                                             libprotobuf-dev \
                                             protobuf-compiler-grpc \
                                             pybind11-dev \
+                                            python3-pip \
                                             etcd-server \
                                             net-tools \
                                             pciutils \
@@ -94,6 +95,9 @@ RUN wget ${NSYS_URL}${NSYS_PKG} && dpkg -i $NSYS_PKG && rm $NSYS_PKG
 RUN apt-get install -y linux-tools-common linux-tools-generic ethtool iproute2
 RUN apt-get install -y dkms linux-headers-generic
 RUN apt-get install -y meson ninja-build uuid-dev gdb
+
+RUN uv pip install --upgrade meson
+RUN uv pip install ninja pybind11
 
 RUN cd /usr/local/src && \
     curl -fSsL "https://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VERSION}/MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu20.04-x86_64.tgz" -o mofed.tgz && \
@@ -115,7 +119,6 @@ RUN PREFIX=/usr/local DESTLIB=/usr/local/lib make -C /workspace/gdrcopy lib_inst
 RUN cp gdrcopy/src/libgdrapi.so.2.* /usr/lib/x86_64-linux-gnu/
 RUN ldconfig
 
-ARG OPENMPI_VERSION=5.0.6
 ARG UCX_VERSION=v1.18.0
 
 RUN cd /usr/local/src && \
@@ -139,6 +142,7 @@ RUN cd /usr/local/src && \
     make -j install-strip &&        \
     ldconfig
 
+
 ENV LD_LIBRARY_PATH=/usr/local/ucx/lib:$LD_LIBRARY_PATH
 ENV CPATH=/usr/local/ucx/include:$CPATH
 ENV PATH=/usr/local/ucx/bin:$PATH
@@ -151,7 +155,7 @@ RUN cd /opt/nixl && mkdir build && meson setup build/ --prefix=/usr/local/nixl &
      mkdir -p /usr/local/nixl/include/internal && cp ../include/*.h /usr/local/nixl/include && cp ../include/internal/*.h /usr/local/nixl/include/internal && cp ../include/internal/*.h /usr/local/nixl/include/  && cp ../src/utils/serdes/serdes.h /usr/local/nixl/include
 
 ENV LD_LIBRARY_PATH=/usr/local/nixl/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH
-ENV PYTHONPATH=/usr/local/nixl/lib/python${PYTHON_VERSION}/site-packages/:$PYTHONPATH
+ENV PYTHONPATH=/usr/local/nixl/lib/python${PYTHON_VERSION}/site-packages/:/opt/nixl/test/python/:$PYTHONPATH
 
 RUN ls -l /usr/local/nixl/
 RUN ls -l /usr/local/nixl/include/
