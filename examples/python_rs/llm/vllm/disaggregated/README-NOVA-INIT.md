@@ -69,3 +69,5 @@ Run it with
 ```bash
 docker run --gpus all --network=host -u root --entrypoint /bin/bash client:44ay4rxsjklcgwzu -c "source /opt/triton/venv/bin/activate && compoundai serve"
 ```
+
+Once everything is up, you can visit localhost:3000 to make requests or use the curl command from earlier.
