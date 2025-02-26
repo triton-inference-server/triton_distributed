@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use serde::{Deserialize, Serialize};
+
 pub const DEFAULT_NAMESPACE: &str = "triton-init";
 
 #[derive(Serialize, Deserialize)]
