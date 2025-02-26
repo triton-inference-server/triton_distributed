@@ -153,7 +153,7 @@ impl DeltaAggregator {
             service_tier: aggregator.service_tier,
         };
 
-        let response = ChatCompletionResponse { inner, nvext: None };
+        let response = ChatCompletionResponse { inner };
 
         Ok(response)
     }
@@ -234,7 +234,7 @@ mod tests {
             object: "chat.completion".to_string(),
         };
 
-        let data = ChatCompletionResponseDelta { inner, nvext: None };
+        let data = ChatCompletionResponseDelta { inner };
 
         Annotated {
             data: Some(data),
@@ -375,10 +375,7 @@ mod tests {
             object: "chat.completion".to_string(),
         };
 
-        let data = ChatCompletionResponseDelta {
-            inner: delta,
-            nvext: None,
-        };
+        let data = ChatCompletionResponseDelta { inner: delta };
 
         // Wrap it in Annotated and create a stream
         let annotated_delta = Annotated {

@@ -165,7 +165,6 @@ impl crate::protocols::openai::DeltaGeneratorExt<ChatCompletionResponseDelta> fo
 
         Ok(ChatCompletionResponseDelta {
             inner: stream_response,
-            nvext: None,
         })
     }
 }

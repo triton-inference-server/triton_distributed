@@ -28,7 +28,6 @@ pub use super::{CompletionTokensDetails, CompletionUsage, PromptTokensDetails};
 pub use aggregator::DeltaAggregator;
 pub use delta::DeltaGenerator;
 
-/// Request object which is used to generate chat completions.
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct ChatCompletionRequest {
     #[serde(flatten)]
@@ -36,28 +35,22 @@ pub struct ChatCompletionRequest {
     pub nvext: Option<NvExt>,
 }
 
-/// Request object which is used to generate chat completions.
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct ChatCompletionResponse {
     #[serde(flatten)]
     pub inner: async_openai::types::CreateChatCompletionResponse,
-    pub nvext: Option<NvExt>,
 }
 
-/// Request object which is used to generate chat completions.
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct ChatCompletionContent {
     #[serde(flatten)]
     pub inner: async_openai::types::ChatCompletionStreamResponseDelta,
-    pub nvext: Option<NvExt>,
 }
 
-/// Request object which is used to generate chat completions.
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct ChatCompletionResponseDelta {
     #[serde(flatten)]
     pub inner: async_openai::types::CreateChatCompletionStreamResponse,
-    pub nvext: Option<NvExt>,
 }
 
 impl NvExtProvider for ChatCompletionRequest {

@@ -69,7 +69,6 @@ impl
 
                 let output = ChatCompletionResponseDelta {
                     inner,
-                    nvext: None,
                 };
 
                 yield Annotated::from_data(output);

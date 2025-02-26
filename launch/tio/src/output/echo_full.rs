@@ -74,7 +74,6 @@ impl
                 let inner = deltas.create_choice(0, Some(c.to_string()), None, None);
                 let response = ChatCompletionResponseDelta {
                     inner,
-                    nvext: None,
                 };
                 yield Annotated{ id: Some(id.to_string()), data: Some(response), event: None, comment: None };
                 id += 1;
@@ -83,7 +82,6 @@ impl
             let inner = deltas.create_choice(0, None, Some(async_openai::types::FinishReason::Stop), None);
             let response = ChatCompletionResponseDelta {
                 inner,
-                nvext: None,
             };
             yield Annotated { id: Some(id.to_string()), data: Some(response), event: None, comment: None };
         };
