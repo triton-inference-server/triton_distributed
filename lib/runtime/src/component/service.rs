@@ -14,6 +14,8 @@
 // limitations under the License.
 
 use derive_getters::Dissolve;
+use std::collections::HashMap;
+use std::sync::Mutex;
 
 use super::*;
 
@@ -21,6 +23,12 @@ use async_nats::service::{endpoint, Service};
 
 pub type StatsHandler =
     Box<dyn FnMut(String, endpoint::Stats) -> serde_json::Value + Send + Sync + 'static>;
+
+pub type EndpointStatsHandler =
+    Box<dyn FnMut(endpoint::Stats) -> serde_json::Value + Send + Sync + 'static>;
+
+// TODO(rename) - pending rename of project
+pub const PROJECT_NAME: &str = "Triton";
 
 #[derive(Educe, Builder, Dissolve)]
 #[educe(Debug)]
@@ -32,31 +40,31 @@ pub struct ServiceConfig {
     /// Description
     #[builder(default)]
     description: Option<String>,
-
-    // todo - make optional - if None, then skip making the endpoint
-    // and skip making the service-endpoint discoverable.
-    /// Endpoint handler
-    #[educe(Debug(ignore))]
-    #[builder(default)]
-    stats_handler: Option<StatsHandler>,
 }
 
 impl ServiceConfigBuilder {
     /// Create the [`Component`]'s service and store it in the registry.
     pub async fn create(self) -> Result<Component> {
+        let (component, description) = self.build_internal()?.dissolve();
+
         let version = "0.0.1".to_string();
 
-        let (component, description, stat_handler) = self.build_internal()?.dissolve();
-
         let service_name = component.service_name();
+        log::debug!("component: {component}; creating, service_name: {service_name}");
+
         let description = description.unwrap_or(format!(
-            "Triton Component {} in {}",
+            "{PROJECT_NAME} component {} in namespace {}",
             component.name, component.namespace
         ));
 
-        let mut guard = component.drt.component_registry.services.lock().await;
+        let stats_handler_registry: Arc<Mutex<HashMap<String, EndpointStatsHandler>>> =
+            Arc::new(Mutex::new(HashMap::new()));
 
-        if guard.contains_key(&component.etcd_path()) {
+        let stats_handler_registry_clone = stats_handler_registry.clone();
+
+        let mut guard = component.drt.component_registry.inner.lock().await;
+
+        if guard.services.contains_key(&service_name) {
             return Err(anyhow::anyhow!("Service already exists"));
         }
 
@@ -65,23 +73,35 @@ impl ServiceConfigBuilder {
         let builder = component.drt.nats_client.client().service_builder();
         let service = secondary
             .spawn(async move {
-                // unwrap the stats handler
-                let builder = match stat_handler {
-                    Some(handler) => builder.stats_handler(handler),
-                    None => builder,
-                };
-
                 tracing::debug!("Starting service: {}", service_name);
 
                 builder
                     .description(description)
-                    .start(service_name.to_string(), version)
+                    .stats_handler(move |name, stats| {
+                        let mut guard = stats_handler_registry.lock().unwrap();
+                        match guard.get_mut(&name) {
+                            Some(handler) => handler(stats),
+                            None => serde_json::Value::Null,
+                        }
+                    })
+                    .start(service_name.clone(), version)
                     .await
             })
             .await?
             .map_err(|e| anyhow::anyhow!("Failed to start service: {e}"))?;
 
-        guard.insert(component.etcd_path(), service);
+        // new copy of service_name as the previous one is moved into the task above
+        let service_name = component.service_name();
+
+        // insert the service into the registry
+        guard.services.insert(service_name.clone(), service);
+
+        // insert the stats handler into the registry
+        guard
+            .stats_handlers
+            .insert(service_name, stats_handler_registry_clone);
+
+        // drop the guard to unlock the mutex
         drop(guard);
 
         Ok(component)

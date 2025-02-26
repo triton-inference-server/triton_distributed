@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{Component, Registry, Result};
+use super::{Component, Registry, RegistryInner, Result};
 use async_once_cell::OnceCell;
 use std::{
     collections::HashMap,
@@ -27,10 +27,19 @@ impl Default for Registry {
     }
 }
 
+impl Default for RegistryInner {
+    fn default() -> Self {
+        Self {
+            services: HashMap::new(),
+            stats_handlers: HashMap::new(),
+        }
+    }
+}
+
 impl Registry {
     pub fn new() -> Self {
         Self {
-            services: Arc::new(Mutex::new(HashMap::new())),
+            inner: Arc::new(Mutex::new(RegistryInner::default())),
         }
     }
 }

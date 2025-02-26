@@ -56,6 +56,7 @@ use derive_builder::Builder;
 use derive_getters::Getters;
 use educe::Educe;
 use serde::{Deserialize, Serialize};
+use service::EndpointStatsHandler;
 use std::{collections::HashMap, sync::Arc};
 use validator::{Validate, ValidationError};
 
@@ -73,9 +74,14 @@ pub enum TransportType {
     NatsTcp(String),
 }
 
+pub struct RegistryInner {
+    services: HashMap<String, Service>,
+    stats_handlers: HashMap<String, Arc<std::sync::Mutex<HashMap<String, EndpointStatsHandler>>>>,
+}
+
 #[derive(Clone)]
 pub struct Registry {
-    services: Arc<tokio::sync::Mutex<HashMap<String, Service>>>,
+    inner: Arc<tokio::sync::Mutex<RegistryInner>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +115,12 @@ pub struct Component {
     /// Namespace
     #[builder(setter(into))]
     namespace: String,
+}
+
+impl std::fmt::Display for Component {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.namespace, self.name)
+    }
 }
 
 impl DistributedRuntimeProvider for Component {
