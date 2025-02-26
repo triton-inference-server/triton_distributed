@@ -40,8 +40,17 @@ async fn test_openai_chat_stream() {
 
     // todo: provide a cleaner way to extract the content from choices
     assert_eq!(
-        result.choices.first().unwrap().content(),
+        result
+            .inner
+            .choices
+            .first()
+            .unwrap()
+            .message
+            .content
+            .clone()
+            .expect("there to be content"),
         "Deep learning is a subfield of machine learning that involves the use of artificial"
+            .to_string()
     );
 }
 
@@ -52,7 +61,18 @@ async fn test_openai_chat_edge_case_multi_line_data() {
         .await
         .unwrap();
 
-    assert_eq!(result.choices.first().unwrap().content(), "Deep learning");
+    assert_eq!(
+        result
+            .inner
+            .choices
+            .first()
+            .unwrap()
+            .message
+            .content
+            .clone()
+            .expect("there to be content"),
+        "Deep learning".to_string()
+    );
 }
 
 #[tokio::test]
@@ -62,7 +82,18 @@ async fn test_openai_chat_edge_case_comments_per_response() {
         .await
         .unwrap();
 
-    assert_eq!(result.choices.first().unwrap().content(), "Deep learning");
+    assert_eq!(
+        result
+            .inner
+            .choices
+            .first()
+            .unwrap()
+            .message
+            .content
+            .clone()
+            .expect("there to be content"),
+        "Deep learning".to_string()
+    );
 }
 
 #[tokio::test]

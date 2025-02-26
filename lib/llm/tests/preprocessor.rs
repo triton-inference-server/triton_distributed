@@ -18,9 +18,7 @@ use anyhow::Ok;
 use serde::{Deserialize, Serialize};
 use triton_distributed_llm::model_card::model::{ModelDeploymentCard, PromptContextMixin};
 use triton_distributed_llm::preprocessor::prompt::PromptFormatter;
-use triton_distributed_llm::protocols::openai::chat_completions::{
-    ChatCompletionMessage, ChatCompletionRequest, Tool, ToolChoiceType,
-};
+use triton_distributed_llm::protocols::openai::chat_completions::ChatCompletionRequest;
 
 use hf_hub::{api::tokio::ApiBuilder, Cache, Repo, RepoType};
 
@@ -217,29 +215,40 @@ const TOOLS: &str = r#"
   ]
 "#;
 
+// Notes:
+// protocols::openai::chat_completions::ChatCompletionMessage -> async_openai::types::ChatCompletionRequestMessage
+// protocols::openai::chat_completions::Tool -> async_openai::types::ChatCompletionTool
+// protocols::openai::chat_completions::ToolChoiceType -> async_openai::types::ChatCompletionToolChoiceOption
 #[derive(Serialize, Deserialize)]
 struct Request {
-    messages: Vec<ChatCompletionMessage>,
-    tools: Option<Vec<Tool>>,
-    tool_choice: Option<ToolChoiceType>,
+    messages: Vec<async_openai::types::ChatCompletionRequestMessage>,
+    tools: Option<Vec<async_openai::types::ChatCompletionTool>>,
+    tool_choice: Option<async_openai::types::ChatCompletionToolChoiceOption>,
 }
 
 impl Request {
     fn from(
         messages: &str,
         tools: Option<&str>,
-        tool_choice: Option<ToolChoiceType>,
+        tool_choice: Option<async_openai::types::ChatCompletionToolChoiceOption>,
         model: String,
     ) -> ChatCompletionRequest {
-        let messages: Vec<ChatCompletionMessage> = serde_json::from_str(messages).unwrap();
-        let tools: Option<Vec<Tool>> = tools.map(|x| serde_json::from_str(x).unwrap());
-        ChatCompletionRequest::builder()
+        let messages: Vec<async_openai::types::ChatCompletionRequestMessage> =
+            serde_json::from_str(messages).unwrap();
+        let tools: Option<Vec<async_openai::types::ChatCompletionTool>> =
+            tools.map(|x| serde_json::from_str(x).unwrap());
+        let tools = tools.unwrap();
+        let tool_choice = tool_choice.unwrap();
+
+        let inner = async_openai::types::CreateChatCompletionRequestArgs::default()
             .model(model)
             .messages(messages)
             .tools(tools)
             .tool_choice(tool_choice)
             .build()
-            .unwrap()
+            .unwrap();
+
+        ChatCompletionRequest { inner, nvext: None }
     }
 }
 
@@ -295,7 +304,7 @@ async fn test_single_turn_with_tools() {
         let request = Request::from(
             SINGLE_CHAT_MESSAGE,
             Some(TOOLS),
-            Some(ToolChoiceType::Auto),
+            Some(async_openai::types::ChatCompletionToolChoiceOption::Auto),
             mdc.slug().to_string(),
         );
         let formatted_prompt = formatter.render(&request).unwrap();
@@ -402,7 +411,7 @@ async fn test_multi_turn_with_system_with_tools() {
         let request = Request::from(
             THREE_TURN_CHAT_MESSAGE_WITH_SYSTEM,
             Some(TOOLS),
-            Some(ToolChoiceType::Auto),
+            Some(async_openai::types::ChatCompletionToolChoiceOption::Auto),
             mdc.slug().to_string(),
         );
         let formatted_prompt = formatter.render(&request).unwrap();
