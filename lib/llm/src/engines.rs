@@ -15,3 +15,6 @@
 
 #[cfg(feature = "mistralrs")]
 pub mod mistralrs;
+
+#[cfg(feature = "sglang")]
+pub mod sglang;
