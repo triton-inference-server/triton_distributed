@@ -3,7 +3,7 @@ Intructions on how to reproduce 1P1D VLLM disaggregated inference with Nova Init
 Go to the root of the repository and run:
 
 ```bash
-./container/build.sh --framework VLLM`
+./container/build.sh --framework VLLM
 ```
 
 Enter the container and mount your workspace:
