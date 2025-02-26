@@ -13,8 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(feature = "mistralrs")]
-pub mod mistralrs;
+use serde::{Deserialize, Serialize};
+use strum::Display;
 
-#[cfg(feature = "sglang")]
-pub mod sglang;
+#[derive(Copy, Debug, Clone, Display, Serialize, Deserialize, Eq, PartialEq)]
+pub enum ModelType {
+    Chat,
+    Completion,
+}
+
+impl ModelType {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Chat => "chat",
+            Self::Completion => "completion",
+        }
+    }
+
+    pub fn all() -> Vec<Self> {
+        vec![Self::Chat, Self::Completion]
+    }
+}
