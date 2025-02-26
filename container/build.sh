@@ -168,6 +168,14 @@ get_options() {
                 missing_requirement $1
             fi
             ;;
+        --cache-to)
+            if [ "$2" ]; then
+                CACHE_TO="--cache-to $2"
+                shift
+            else
+                missing_requirement $1
+            fi
+            ;;
         --)
             shift
             break
@@ -312,7 +320,7 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $TAG $LATEST_TAG $BUILD_CONTEXT $NO_CACHE
+$RUN_PREFIX docker buildx build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $CACHE_TO $TAG $LATEST_TAG $BUILD_CONTEXT $NO_CACHE
 
 { set +x; } 2>/dev/null
 
