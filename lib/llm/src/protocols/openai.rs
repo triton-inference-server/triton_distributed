@@ -263,6 +263,7 @@ pub struct GenericCompletionResponse<C>
     // TODO() - add NvResponseExtention
 }
 
+#[allow(dead_code)]
 fn validate_logit_bias(logit_bias: &HashMap<String, i32>) -> Result<(), ValidationError> {
     for key in logit_bias.keys() {
         if key.parse::<i32>().is_err() {
