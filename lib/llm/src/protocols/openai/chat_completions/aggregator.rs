@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{NvCreateChatCompletionResponse, ChatCompletionResponseDelta};
+use super::{ChatCompletionResponseDelta, NvCreateChatCompletionResponse};
 use crate::protocols::{
     codec::{Message, SseCodecError},
     convert_sse_stream, Annotated,
