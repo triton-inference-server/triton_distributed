@@ -31,44 +31,50 @@ from triton_distributed.runtime import DistributedRuntime, triton_worker
 class RequestHandler:
     def __init__(self, engine_client, metadata_store):
         self.engine_client = engine_client
+        self._metadata_store = metadata_store
         print("RequestHandler initialized")
+        self._loaded = False
 
     async def generate(self, raw_request: str):
-        request: RemotePrefillRequest = msgspec.json.decode(
-            raw_request.encode("utf-8"), type=RemotePrefillRequest
-        )
+        try:
+            request: RemotePrefillRequest = msgspec.json.decode(
+                raw_request.encode("utf-8"), type=RemotePrefillRequest
+            )
 
-        sampling_params = request.sampling_params
-        sampling_params.max_tokens = 1
-        sampling_params.min_tokens = 1
+            sampling_params = request.sampling_params
+            sampling_params.max_tokens = 1
+            sampling_params.min_tokens = 1
 
-        remote_prefill_params = RemotePrefillParams(
-            is_remote_decode=True,
-            decode_block_ids=request.block_ids,
-            decode_engine_id=request.engine_id,
-        )
-        print("got request", request)
+            remote_prefill_params = RemotePrefillParams(
+                is_remote_decode=True,
+                decode_block_ids=request.block_ids,
+                decode_engine_id=request.engine_id,
+            )
+            print("got request", request)
 
-        # get meta data
+            # get meta data
 
-        remote_metadata = self._metadata_store.get(request.engine_id)
+            remote_metadata = self._metadata_store.get(request.engine_id)
 
-        print("got metadata")
-        #        print(remote_metadata,flush = True)
-        print("got metadata_2")
+            print("got metadata")
+            #        print(remote_metadata,flush = True)
+            print("got metadata_2")
 
-        if not self._loaded:
-            x = await self.engine_client.add_remote_nixl_metadata(remote_metadata)
-            self._loaded = True
-            print("loaded into engine client", x)
+            if not self._loaded:
+                x = await self.engine_client.add_remote_nixl_metadata(remote_metadata)
+                self._loaded = True
+                print("loaded into engine client", x)
 
-        async for _ in self.engine_client.generate(
-            request_id=request.request_id,
-            prompt=TokensPrompt(prompt_token_ids=request.prompt_token_ids),
-            sampling_params=sampling_params,
-            remote_prefill_params=remote_prefill_params,
-        ):
-            yield
+            async for _ in self.engine_client.generate(
+                request_id=request.request_id,
+                prompt=TokensPrompt(prompt_token_ids=request.prompt_token_ids),
+                sampling_params=sampling_params,
+                remote_prefill_params=remote_prefill_params,
+            ):
+                yield
+        except Exception as e:
+            print(e)
+            yield str(e)
 
 
 @triton_worker()
