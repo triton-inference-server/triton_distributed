@@ -13,5 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from triton_distributed._core import DisaggregatedRouter as DisaggregatedRouter
 from triton_distributed._core import KvMetricsPublisher as KvMetricsPublisher
 from triton_distributed._core import KvRouter as KvRouter

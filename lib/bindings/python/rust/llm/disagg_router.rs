@@ -15,31 +15,54 @@
 
 use super::*;
 
-use pyo3::prelude::*;
 use std::sync::Arc;
+use pyo3::exceptions::PyRuntimeError;
+use tokio::runtime::Runtime;
+
 
 #[pyclass]
-pub(crate) struct DisaggregatedRouter {
-    inner: Arc<llm_rs::disagg_router::DisaggregatedRouter>,
+pub struct DisaggregatedRouter {
+    inner: Arc<triton_distributed_llm::disagg_router::DisaggregatedRouter>,
 }
 
 #[pymethods]
 impl DisaggregatedRouter {
     #[new]
-    fn new(max_local_prefill_length: i32) -> PyResult<Self> {
-        Ok(Self {
-            inner: Arc::new(llm_rs::disagg_router::DisaggregatedRouter::new(max_local_prefill_length)),
-        })
+    #[pyo3(signature = (drt, model_name, default_max_local_prefill_length))]
+    fn new(
+        drt: PyObject,
+        model_name: String,
+        default_max_local_prefill_length: i32
+    ) -> PyResult<Self> {
+
+        let drt_arc = Python::with_gil(|py| {
+            let drt_ref = drt.extract::<DistributedRuntime>(py)?;
+            Ok::<_, PyErr>(Arc::new(drt_ref.inner))
+        })?;
+
+        // Create the runtime directly with the correct import
+        let runtime = Runtime::new()
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to create tokio runtime: {}", e)))?;
+
+        let router = runtime.block_on(async {
+            triton_distributed_llm::disagg_router::DisaggregatedRouter::new_with_etcd_and_default(
+                drt_arc,
+                model_name,
+                default_max_local_prefill_length
+            )
+            .await
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to create DisaggregatedRouter: {}", e)))
+        })?;
+
+        Ok(DisaggregatedRouter { inner: Arc::new(router) })
     }
+
 
     fn prefill_remote(&self, prefill_length: i32, prefix_hit_length: i32) -> bool {
         self.inner.prefill_remote(prefill_length, prefix_hit_length)
     }
 
-    fn update_value(&mut self, max_local_prefill_length: i32) {
-        Arc::get_mut(&mut self.inner)
-            .expect("Cannot modify router: Arc has multiple references")
-            .update_value(max_local_prefill_length);
+    fn get_model_name(&self) -> &str {
+        self.inner.get_model_name()
     }
-
 }

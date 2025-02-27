@@ -75,6 +75,26 @@ curl localhost:8181/v1/chat/completions \
   }'
 ```
 
+## Disaggregated Router
+
+The disaggregated router determines whether a request should be send to a
+remote prefill engine or a local prefill engine for prefilling based on the
+prefill length. When prefilling locally, the vllm scheduler will prioritize
+prefill request and pause any ongoing decode requests.
+For now, we use a simple heuristic to route to prefill engine
+if prefill length (including prefix catch hit) is greater than a threshold.
+This threshold can by dynamically adjusted at runtime through etcd.
+
+To check the current threshold (this will print out all kv pairs in etcd):
+```
+curl -s -L http://localhost:2379/v3/kv/range -X POST   -d '{"key":"AA==", "range_end":"AA=="}' |   jq -r '.kvs[] | "KEY: \(.key | @base64d)\nVALUE: \(.value | @base64d)\n---"'
+```
+
+To update the threshold:
+```
+ETCDCTL_API=3 etcdctl --endpoints=http://localhost:2379 put 'public/components/disagg_router/models/chat/deepseek-ai/DeepSeek-R1-Distill-Llama-8B' '{"max_local_prefill_length": <new_threshold>}'
+```
+
 ## Run GAP
 
 ```
