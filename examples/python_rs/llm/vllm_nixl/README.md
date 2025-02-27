@@ -29,7 +29,7 @@ limitations under the License.
 ./container/run.sh --framework VLLM_NIXL --target dev -it
 ```
 
-## Run example
+## Run deployment
 
 Add model to triton and start http server.
 
@@ -40,11 +40,26 @@ TRT_LOG=DEBUG http --port 8181
 ```
 
 
+
+### Monolithic deployment
+
 In terminal 1:
 
 ```
 cd /workspace/examples/python_rs/llm/vllm_nixl
-CUDA_VISIBLE_DEVICES=0 python prefill.py \
+CUDA_VISIBLE_DEVICES=0 python3 worker.py \
+    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --enforce-eager
+```
+
+
+### Disaggregated deployment
+
+In terminal 1:
+
+```
+cd /workspace/examples/python_rs/llm/vllm_nixl
+CUDA_VISIBLE_DEVICES=0 python prefill_worker.py \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --enforce-eager \
     --kv-transfer-config \
@@ -55,7 +70,8 @@ In terminal 2:
 
 ```
 cd /workspace/examples/python_rs/llm/vllm_nixl
-CUDA_VISIBLE_DEVICES=1 python3 decode.py \
+CUDA_VISIBLE_DEVICES=1 python3 worker.py \
+    --remote-prefill \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --enforce-eager \
     --kv-transfer-config \
@@ -63,8 +79,9 @@ CUDA_VISIBLE_DEVICES=1 python3 decode.py \
 ```
 
 
+## Client
 
-In terminal 3:
+In another terminal:
 ```
 curl localhost:8181/v1/chat/completions \
   -H "Content-Type: application/json" \
