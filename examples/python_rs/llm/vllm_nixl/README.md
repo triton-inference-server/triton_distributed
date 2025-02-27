@@ -20,7 +20,7 @@ limitations under the License.
 ## Build docker
 
 ```
-./container/build.sh --framework VLLM_NIXL --target dev --build-context nixl=<path to downloaded nixl repo @ main>
+./container/build.sh --framework VLLM_NIXL --target dev --build-context nixl=<path to downloaded nixl repo @ fc912eb012597be67de11fa9ba0599e4e1974fa2>
 ```
 
 ## Run container
@@ -29,7 +29,11 @@ limitations under the License.
 ./container/run.sh --framework VLLM_NIXL --target dev -it
 ```
 
-## Run example
+All of the commands below are run inside the same container.
+
+## Run deployment
+
+Add model to triton and start http server.
 
 In terminal 0:
 ```
@@ -38,11 +42,26 @@ TRT_LOG=DEBUG http --port 8181
 ```
 
 
+
+### Monolithic deployment
+
 In terminal 1:
 
 ```
 cd /workspace/examples/python_rs/llm/vllm_nixl
-CUDA_VISIBLE_DEVICES=0 python prefill.py \
+CUDA_VISIBLE_DEVICES=0 python3 worker.py \
+    --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --enforce-eager
+```
+
+
+### Disaggregated deployment
+
+In terminal 1:
+
+```
+cd /workspace/examples/python_rs/llm/vllm_nixl
+CUDA_VISIBLE_DEVICES=0 python prefill_worker.py \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --enforce-eager \
     --kv-transfer-config \
@@ -53,7 +72,8 @@ In terminal 2:
 
 ```
 cd /workspace/examples/python_rs/llm/vllm_nixl
-CUDA_VISIBLE_DEVICES=1 python3 decode.py \
+CUDA_VISIBLE_DEVICES=1 python3 worker.py \
+    --remote-prefill \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --enforce-eager \
     --kv-transfer-config \
@@ -61,8 +81,9 @@ CUDA_VISIBLE_DEVICES=1 python3 decode.py \
 ```
 
 
+## Client
 
-In terminal 3:
+In another terminal:
 ```
 curl localhost:8181/v1/chat/completions \
   -H "Content-Type: application/json" \
@@ -95,7 +116,9 @@ To update the threshold:
 ETCDCTL_API=3 etcdctl --endpoints=http://localhost:2379 put 'public/components/disagg_router/models/chat/deepseek-ai/DeepSeek-R1-Distill-Llama-8B' '{"max_local_prefill_length": <new_threshold>}'
 ```
 
-## Run GAP
+## Run genai-perf
+
+`genai-perf` is a tool for profiling and benchmarking LLM servers. It is already installed in the container. For more details, please refer to the [genai-perf README](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/perf_analyzer/genai-perf/README.html).
 
 ```
 genai-perf profile \
@@ -134,6 +157,7 @@ rm -r /tmp/nixl
 ## TODOs, limitations, known issues
 
 - [ ] Add etcd for discovery
+- [ ] Multi-node deployment support
 - [ ] Enable chunked prefill
 - [ ] Support mixed tp
 - [ ] Process many remote prefill in one iteration
@@ -144,9 +168,10 @@ rm -r /tmp/nixl
 - [ ] Test under load
 - [ ] Support pp > 1
 - [ ] Check why adding extra seed input is crashing vllm with remote prefill
-- [ ] Concurrency > 2 is not working
-- [ ] Require sending two parallel requests to start decode for the first time
-- [ ] Parse cmdline args
+- [ ] Unified worker for both prefill and decode
+- [x] Require sending two parallel requests to start decode for the first time
+- [x] Concurrency > 2 is not working
+- [x] Parse cmdline args
 - [x] Manual nixl example with tp1
 - [x] Zero copy
 - [x] Conditional remote prefill

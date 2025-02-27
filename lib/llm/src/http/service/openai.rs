@@ -41,10 +41,10 @@ use super::{
 };
 
 use crate::protocols::openai::{
-    chat_completions::ChatCompletionResponse, completions::CompletionResponse,
+    chat_completions::NvCreateChatCompletionResponse, completions::CompletionResponse,
 };
 use crate::types::{
-    openai::{chat_completions::ChatCompletionRequest, completions::CompletionRequest},
+    openai::{chat_completions::NvCreateChatCompletionRequest, completions::CompletionRequest},
     Annotated,
 };
 
@@ -211,7 +211,7 @@ async fn completions(
 #[tracing::instrument(skip_all)]
 async fn chat_completions(
     State(state): State<Arc<DeploymentState>>,
-    Json(request): Json<ChatCompletionRequest>,
+    Json(request): Json<NvCreateChatCompletionRequest>,
 ) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
     // return a 503 if the service is not ready
     check_ready(&state)?;
@@ -220,17 +220,21 @@ async fn chat_completions(
     let request_id = uuid::Uuid::new_v4().to_string();
 
     // todo - decide on default
-    let streaming = request.stream.unwrap_or(false);
+    let streaming = request.inner.stream.unwrap_or(false);
 
     // update the request to always stream
-    let request = ChatCompletionRequest {
+    let inner_request = async_openai::types::CreateChatCompletionRequest {
         stream: Some(true),
-        ..request
+        ..request.inner
+    };
+    let request = NvCreateChatCompletionRequest {
+        inner: inner_request,
+        nvext: None,
     };
 
     // todo - make the protocols be optional for model name
     // todo - when optional, if none, apply a default
-    let model = &request.model;
+    let model = &request.inner.model;
 
     // todo - determine the proper error code for when a request model is not present
     tracing::trace!("Getting chat completions engine for model: {}", model);
@@ -268,7 +272,7 @@ async fn chat_completions(
             .keep_alive(KeepAlive::default())
             .into_response())
     } else {
-        let response = ChatCompletionResponse::from_annotated_stream(stream.into())
+        let response = NvCreateChatCompletionResponse::from_annotated_stream(stream.into())
             .await
             .map_err(|e| {
                 tracing::error!(

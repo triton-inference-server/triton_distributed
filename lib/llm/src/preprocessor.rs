@@ -44,7 +44,7 @@ use triton_distributed_runtime::protocols::annotated::{Annotated, AnnotationsPro
 use crate::protocols::{
     common::{SamplingOptionsProvider, StopConditionsProvider},
     openai::{
-        chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
+        chat_completions::{NvCreateChatCompletionRequest, NvCreateChatCompletionStreamResponse},
         completions::{CompletionRequest, CompletionResponse},
         nvext::NvExtProvider,
         DeltaGeneratorExt,
@@ -225,7 +225,7 @@ impl OpenAIPreprocessor {
 
                     tracing::trace!(
                         request_id = inner.context.id(),
-                        "OpenAI ChatCompletionResponseDelta: {:?}",
+                        "OpenAI NvCreateChatCompletionStreamResponse: {:?}",
                         response
                     );
 
@@ -251,19 +251,19 @@ impl OpenAIPreprocessor {
 #[async_trait]
 impl
     Operator<
-        SingleIn<ChatCompletionRequest>,
-        ManyOut<Annotated<ChatCompletionResponseDelta>>,
+        SingleIn<NvCreateChatCompletionRequest>,
+        ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>,
         SingleIn<BackendInput>,
         ManyOut<Annotated<BackendOutput>>,
     > for OpenAIPreprocessor
 {
     async fn generate(
         &self,
-        request: SingleIn<ChatCompletionRequest>,
+        request: SingleIn<NvCreateChatCompletionRequest>,
         next: Arc<
             dyn AsyncEngine<SingleIn<BackendInput>, ManyOut<Annotated<BackendOutput>>, Error>,
         >,
-    ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
+    ) -> Result<ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>, Error> {
         // unpack the request
         let (request, context) = request.into_parts();
 
@@ -275,13 +275,13 @@ impl
         let (common_request, annotations) = self.preprocess_request(&request)?;
 
         // update isl
-        response_generator.update_isl(common_request.token_ids.len() as i32);
+        response_generator.update_isl(common_request.token_ids.len() as u32);
 
         // repack the common completion request
         let common_request = context.map(|_| common_request);
 
         // create a stream of annotations this will be prepend to the response stream
-        let annotations: Vec<Annotated<ChatCompletionResponseDelta>> = annotations
+        let annotations: Vec<Annotated<NvCreateChatCompletionStreamResponse>> = annotations
             .into_iter()
             .flat_map(|(k, v)| Annotated::from_annotation(k, &v))
             .collect();

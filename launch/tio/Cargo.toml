@@ -24,11 +24,13 @@ license = "Apache-2.0"
 [features]
 mistralrs = ["triton-distributed-llm/mistralrs"]
 sglang = ["triton-distributed-llm/sglang", "dep:netlink-packet-route", "dep:rtnetlink"]
+llamacpp = ["triton-distributed-llm/llamacpp"]
 cuda = ["triton-distributed-llm/cuda"]
 metal = ["triton-distributed-llm/metal"]
 
 [dependencies]
 anyhow = "1"
+async-openai = "0.27.2"
 async-stream = { version = "0.3" }
 async-trait = { version = "0.1" }
 clap = { version = "4.5", features = ["derive", "env"] }

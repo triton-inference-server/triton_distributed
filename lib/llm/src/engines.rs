@@ -18,3 +18,6 @@ pub mod mistralrs;
 
 #[cfg(feature = "sglang")]
 pub mod sglang;
+
+#[cfg(feature = "llamacpp")]
+pub mod llamacpp;
