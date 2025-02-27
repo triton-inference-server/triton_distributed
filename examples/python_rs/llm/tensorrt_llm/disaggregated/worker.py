@@ -167,6 +167,9 @@ class TensorrtLLMEngine:
         logger.info("Shutdown complete")
 
     async def generate(self, request):
+        if self._llm_engine is None:
+            raise RuntimeError("Engine not initialized")
+
         self._ongoing_request_count += 1
         logger.debug(f"Received request: {request}")
         request = DisaggregatedRequest.parse_raw(request)
@@ -182,23 +185,20 @@ class TensorrtLLMEngine:
                 .encode("latin1")
             )
 
-        if self._llm_engine is not None:
-            async for response in self._llm_engine.generate_async(
-                request.prompt,
-                sampling_params,
-                streaming=request.streaming,
-                disaggregated_params=disaggregated_params,
-            ):
-                logger.debug(f"Generated response: {response}")
-                if self.server_config.type == "ctx":
-                    yield DisaggregatedResponse(
-                        text=response.outputs[0].text,
-                        disaggregated_params=response.outputs[0].disaggregated_params,
-                    ).model_dump_json()
-                else:
-                    yield response.outputs[0].text
-        else:
-            raise RuntimeError("Engine not initialized")
+        async for response in self._llm_engine.generate_async(
+            request.prompt,
+            sampling_params,
+            streaming=request.streaming,
+            disaggregated_params=disaggregated_params,
+        ):
+            logger.debug(f"Generated response: {response}")
+            if self.server_config.type == "ctx":
+                yield DisaggregatedResponse(
+                    text=response.outputs[0].text,
+                    disaggregated_params=response.outputs[0].disaggregated_params,
+                ).model_dump_json()
+            else:
+                yield response.outputs[0].text
         self._ongoing_request_count -= 1
 
 

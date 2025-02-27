@@ -135,17 +135,18 @@ class TensorrtLLMEngine:
 
     @triton_endpoint(Request, Response)
     async def generate(self, request):
+        if self._llm_engine is None:
+            raise RuntimeError("Engine not initialized")
+
         self._ongoing_request_count += 1
         logger.debug(f"Received request: {request}")
         sampling_params = SamplingParams(**request.sampling_params)
-        if self._llm_engine is not None:
-            async for response in self._llm_engine.generate_async(
-                request.prompt, sampling_params, streaming=request.streaming
-            ):
-                logger.debug(f"Generated response: {response}")
-                yield response.outputs[0].text
-        else:
-            raise RuntimeError("Engine not initialized")
+        async for response in self._llm_engine.generate_async(
+            request.prompt, sampling_params, streaming=request.streaming
+        ):
+            logger.debug(f"Generated response: {response}")
+            yield response.outputs[0].text
+
         self._ongoing_request_count -= 1
 
 
