@@ -148,6 +148,7 @@ rm -r /tmp/nixl
 - [ ] Test under load
 - [ ] Support pp > 1
 - [ ] Check why adding extra seed input is crashing vllm with remote prefill
+- [ ] Unified worker for both prefill and decode
 - [x] Require sending two parallel requests to start decode for the first time
 - [x] Concurrency > 2 is not working
 - [x] Parse cmdline args

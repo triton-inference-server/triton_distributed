@@ -45,8 +45,13 @@ logger = logging.getLogger(__name__)
 
 class RequestHandler:
     def __init__(
-        self, engine_client: EngineClient, prefill_client, do_remote_prefill: bool
+        self,
+        model_name: str,
+        engine_client: EngineClient,
+        prefill_client,
+        do_remote_prefill: bool,
     ):
+        self.model_name = model_name
         self.engine_client = engine_client
         self.prefill_client = prefill_client
         self.openai_serving_chat = None
@@ -62,8 +67,8 @@ class RequestHandler:
             model_config=await self.engine_client.get_model_config(),
             base_model_paths=[
                 BaseModelPath(
-                    name="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
-                    model_path="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+                    name=self.model_name,
+                    model_path=self.model_name,
                 )
             ],
         )
@@ -131,13 +136,19 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
             with temp_metadata_file(metadata.engine_id, metadata):
                 await endpoint.serve_endpoint(
                     RequestHandler(
-                        engine_client, prefill_client, do_remote_prefill=True
+                        model_name=engine_args.model,
+                        engine_client=engine_client,
+                        prefill_client=prefill_client,
+                        do_remote_prefill=True,
                     ).generate
                 )
         else:
             await endpoint.serve_endpoint(
                 RequestHandler(
-                    engine_client, prefill_client, do_remote_prefill=False
+                    model_name=engine_args.model,
+                    engine_client=engine_client,
+                    prefill_client=prefill_client,
+                    do_remote_prefill=False,
                 ).generate
             )
 
