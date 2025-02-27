@@ -14,10 +14,20 @@
 // limitations under the License.
 
 use crate::kv_router::{indexer::RouterEvent, protocols::*, KV_EVENT_SUBJECT};
+use async_trait::async_trait;
+use futures::stream;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing as log;
-use triton_distributed_runtime::{component::Component, DistributedRuntime, Result};
+use triton_distributed_runtime::{
+    component::Component,
+    pipeline::{
+        network::Ingress, AsyncEngine, AsyncEngineContextProvider, ManyOut, ResponseStream,
+        SingleIn,
+    },
+    protocols::annotated::Annotated,
+    DistributedRuntime, Error, Result,
+};
 
 pub struct KvEventPublisher {
     tx: mpsc::UnboundedSender<KvCacheEvent>,
@@ -79,17 +89,50 @@ impl KvMetricsPublisher {
         self.tx.send(metrics)
     }
 
-    pub async fn create_service(&self, component: Component) -> Result<()> {
+    pub async fn create_endpoint(&self, component: Component) -> Result<()> {
         let mut metrics_rx = self.rx.clone();
+        let handler = Arc::new(KvLoadEndpoingHander::new(metrics_rx.clone()));
+        let handler = Ingress::for_engine(handler)?;
         let _ = component
             .service_builder()
-            .stats_handler(Some(Box::new(move |name, stats| {
-                log::debug!("[IN worker?] Stats for service {}: {:?}", name, stats);
+            .create()
+            .await?
+            .endpoint("load_metrics")
+            .endpoint_builder()
+            .stats_handler(move |_| {
                 let metrics = metrics_rx.borrow_and_update().clone();
                 serde_json::to_value(&*metrics).unwrap()
-            })))
-            .create()
+            })
+            .handler(handler)
+            .start()
             .await?;
+
         Ok(())
+    }
+}
+
+struct KvLoadEndpoingHander {
+    metrics_rx: tokio::sync::watch::Receiver<Arc<ForwardPassMetrics>>,
+}
+
+impl KvLoadEndpoingHander {
+    pub fn new(metrics_rx: tokio::sync::watch::Receiver<Arc<ForwardPassMetrics>>) -> Self {
+        Self { metrics_rx }
+    }
+}
+
+#[async_trait]
+impl AsyncEngine<SingleIn<()>, ManyOut<Annotated<ForwardPassMetrics>>, Error>
+    for KvLoadEndpoingHander
+{
+    async fn generate(
+        &self,
+        request: SingleIn<()>,
+    ) -> Result<ManyOut<Annotated<ForwardPassMetrics>>> {
+        let context = request.context();
+        let metrics = self.metrics_rx.borrow().clone();
+        let metrics = (*metrics).clone();
+        let stream = stream::iter(vec![Annotated::from_data(metrics)]);
+        Ok(ResponseStream::new(Box::pin(stream), context))
     }
 }

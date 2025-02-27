@@ -68,10 +68,6 @@ async fn backend(runtime: DistributedRuntime) -> Result<()> {
     // make the ingress discoverable via a component service
     // we must first create a service, then we can attach one more more endpoints
 
-    // TODO - create a stats_handler registry owned by the internal Service
-    // TODO - move the stats_handler to the to the endpoint builder, this will then register the stats handler
-    //        with the registry
-
     runtime
         .namespace(DEFAULT_NAMESPACE)?
         .component("backend")?
