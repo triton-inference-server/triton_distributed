@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-## test
-
 import asyncio
 from enum import Enum
 
@@ -43,34 +41,9 @@ class Router:
     """
     Request handler for the generate endpoint
     """
-
-    # def __init__(self) -> None:
-    #     print("Starting backend")
-
-    # @nova_endpoint()
-    # async def generate(self, text: str):
-    #     """Generate tokens."""
-    #     text = f"{text}-back"
-    #     print(f"Backend received: {text}")
-    #     # for token in text.split():
-    #     #     yield f"Backend: {token}"
-    #     yield 1
-
-    # @nova_endpoint()
-    # async def generate(self, request: Tokens):
-    #     print(f"Router received: {request}")
-    #     for token in range(4):
-    #         yield 1
-
-    # inject await onstart
-    # processor = depends(VllmEngine)
-
     def __init__(self):
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
         self.routing_strategy = RoutingStrategy.PREFIX
-        # vllm_logger.info(
-        #     f"Initializing KV Router with strategy: {self.routing_strategy.value}"
-        # )
         self.runtime = tdist_context["runtime"]
         self.min_workers = 1
         self.router = None

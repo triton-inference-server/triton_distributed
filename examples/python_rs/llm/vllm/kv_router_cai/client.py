@@ -17,12 +17,6 @@ class Client:
     def __init__(self):
         print("client init")
 
-    # @api
-    # async def cmpl(self, text: str):
-    #     print(f"Frontend received: {text}")
-    #     async for response in self.processor.generate(text):
-    #         yield f"Frontend: {response}"
-
     @api
     async def cmpl(self, msg: str):
         # Call the generate method
@@ -31,6 +25,7 @@ class Client:
                 "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
                 "messages": [{"role": "user", "content": msg}],
                 "stream": True,
+                "max_tokens": 10,
             }
         )
 
@@ -47,12 +42,11 @@ class Client:
         # Now iterate over the async generator
         async for response in generator:
             # Get the actual value from the Annotated object
-            if isinstance(response, type(Annotated)):
-                # Access the data as an attribute, not a method
-                response_data = getattr(response, "data", response)
-            else:
-                response_data = response
-
+            # if isinstance(response, type(Annotated)):
+            #     # Access the data as an attribute, not a method
+            #     response_data = getattr(response, "data", response)
+            # else:
+            response_data = response
             print("client response_data:", response_data)
 
             # Yield the actual data value

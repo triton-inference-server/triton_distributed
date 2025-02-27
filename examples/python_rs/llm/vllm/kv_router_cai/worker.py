@@ -55,20 +55,18 @@ class VllmEngine(BaseVllmEngine):
             max_model_len=16384,
         )
         print(f"VLLM worker tdist_context: {tdist_context}")
-        worker_id = uuid.UUID(int=tdist_context["endpoints"][0].lease_id())
-        os.environ["VLLM_WORKER_ID"] = str(worker_id)
-        print(f"VLLM worker id: {worker_id}")
-        vllm_logger.info(f"Generate endpoint ID: {worker_id}")
+        VLLM_WORKER_ID = uuid.UUID(int=tdist_context["endpoints"][0].lease_id())
+        os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
+        print(f"VLLM worker id: {VLLM_WORKER_ID}")
+        vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
         super().__init__(self.engine_args)
-
-    @async_onstart
-    async def init_engine(self):
-        if self.engine_client is None:
-            await self.initialize()
-        assert self.engine_client is not None, "engine_client was not initialized"
 
     @nova_endpoint()
     async def generate(self, request: vLLMGenerateRequest):
+        if self.engine_client is None:
+            await self.initialize()
+            print("VLLM ENGINE INITIALIZED")
+        assert self.engine_client is not None, "engine_client was not initialized"
         sampling_params = request.sampling_params
         # rust HTTP requires Delta streaming
         sampling_params.output_kind = RequestOutputKind.DELTA
@@ -78,7 +76,8 @@ class VllmEngine(BaseVllmEngine):
         ):
             # MyRequestOutput takes care of serializing the response as
             # vLLM's RequestOutput is not serializable by default
-            yield MyRequestOutput(
+            print("BEFORE VLLM ENGINE RESPONSE: ", response)
+            resp = MyRequestOutput(
                 request_id=response.request_id,
                 prompt=response.prompt,
                 prompt_token_ids=response.prompt_token_ids,
@@ -86,3 +85,5 @@ class VllmEngine(BaseVllmEngine):
                 outputs=response.outputs,
                 finished=response.finished,
             ).model_dump_json()
+            print("AFTER VLLM ENGINE RESPONSE: ", resp)
+            yield resp

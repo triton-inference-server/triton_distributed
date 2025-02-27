@@ -17,7 +17,7 @@ import uuid
 from typing import AsyncIterator
 
 from common.chat_processor import ChatProcessor, ProcessMixIn
-from common.protocol import MyRequestOutput, Tokens
+from common.protocol import MyRequestOutput, Tokens, vLLMGenerateRequest
 from kv_router_cai.router import Router
 from kv_router_cai.worker import VllmEngine
 from transformers import AutoTokenizer
@@ -25,8 +25,8 @@ from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.protocol import ChatCompletionRequest
 from vllm.outputs import RequestOutput
 from vllm.transformers_utils.tokenizer import AnyTokenizer
-from common.protocol import MyRequestOutput, Tokens, vLLMGenerateRequest
-from compoundai import depends, nova_endpoint, service
+
+from compoundai import depends, nova_endpoint, service, tdist_context
 
 
 @service(
@@ -40,7 +40,7 @@ class Processor(ProcessMixIn):
     vLLM pre and post processing
     """
 
-    engine = depends(VllmEngine)
+    workers = depends(VllmEngine)
     router = depends(Router)
 
     def __init__(self):
@@ -77,7 +77,6 @@ class Processor(ProcessMixIn):
             # Deserialize the response from the engine
             # Creates correct vLLM objects for each field
             output = MyRequestOutput.model_validate_json(resp.data())
-
             # OpenAIServingChat.chat_completion_stream_generator() method expects a RequestOutput object
             yield RequestOutput(
                 request_id=output.request_id,
@@ -89,36 +88,9 @@ class Processor(ProcessMixIn):
                 metrics=output.metrics,
             )
 
-    # @nova_endpoint()
-    # async def generate(self, text: str):
-    #     """Forward requests to backend."""
-    #     text = f"{text}-mid"
-    #     print(f"Middle received: {text}")
-    #     async for response in self.router.generate(text):
-    #         print(f"Middle received response: {response}")
-    #         yield f"Middle: {response}"
-
-    # @nova_endpoint()
-    # async def generate(self, raw_request: ChatCompletionRequest):
-    #     """Forward requests to backend."""
-    #     print("RAW REQUEST: ", raw_request)
-    #     text = raw_request.messages[0]["content"]
-    #     print("TEXT: ", text)
-    #     # print("Middle received: ", text)
-    #     # text = f"{text}-mid"
-    #     # print(f"Middle received: {text}")
-    #     # async for response in self.router.generate(text):
-    #     #     print(f"Middle received response: {response}")
-    #     #     yield f"Middle: {response}"
-    #     for token in text.split():
-    #         yield f"Middle: {token}"
-
     @nova_endpoint()
     async def generate(self, raw_request: ChatCompletionRequest):
-        print("RAW REQUEST: ", raw_request)
-        print("RAW REQUEST TYPE: ", type(raw_request))
         request_id = str(uuid.uuid4())
-        print(f"Got raw request: {raw_request}")
         (
             request,
             conversation,
@@ -134,13 +106,14 @@ class Processor(ProcessMixIn):
             print("worker_id: ", worker_id)
             break
         print(f"Worker ID: {worker_id}")
-
-        for token in ["Hello", "World"]:
-            yield f"Middle: {token}"
-
+        runtime = tdist_context["runtime"]
+        comp_ns, comp_name = VllmEngine.nova_address()
+        print("PROCESSOR COMPONENT NS: {} COMPONENT NAME: {}".format(comp_ns, comp_name))
+        worker_client = await runtime.namespace(comp_ns).component(comp_name).endpoint("generate").client()
+        print("PROCESSOR WORKER CLIENT: ", worker_client)
         if worker_id == "":
-            print("PROCESSOR usinge mpty worker_id: ", worker_id)
-            engine_generator = await self.workers.generate(
+            print("PROCESSOR using empty worker_id: ", worker_id)
+            engine_generator = await worker_client.generate(
                 vLLMGenerateRequest(
                     engine_prompt=engine_prompt,
                     sampling_params=sampling_params,
@@ -149,7 +122,7 @@ class Processor(ProcessMixIn):
             )
         else:
             print("PROCESSOR using worker_id: ", worker_id)
-            engine_generator = await self.workers.direct(
+            engine_generator = await worker_client.direct(
                 vLLMGenerateRequest(
                     engine_prompt=engine_prompt,
                     sampling_params=sampling_params,
@@ -157,10 +130,10 @@ class Processor(ProcessMixIn):
                 ).model_dump_json(),
                 uuid.UUID(worker_id).int,
             )
-
         output = self.generate_responses(engine_generator)
 
         async for response in await self._stream_response(
             request, output, request_id, conversation
         ):
+            print("PROCESSOR RESPONSE: ", response)
             yield response
