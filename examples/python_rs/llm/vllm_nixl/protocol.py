@@ -13,18 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
-
-try:
-    import vllm
-except ImportError:
-    vllm = None  # type: ignore
-
-pytestmark = pytest.mark.pre_merge
+import msgspec
+from vllm.sampling_params import SamplingParams
 
 
-# TODO: Consider `pytest.mark.vllm` and running tests based on environment
-@pytest.mark.skipif(vllm is None, reason="Skipping vllm tests, vllm not installed")
-def test_version():
-    # Verify that the image has the patched version of vllm
-    assert vllm.__version__.startswith("0.7.3.dev")  # type: ignore
+class Request(
+    msgspec.Struct,
+    omit_defaults=True,  # type: ignore[call-arg]
+    # required for @cached_property.
+    dict=True,
+):
+    """The request data of one remote prefill output of a request.
+
+    Args:
+        request_id: The unique ID of the request.
+        prompt: The prompt string of the request.
+    """
+
+    request_id: str
+    prompt: str
+    sampling_params: SamplingParams
+    do_remote_prefill: bool = False

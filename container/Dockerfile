@@ -135,6 +135,12 @@ RUN apt-get install tmux -y
 # Working directory
 WORKDIR /workspace
 
+# Copy Python wheel configuration files
+COPY pyproject.toml /workspace/
+COPY README.md /workspace/
+COPY LICENSE /workspace/
+
+# Build Rust runtime
 COPY lib/runtime /workspace/lib/runtime
 RUN cd lib/runtime && \
     cargo build --release --locked && cargo doc --no-deps
@@ -157,14 +163,13 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir /opt/triton && \
     uv venv /opt/triton/venv --python 3.12 && \
     source /opt/triton/venv/bin/activate && \
-    cd lib/bindings/python && \
-    uv build && \
-    uv pip install /workspace/lib/bindings/python/dist/triton_distributed*cp312*.whl
+    uv build --wheel --out-dir /workspace/dist && \
+    uv pip install /workspace/dist/triton_distributed*cp312*.whl
 
 # Package the bindings
 RUN mkdir -p /opt/triton/bindings/wheels && \
     mkdir /opt/triton/bindings/lib && \
-    cp lib/bindings/python/dist/triton_distributed*cp312*.whl /opt/triton/bindings/wheels/. && \
+    cp dist/triton_distributed*cp312*.whl /opt/triton/bindings/wheels/. && \
     cp lib/bindings/c/target/release/libtriton_distributed_llm_capi.so /opt/triton/bindings/lib/. && \
     cp -r lib/bindings/c/include /opt/triton/bindings/.
 

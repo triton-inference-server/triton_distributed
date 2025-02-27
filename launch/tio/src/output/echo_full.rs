@@ -19,7 +19,7 @@ use async_stream::stream;
 use async_trait::async_trait;
 
 use triton_distributed_llm::protocols::openai::chat_completions::{
-    ChatCompletionResponseDelta, NvCreateChatCompletionRequest,
+    NvCreateChatCompletionRequest, NvCreateChatCompletionStreamResponse,
 };
 use triton_distributed_llm::types::openai::chat_completions::OpenAIChatCompletionsStreamingEngine;
 use triton_distributed_runtime::engine::{AsyncEngine, AsyncEngineContextProvider, ResponseStream};
@@ -41,14 +41,14 @@ pub fn make_engine_full() -> OpenAIChatCompletionsStreamingEngine {
 impl
     AsyncEngine<
         SingleIn<NvCreateChatCompletionRequest>,
-        ManyOut<Annotated<ChatCompletionResponseDelta>>,
+        ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>,
         Error,
     > for EchoEngineFull
 {
     async fn generate(
         &self,
         incoming_request: SingleIn<NvCreateChatCompletionRequest>,
-    ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
+    ) -> Result<ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>, Error> {
         let (request, context) = incoming_request.transfer(());
         let deltas = request.response_generator();
         let ctx = context.context();
@@ -72,7 +72,7 @@ impl
                 // we are returning characters not tokens, so speed up some
                 tokio::time::sleep(TOKEN_ECHO_DELAY/2).await;
                 let inner = deltas.create_choice(0, Some(c.to_string()), None, None);
-                let response = ChatCompletionResponseDelta {
+                let response = NvCreateChatCompletionStreamResponse {
                     inner,
                 };
                 yield Annotated{ id: Some(id.to_string()), data: Some(response), event: None, comment: None };
@@ -80,7 +80,7 @@ impl
             }
 
             let inner = deltas.create_choice(0, None, Some(async_openai::types::FinishReason::Stop), None);
-            let response = ChatCompletionResponseDelta {
+            let response = NvCreateChatCompletionStreamResponse {
                 inner,
             };
             yield Annotated { id: Some(id.to_string()), data: Some(response), event: None, comment: None };

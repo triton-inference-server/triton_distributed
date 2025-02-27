@@ -21,7 +21,7 @@ use triton_distributed_llm::{
     model_card::model::ModelDeploymentCard,
     types::{
         openai::chat_completions::{
-            ChatCompletionResponseDelta, NvCreateChatCompletionRequest,
+            NvCreateChatCompletionRequest, NvCreateChatCompletionStreamResponse,
             OpenAIChatCompletionsStreamingEngine,
         },
         Annotated,
@@ -113,7 +113,7 @@ pub struct Flags {
 pub enum EngineConfig {
     /// An remote networked engine we don't know about yet
     /// We don't have the pre-processor yet so this is only text requests. Type will change later.
-    Dynamic(Client<NvCreateChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>),
+    Dynamic(Client<NvCreateChatCompletionRequest, Annotated<NvCreateChatCompletionStreamResponse>>),
 
     /// A Full service engine does it's own tokenization and prompt formatting.
     StaticFull {
@@ -223,7 +223,7 @@ pub async fn run(
                 .namespace(endpoint.namespace)?
                 .component(endpoint.component)?
                 .endpoint(endpoint.name)
-                .client::<NvCreateChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
+                .client::<NvCreateChatCompletionRequest, Annotated<NvCreateChatCompletionStreamResponse>>()
                 .await?;
 
             tracing::info!("Waiting for remote {}...", client.path());

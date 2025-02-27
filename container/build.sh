@@ -43,7 +43,7 @@ PYTHON_PACKAGE_VERSION=${current_tag:-$latest_tag.dev+$commit_id}
 # dependencies are specified in the /container/deps folder and
 # installed within framework specific sections of the Dockerfile.
 
-declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3)
+declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3 ["VLLM_NIXL"]=4)
 DEFAULT_FRAMEWORK=STANDARD
 
 SOURCE_DIR=$(dirname "$(readlink -f "$0")")
@@ -73,6 +73,9 @@ TENSORRTLLM_SKIP_CLONE=0
 
 VLLM_BASE_IMAGE="nvcr.io/nvidia/cuda-dl-base"
 VLLM_BASE_IMAGE_TAG="25.01-cuda12.8-devel-ubuntu24.04"
+
+VLLM_NIXL_BASE_IMAGE="nvcr.io/nvidia/cuda-dl-base"
+VLLM_NIXL_BASE_IMAGE_TAG="25.01-cuda12.8-devel-ubuntu24.04"
 
 get_options() {
     while :; do
@@ -183,6 +186,9 @@ get_options() {
         --cache-to)
             if [ "$2" ]; then
                 CACHE_TO="--cache-to $2"
+        --build-context)
+            if [ "$2" ]; then
+                BUILD_CONTEXT_ARG="--build-context $2"
                 shift
             else
                 missing_requirement $1
@@ -284,6 +290,7 @@ show_help() {
     echo "  [--tag tag for image]"
     echo "  [--no-cache disable docker build cache]"
     echo "  [--dry-run print docker commands without running]"
+    echo "  [--build-context name=path to add build context]"
     exit 0
 }
 
@@ -302,6 +309,8 @@ get_options "$@"
 # Update DOCKERFILE if framework is VLLM
 if [[ $FRAMEWORK == "VLLM" ]]; then
     DOCKERFILE=${SOURCE_DIR}/Dockerfile.vllm
+elif [[ $FRAMEWORK == "VLLM_NIXL" ]]; then
+    DOCKERFILE=${SOURCE_DIR}/Dockerfile.vllm_nixl
 fi
 
 # BUILD DEV IMAGE
@@ -337,7 +346,7 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker buildx build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $CACHE_TO $TAG $LATEST_TAG --output type=docker $BUILD_CONTEXT $NO_CACHE
+$RUN_PREFIX docker buildx build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $CACHE_TO --output type=docker $TAG $LATEST_TAG $BUILD_CONTEXT_ARG $BUILD_CONTEXT $NO_CACHE
 
 { set +x; } 2>/dev/null
 

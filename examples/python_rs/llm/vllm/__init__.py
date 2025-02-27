@@ -12,19 +12,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import pytest
-
-try:
-    import vllm
-except ImportError:
-    vllm = None  # type: ignore
-
-pytestmark = pytest.mark.pre_merge
-
-
-# TODO: Consider `pytest.mark.vllm` and running tests based on environment
-@pytest.mark.skipif(vllm is None, reason="Skipping vllm tests, vllm not installed")
-def test_version():
-    # Verify that the image has the patched version of vllm
-    assert vllm.__version__.startswith("0.7.3.dev")  # type: ignore
