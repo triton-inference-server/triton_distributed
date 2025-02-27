@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{ChatCompletionResponse, ChatCompletionResponseDelta};
+use super::{NvCreateChatCompletionResponse, ChatCompletionResponseDelta};
 use crate::protocols::{
     codec::{Message, SseCodecError},
     convert_sse_stream, Annotated,
@@ -69,7 +69,7 @@ impl DeltaAggregator {
     /// Aggregates a stream of [`ChatCompletionResponseDelta`]s into a single [`ChatCompletionResponse`].
     pub async fn apply(
         stream: DataStream<Annotated<ChatCompletionResponseDelta>>,
-    ) -> Result<ChatCompletionResponse, String> {
+    ) -> Result<NvCreateChatCompletionResponse, String> {
         let aggregator = stream
             .fold(DeltaAggregator::new(), |mut aggregator, delta| async move {
                 // these are cheap to move so we do it every time since we are consuming the delta
@@ -153,7 +153,7 @@ impl DeltaAggregator {
             service_tier: aggregator.service_tier,
         };
 
-        let response = ChatCompletionResponse { inner };
+        let response = NvCreateChatCompletionResponse { inner };
 
         Ok(response)
     }
@@ -180,17 +180,17 @@ impl From<DeltaChoice> for async_openai::types::ChatChoice {
     }
 }
 
-impl ChatCompletionResponse {
+impl NvCreateChatCompletionResponse {
     pub async fn from_sse_stream(
         stream: DataStream<Result<Message, SseCodecError>>,
-    ) -> Result<ChatCompletionResponse, String> {
+    ) -> Result<NvCreateChatCompletionResponse, String> {
         let stream = convert_sse_stream::<ChatCompletionResponseDelta>(stream);
-        ChatCompletionResponse::from_annotated_stream(stream).await
+        NvCreateChatCompletionResponse::from_annotated_stream(stream).await
     }
 
     pub async fn from_annotated_stream(
         stream: DataStream<Annotated<ChatCompletionResponseDelta>>,
-    ) -> Result<ChatCompletionResponse, String> {
+    ) -> Result<NvCreateChatCompletionResponse, String> {
         DeltaAggregator::apply(stream).await
     }
 }

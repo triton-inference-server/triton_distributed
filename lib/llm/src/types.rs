@@ -42,12 +42,12 @@ pub mod openai {
         //     ChatCompletionResponse, ChatCompletionResponseDelta,
         // };
         pub use protocols::openai::chat_completions::{
-            ChatCompletionRequest, ChatCompletionResponse, ChatCompletionResponseDelta,
+            ChatCompletionRequest, ChatCompletionResponseDelta, NvCreateChatCompletionResponse,
         };
 
         /// A [`UnaryEngine`] implementation for the OpenAI Chat Completions API
         pub type OpenAIChatCompletionsUnaryEngine =
-            UnaryEngine<ChatCompletionRequest, ChatCompletionResponse>;
+            UnaryEngine<ChatCompletionRequest, NvCreateChatCompletionResponse>;
 
         /// A [`ServerStreamingEngine`] implementation for the OpenAI Chat Completions API
         pub type OpenAIChatCompletionsStreamingEngine =

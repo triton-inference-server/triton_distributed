@@ -16,7 +16,7 @@
 use futures::StreamExt;
 use triton_distributed_llm::protocols::{
     codec::{create_message_stream, Message, SseCodecError},
-    openai::{chat_completions::ChatCompletionResponse, completions::CompletionResponse},
+    openai::{chat_completions::NvCreateChatCompletionResponse, completions::CompletionResponse},
     ContentProvider, DataStream,
 };
 
@@ -34,7 +34,7 @@ async fn test_openai_chat_stream() {
 
     // note: we are only taking the first 16 messages to keep the size of the response small
     let stream = create_message_stream(&data).take(16);
-    let result = ChatCompletionResponse::from_sse_stream(Box::pin(stream))
+    let result = NvCreateChatCompletionResponse::from_sse_stream(Box::pin(stream))
         .await
         .unwrap();
 
@@ -57,7 +57,7 @@ async fn test_openai_chat_stream() {
 #[tokio::test]
 async fn test_openai_chat_edge_case_multi_line_data() {
     let stream = create_stream(CHAT_ROOT_PATH, "edge_cases/valid-multi-line-data");
-    let result = ChatCompletionResponse::from_sse_stream(Box::pin(stream))
+    let result = NvCreateChatCompletionResponse::from_sse_stream(Box::pin(stream))
         .await
         .unwrap();
 
@@ -78,7 +78,7 @@ async fn test_openai_chat_edge_case_multi_line_data() {
 #[tokio::test]
 async fn test_openai_chat_edge_case_comments_per_response() {
     let stream = create_stream(CHAT_ROOT_PATH, "edge_cases/valid-comments_per_response");
-    let result = ChatCompletionResponse::from_sse_stream(Box::pin(stream))
+    let result = NvCreateChatCompletionResponse::from_sse_stream(Box::pin(stream))
         .await
         .unwrap();
 
@@ -99,7 +99,7 @@ async fn test_openai_chat_edge_case_comments_per_response() {
 #[tokio::test]
 async fn test_openai_chat_edge_case_invalid_deserialize_error() {
     let stream = create_stream(CHAT_ROOT_PATH, "edge_cases/invalid-deserialize_error");
-    let result = ChatCompletionResponse::from_sse_stream(Box::pin(stream)).await;
+    let result = NvCreateChatCompletionResponse::from_sse_stream(Box::pin(stream)).await;
 
     assert!(result.is_err());
     // insta::assert_debug_snapshot!(result);
