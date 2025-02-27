@@ -23,7 +23,6 @@ ALLOWED_CI_OPTIONS = {
     'run_vllm': {'type': 'bool'},
     # Options with values
     'ci_default_branch': {'type': 'str'},
-    # Add other allowed options here
 }
 
 def parse_args():
