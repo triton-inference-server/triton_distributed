@@ -84,9 +84,10 @@ def add_path_filter(ci_options, vllm_filter):
     """
     Add path filter result to CI options
     """
-    if ci_options.get("RUN_VLLM", False):
-        print(f"Adding VLLM path filter: {vllm_filter}")
-        ci_options["VLLM_FILTER"] = vllm_filter
+    print(f"VLLM filter: {vllm_filter}")
+    if vllm_filter:
+        print(f"Detected changes in VLLM path filter")
+        ci_options["RUN_VLLM"] = True
     return ci_options
 
 
@@ -107,11 +108,12 @@ def run_ci(ref, ci_options):
     form_data = {
         "token": pipeline_token,
         "ref": ref,
+        "variables": {}
     }
 
-    # Add CI options to form data
+    # Add CI options to form data as variables
     for key, value in ci_options.items():
-        form_data[key] = str(value).lower() if isinstance(value, bool) else value
+        form_data["variables"][key] = str(value).lower() if isinstance(value, bool) else value
 
     response = requests.post(pipeline_url, data=form_data)
     response.raise_for_status()
