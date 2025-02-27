@@ -29,6 +29,8 @@ limitations under the License.
 ./container/run.sh --framework VLLM_NIXL --target dev -it
 ```
 
+All of the commands below are run inside the same container.
+
 ## Run deployment
 
 Add model to triton and start http server.
@@ -135,6 +137,7 @@ rm -r /tmp/nixl
 ## TODOs, limitations, known issues
 
 - [ ] Add etcd for discovery
+- [ ] Multi-node deployment support
 - [ ] Enable chunked prefill
 - [ ] Support mixed tp
 - [ ] Process many remote prefill in one iteration
