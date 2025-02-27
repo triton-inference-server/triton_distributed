@@ -39,6 +39,8 @@ jobs:
     # needs: mirror_repo
     runs-on: self-hosted
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
     - name: Detect source code changes
       id: src_changes
       uses: dorny/paths-filter@v3
@@ -58,7 +60,8 @@ jobs:
         else
           echo "message=$(git log -1 --pretty=%B ${{ github.sha }})" >> $GITHUB_OUTPUT
         fi
-    - uses: actions/setup-python@v5
+    - name: Setup Python
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
     - name: Trigger Pipeline
