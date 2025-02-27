@@ -33,9 +33,15 @@ def parse_args():
     Parse command line arguments.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ref", type=str, required=True, help="Branch Reference to trigger CI")
-    parser.add_argument("--vllm-filter", type=str, required=True, help="VLLM path filter")
-    parser.add_argument("--commit-message", type=str, required=True, help="Commit message")
+    parser.add_argument(
+        "--ref", type=str, required=True, help="Branch Reference to trigger CI"
+    )
+    parser.add_argument(
+        "--vllm-filter", type=str, required=True, help="VLLM path filter"
+    )
+    parser.add_argument(
+        "--commit-message", type=str, required=True, help="Commit message"
+    )
     return parser.parse_args()
 
 
@@ -74,10 +80,14 @@ def extract_options_from_commit(commit_message):
             # Validate option type
             option_type = ALLOWED_CI_OPTIONS[normalized_key]["type"]
             if option_type == "bool" and value is not True:
-                print(f"Warning: Option '{key}' should not have a value. Treating as boolean flag.")
+                print(
+                    f"Warning: Option '{key}' should not have a value. Treating as boolean flag."
+                )
                 value = True
             elif option_type == "str" and value is True:
-                print(f"Warning: Option '{key}' requires a value but none provided. Skipping.")
+                print(
+                    f"Warning: Option '{key}' requires a value but none provided. Skipping."
+                )
                 continue
 
             options[normalized_key] = value
@@ -123,14 +133,16 @@ def run_ci(ref, ci_options):
     # Send the request as JSON
     headers = {"Content-Type": "application/json"}
     try:
-        response = requests.post(pipeline_url, json=json_data, headers=headers, timeout=30)
+        response = requests.post(
+            pipeline_url, json=json_data, headers=headers, timeout=30
+        )
         response.raise_for_status()
         print(f"CI pipeline triggered successfully: {response.text}")
     except requests.exceptions.Timeout:
         raise RuntimeError("Request timed out when triggering CI pipeline")
     except requests.exceptions.RequestException as e:
         error_message = f"Error triggering CI pipeline: {e}"
-        if hasattr(e, 'response') and e.response is not None:
+        if hasattr(e, "response") and e.response is not None:
             error_message += f" (Status code: {e.response.status_code})"
         raise RuntimeError(error_message)
 
