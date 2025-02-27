@@ -1,23 +1,24 @@
-import msgspec
-import json
 import asyncio
+import json
+
+import msgspec
 import uvloop
-from vllm.engine.arg_utils import AsyncEngineArgs
+from common import NixlMetadataStore, temp_metadata_file
+from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.config import KVTransferConfig
-from vllm.remote_prefill import RemotePrefillRequest, RemotePrefillParams
-from vllm.entrypoints.openai.api_server import build_async_engine_client_from_engine_args
+from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.engine.multiprocessing.client import EngineClient
+from vllm.entrypoints.openai.api_server import (
+    build_async_engine_client_from_engine_args,
+)
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
 )
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
-from vllm.engine.multiprocessing.client import EngineClient
-from vllm.entrypoints.openai.serving_models import OpenAIServingModels, BaseModelPath
+from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
+from vllm.remote_prefill import RemotePrefillParams, RemotePrefillRequest
 
-from triton_distributed_rs import DistributedRuntime, triton_worker, triton_endpoint
-
-from protocol import Request
-from common import temp_metadata_file
 
 class RequestHandler:
     def __init__(self, engine_client: EngineClient, prefill_client):
@@ -31,10 +32,12 @@ class RequestHandler:
         models = OpenAIServingModels(
             engine_client=self.engine_client,
             model_config=await self.engine_client.get_model_config(),
-            base_model_paths=[BaseModelPath(
-                name="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
-                model_path="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
-            )]
+            base_model_paths=[
+                BaseModelPath(
+                    name="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+                    model_path="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+                )
+            ],
         )
         self.openai_serving_chat = OpenAIServingChat(
             engine_client=self.engine_client,
@@ -51,15 +54,15 @@ class RequestHandler:
         async def callback(request: RemotePrefillRequest):
             json_request = msgspec.json.encode(request).decode("utf-8")
             self.prefill_client.generate(json_request)
+
         return callback
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, request):
-
         if not self.initialized:
             await self.init()
 
-        do_remote_prefill = True # TODO: this should be decided by the algorithm
+        do_remote_prefill = True  # TODO: this should be decided by the algorithm
 
         if do_remote_prefill:
             remote_prefill_params = RemotePrefillParams(
@@ -77,24 +80,35 @@ class RequestHandler:
                 break
             response = json.loads(raw_response.lstrip("data: "))
             yield response
-        
+
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
-
     component = runtime.namespace("test-nixl").component("vllm")
     await component.create_service()
 
     endpoint = component.endpoint("generate")
 
-    prefill_client = await runtime.namespace("test-nixl").component("prefill").endpoint("generate").client()
+    prefill_client = (
+        await runtime.namespace("test-nixl")
+        .component("prefill")
+        .endpoint("generate")
+        .client()
+    )
 
     async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
-
         # This should be replaced with etcd
         metadata = engine_client.nixl_metadata
+
+        metadata_store = NixlMetadataStore("test-nixl")
+
+        metadata_store.put(metadata.engine_id, metadata)
+
         with temp_metadata_file(metadata.engine_id, metadata):
-            await endpoint.serve_endpoint(RequestHandler(engine_client, prefill_client).generate)
+            await endpoint.serve_endpoint(
+                RequestHandler(engine_client, prefill_client).generate
+            )
+
 
 if __name__ == "__main__":
     uvloop.install()
@@ -103,12 +117,13 @@ if __name__ == "__main__":
         model="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
         enforce_eager=True,
         kv_transfer_config=KVTransferConfig(kv_connector="TritonNixlConnector"),
-        enable_chunked_prefill=False, # TODO add support for chunked prefill
-        disable_async_output_proc=True, # TODO add support for async output processing
-        preemption_mode="swap", # TODO add support for recompute
-        pipeline_parallel_size=1, # TODO add support for pipeline parallel > 1
-        tensor_parallel_size=2,
+        enable_chunked_prefill=False,  # TODO add support for chunked prefill
+        disable_async_output_proc=True,  # TODO add support for async output processing
+        preemption_mode="swap",  # TODO add support for recompute
+        pipeline_parallel_size=1,  # TODO add support for pipeline parallel > 1
+        tensor_parallel_size=1,
+        max_model_len=10,
+        gpu_memory_utilization=0.4,
     )
 
     asyncio.run(worker(engine_args))
-
