@@ -54,8 +54,19 @@ jobs:
       run: |
         #!/bin/bash -e
         declare -A ci_variables
+        echo "${{ github.event.push.push_options }}"
+
+        # Check for vllm changes
         if [ "${{ steps.src_changes.outputs.vllm }}" == "true" ]; then
           ci_variables["RUN_VLLM"]="true"
+        fi
+
+        # Read git push options if they exist
+        if [ -n "${{ github.event.push.push_options }}" ]; then
+          while IFS='=' read -r key value; do
+            ci_key=$(echo "$key" | tr '[:lower:]' '[:upper:]')
+            ci_variables["$ci_key"]="$value"
+          done < <(echo "${{ github.event.push.push_options }}" | tr ',' '\n')
         fi
 
         ci_args=""
