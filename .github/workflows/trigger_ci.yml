@@ -72,6 +72,9 @@ jobs:
     - name: Install dependencies
       run: pip install requests
     - name: Trigger Pipeline
+      env:
+        PIPELINE_TOKEN: ${{ secrets.PIPELINE_TOKEN }}
+        PIPELINE_URL: ${{ secrets.PIPELINE_URL }}
       run: |
         #!/bin/bash -e
         if [ "${{ github.event_name }}" = "pull_request" ]; then

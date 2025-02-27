@@ -13,20 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import argparse
+import os
+
+import requests
 
 ALLOWED_CI_OPTIONS = {
     # Boolean flags
-    'run_jet_tests': {'type': 'bool'},
-    'nightly_benchmark': {'type': 'bool'},
-    'run_vllm': {'type': 'bool'},
+    "RUN_JET_TESTS": {"type": "bool"},
+    "NIGHTLY_BENCHMARK": {"type": "bool"},
+    "RUN_VLLM": {"type": "bool"},
     # Options with values
-    'ci_default_branch': {'type': 'str'},
-    # Add other allowed options here
+    "CI_DEFAULT_BRANCH": {"type": "str"},  # placeholder for future use
 }
 
+
 def parse_args():
+    """
+    Parse command line arguments.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--ref", type=str, required=True)
     parser.add_argument("--vllm-filter", type=str, required=True)
@@ -35,50 +40,99 @@ def parse_args():
 
 
 def extract_options_from_commit(commit_message):
-    """Extract CI options from commit message.
+    """
+    Extract CI options from commit message.
     Supports two formats:
     1. Boolean flags: [option]
     2. Valued options: [option=value]
-    Example: [run_jet] [ci_default_branch=test123]
     """
     options = {}
     # Look for text between square brackets
-    for part in commit_message.split('['):
-        if ']' in part:
-            content = part.split(']')[0].strip()
+    for part in commit_message.split("["):
+        if "]" in part:
+            content = part.split("]")[0].strip()
             if not content:  # Ignore empty brackets
                 continue
 
             # Check if it's a key=value pair
-            if '=' in content:
-                key, value = content.split('=', 1)
+            if "=" in content:
+                key, value = content.split("=", 1)
                 key = key.strip()
             else:
                 key = content.strip()
                 value = True
 
-            # Normalize key: convert hyphens to underscores for consistent lookup
-            normalized_key = key.replace('-', '_')
+            # Normalize key: convert hyphens to underscores and uppercase for consistent lookup
+            normalized_key = key.replace("-", "_").upper()
 
             if normalized_key not in ALLOWED_CI_OPTIONS:
-                raise ValueError(f"Invalid CI option: '{key}'.\n\nAllowed options are:\n{sorted(ALLOWED_CI_OPTIONS)}")
+                raise ValueError(
+                    f"Invalid CI option: '{key}'.\n\nAllowed options are:\n{sorted(ALLOWED_CI_OPTIONS)}"
+                )
 
             # Validate option type
-            option_type = ALLOWED_CI_OPTIONS[normalized_key]['type']
-            if option_type == 'bool' and value is not True:
+            option_type = ALLOWED_CI_OPTIONS[normalized_key]["type"]
+            if option_type == "bool" and value is not True:
                 raise ValueError(f"Option '{key}' should not have a value")
-            elif option_type == 'str' and value is True:
+            elif option_type == "str" and value is True:
                 raise ValueError(f"Option '{key}' requires a value")
 
             options[normalized_key] = value
     return options
 
+
+def add_path_filter(ci_options, vllm_filter):
+    """
+    Add path filter result to CI options
+    """
+    if ci_options.get("RUN_VLLM", False):
+        print(f"Adding VLLM path filter: {vllm_filter}")
+        ci_options["VLLM_FILTER"] = vllm_filter
+    return ci_options
+
+
+def run_ci(ref, ci_options):
+    """
+    Trigger CI pipeline using the extracted options.
+    """
+    # Get secrets from environment variables
+    pipeline_token = os.environ.get("PIPELINE_TOKEN")
+    pipeline_url = os.environ.get("PIPELINE_URL")
+
+    if not pipeline_token or not pipeline_url:
+        raise ValueError(
+            "Missing required environment variables: PIPELINE_TOKEN and/or PIPELINE_URL"
+        )
+
+    # Prepare form data
+    form_data = {
+        "token": pipeline_token,
+        "ref": ref,
+    }
+
+    # Add CI options to form data
+    for key, value in ci_options.items():
+        form_data[key] = str(value).lower() if isinstance(value, bool) else value
+
+    response = requests.post(pipeline_url, data=form_data)
+    response.raise_for_status()
+    print(f"CI pipeline triggered successfully: {response.text}")
+
+
 if __name__ == "__main__":
     args = parse_args()
     try:
         ci_options = extract_options_from_commit(args.commit_message)
+        ci_options = add_path_filter(ci_options, args.vllm_filter)
         print(f"Command line args: {args}")
         print(f"CI options from commit message: {ci_options}")
+        run_ci(args.ref, ci_options)
     except ValueError as e:
         print(f"Error: {e}")
+        exit(1)
+    except requests.exceptions.RequestException as e:
+        print(f"Error triggering CI pipeline: {e}")
+        exit(1)
+    except Exception as e:
+        print(f"Unexpected error: {e}")
         exit(1)
