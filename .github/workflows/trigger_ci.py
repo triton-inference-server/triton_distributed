@@ -112,16 +112,13 @@ def run_ci(ref, ci_options):
     json_data = {
         "token": pipeline_token,
         "ref": ref,
-        "variables": variables
+        "variables": variables,
+        "description": f"Triggered from GitHub Actions - {ref}"
     }
 
     # Send the request as JSON
     headers = {"Content-Type": "application/json"}
     response = requests.post(pipeline_url, json=json_data, headers=headers)
-
-    # Print response for debugging
-    print(f"Response status code: {response.status_code}")
-    print(f"Response content: {response.text}")
 
     response.raise_for_status()
     print(f"CI pipeline triggered successfully: {response.text}")
