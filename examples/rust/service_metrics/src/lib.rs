@@ -17,8 +17,11 @@ use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_NAMESPACE: &str = "triton-init";
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 // Dummy Stats object to demonstrate how to attach a custom stats handler
 pub struct MyStats {
-    pub val: u32,
+    pub requests_active_slots: u32,
+    pub requests_total_slots: u32,
+    pub kv_blocks_active: u32,
+    pub kv_blocks_total: u32,
 }

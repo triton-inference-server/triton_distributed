@@ -14,7 +14,7 @@
 // limitations under the License.
 
 use service_metrics::{MyStats, DEFAULT_NAMESPACE};
-
+use rand::Rng;
 use std::sync::Arc;
 use triton_distributed_runtime::{
     logging,
@@ -73,7 +73,16 @@ async fn backend(runtime: DistributedRuntime) -> Result<()> {
         .service_builder()
         // Dummy stats handler to demonstrate how to attach a custom stats handler
         .stats_handler(Some(Box::new(|_name, _stats| {
-            let stats = MyStats { val: 10 };
+            let requests_total_slots = 100;
+            let requests_active_slots = rand::thread_rng().gen_range(0..requests_total_slots);
+            let kv_blocks_total = 100;
+            let kv_blocks_active = rand::thread_rng().gen_range(0..kv_blocks_total);
+            let stats = MyStats {
+                requests_active_slots,
+                requests_total_slots,
+                kv_blocks_active,
+                kv_blocks_total,
+            };
             serde_json::to_value(stats).unwrap()
         })))
         .create()
