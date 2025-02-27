@@ -56,9 +56,13 @@ jobs:
       id: get_commit_message
       run: |
         if [ "${{ github.event_name }}" = "pull_request" ]; then
-          echo "message=$(git log -1 --pretty=%B ${{ github.event.pull_request.head.sha }})" >> $GITHUB_OUTPUT
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          git log -1 --pretty=%B ${{ github.event.pull_request.head.sha }} >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
         else
-          echo "message=$(git log -1 --pretty=%B ${{ github.sha }})" >> $GITHUB_OUTPUT
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          git log -1 --pretty=%B ${{ github.sha }} >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
         fi
     - name: Setup Python
       uses: actions/setup-python@v5
@@ -78,4 +82,4 @@ jobs:
         python ./.github/workflows/trigger_ci.py \
           --ref $REF \
           --vllm-filter "${{ steps.src_changes.outputs.vllm }}" \
-          --commit-message "${{ steps.get_commit_message.outputs.message }}"
+          --commit-message '${{ steps.get_commit_message.outputs.message }}'
