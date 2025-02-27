@@ -31,10 +31,13 @@ homepage.workspace = true
 
 [features]
 mistralrs = ["dep:mistralrs"]
-metal = ["mistralrs/metal"]
-cuda = ["mistralrs/cuda"]
-sentencepiece = ["dep:sentencepiece"]
+llamacpp = ["dep:llama-cpp-2"]
 sglang = ["dep:async_zmq"]
+sentencepiece = ["dep:sentencepiece"]
+
+cuda = ["mistralrs/cuda", "llama-cpp-2/cuda"]
+metal = ["mistralrs/metal", "llama-cpp-2/metal"]
+vulkan = ["llama-cpp-2/vulkan"]
 
 [workspace.dependencies]
 # local or crates.io
@@ -115,6 +118,9 @@ pyo3 = { version = "0.23.3", default-features = false, features = [
   "py-clone",
 ] }
 serde-pickle = "1.2.0"
+
+# llamacpp
+llama-cpp-2 = { version = "0.1.86", optional = true }
 
 # tokenizers
 tokenizers = { version = "0.21.0", default-features = false, features = [
