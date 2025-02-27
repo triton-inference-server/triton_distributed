@@ -15,7 +15,6 @@
 
 
 import asyncio
-import logging
 
 import msgspec
 import uvloop
@@ -30,13 +29,11 @@ from vllm.remote_prefill import RemotePrefillParams, RemotePrefillRequest
 
 from triton_distributed.runtime import DistributedRuntime, triton_worker
 
-logger = logging.getLogger(__name__)
-
 
 class RequestHandler:
     def __init__(self, engine_client):
         self.engine_client = engine_client
-        logger.info("RequestHandler initialized")
+        print("RequestHandler initialized")
 
     async def generate(self, raw_request: str):
         request: RemotePrefillRequest = msgspec.json.decode(
@@ -73,13 +70,13 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
         # This should be replaced with etcd
         metadata = engine_client.nixl_metadata
         with temp_metadata_file(metadata.engine_id, metadata):
-            logger.info(f"Waiting for remote metadata for engine {metadata.engine_id}")
+            print(f"Waiting for remote metadata for engine {metadata.engine_id}")
             remote_metadata: list[NixlMetadata] = []
             while not remote_metadata:
                 await asyncio.sleep(1)
                 remote_metadata = find_remote_metadata(metadata.engine_id)
 
-            logger.info(
+            print(
                 f"Found {len(remote_metadata)} remote metadata for engine {metadata.engine_id}"
             )
             for remote_metadata in remote_metadata:
@@ -92,11 +89,11 @@ if __name__ == "__main__":
     engine_args = parse_vllm_args()
 
     if engine_args.enable_chunked_prefill is not False:
-        logger.warning("Chunked prefill is not supported yet, setting to False")
+        print("Chunked prefill is not supported yet, setting to False")
         engine_args.enable_chunked_prefill = False
 
     if engine_args.pipeline_parallel_size != 1:
-        logger.warning("Pipeline parallel size is not supported yet, setting to 1")
+        print("Pipeline parallel size is not supported yet, setting to 1")
         engine_args.pipeline_parallel_size = 1
 
     asyncio.run(worker(engine_args))

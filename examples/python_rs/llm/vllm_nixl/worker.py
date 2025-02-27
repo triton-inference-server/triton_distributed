@@ -16,7 +16,6 @@
 
 import asyncio
 import json
-import logging
 
 import msgspec
 import uvloop
@@ -40,8 +39,6 @@ from triton_distributed.runtime import (
     triton_worker,
 )
 
-logger = logging.getLogger(__name__)
-
 
 class RequestHandler:
     def __init__(
@@ -59,7 +56,7 @@ class RequestHandler:
         self.do_remote_prefill = (
             do_remote_prefill  # TODO: this should be decided by the algorithm
         )
-        logger.info("RequestHandler initialized")
+        print("RequestHandler initialized")
 
     async def init(self):
         models = OpenAIServingModels(
@@ -159,15 +156,15 @@ if __name__ == "__main__":
 
     if engine_args.remote_prefill:
         if engine_args.enable_chunked_prefill is not False:
-            logger.warning("Chunked prefill is not supported yet, setting to False")
+            print("Chunked prefill is not supported yet, setting to False")
             engine_args.enable_chunked_prefill = False
 
         if engine_args.preemption_mode != "swap":
-            logger.warning("Preemption mode is not supported yet, setting to swap")
+            print("Preemption mode is not supported yet, setting to swap")
             engine_args.preemption_mode = "swap"
 
         if engine_args.pipeline_parallel_size != 1:
-            logger.warning("Pipeline parallel size is not supported yet, setting to 1")
+            print("Pipeline parallel size is not supported yet, setting to 1")
             engine_args.pipeline_parallel_size = 1
 
     asyncio.run(worker(engine_args))
