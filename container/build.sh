@@ -186,6 +186,11 @@ get_options() {
         --cache-to)
             if [ "$2" ]; then
                 CACHE_TO="--cache-to $2"
+                shift
+            else
+                missing_requirement $1
+            fi
+            ;;
         --build-context)
             if [ "$2" ]; then
                 BUILD_CONTEXT_ARG="--build-context $2"
