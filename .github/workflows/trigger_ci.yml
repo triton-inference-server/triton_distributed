@@ -58,6 +58,9 @@ jobs:
         else
           echo "message=$(git log -1 --pretty=%B ${{ github.sha }})" >> $GITHUB_OUTPUT
         fi
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
     - name: Trigger Pipeline
       run: |
         #!/bin/bash -e
