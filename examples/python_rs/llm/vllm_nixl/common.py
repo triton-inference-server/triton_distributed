@@ -32,7 +32,9 @@ def parse_vllm_args() -> AsyncEngineArgs:
     )
     parser = AsyncEngineArgs.add_cli_args(parser)
     args = parser.parse_args()
-    return AsyncEngineArgs.from_cli_args(args)
+    engine_args = AsyncEngineArgs.from_cli_args(args)
+    engine_args.remote_prefill = args.remote_prefill
+    return engine_args
 
 
 @contextmanager
