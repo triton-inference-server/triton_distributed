@@ -41,10 +41,10 @@ use super::{
 };
 
 use crate::protocols::openai::{
-    chat_completions::ChatCompletionResponse, completions::CompletionResponse,
+    chat_completions::NvCreateChatCompletionResponse, completions::CompletionResponse,
 };
 use crate::types::{
-    openai::{chat_completions::ChatCompletionRequest, completions::CompletionRequest},
+    openai::{chat_completions::NvCreateChatCompletionRequest, completions::CompletionRequest},
     Annotated,
 };
 
@@ -211,7 +211,7 @@ async fn completions(
 #[tracing::instrument(skip_all)]
 async fn chat_completions(
     State(state): State<Arc<DeploymentState>>,
-    Json(request): Json<ChatCompletionRequest>,
+    Json(request): Json<NvCreateChatCompletionRequest>,
 ) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
     // return a 503 if the service is not ready
     check_ready(&state)?;
@@ -227,7 +227,7 @@ async fn chat_completions(
         stream: Some(true),
         ..request.inner
     };
-    let request = ChatCompletionRequest {
+    let request = NvCreateChatCompletionRequest {
         inner: inner_request,
         nvext: None,
     };
@@ -272,7 +272,7 @@ async fn chat_completions(
             .keep_alive(KeepAlive::default())
             .into_response())
     } else {
-        let response = ChatCompletionResponse::from_annotated_stream(stream.into())
+        let response = NvCreateChatCompletionResponse::from_annotated_stream(stream.into())
             .await
             .map_err(|e| {
                 tracing::error!(
