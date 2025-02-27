@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from enum import Enum
 from typing import AsyncGenerator, AsyncIterator, Callable, List
 
 class JsonLike:
@@ -171,3 +172,18 @@ class KvMetricsPublisher:
         Update the KV metrics being reported.
         """
         ...
+
+
+class TritonLlmResult(Enum):
+    """
+    A result of a Triton LLM operation reporting success or failure
+    """
+
+    ...
+
+
+def triton_llm_event_init(namespace: str, component: str, worker_id: int) -> TritonLlmResult:
+    """
+    Initialize the Triton LLM event runtime
+    """
+    ...
