@@ -109,24 +109,3 @@ impl ServiceConfigBuilder {
         Self::default().component(component)
     }
 }
-
-// // Wrap the optional user callback method in a closure that appends the lease_id to the response
-// fn wrap_callback(
-//     callback: Option<Box<dyn FnMut(String, Stats) -> Value + Send + Sync>>,
-//     lease_id: i64,
-// ) -> Box<dyn FnMut(String, Stats) -> Value + Send + Sync> {
-//     let callback = Arc::new(Mutex::new(callback)); // Wrap in Arc<Mutex> for shared access
-
-//     Box::new(move |subject: String, stats: Stats| -> Value {
-//         let mut callback_lock = callback.lock().unwrap();
-//         if let Some(cb) = callback_lock.as_mut() {
-//             let mut result = cb(subject, stats); // Call the user-defined callback
-//             if let Some(obj) = result.as_object_mut() {
-//                 obj.insert("lease_id".to_string(), json!(lease_id)); // Append lease_id
-//             }
-//             result
-//         } else {
-//             json!({ "error": "callback not set", "lease_id": lease_id }) // Default response
-//         }
-//     })
-// }
