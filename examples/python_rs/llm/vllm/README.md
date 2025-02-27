@@ -23,22 +23,22 @@ This example demonstrates how to use Triton Distributed to serve large language 
 
 Start required services (etcd and NATS):
 
-   Option A: Using [Docker Compose](/runtime/rust/docker-compose.yml) (Recommended)
-   ```bash
-   docker-compose up -d
-   ```
+Option A: Using [Docker Compose](/deploy/docker-compose.yml) (Recommended)
 
-   Option B: Manual Setup
+```bash
+docker compose up -d
+```
+
+Option B: Manual Setup
 
     - [NATS.io](https://docs.nats.io/running-a-nats-service/introduction/installation) server with [Jetstream](https://docs.nats.io/nats-concepts/jetstream)
         - example: `nats-server -js --trace`
     - [etcd](https://etcd.io) server
         - follow instructions in [etcd installation](https://etcd.io/docs/v3.5/install/) to start an `etcd-server` locally
 
-
 ## Building the Environment
 
-The example is designed to run in a containerized environment using Triton Distributed, vLLM, and associated dependencies. To build the container:
+The example is designed to run in a containerized environment using Triton Distributed, vLLM, and associated dependencies. To build the container, go to the root of the repository and run:
 
 ```bash
 # Build image
@@ -46,6 +46,7 @@ The example is designed to run in a containerized environment using Triton Distr
 ```
 
 ## Launching the Environment
+
 ```
 # Run image interactively
 ./container/run.sh --framework VLLM -it
@@ -56,12 +57,15 @@ The example is designed to run in a containerized environment using Triton Distr
 #### 1. HTTP Server
 
 Run the server logging (with debug level logging):
+
 ```bash
 TRD_LOG=DEBUG http
 ```
+
 By default the server will run on port 8080.
 
 Add model to the server:
+
 ```bash
 llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B triton-init.vllm.generate
 ```
@@ -85,6 +89,7 @@ python3 -m monolith.worker \
 This deployment option splits the model serving across prefill and decode workers, enabling more efficient resource utilization.
 
 **Terminal 1 - Prefill Worker:**
+
 ```bash
 # Launch prefill worker
 cd /workspace/examples/python_rs/llm/vllm
@@ -98,6 +103,7 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregat
 ```
 
 **Terminal 2 - Decode Worker:**
+
 ```bash
 # Launch decode worker
 cd /workspace/examples/python_rs/llm/vllm
@@ -111,7 +117,6 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggreg
 ```
 
 The disaggregated deployment utilizes separate GPUs for prefill and decode operations, allowing for optimized resource allocation and improved performance. For more details on the disaggregated deployment, please refer to the [vLLM documentation](https://docs.vllm.ai/en/latest/features/disagg_prefill.html).
-
 
 ### 3. Client
 
@@ -127,22 +132,25 @@ curl localhost:8080/v1/chat/completions \
 ```
 
 Expected output:
+
 ```json
 {
-    "id": "5b04e7b0-0dcd-4c45-baa0-1d03d924010c",
-    "choices": [{
-        "message": {
-            "role": "assistant",
-            "content": "The capital of France is Paris. Paris is a major city known for iconic landmarks like the Eiffel Tower and the Louvre Museum."
-        },
-        "index": 0,
-        "finish_reason": "stop"
-    }],
-    "created": 1739548787,
-    "model": "vllm",
-    "object": "chat.completion",
-    "usage": null,
-    "system_fingerprint": null
+  "id": "5b04e7b0-0dcd-4c45-baa0-1d03d924010c",
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "The capital of France is Paris. Paris is a major city known for iconic landmarks like the Eiffel Tower and the Louvre Museum."
+      },
+      "index": 0,
+      "finish_reason": "stop"
+    }
+  ],
+  "created": 1739548787,
+  "model": "vllm",
+  "object": "chat.completion",
+  "usage": null,
+  "system_fingerprint": null
 }
 ```
 
@@ -165,7 +173,6 @@ For disaggregated deployment, you will also need to pass the `kv_ip` and `kv_por
     '{"kv_connector":"PyNcclConnector","kv_role":"kv_producer","kv_rank":<rank>,"kv_parallel_size":2,"kv_ip":<master_node_ip>,"kv_port":<kv_port>}'
 ```
 
-
 ### 5. KV Router Deployment
 
 The KV Router is a component that aggregates KV Events from all the workers and maintains a prefix tree of the cached tokens. It makes decisions on which worker to route requests to based on the length of the prefix match and the load on the workers.
@@ -178,6 +185,7 @@ The helper script `kv-router-run.sh` will launch the router and workers in their
 kv-router-run.sh <number_of_workers> <routing_strategy> Optional[<model_name>]
 
 Example:
+
 ```bash
 # Launch 8 workers with prefix routing strategy and use deepseek-ai/DeepSeek-R1-Distill-Llama-8B as the model
 bash /workspace/examples/python_rs/llm/vllm/scripts/kv-router-run.sh 8 prefix deepseek-ai/DeepSeek-R1-Distill-Llama-8B
@@ -196,6 +204,7 @@ tmux ls | grep 'v-' | cut -d: -f1 | xargs -I{} tmux kill-session -t {}
 #### Deploying using separate terminals
 
 **Terminal 1 - Router:**
+
 ```bash
 # Activate virtual environment
 source /opt/triton/venv/bin/activate
@@ -209,9 +218,11 @@ RUST_LOG=info python3 -m kv_router.router \
 ```
 
 You can choose only the prefix strategy for now:
+
 - `prefix`: Route requests to the worker that has the longest prefix match.
 
 **Terminal 2 - Processor:**
+
 ```bash
 # Activate virtual environment
 source /opt/triton/venv/bin/activate
@@ -228,6 +239,7 @@ RUST_LOG=info python3 -m kv_router.processor \
 ```
 
 **Terminal 3 and 4 - Workers:**
+
 ```bash
 # Activate virtual environment
 source /opt/triton/venv/bin/activate
@@ -247,6 +259,7 @@ Note: block-size must be 64, otherwise Router won't work (accepts only 64 tokens
 
 **Terminal 5 - Client:**
 Don't forget to add the model to the server:
+
 ```bash
 llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B triton-init.process.chat/completions
 ```
@@ -264,25 +277,27 @@ curl localhost:8080/v1/chat/completions   -H "Content-Type: application/json"   
     "max_tokens": 30
   }'
 ```
+
 Expected output:
+
 ```json
 {
-    "id": "f435d1aa-d423-40a0-a616-00bc428a3e32",
-    "choices": [
-        {
-            "message": {
-                "role": "assistant",
-                "content": "Alright, the user is playing a character in a D&D setting. They want a detailed background for their character, set in the world of Eldoria, particularly in the city of Aeloria. The user mentioned it's about an intrepid explorer"
-            },
-            "index": 0,
-            "finish_reason": "length"
-        }
-    ],
-    "created": 1740020570,
-    "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
-    "object": "chat.completion",
-    "usage": null,
-    "system_fingerprint": null
+  "id": "f435d1aa-d423-40a0-a616-00bc428a3e32",
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "Alright, the user is playing a character in a D&D setting. They want a detailed background for their character, set in the world of Eldoria, particularly in the city of Aeloria. The user mentioned it's about an intrepid explorer"
+      },
+      "index": 0,
+      "finish_reason": "length"
+    }
+  ],
+  "created": 1740020570,
+  "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+  "object": "chat.completion",
+  "usage": null,
+  "system_fingerprint": null
 }
 ```
 
