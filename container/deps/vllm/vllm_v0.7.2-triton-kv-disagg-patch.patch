@@ -2221,7 +2221,7 @@ index 321902d1..b8937ef8 100644
  
  def ensure_model_parallel_initialized(
 diff --git a/vllm/engine/llm_engine.py b/vllm/engine/llm_engine.py
-index d82d9ad9..be0d3232 100644
+index d82d9ad9..9ba1a326 100644
 --- a/vllm/engine/llm_engine.py
 +++ b/vllm/engine/llm_engine.py
 @@ -2,13 +2,17 @@
@@ -2304,7 +2304,7 @@ index d82d9ad9..be0d3232 100644
  
 +        self.engine_id = str(uuid.uuid4())
 +        self._nixl_agents_names: Optional[List[str]] = None
-+        if self.vllm_config.kv_transfer_config.kv_connector == "TritonNixlConnector":
++        if self.vllm_config.kv_transfer_config is not None and self.vllm_config.kv_transfer_config.kv_connector == "TritonNixlConnector":
 +            self._nixl_agents_names = self._initialize_nixl()
 +
 +        self._request_notif_counter = defaultdict(lambda: -self.parallel_config.tensor_parallel_size)
@@ -2618,7 +2618,7 @@ index 3cf1850e..6b90ece7 100644
 +    kv_active_blocks: int
 +    kv_total_blocks: int
 diff --git a/vllm/engine/multiprocessing/client.py b/vllm/engine/multiprocessing/client.py
-index 85b5f31e..a41b4f8a 100644
+index 85b5f31e..d33d546a 100644
 --- a/vllm/engine/multiprocessing/client.py
 +++ b/vllm/engine/multiprocessing/client.py
 @@ -8,6 +8,7 @@ from typing import (Any, AsyncGenerator, Dict, Iterator, List, Mapping,
@@ -2700,7 +2700,7 @@ index 85b5f31e..a41b4f8a 100644
 +    
 +    @property
 +    def using_nixl_connector(self) -> bool:
-+        return self.vllm_config.kv_transfer_config.kv_connector == "TritonNixlConnector"
++        return self.vllm_config.kv_transfer_config is not None and self.vllm_config.kv_transfer_config.kv_connector == "TritonNixlConnector"
 +
      @staticmethod
      def is_unsupported_config(engine_args: AsyncEngineArgs):
@@ -3351,7 +3351,7 @@ index 12baecde..cbada27f 100644
          prefill_meta = model_input.attn_metadata.prefill_metadata
  
 diff --git a/vllm/worker/worker.py b/vllm/worker/worker.py
-index 582aa460..10af1856 100644
+index 582aa460..ffb7b403 100644
 --- a/vllm/worker/worker.py
 +++ b/vllm/worker/worker.py
 @@ -2,7 +2,7 @@
@@ -3372,16 +3372,7 @@ index 582aa460..10af1856 100644
  
  logger = init_logger(__name__)
  
-@@ -112,6 +114,8 @@ class Worker(LocalOrDistributedWorkerBase):
-         else:
-             self.profiler = None
- 
-+        self.nixl_connector: Optional["TritonNixlConnector"] = None
-+
-     def start_profile(self):
-         if self.profiler is None:
-             raise RuntimeError("Profiler is not enabled.")
-@@ -306,6 +310,43 @@ class Worker(LocalOrDistributedWorkerBase):
+@@ -306,6 +308,43 @@ class Worker(LocalOrDistributedWorkerBase):
              self._init_cache_engine()
          self._warm_up_model()
  
@@ -3425,7 +3416,7 @@ index 582aa460..10af1856 100644
      def _init_cache_engine(self):
          assert self.cache_config.num_gpu_blocks is not None
          self.cache_engine = [
-@@ -367,6 +408,8 @@ class Worker(LocalOrDistributedWorkerBase):
+@@ -367,6 +406,8 @@ class Worker(LocalOrDistributedWorkerBase):
          blocks_to_copy = torch.tensor(execute_model_req.blocks_to_copy,
                                        device=self.device,
                                        dtype=torch.int64).view(-1, 2)
@@ -3434,7 +3425,7 @@ index 582aa460..10af1856 100644
  
          return WorkerInput(
              num_seq_groups=num_seq_groups,
-@@ -375,6 +418,10 @@ class Worker(LocalOrDistributedWorkerBase):
+@@ -375,6 +416,10 @@ class Worker(LocalOrDistributedWorkerBase):
              blocks_to_copy=blocks_to_copy,
              virtual_engine=virtual_engine,
              num_steps=num_steps,
@@ -3446,7 +3437,7 @@ index 582aa460..10af1856 100644
  
      @torch.inference_mode()
 diff --git a/vllm/worker/worker_base.py b/vllm/worker/worker_base.py
-index 819b81fb..ed999da7 100644
+index 819b81fb..d9c039eb 100644
 --- a/vllm/worker/worker_base.py
 +++ b/vllm/worker/worker_base.py
 @@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
@@ -3457,7 +3448,24 @@ index 819b81fb..ed999da7 100644
  
  from vllm.config import (ObservabilityConfig, VllmConfig,
                           set_current_vllm_config)
-@@ -216,6 +217,11 @@ class WorkerInput:
+@@ -23,6 +24,7 @@ from vllm.utils import (enable_trace_function_call_for_thread,
+ from vllm.worker.model_runner_base import (BroadcastableModelInput,
+                                            ModelRunnerBase,
+                                            ModelRunnerInputBase)
++from vllm.distributed.device_communicators.nixl import TritonNixlConnector
+ 
+ logger = init_logger(__name__)
+ 
+@@ -53,6 +55,8 @@ class WorkerBase(ABC):
+         from vllm.platforms import current_platform
+         self.current_platform = current_platform
+ 
++        self.nixl_connector: Optional[TritonNixlConnector] = None
++
+     @abstractmethod
+     def init_device(self) -> None:
+         """Initialize device state, such as loading the model or other on-device
+@@ -216,6 +220,11 @@ class WorkerInput:
      virtual_engine: int = 0
      num_steps: int = 1
  
@@ -3469,7 +3477,7 @@ index 819b81fb..ed999da7 100644
      @classmethod
      def from_broadcasted_tensor_dict(
          cls: Type["WorkerInput"],
-@@ -232,6 +238,10 @@ class WorkerInput:
+@@ -232,6 +241,10 @@ class WorkerInput:
              blocks_to_copy=tensor_dict.pop("blocks_to_copy"),
              virtual_engine=tensor_dict["virtual_engine"],
              num_steps=tensor_dict.pop("num_steps"),
@@ -3480,7 +3488,7 @@ index 819b81fb..ed999da7 100644
          )
  
      def as_broadcastable_tensor_dict(
-@@ -246,6 +256,10 @@ class WorkerInput:
+@@ -246,6 +259,10 @@ class WorkerInput:
              "blocks_to_copy": self.blocks_to_copy,
              "virtual_engine": self.virtual_engine,
              "num_steps": self.num_steps,
@@ -3491,7 +3499,7 @@ index 819b81fb..ed999da7 100644
          }
  
          return tensor_dict
-@@ -316,13 +330,16 @@ class LocalOrDistributedWorkerBase(WorkerBase):
+@@ -316,13 +333,16 @@ class LocalOrDistributedWorkerBase(WorkerBase):
              return None
  
          worker_input = WorkerInput.from_broadcasted_tensor_dict(broadcast_data)
@@ -3513,7 +3521,7 @@ index 819b81fb..ed999da7 100644
  
      def _get_driver_input_and_broadcast(
          self, execute_model_req: ExecuteModelRequest
-@@ -396,49 +413,75 @@ class LocalOrDistributedWorkerBase(WorkerBase):
+@@ -396,49 +416,79 @@ class LocalOrDistributedWorkerBase(WorkerBase):
          self.execute_worker(worker_input)
  
          # If there is no input, we don't need to execute the model.
@@ -3600,23 +3608,27 @@ index 819b81fb..ed999da7 100644
 +            output = []
 +
 +        # collect kv transfer notifications from non driver workers
-+        new_notifs = self.nixl_connector.get_new_notifs()
-+        rank = get_tp_group().rank
-+        all_new_notifs = [new_notifs]
-+        if rank > 0:
-+            get_tp_group().send_object(new_notifs, dst=0)
++
++        if self.nixl_connector is not None:
++            new_notifs = self.nixl_connector.get_new_notifs()
++            rank = get_tp_group().rank
++            all_new_notifs = [new_notifs]
++            if rank > 0:
++                get_tp_group().send_object(new_notifs, dst=0)
++            else:
++                for i in range(1, get_tp_group().world_size):
++                    all_new_notifs.append(get_tp_group().recv_object(src=i))
++
++            request_notif_counter = defaultdict(int)
++            for notifs in all_new_notifs:
++                for req_ids in notifs.values():
++                    for req_id in req_ids:
++                        request_notif_counter[req_id] += 1
++
++            if request_notif_counter:
++                logger.debug("Request notif counter: %s", request_notif_counter)
 +        else:
-+            for i in range(1, get_tp_group().world_size):
-+                all_new_notifs.append(get_tp_group().recv_object(src=i))
-+
-+        request_notif_counter = defaultdict(int)
-+        for notifs in all_new_notifs:
-+            for req_ids in notifs.values():
-+                for req_id in req_ids:
-+                    request_notif_counter[req_id] += 1
-+
-+        if request_notif_counter:
-+            logger.debug("Request notif counter: %s", request_notif_counter)
++            request_notif_counter = {}
  
          # output is List[SamplerOutput]
 -        return output
