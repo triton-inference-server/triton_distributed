@@ -55,7 +55,7 @@ class VllmPrefillEngine(BaseVllmEngine):
             await self.initialize()
 
         vllm_logger.debug(f"Received prefill request: {request}")
-        sampling_params = vllm.SamplingParams(**request.sampling_params)
+        sampling_params = vllm.sampling_params.SamplingParams(**request.sampling_params)
         if self.engine_client is None:
             raise RuntimeError("Engine client not initialized")
         else:

@@ -81,7 +81,7 @@ class RequestHandler:
     async def generate(self, request):
         if not self.initialized:
             await self.init()
-
+        assert self.openai_serving_chat is not None
         do_remote_prefill = True  # TODO: this should be decided by the algorithm
 
         if do_remote_prefill:
