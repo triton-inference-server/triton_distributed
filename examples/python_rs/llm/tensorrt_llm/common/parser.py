@@ -50,7 +50,11 @@ LLM_ENGINE_KEYS = {
 def _get_llm_args(args_dict):
     # Validation checks
     for k, v in args_dict.items():
-        if k not in LLM_ENGINE_KEYS and k not in PYTORCH_CONFIG_KEYS:
+        if (
+            k not in LLM_ENGINE_KEYS
+            and k not in PYTORCH_CONFIG_KEYS
+            and k != "copyright"
+        ):
             raise ValueError(f"Unrecognized key in --engine_args file: {k}")
 
     pytorch_config_args = {

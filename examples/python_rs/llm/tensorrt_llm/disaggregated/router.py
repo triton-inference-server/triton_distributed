@@ -20,12 +20,7 @@ import copy
 from dataclasses import asdict
 
 import uvloop
-from common.protocol import (
-    DisaggregatedRequest,
-    DisaggregatedResponse,
-    Request,
-    Response,
-)
+from common.protocol import DisaggregatedRequest, DisaggregatedResponse, Response
 from tensorrt_llm.llmapi import DisaggregatedParams
 from tensorrt_llm.llmapi.disagg_utils import (
     CtxGenServerConfig,
@@ -50,9 +45,8 @@ class Router:
         self.gen_client = gen_client
         logger.info("INITIALIZED ROUTER")
 
-    @triton_endpoint(Request, Response)
+    @triton_endpoint(DisaggregatedRequest, Response)
     async def generate(self, request):
-        request = DisaggregatedRequest.parse_raw(request)
         gen_req = copy.deepcopy(request)
 
         # Send request to context server
