@@ -22,7 +22,7 @@ RUN_PREFIX=
 # dependencies are specified in the /container/deps folder and
 # installed within framework specific sections of the Dockerfile.
 
-declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3)
+declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3 ["VLLM_NIXL"]=4)
 DEFAULT_FRAMEWORK=STANDARD
 
 SOURCE_DIR=$(dirname "$(readlink -f "$0")")
@@ -218,10 +218,6 @@ get_options() {
 
 	ENVIRONMENT_VARIABLES+=" -e HF_TOKEN"
 
-    # TODO: Before merging, understand why this is needed to run --mount-workspace
-	# if [ ! -d "${SOURCE_DIR}/icp/src/python/tdist/icp/protos" ]; then
-	#     $RUN_PREFIX docker run --rm -t -v ${SOURCE_DIR}/..:/workspace -w /workspace $IMAGE /workspace/icp/protos/gen_python.sh > /dev/null 2>&1
-	# fi
 	INTERACTIVE=" -it "
     fi
 

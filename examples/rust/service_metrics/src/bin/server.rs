@@ -13,10 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use service_metrics::DEFAULT_NAMESPACE;
+use service_metrics::{MyStats, DEFAULT_NAMESPACE};
 
 use std::sync::Arc;
-use triton_distributed::{
+use triton_distributed_runtime::{
     logging,
     pipeline::{
         async_trait, network::Ingress, AsyncEngine, AsyncEngineContextProvider, Error, ManyOut,
@@ -71,6 +71,11 @@ async fn backend(runtime: DistributedRuntime) -> Result<()> {
         .namespace(DEFAULT_NAMESPACE)?
         .component("backend")?
         .service_builder()
+        // Dummy stats handler to demonstrate how to attach a custom stats handler
+        .stats_handler(Some(Box::new(|_name, _stats| {
+            let stats = MyStats { val: 10 };
+            serde_json::to_value(stats).unwrap()
+        })))
         .create()
         .await?
         .endpoint("generate")

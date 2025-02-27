@@ -1,11 +1,25 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 import asyncio
 import json
 
 import msgspec
 import uvloop
-from common import NixlMetadataStore, temp_metadata_file
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
-from vllm.config import KVTransferConfig
+from common import NixlMetadataStore, parse_vllm_args, temp_metadata_file
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.multiprocessing.client import EngineClient
 from vllm.entrypoints.openai.api_server import (
@@ -18,6 +32,12 @@ from vllm.entrypoints.openai.protocol import (
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
 from vllm.remote_prefill import RemotePrefillParams, RemotePrefillRequest
+
+from triton_distributed.runtime import (
+    DistributedRuntime,
+    triton_endpoint,
+    triton_worker,
+)
 
 
 class RequestHandler:
@@ -112,18 +132,22 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
 if __name__ == "__main__":
     uvloop.install()
+    engine_args = parse_vllm_args()
 
-    engine_args = AsyncEngineArgs(
-        model="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
-        enforce_eager=True,
-        kv_transfer_config=KVTransferConfig(kv_connector="TritonNixlConnector"),
-        enable_chunked_prefill=False,  # TODO add support for chunked prefill
-        disable_async_output_proc=True,  # TODO add support for async output processing
-        preemption_mode="swap",  # TODO add support for recompute
-        pipeline_parallel_size=1,  # TODO add support for pipeline parallel > 1
-        tensor_parallel_size=1,
-        max_model_len=10,
-        gpu_memory_utilization=0.4,
-    )
+    engine_args.tensor_parallel_size = 1
+    engine_args.max_model_len = 10
+    engine_args.gpu_memory_utilization = 0.4
+
+    if engine_args.enable_chunked_prefill is not False:
+        print("Chunked prefill is not supported yet, setting to False")
+        engine_args.enable_chunked_prefill = False
+
+    if engine_args.preemption_mode != "swap":
+        print("Preemption mode is not supported yet, setting to swap")
+        engine_args.preemption_mode = "swap"
+
+    if engine_args.pipeline_parallel_size != 1:
+        print("Pipeline parallel size is not supported yet, setting to 1")
+        engine_args.pipeline_parallel_size = 1
 
     asyncio.run(worker(engine_args))

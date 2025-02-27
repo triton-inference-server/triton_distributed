@@ -21,13 +21,14 @@ from typing import AsyncIterator
 
 import uvloop
 from common.protocol import Tokens
-from triton_distributed_rs import (
+from vllm.logger import logger as vllm_logger
+
+from triton_distributed.llm import KvRouter
+from triton_distributed.runtime import (
     DistributedRuntime,
-    KvRouter,
     triton_endpoint,
     triton_worker,
 )
-from vllm.logger import logger as vllm_logger
 
 WorkerId = str
 
@@ -57,20 +58,21 @@ class Router:
     @triton_endpoint(Tokens, WorkerId)
     async def generate(self, request) -> AsyncIterator[WorkerId]:
         lora_id = 0
-        worker_id = ""
+        worker_id = None
         if self.routing_strategy == RoutingStrategy.PREFIX:
             try:
                 worker_id = await self.router.schedule(request.tokens, lora_id)
+            # [NOTE][TODO] Now that the scheduler may return more error messages,
+            # now we are catching all exceptions and logging them. Should have
+            # catch specific router exceptions once we have dedicated types.
             except Exception as e:
                 vllm_logger.info(f"{e}")
-                if "No worker found" in str(e):
-                    worker_id = ""
-                else:
-                    vllm_logger.exception(f"Error during worker selection: {e}")
+                worker_id = None
+                vllm_logger.exception(f"Error during worker selection: {e}")
 
             vllm_logger.info(f"Scheduling to worker_id: {worker_id}")
 
-            yield worker_id
+            yield str(worker_id)
 
         else:
             # TODO: Do we implement round_robin and random here?
@@ -112,8 +114,7 @@ async def worker(runtime: DistributedRuntime, args: Namespace):
         + "\n".join(f"id: {id}" for id in workers_client.endpoint_ids())
     )
 
-    # TODO Router is a fixed namespace separate from the others
-    kv_listener = runtime.namespace("router").component(args.model_name)
+    kv_listener = runtime.namespace("triton-init").component("vllm")
     await kv_listener.create_service()
 
     router_component = runtime.namespace("triton-init").component("router")
