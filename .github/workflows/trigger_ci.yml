@@ -17,8 +17,8 @@ name: NVIDIA Test Lab Validation
 
 on:
   push:
-    # branches:
-    # - main
+    branches:
+    - main
 
   pull_request:
 
