@@ -16,13 +16,16 @@
 import asyncio
 from enum import Enum
 
-from common.protocol import Tokens
 
 from compoundai import async_onstart, nova_endpoint, service, tdist_context
 
 WorkerId = str
 
-from triton_distributed_rs import KvRouter
+import bentoml
+with bentoml.importing():
+    from triton_distributed_rs import KvRouter
+
+from common.protocol import Tokens
 
 
 class RoutingStrategy(Enum):

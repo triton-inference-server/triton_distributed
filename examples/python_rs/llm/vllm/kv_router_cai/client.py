@@ -3,12 +3,12 @@ from typing import Annotated
 
 from kv_router_cai.processor import Processor
 
-from compoundai import api, depends, service
+from compoundai import api, depends, service, NOVA_IMAGE
 
 
 @service(
     traffic={"timeout": 10000},
-    # image=NOVA_IMAGE
+    image=NOVA_IMAGE
 )
 class Client:
     # the original code -> points to processor so we do that as well here

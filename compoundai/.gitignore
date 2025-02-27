@@ -1,0 +1,30 @@
+.idea
+venv*
+env*
+__pycache__
+*.pyc
+*.pyo
+.DS_Store
+.cache
+.coverage
+coverage.xml
+coverage.json
+.pytest_cache
+.eggs
+*.egg-info
+build
+dist
+.mypy_cache
+.python-version
+.history
+.venv
+.ruff_cache
+report.xml
+test_db.sqlite
+*.log
+*.log.jsonl
+# Visual Studio Code config
+.vscode/
+# PyCharm config
+.idea/
+.scratch/

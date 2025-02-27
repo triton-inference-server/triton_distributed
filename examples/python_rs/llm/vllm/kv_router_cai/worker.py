@@ -16,15 +16,16 @@
 import os
 import uuid
 
-from common.base_engine import BaseVllmEngine
+import bentoml
+with bentoml.importing():
+    # from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
+    from vllm.engine.arg_utils import AsyncEngineArgs
+    from vllm.logger import logger as vllm_logger
+    from vllm.sampling_params import RequestOutputKind
+    from common.base_engine import BaseVllmEngine
 
-# from common.parser import parse_vllm_args
-from common.protocol import MyRequestOutput, vLLMGenerateRequest
-
-# from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
-from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.logger import logger as vllm_logger
-from vllm.sampling_params import RequestOutputKind
+    # from common.parser import parse_vllm_args
+    from common.protocol import MyRequestOutput, vLLMGenerateRequest
 
 from compoundai import async_onstart, nova_endpoint, service, tdist_context
 
@@ -39,6 +40,7 @@ lease_id = None
         "enabled": True,
         "namespace": "triton-init",
     },
+    resources={"gpu": 1}
 )
 class VllmEngine(BaseVllmEngine):
     """

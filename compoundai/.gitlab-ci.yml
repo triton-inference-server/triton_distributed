@@ -1,0 +1,131 @@
+default:
+  tags:
+    - nemollm-common
+  # sane default, every job can be cancelled by some other event (override in jobs that can't be interrupted; i.e. deployment)
+  interruptible: true
+
+workflow:
+  rules:
+    # schedule pipelines allowed
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    # merge requests allowed
+    - if: $CI_MERGE_REQUEST_IID
+    # tag pipelines allowed
+    - if: $CI_COMMIT_TAG
+    # default branch allowed
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    # release branches allowed
+    - if: $CI_COMMIT_BRANCH =~ /^release\/.*/
+
+
+stages:
+  - info
+  - debug
+  - cache
+  - lint
+  - test
+  - build
+  - validate
+  - e2e
+  - publish
+  - deploy
+  - cleanup
+  - security
+
+# include:
+#   # locals
+#   - local: .gitlab/ci/docs.gitlab-ci.yml
+#   # OSS scanner
+#   - project: 'pstooling/gitlab-templates'
+#     ref: main
+#     file:
+#       - '/templates/pulse-in-pipeline/Scan.gitlab-ci.yml'
+#   - component: $CI_SERVER_FQDN/dl/ai-services/gitlab-components/nemo-util/cicd-images@~latest
+#   - component: $CI_SERVER_FQDN/dl/ai-services/gitlab-components/nemo-security/sast-scan@1.1
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_FORCE_HTTPS: "true"
+  GIT_SUBMODULE_DEPTH: 1
+
+.earthly_base:
+  image:
+    name: earthly/earthly:v0.8.15
+    entrypoint: ["/bin/sh"]
+  services:
+    - name: docker:27.2-dind
+      variables:
+        HEALTHCHECK_TCP_PORT: "2376"
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "/certs/client"
+    EARTHLY_BUILDKIT_HOST: tcp://buildkitd-0.buildkitd.earthly-buildkitd.svc.cluster.local:8372
+    FORCE_COLOR: 1
+  id_tokens:
+    VAULT_JWT_TOKEN:
+      aud: https://prod.vault.nvidia.com
+  secrets:
+    NGC_REGISTRY_PASS:
+      vault: tokens/prod-ngc/token@secrets
+      file: false
+  before_script:
+    - earthly config global.disable_analytics true
+    - earthly config global.tls_enabled false
+    - printf ${CI_JOB_TOKEN} | docker login -u gitlab-ci-token --password-stdin ${CI_REGISTRY}
+    - printf ${NGC_REGISTRY_PASS} | docker login -u '$oauthtoken' --password-stdin nvcr.io
+
+
+earthly-docker-build:
+  extends: [.earthly_base]
+  needs: []
+  stage: build
+  script:
+    - earthly --verbose --ci --push +all-docker --CI_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE --CI_COMMIT_SHA=$CI_COMMIT_SHA
+
+earthly-test:
+  extends: [.earthly_base]
+  needs: []
+  stage: test
+  script:
+    - earthly --verbose --ci +all-test --CI_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE --CI_COMMIT_SHA=$CI_COMMIT_SHA
+
+earthly-lint:
+  extends: [.earthly_base]
+  needs: []
+  stage: lint
+  script:
+    - earthly --verbose --ci +all-lint
+
+# earthly:tag:
+#   extends: [.earthly_base]
+#   stage: build
+#   rules:
+#     - if: $CI_COMMIT_TAG != null
+#       when: always
+#   script:
+#     - earthly --verbose --ci --push +all-docker --CI_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE --CI_COMMIT_SHA=$CI_COMMIT_TAG
+
+# earthly:nvidian:publish:
+#   extends: [.earthly_base]
+#   stage: publish
+#   rules:
+#     - if: $CI_COMMIT_TAG != null
+#   script:
+#     - earthly --verbose --ci --push +all-docker --CI_REGISTRY_IMAGE=nvcr.io/nvidian/nemo-llm --CI_COMMIT_SHA=$CI_COMMIT_TAG
+
+# earthly:nvstaging:publish:
+#   extends: [earthly:nvidian:publish]
+#   rules:
+#     - if: $CI_COMMIT_TAG != null
+#       when: manual
+#       allow_failure: true
+#   script:
+#     - earthly --verbose --ci --push +all-docker --CI_REGISTRY_IMAGE=nvcr.io/nvstaging/nemo-microservices --CI_COMMIT_SHA=$CI_COMMIT_TAG
+
+hello-world:
+  stage: debug
+  image: busybox:latest
+  script:
+    - echo "Pipeline succeeded! More stages coming soon."
+

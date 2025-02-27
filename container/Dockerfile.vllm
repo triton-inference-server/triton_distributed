@@ -153,6 +153,15 @@ COPY --from=dev ${VLLM_KV_CAPI_PATH} ${VLLM_KV_CAPI_PATH}
 # FIXME: Use a more consolidated path after directory restructure
 COPY examples/python_rs/llm/vllm /workspace/examples/python_rs/llm/vllm
 
+USER root
+
+RUN source /opt/triton/venv/bin/activate && uv pip install pip
+
+COPY compoundai /compoundai
+RUN source /opt/triton/venv/bin/activate && \
+    cd /compoundai/deploy/compoundai/sdk && \
+    uv pip install -e .
+
 WORKDIR /workspace
 
 # FIXME: May want a modification with triton-distributed banner on entry

@@ -1,0 +1,8 @@
+service: basic:Frontend
+name: basic
+python:
+  wheels:
+  # TODO: Swap with your own path here, for some reason I couldn't get it to work with relative paths
+  # TODO: Build and copy a wheel of triton_distributed_rs to the dist folder
+  - /home/ubuntu/triton_distributed/compoundai/examples/basic_service/dist/compoundai-0.1.0-py3-none-any.whl
+  - /home/ubuntu/triton_distributed/compoundai/examples/basic_service/dist/triton_distributed_rs-0.2.0-cp310-cp310-manylinux_2_34_x86_64.whl

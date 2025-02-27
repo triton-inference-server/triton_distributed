@@ -16,15 +16,18 @@
 import uuid
 from typing import AsyncIterator
 
-from common.chat_processor import ChatProcessor, ProcessMixIn
-from common.protocol import MyRequestOutput, Tokens, vLLMGenerateRequest
+import bentoml
 from kv_router_cai.router import Router
 from kv_router_cai.worker import VllmEngine
-from transformers import AutoTokenizer
-from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.entrypoints.openai.protocol import ChatCompletionRequest
-from vllm.outputs import RequestOutput
-from vllm.transformers_utils.tokenizer import AnyTokenizer
+
+with bentoml.importing():
+    from transformers import AutoTokenizer
+    from vllm.engine.arg_utils import AsyncEngineArgs
+    from vllm.entrypoints.openai.protocol import ChatCompletionRequest
+    from vllm.outputs import RequestOutput
+    from vllm.transformers_utils.tokenizer import AnyTokenizer
+    from common.chat_processor import ChatProcessor, ProcessMixIn
+    from common.protocol import MyRequestOutput, Tokens, vLLMGenerateRequest
 
 from compoundai import depends, nova_endpoint, service, tdist_context
 

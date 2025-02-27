@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://gitlab-master.nvidia.com/dl/ai-services/compound-ai/compoundai-api-server.git
+	branch = main
+	commit = 2b733f3bdd6499001edddb7d9e34a625aa056bb0
+	parent = b46705ed59309982e9e13643f63e08a319573d78
+	method = merge
+	cmdver = 0.4.9

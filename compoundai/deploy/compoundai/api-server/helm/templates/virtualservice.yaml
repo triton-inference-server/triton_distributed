@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: compoundai-virtual-service
+spec:
+  gateways:
+  - istio-system/ingress-alb
+  hosts:
+  - caiv2.dev.aire.nvidia.com
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: compoundai-server.compoundai-system.svc.cluster.local
+        port:
+          number: 80
