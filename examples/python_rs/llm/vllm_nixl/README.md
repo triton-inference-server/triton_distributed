@@ -20,7 +20,7 @@ limitations under the License.
 ## Build docker
 
 ```
-./container/build.sh --framework VLLM_NIXL --target dev --build-context nixl=<path to downloaded nixl repo @ main>
+./container/build.sh --framework VLLM_NIXL --target dev --build-context nixl=<path to downloaded nixl repo @ fc912eb012597be67de11fa9ba0599e4e1974fa2>
 ```
 
 ## Run container
