@@ -66,7 +66,9 @@ def extract_options_from_commit(commit_message):
             normalized_key = key.replace("-", "_").upper()
 
             if normalized_key not in ALLOWED_CI_OPTIONS:
-                print(f"Warning: Ignoring invalid CI option: '{key}'. Not in allowed options list {ALLOWED_CI_OPTIONS}.")
+                print(
+                    f"Warning: Ignoring invalid CI option: '{key}'. Not in allowed options list {ALLOWED_CI_OPTIONS}."
+                )
                 continue
 
             # Validate option type
@@ -84,8 +86,8 @@ def add_path_filter(ci_options, vllm_filter):
     """
     Add path filter result to CI options
     """
-    if vllm_filter == 'true':
-        print(f"Detected changes in VLLM path filter")
+    if vllm_filter == "true":
+        print("Detected changes in VLLM path filter")
         ci_options["RUN_VLLM"] = True
     return ci_options
 
@@ -113,7 +115,7 @@ def run_ci(ref, ci_options):
         "token": pipeline_token,
         "ref": ref,
         "variables": variables,
-        "description": f"Triggered from GitHub Actions - {ref}"
+        "description": f"Triggered from GitHub Actions - {ref}",
     }
 
     # Send the request as JSON
