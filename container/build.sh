@@ -43,7 +43,7 @@ PYTHON_PACKAGE_VERSION=${current_tag:-$latest_tag.dev+$commit_id}
 # dependencies are specified in the /container/deps folder and
 # installed within framework specific sections of the Dockerfile.
 
-declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3)
+declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3 ["VLLM_NIXL"]=4)
 DEFAULT_FRAMEWORK=STANDARD
 
 SOURCE_DIR=$(dirname "$(readlink -f "$0")")
@@ -67,11 +67,11 @@ TENSORRTLLM_BACKEND_REPO_TAG=triton-llm/v0.17.0
 # trt-llm backend repo branch.
 TENSORRTLLM_BACKEND_REBUILD=1
 
-# vllm installation is done later in the Dockerfile so it will overwrite the
-# vllm version installed in the base image.
-VLLM_BASE_VERSION=25.01
-VLLM_BASE_IMAGE=nvcr.io/nvidia/tritonserver
-VLLM_BASE_IMAGE_TAG=${VLLM_BASE_VERSION}-py3
+VLLM_BASE_IMAGE="nvcr.io/nvidia/cuda-dl-base"
+VLLM_BASE_IMAGE_TAG="25.01-cuda12.8-devel-ubuntu24.04"
+
+VLLM_NIXL_BASE_IMAGE="nvcr.io/nvidia/cuda-dl-base"
+VLLM_NIXL_BASE_IMAGE_TAG="25.01-cuda12.8-devel-ubuntu24.04"
 
 get_options() {
     while :; do
@@ -80,20 +80,20 @@ get_options() {
             show_help
             exit
             ;;
-	--platform)
+        --platform)
             if [ "$2" ]; then
                 PLATFORM=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
-	--framework)
+        --framework)
             if [ "$2" ]; then
                 FRAMEWORK=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --tensorrtllm-backend-repo-tag)
@@ -101,7 +101,7 @@ get_options() {
                 TRTLLM_BACKEND_COMMIT=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --tensorrtllm-backend-rebuild)
@@ -109,7 +109,7 @@ get_options() {
                 TRTLLM_BACKEND_REBUILD=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --base-image)
@@ -117,15 +117,23 @@ get_options() {
                 BASE_IMAGE=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
-	--base-image-tag)
+        --base-image-tag)
             if [ "$2" ]; then
                 BASE_IMAGE_TAG=$2
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
+            fi
+            ;;
+        --target)
+            if [ "$2" ]; then
+                TARGET=$2
+                shift
+            else
+                missing_requirement $1
             fi
             ;;
         --build-arg)
@@ -133,7 +141,7 @@ get_options() {
                 BUILD_ARGS+="--build-arg $2 "
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --tag)
@@ -141,7 +149,7 @@ get_options() {
                 TAG="--tag $2"
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
             fi
             ;;
         --dry-run)
@@ -152,15 +160,23 @@ get_options() {
             echo "=============================="
             echo ""
             ;;
-	--no-cache)
-	    NO_CACHE=" --no-cache"
+        --no-cache)
+            NO_CACHE=" --no-cache"
             ;;
-	--cache-from)
-	    if [ "$2" ]; then
+        --cache-from)
+            if [ "$2" ]; then
                 CACHE_FROM="--cache-from $2"
                 shift
             else
-		missing_requirement $1
+                missing_requirement $1
+            fi
+            ;;
+        --build-context)
+            if [ "$2" ]; then
+                BUILD_CONTEXT_ARG="--build-context $2"
+                shift
+            else
+                missing_requirement $1
             fi
             ;;
         --)
@@ -168,10 +184,10 @@ get_options() {
             break
             ;;
          -?*)
-	    error 'ERROR: Unknown option: ' $1
+            error 'ERROR: Unknown option: ' $1
             ;;
-	 ?*)
-	    error 'ERROR: Unknown option: ' $1
+         ?*)
+            error 'ERROR: Unknown option: ' $1
             ;;
         *)
             break
@@ -181,44 +197,49 @@ get_options() {
     done
 
     if [ -z "$FRAMEWORK" ]; then
-	FRAMEWORK=$DEFAULT_FRAMEWORK
+        FRAMEWORK=$DEFAULT_FRAMEWORK
     fi
 
     if [ ! -z "$FRAMEWORK" ]; then
-	FRAMEWORK=${FRAMEWORK^^}
+        FRAMEWORK=${FRAMEWORK^^}
 
-	if [[ ! -n "${FRAMEWORKS[$FRAMEWORK]}" ]]; then
-	    error 'ERROR: Unknown framework: ' $FRAMEWORK
-	fi
+        if [[ ! -n "${FRAMEWORKS[$FRAMEWORK]}" ]]; then
+            error 'ERROR: Unknown framework: ' $FRAMEWORK
+        fi
 
-	if [ -z $BASE_IMAGE_TAG ]; then
-	    BASE_IMAGE_TAG=${FRAMEWORK}_BASE_IMAGE_TAG
-	    BASE_IMAGE_TAG=${!BASE_IMAGE_TAG}
-	fi
+        if [ -z $BASE_IMAGE_TAG ]; then
+            BASE_IMAGE_TAG=${FRAMEWORK}_BASE_IMAGE_TAG
+            BASE_IMAGE_TAG=${!BASE_IMAGE_TAG}
+        fi
 
-	if [ -z $BASE_IMAGE ]; then
-	    BASE_IMAGE=${FRAMEWORK}_BASE_IMAGE
-	    BASE_IMAGE=${!BASE_IMAGE}
-	fi
+        if [ -z $BASE_IMAGE ]; then
+            BASE_IMAGE=${FRAMEWORK}_BASE_IMAGE
+            BASE_IMAGE=${!BASE_IMAGE}
+        fi
 
-	if [ -z $BASE_IMAGE ]; then
-	    error "ERROR: Framework $FRAMEWORK without BASE_IMAGE"
-	fi
+        if [ -z $BASE_IMAGE ]; then
+            error "ERROR: Framework $FRAMEWORK without BASE_IMAGE"
+        fi
 
-	BASE_VERSION=${FRAMEWORK}_BASE_VERSION
-	BASE_VERSION=${!BASE_VERSION}
+        BASE_VERSION=${FRAMEWORK}_BASE_VERSION
+        BASE_VERSION=${!BASE_VERSION}
 
     fi
 
     if [ -z "$TAG" ]; then
         TAG="--tag triton-distributed:${VERSION}-${FRAMEWORK,,}"
+        if [ ! -z ${TARGET} ]; then
+            TAG="${TAG}-${TARGET}"
+        fi
     fi
 
     if [ ! -z "$PLATFORM" ]; then
         PLATFORM="--platform ${PLATFORM}"
     fi
 
-
+    if [ ! -z "$TARGET" ]; then
+        TARGET_STR="--target ${TARGET}"
+    fi
 }
 
 
@@ -229,7 +250,7 @@ show_image_options() {
     echo "   Base: '${BASE_IMAGE}'"
     echo "   Base_Image_Tag: '${BASE_IMAGE_TAG}'"
     if [[ $FRAMEWORK == "TENSORRTLLM" ]]; then
-	    echo "   Tensorrtllm Backend Repo Tag: '${TENSORRTLLM_BACKEND_REPO_TAG}'"
+        echo "   Tensorrtllm Backend Repo Tag: '${TENSORRTLLM_BACKEND_REPO_TAG}'"
         echo "   Tensorrtllm Backend Rebuild: '${TENSORRTLLM_BACKEND_REBUILD}'"
     fi
     echo "   Build Context: '${BUILD_CONTEXT}'"
@@ -250,6 +271,7 @@ show_help() {
     echo "  [--tag tag for image]"
     echo "  [--no-cache disable docker build cache]"
     echo "  [--dry-run print docker commands without running]"
+    echo "  [--build-context name=path to add build context]"
     exit 0
 }
 
@@ -268,6 +290,8 @@ get_options "$@"
 # Update DOCKERFILE if framework is VLLM
 if [[ $FRAMEWORK == "VLLM" ]]; then
     DOCKERFILE=${SOURCE_DIR}/Dockerfile.vllm
+elif [[ $FRAMEWORK == "VLLM_NIXL" ]]; then
+    DOCKERFILE=${SOURCE_DIR}/Dockerfile.vllm_nixl
 fi
 
 # BUILD DEV IMAGE
@@ -292,15 +316,17 @@ if [ ! -z ${HF_TOKEN} ]; then
 fi
 
 LATEST_TAG="--tag triton-distributed:latest-${FRAMEWORK,,}"
+if [ ! -z ${TARGET} ]; then
+    LATEST_TAG="${LATEST_TAG}-${TARGET}"
+fi
 
 show_image_options
-
 
 if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker build -f $DOCKERFILE $PLATFORM $BUILD_ARGS $CACHE_FROM $TAG $LATEST_TAG $BUILD_CONTEXT $NO_CACHE
+$RUN_PREFIX docker build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $TAG $LATEST_TAG $BUILD_CONTEXT_ARG $BUILD_CONTEXT $NO_CACHE
 
 { set +x; } 2>/dev/null
 

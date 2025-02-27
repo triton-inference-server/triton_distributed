@@ -13,13 +13,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap::Parser;
 use std::sync::Arc;
 
-use triton_distributed::{logging, DistributedRuntime, Result, Runtime, Worker};
-use triton_llm::http::service::{
-    discovery::{model_watcher, ModelWatchState},
-    service_v2::HttpService,
+use triton_distributed_llm::{
+    http::service::{
+        discovery::{model_watcher, ModelWatchState},
+        service_v2::HttpService,
+    },
+    model_type::ModelType,
 };
+use triton_distributed_runtime::{
+    logging, transports::etcd::PrefixWatcher, DistributedRuntime, Result, Runtime, Worker,
+};
+
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Host for the HTTP service
+    #[arg(long, default_value = "0.0.0.0")]
+    host: String,
+
+    /// Port number for the HTTP service
+    #[arg(short, long, default_value = "8080")]
+    port: u16,
+
+    /// Namespace for the distributed component
+    #[arg(long, default_value = "public")]
+    namespace: String,
+
+    /// Component name for the service
+    #[arg(long, default_value = "http")]
+    component: String,
+}
 
 fn main() -> Result<()> {
     logging::init();
@@ -29,9 +55,12 @@ fn main() -> Result<()> {
 
 async fn app(runtime: Runtime) -> Result<()> {
     let distributed = DistributedRuntime::from_settings(runtime.clone()).await?;
+    let args = Args::parse();
 
-    // create the http service and acquire the model manager
-    let http_service = HttpService::builder().port(9992).build()?;
+    let http_service = HttpService::builder()
+        .port(args.port)
+        .host(args.host)
+        .build()?;
     let manager = http_service.model_manager().clone();
 
     // todo - use the IntoComponent trait to register the component
@@ -42,22 +71,32 @@ async fn app(runtime: Runtime) -> Result<()> {
     // written to etcd
     // the cli when operating on an `http` component will validate the namespace.component is
     // registered with HttpServiceComponentDefinition
-    let component = distributed.namespace("public")?.component("http")?;
-
+    let component = distributed
+        .namespace(&args.namespace)?
+        .component(&args.component)?;
     let etcd_root = component.etcd_path();
-    let etcd_path = format!("{}/models/chat/", etcd_root);
 
-    let state = Arc::new(ModelWatchState {
-        prefix: etcd_path.clone(),
-        manager,
-        drt: distributed.clone(),
-    });
+    // Create watchers for all model types
+    let mut watcher_tasks = Vec::new();
 
-    let etcd_client = distributed.etcd_client();
-    let models_watcher = etcd_client.kv_get_and_watch_prefix(etcd_path).await?;
+    for model_type in ModelType::all() {
+        let etcd_path = format!("{}/models/{}/", etcd_root, model_type.as_str());
 
-    let (_prefix, _watcher, receiver) = models_watcher.dissolve();
-    let _watcher_task = tokio::spawn(model_watcher(state, receiver));
+        let state = Arc::new(ModelWatchState {
+            prefix: etcd_path.clone(),
+            model_type,
+            manager: manager.clone(),
+            drt: distributed.clone(),
+        });
 
+        let etcd_client = distributed.etcd_client();
+        let models_watcher: PrefixWatcher = etcd_client.kv_get_and_watch_prefix(etcd_path).await?;
+
+        let (_prefix, _watcher, receiver) = models_watcher.dissolve();
+        let watcher_task = tokio::spawn(model_watcher(state, receiver));
+        watcher_tasks.push(watcher_task);
+    }
+
+    // Run the service
     http_service.run(runtime.child_token()).await
 }

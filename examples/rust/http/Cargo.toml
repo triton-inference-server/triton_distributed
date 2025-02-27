@@ -24,8 +24,9 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-triton-distributed = { workspace = true}
-triton-llm = { workspace = true}
+triton-distributed-runtime = { workspace = true}
+triton-distributed-llm = { workspace = true}
+clap = { version = "4.5", features = ["derive"] }
 
 serde = { workspace = true }
 serde_json = { workspace = true }

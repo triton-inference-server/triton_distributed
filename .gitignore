@@ -1,6 +1,7 @@
 .idea
 .vs/
 .vscode/
+.helix
 [Bb]inlog/
 [Bb][Uu][Ii][Ll][Dd]/
 [Cc][Mm][Aa][Kk][Ee]/
@@ -59,6 +60,7 @@ server/
 # will have compiled files and executables
 debug/
 target/
+llm_engine.h
 
 ### Virtual Environment ###
 .venv/

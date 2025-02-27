@@ -19,8 +19,8 @@ import uuid
 
 import uvloop
 from common.base_engine import BaseVllmEngine
+from common.chat_processor import ProcessMixIn
 from common.parser import parse_vllm_args
-from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
@@ -28,8 +28,14 @@ from vllm.entrypoints.openai.protocol import (
 )
 from vllm.logger import logger as vllm_logger
 
+from triton_distributed.runtime import (
+    DistributedRuntime,
+    triton_endpoint,
+    triton_worker,
+)
 
-class VllmEngine(BaseVllmEngine):
+
+class VllmEngine(BaseVllmEngine, ProcessMixIn):
     """
     Request handler for the generate endpoint
     """
@@ -39,6 +45,9 @@ class VllmEngine(BaseVllmEngine):
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, raw_request):
+        if self.engine_client is None:
+            await self.initialize()
+
         vllm_logger.debug(f"Got raw request: {raw_request}")
         (
             request,
@@ -52,7 +61,12 @@ class VllmEngine(BaseVllmEngine):
         vllm_logger.debug(
             f"Running generate with engine_prompt: {engine_prompt}, sampling_params: {sampling_params}, request_id: {request_id}"
         )
-        generator = self.engine.generate(engine_prompt, sampling_params, request_id)
+        if self.engine_client is None:
+            raise RuntimeError("Engine client not initialized")
+        else:
+            generator = self.engine_client.generate(
+                engine_prompt, sampling_params, request_id
+            )
 
         async for response in await self._stream_response(
             request, generator, request_id, conversation
@@ -71,7 +85,9 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     await component.create_service()
 
     endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(VllmEngine(engine_args).generate)
+
+    async with VllmEngine(engine_args) as engine:
+        await endpoint.serve_endpoint(engine.generate)
 
 
 if __name__ == "__main__":

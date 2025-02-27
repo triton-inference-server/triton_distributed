@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TAG=
 RUN_PREFIX=
 
 # Frameworks
@@ -23,7 +22,7 @@ RUN_PREFIX=
 # dependencies are specified in the /container/deps folder and
 # installed within framework specific sections of the Dockerfile.
 
-declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3)
+declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3 ["VLLM_NIXL"]=4)
 DEFAULT_FRAMEWORK=STANDARD
 
 SOURCE_DIR=$(dirname "$(readlink -f "$0")")
@@ -62,6 +61,14 @@ get_options() {
 		missing_requirement $1
             fi
             ;;
+        --target)
+            if [ "$2" ]; then
+                TARGET=$2
+                shift
+            else
+                missing_requirement $1
+            fi
+            ;;
 	--name)
             if [ "$2" ]; then
                 NAME=$2
@@ -87,9 +94,9 @@ get_options() {
 		missing_requirement $1
             fi
             ;;
-	--command)
+	--entrypoint)
             if [ "$2" ]; then
-                COMMAND=$2
+                ENTRYPOINT=$2
                 shift
             else
 		missing_requirement $1
@@ -172,6 +179,9 @@ get_options() {
 
     if [ -z "$IMAGE" ]; then
         IMAGE="triton-distributed:latest-${FRAMEWORK,,}"
+        if [ ! -z ${TARGET} ]; then
+            IMAGE="${IMAGE}-${TARGET}"
+        fi
     fi
 
     if [[ ${GPUS^^} == "NONE" ]]; then
@@ -186,10 +196,17 @@ get_options() {
 	NAME_STRING="--name ${NAME}"
     fi
 
+    if [[ ${ENTRYPOINT^^} == "" ]]; then
+	ENTRYPOINT_STRING=""
+    else
+	ENTRYPOINT_STRING="--entrypoint ${ENTRYPOINT}"
+    fi
+
     if [ ! -z "$MOUNT_WORKSPACE" ]; then
 	VOLUME_MOUNTS+=" -v ${SOURCE_DIR}/..:/workspace "
 	VOLUME_MOUNTS+=" -v /tmp:/tmp "
 	VOLUME_MOUNTS+=" -v /mnt/:/mnt "
+	VOLUME_MOUNTS+=" -v /ephemeral/:/ephemeral " # TODO: Remove this before merging
 
 	if [ -z "$HF_CACHE" ]; then
 	    HF_CACHE=$DEFAULT_HF_CACHE
@@ -201,9 +218,6 @@ get_options() {
 
 	ENVIRONMENT_VARIABLES+=" -e HF_TOKEN"
 
-	if [ ! -d "${SOURCE_DIR}/icp/src/python/tdist/icp/protos" ]; then
-	    $RUN_PREFIX docker run --rm -t -v ${SOURCE_DIR}/..:/workspace -w /workspace $IMAGE /workspace/icp/protos/gen_python.sh > /dev/null 2>&1
-	fi
 	INTERACTIVE=" -it "
     fi
 
@@ -273,6 +287,6 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-${RUN_PREFIX} docker run ${GPU_STRING} ${INTERACTIVE} ${RM_STRING} --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 ${ENVIRONMENT_VARIABLES} ${VOLUME_MOUNTS} -w /workspace --cap-add CAP_SYS_PTRACE --ipc host ${PRIVILEGED_STRING} ${NAME_STRING} ${IMAGE} "${REMAINING_ARGS[@]}"
+${RUN_PREFIX} docker run ${GPU_STRING} ${INTERACTIVE} ${RM_STRING} --network host --shm-size=10G --ulimit memlock=-1 --ulimit stack=67108864 ${ENVIRONMENT_VARIABLES} ${VOLUME_MOUNTS} -w /workspace --cap-add CAP_SYS_PTRACE --ipc host ${PRIVILEGED_STRING} ${NAME_STRING} ${ENTRYPOINT_STRING} ${IMAGE} "${REMAINING_ARGS[@]}"
 
 { set +x; } 2>/dev/null

@@ -15,19 +15,22 @@
 
 
 import asyncio
-import uuid
 from argparse import Namespace
 from enum import Enum
+from typing import AsyncIterator
 
 import uvloop
-from common.protocol import Response, TokenizedRequest
-from triton_distributed_rs import (
+from common.protocol import Tokens
+from vllm.logger import logger as vllm_logger
+
+from triton_distributed.llm import KvRouter
+from triton_distributed.runtime import (
     DistributedRuntime,
-    KvRouter,
     triton_endpoint,
     triton_worker,
 )
-from vllm.logger import logger as vllm_logger
+
+WorkerId = str
 
 
 class RoutingStrategy(Enum):
@@ -43,62 +46,62 @@ class Router:
 
     def __init__(
         self,
-        router,
-        workers_client,
+        router: KvRouter,
         routing_strategy: RoutingStrategy = RoutingStrategy.PREFIX,
     ):
         vllm_logger.info(
             f"Initializing KV Router with strategy: {routing_strategy.value}"
         )
         self.router = router
-        self.workers_client = workers_client
         self.routing_strategy = routing_strategy
 
-    @triton_endpoint(TokenizedRequest, Response)
-    async def generate(self, request):
+    @triton_endpoint(Tokens, WorkerId)
+    async def generate(self, request) -> AsyncIterator[WorkerId]:
         lora_id = 0
-        worker_id = ""
+        worker_id = None
         if self.routing_strategy == RoutingStrategy.PREFIX:
             try:
                 worker_id = await self.router.schedule(request.tokens, lora_id)
+            # [NOTE][TODO] Now that the scheduler may return more error messages,
+            # now we are catching all exceptions and logging them. Should have
+            # catch specific router exceptions once we have dedicated types.
             except Exception as e:
                 vllm_logger.info(f"{e}")
-                if "No worker found" in str(e):
-                    worker_id = ""
-                else:
-                    vllm_logger.exception(f"Error during worker selection: {e}")
+                worker_id = None
+                vllm_logger.exception(f"Error during worker selection: {e}")
 
             vllm_logger.info(f"Scheduling to worker_id: {worker_id}")
 
-        if self.routing_strategy == RoutingStrategy.ROUND_ROBIN:
-            engine_generator = await self.workers_client.round_robin(
-                request.model_dump_json()
-            )
-        elif self.routing_strategy == RoutingStrategy.RANDOM or worker_id == "":
-            engine_generator = await self.workers_client.random(
-                request.model_dump_json()
-            )
-        else:
-            # extract back lease_id
-            engine_generator = await self.workers_client.direct(
-                request.model_dump_json(), uuid.UUID(worker_id).int
-            )
+            yield str(worker_id)
 
-        async for resp in engine_generator:
-            resp = resp.data() if hasattr(resp, "data") else resp
-            yield resp
+        else:
+            # TODO: Do we implement round_robin and random here?
+            # or just skip this router and directly enable in preprocess?
+            raise NotImplementedError(
+                f"Routing strategy {self.routing_strategy} not implemented"
+            )
 
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime, args: Namespace):
+    """
+    Set up the worker clients.
+    Serve the triton-init.router.generate endpoint.
+    """
     workers_client = (
         await runtime.namespace("triton-init")
         .component("vllm")
-        .endpoint("generate_from_tokens")
+        .endpoint("generate")
         .client()
     )
-    vllm_logger.info("Waiting for workers to be ready")
-    await workers_client.wait_for_endpoints()
+    wait_task = workers_client.wait_for_endpoints()
+    await asyncio.sleep(1)
+
+    while not wait_task.done():
+        vllm_logger.info("Waiting for workers to be ready...")
+        await asyncio.sleep(5)
+
+    wait_task.result()
 
     while len(workers_client.endpoint_ids()) < args.min_workers:
         vllm_logger.info(
@@ -111,23 +114,16 @@ async def worker(runtime: DistributedRuntime, args: Namespace):
         + "\n".join(f"id: {id}" for id in workers_client.endpoint_ids())
     )
 
-    # TODO Router is a fixed namespace separate from the others
-    kv_listener = runtime.namespace("router").component(
-        "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-    )
+    kv_listener = runtime.namespace("triton-init").component("vllm")
     await kv_listener.create_service()
 
     router_component = runtime.namespace("triton-init").component("router")
     await router_component.create_service()
 
-    router = None
-    if args.routing_strategy == RoutingStrategy.PREFIX:
-        router = KvRouter(runtime, kv_listener)
+    router = KvRouter(runtime, kv_listener)
 
     endpoint = router_component.endpoint("generate")
-    await endpoint.serve_endpoint(
-        Router(router, workers_client, args.routing_strategy).generate
-    )
+    await endpoint.serve_endpoint(Router(router, args.routing_strategy).generate)
 
 
 if __name__ == "__main__":
@@ -148,6 +144,12 @@ if __name__ == "__main__":
         type=int,
         default=1,
         help="Minimum number of workers required before proceeding",
+    )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+        help="Model that is being served",
     )
     args = parser.parse_args()
 

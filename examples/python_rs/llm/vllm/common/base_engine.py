@@ -13,11 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
 
-import vllm
+import abc
+import logging
+
 from common.chat_processor import ChatProcessor
 from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.entrypoints.openai.api_server import (
+    build_async_engine_client_from_engine_args,
+)
+
+logger = logging.getLogger("vllm")
 
 
 class BaseVllmEngine:
@@ -26,35 +32,41 @@ class BaseVllmEngine:
     """
 
     def __init__(self, engine_args: AsyncEngineArgs):
-        self.model_config = engine_args.create_model_config()
-        self.engine = vllm.AsyncLLMEngine.from_engine_args(engine_args)
-        self.chat_processor = ChatProcessor(self.engine, self.model_config)
+        self.engine_args = engine_args
+        self.model_config = self.engine_args.create_model_config()
+        self.engine_client = None
+        self.chat_processor: ChatProcessor | None = None
+        self._engine_context = None
 
-    async def _parse_raw_request(self, raw_request):
-        request = self.chat_processor.parse_raw_request(raw_request)
-        (
-            conversation,
-            request_prompt,
-            engine_prompt,
-        ) = await self.chat_processor.preprocess(raw_request)
-        default_max_tokens = self.model_config.max_model_len - len(
-            engine_prompt["prompt_token_ids"]
+    async def initialize(self):
+        """Initialize the engine client and related components."""
+        logger.info("Initializing engine client")
+        self._engine_context = build_async_engine_client_from_engine_args(
+            self.engine_args
         )
-        default_sampling_params = self.model_config.get_diff_sampling_param()
-        sampling_params = request.to_sampling_params(
-            default_max_tokens,
-            self.model_config.logits_processor_pattern,
-            default_sampling_params,
-        )
-        return request, conversation, request_prompt, engine_prompt, sampling_params
+        if self._engine_context is not None:
+            self.engine_client = await self._engine_context.__aenter__()
+            self.tokenizer = await self.engine_client.get_tokenizer()
+            self.chat_processor = ChatProcessor(self.tokenizer, self.model_config)
+        else:
+            raise RuntimeError("Failed to initialize engine client")
 
-    async def _stream_response(self, request, generator, request_id, conversation):
-        return self.chat_processor.stream_response(
-            request,
-            generator,
-            request_id,
-            conversation,
-        )
+    async def cleanup(self):
+        """Cleanup resources."""
+        print("Cleaning up engine client")
+        if self._engine_context is not None:
+            await self._engine_context.__aexit__(None, None, None)
+            self._engine_context = None
+            self.engine_client = None
+            self.chat_processor = None
+
+    async def __aenter__(self):
+        await self.initialize()
+        """Initialize with context manager syntax."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.cleanup()
 
     @abc.abstractmethod
     async def generate(self, raw_request):

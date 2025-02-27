@@ -13,8 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+pyright
 pytest
 pytest-asyncio
 pytest-benchmark
 pytest-cov
+pytest-md-report
+pytest-mypy
 pytest-timeout

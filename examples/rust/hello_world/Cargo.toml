@@ -22,6 +22,6 @@ license.workspace = true
 homepage.workspace = true
 
 [dependencies]
-triton-distributed = { workspace = true }
+triton-distributed-runtime = { workspace = true }
 
 # third-party
