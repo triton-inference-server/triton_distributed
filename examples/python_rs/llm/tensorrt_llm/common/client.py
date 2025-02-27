@@ -36,13 +36,13 @@ async def worker(
     """
     Instantiate a `backend` client and call the `generate` endpoint
     """
-    # get endpoint
-    endpoint = (
-        runtime.namespace("triton-init").component(component).endpoint("generate")
-    )
-
     # create client
-    client = await endpoint.client()
+    client = (
+        await runtime.namespace("triton-init")
+        .component(component)
+        .endpoint("generate")
+        .client()
+    )
 
     # list the endpoints
     print(client.endpoint_ids())

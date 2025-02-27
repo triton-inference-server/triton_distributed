@@ -173,6 +173,8 @@ class TensorrtLLMEngine:
         sampling_params = SamplingParams(**request.sampling_params)
         disaggregated_params = DisaggregatedParams(**request.disaggregated_params)
 
+        # Opaque state is  described as an additional state needing to be exchanged
+        # between context and gen instances
         if disaggregated_params.opaque_state is not None:
             disaggregated_params.opaque_state = (
                 disaggregated_params.opaque_state.encode("utf-8")
@@ -216,7 +218,7 @@ async def worker(
     logger.info(f"Starting {server_type} server")
 
     component = runtime.namespace("triton-init").component(
-        f"tensorrt-llm-{server_type}-{instance_idx}"
+        f"tensorrt-llm-{server_type}"
     )
     await component.create_service()
 
