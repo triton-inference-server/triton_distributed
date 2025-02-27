@@ -16,7 +16,7 @@
 name: 'Test Report'
 on:
   workflow_run:
-    workflows: ['PR fastcheck']
+    workflows: ['NVIDIA Test Github Validation']
     types:
       - completed
 jobs:
