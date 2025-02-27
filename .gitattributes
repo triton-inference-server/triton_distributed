@@ -7,3 +7,7 @@
 *.[Pp][Nn][Gg]      binary
 *.[Zz][Ii][Pp]      binary
 *.[Tt][Gg][Zz]      binary
+
+# Exclude test data files from linguist language detection
+lib/llm/tests/data/** linguist-vendored
+lib/llm/tests/snapshots/** linguist-vendored
