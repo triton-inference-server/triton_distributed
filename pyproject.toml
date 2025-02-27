@@ -104,8 +104,9 @@ indent-width = 4
 # disable_error_code = []
 
 # --explicit-package-bases: WAR errors about duplicate module names used
-#   throughout project such as launch_workers.py
-# explicit_package_bases = true
+#   throughout the llm examples. For example, the common module in
+#   tensorrt_llm and vllm are both named common.
+explicit_package_bases = true
 
 # --ignore-missing-imports: WAR too many errors when developing outside
 #   of container environment with PYTHONPATH set and packages installed.

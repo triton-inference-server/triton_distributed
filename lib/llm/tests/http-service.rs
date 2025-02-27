@@ -26,7 +26,7 @@ use triton_distributed_llm::http::service::{
 };
 use triton_distributed_llm::protocols::{
     openai::{
-        chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
+        chat_completions::{ChatCompletionResponseDelta, NvCreateChatCompletionRequest},
         completions::{CompletionRequest, CompletionResponse},
     },
     Annotated,
@@ -40,22 +40,24 @@ use triton_distributed_runtime::{
 
 struct CounterEngine {}
 
+#[allow(deprecated)]
 #[async_trait]
 impl
     AsyncEngine<
-        SingleIn<ChatCompletionRequest>,
+        SingleIn<NvCreateChatCompletionRequest>,
         ManyOut<Annotated<ChatCompletionResponseDelta>>,
         Error,
     > for CounterEngine
 {
     async fn generate(
         &self,
-        request: SingleIn<ChatCompletionRequest>,
+        request: SingleIn<NvCreateChatCompletionRequest>,
     ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
         let (request, context) = request.transfer(());
         let ctx = context.context();
 
-        let max_tokens = request.max_tokens.unwrap_or(0) as u64;
+        // ALLOW: max_tokens is deprecated in favor of completion_usage_tokens
+        let max_tokens = request.inner.max_tokens.unwrap_or(0) as u64;
 
         // let generator = ChatCompletionResponseDelta::generator(request.model.clone());
         let generator = request.response_generator();
@@ -63,8 +65,13 @@ impl
         let stream = stream! {
             tokio::time::sleep(std::time::Duration::from_millis(max_tokens)).await;
             for i in 0..10 {
-                let choice = generator.create_choice(i as u64,Some(format!("choice {i}")), None, None);
-                yield Annotated::from_data(choice);
+                let inner = generator.create_choice(i,Some(format!("choice {i}")), None, None);
+
+                let output = ChatCompletionResponseDelta {
+                    inner,
+                };
+
+                yield Annotated::from_data(output);
             }
         };
 
@@ -77,14 +84,14 @@ struct AlwaysFailEngine {}
 #[async_trait]
 impl
     AsyncEngine<
-        SingleIn<ChatCompletionRequest>,
+        SingleIn<NvCreateChatCompletionRequest>,
         ManyOut<Annotated<ChatCompletionResponseDelta>>,
         Error,
     > for AlwaysFailEngine
 {
     async fn generate(
         &self,
-        _request: SingleIn<ChatCompletionRequest>,
+        _request: SingleIn<NvCreateChatCompletionRequest>,
     ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
         Err(HttpError {
             code: 403,
@@ -174,6 +181,7 @@ fn inc_counter(
     expected[index] += 1;
 }
 
+#[allow(deprecated)]
 #[tokio::test]
 async fn test_http_service() {
     let service = HttpService::builder().port(8989).build().unwrap();
@@ -207,14 +215,31 @@ async fn test_http_service() {
 
     let client = reqwest::Client::new();
 
-    let mut request = ChatCompletionRequest::builder()
+    let message = async_openai::types::ChatCompletionRequestMessage::User(
+        async_openai::types::ChatCompletionRequestUserMessage {
+            content: async_openai::types::ChatCompletionRequestUserMessageContent::Text(
+                "hi".to_string(),
+            ),
+            name: None,
+        },
+    );
+
+    let mut request = async_openai::types::CreateChatCompletionRequestArgs::default()
         .model("foo")
-        .add_user_message("hi")
+        .messages(vec![message])
         .build()
-        .unwrap();
+        .expect("Failed to build request");
+
+    // let mut request = ChatCompletionRequest::builder()
+    //     .model("foo")
+    //     .add_user_message("hi")
+    //     .build()
+    //     .unwrap();
 
     // ==== ChatCompletions / Stream / Success ====
     request.stream = Some(true);
+
+    // ALLOW: max_tokens is deprecated in favor of completion_usage_tokens
     request.max_tokens = Some(3000);
 
     let response = client
@@ -293,6 +318,8 @@ async fn test_http_service() {
 
     // ==== ChatCompletions / Unary / Success ====
     request.stream = Some(false);
+
+    // ALLOW: max_tokens is deprecated in favor of completion_usage_tokens
     request.max_tokens = Some(0);
 
     let future = client
@@ -315,6 +342,8 @@ async fn test_http_service() {
 
     // ==== ChatCompletions / Stream / Error ====
     request.model = "bar".to_string();
+
+    // ALLOW: max_tokens is deprecated in favor of completion_usage_tokens
     request.max_tokens = Some(0);
     request.stream = Some(true);
 

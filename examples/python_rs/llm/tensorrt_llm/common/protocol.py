@@ -13,20 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[package]
-name = "service_metrics"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
+from pydantic import BaseModel
+from tensorrt_llm.llmapi import DisaggregatedParams
 
-[dependencies]
-triton-distributed-runtime = { workspace = true }
 
-# third-party
-futures = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tokio = { workspace = true }
+class Request(BaseModel):
+    prompt: str
+    sampling_params: dict
+    streaming: bool = True
+
+
+class Response(BaseModel):
+    text: str
+
+
+class DisaggregatedRequest(Request):
+    disaggregated_params: dict = {}
+
+
+class DisaggregatedResponse(Response):
+    disaggregated_params: DisaggregatedParams = {}

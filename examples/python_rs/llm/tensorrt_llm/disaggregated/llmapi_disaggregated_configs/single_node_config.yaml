@@ -13,20 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[package]
-name = "service_metrics"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
-
-[dependencies]
-triton-distributed-runtime = { workspace = true }
-
-# third-party
-futures = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tokio = { workspace = true }
+model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+hostname: localhost
+port: 8000
+backend: "pytorch"
+context_servers:
+  num_instances: 2
+  gpu_fraction: 0.25
+  tp_size: 1
+  pp_size: 1
+  urls:
+      - "localhost:8001"
+      - "localhost:8002"
+generation_servers:
+  num_instances: 1
+  gpu_fraction: 0.25
+  tp_size: 1
+  pp_size: 1
+  urls:
+      - "localhost:8002"
