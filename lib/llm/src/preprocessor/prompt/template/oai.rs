@@ -18,11 +18,11 @@ use super::*;
 use minijinja::{context, value::Value};
 
 use crate::protocols::openai::{
-    chat_completions::ChatCompletionRequest, completions::CompletionRequest,
+    chat_completions::NvCreateChatCompletionRequest, completions::CompletionRequest,
 };
 use tracing;
 
-impl OAIChatLikeRequest for ChatCompletionRequest {
+impl OAIChatLikeRequest for NvCreateChatCompletionRequest {
     fn messages(&self) -> Value {
         Value::from_serialize(&self.inner.messages)
     }

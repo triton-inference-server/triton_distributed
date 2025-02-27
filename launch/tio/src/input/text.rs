@@ -23,7 +23,7 @@ use triton_distributed_llm::{
     preprocessor::OpenAIPreprocessor,
     types::{
         openai::chat_completions::{
-            ChatCompletionRequest, ChatCompletionResponseDelta,
+            ChatCompletionResponseDelta, NvCreateChatCompletionRequest,
             OpenAIChatCompletionsStreamingEngine,
         },
         Annotated,
@@ -71,7 +71,7 @@ pub async fn run(
             card,
         } => {
             let frontend = ServiceFrontend::<
-                SingleIn<ChatCompletionRequest>,
+                SingleIn<NvCreateChatCompletionRequest>,
                 ManyOut<Annotated<ChatCompletionResponseDelta>>,
             >::new();
             let preprocessor = OpenAIPreprocessor::new(*card.clone())
@@ -165,7 +165,7 @@ async fn main_loop(
         //     req_builder.min_tokens(8192);
         // }
 
-        let req = ChatCompletionRequest { inner, nvext: None };
+        let req = NvCreateChatCompletionRequest { inner, nvext: None };
 
         // Call the model
         let mut stream = engine.generate(Context::new(req)).await?;

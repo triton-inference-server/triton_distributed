@@ -13,10 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{ChatCompletionRequest, ChatCompletionResponseDelta};
+use super::{ChatCompletionResponseDelta, NvCreateChatCompletionRequest};
 use crate::protocols::common;
 
-impl ChatCompletionRequest {
+impl NvCreateChatCompletionRequest {
     // put this method on the request
     // inspect the request to extract options
     pub fn response_generator(&self) -> DeltaGenerator {
