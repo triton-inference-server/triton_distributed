@@ -19,7 +19,7 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ref", type=str, required=True)
-    parser.add_argument("--filters", type=str, required=True)
+    parser.add_argument("--vllm-filter", type=str, required=True)
     parser.add_argument("--commit-message", type=str, required=True)
     return parser.parse_args()
 

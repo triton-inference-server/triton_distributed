@@ -77,5 +77,5 @@ jobs:
         fi
         python ./.github/workflows/trigger_ci.py \
           --ref $REF \
-          --filters "${{ steps.src_changes.outputs }}" \
+          --vllm-filter "${{ steps.src_changes.outputs.vllm }}" \
           --commit-message "${{ steps.get_commit_message.outputs.message }}"
