@@ -94,7 +94,9 @@ curl localhost:8181/v1/chat/completions \
   }'
 ```
 
-## Run GAP
+## Run genai-perf
+
+`genai-perf` is a tool for profiling and benchmarking LLM servers. It is already installed in the container. For more details, please refer to the [genai-perf README](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/perf_analyzer/genai-perf/README.html).
 
 ```
 genai-perf profile \
