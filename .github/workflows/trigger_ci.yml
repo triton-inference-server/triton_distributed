@@ -18,25 +18,25 @@ name: NVIDIA Test Lab Validation
 on:
   push:
     branches:
-    - main
+    # - main
 
   pull_request:
 
 jobs:
-  mirror_repo:
-    name: Mirror Repository to GitLab
-    environment: GITLAB
-    runs-on: self-hosted
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    - name: Sync Mirror Repository
-      run: ./.github/workflows/mirror_repo.sh ${{ secrets.TOKEN }} ${{ secrets.MIRROR_URL }}
+  # mirror_repo:
+  #   name: Mirror Repository to GitLab
+  #   environment: GITLAB
+  #   runs-on: self-hosted
+  #   steps:
+  #   - name: Checkout repository
+  #     uses: actions/checkout@v4
+  #   - name: Sync Mirror Repository
+  #     run: ./.github/workflows/mirror_repo.sh ${{ secrets.TOKEN }} ${{ secrets.MIRROR_URL }}
 
   trigger-ci:
     name: Trigger CI Pipeline
     environment: GITLAB
-    needs: mirror_repo
+    # needs: mirror_repo
     runs-on: self-hosted
     steps:
     - name: Detect source code changes
@@ -50,29 +50,23 @@ jobs:
             - 'examples/python_rs/llm/**'
             - 'container/deps/requirements.vllm.txt'
             - 'container/deps/vllm/**'
+    - name: Get commit message
+      id: get_commit_message
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "message=$(git log -1 --pretty=%B ${{ github.event.pull_request.head.sha }})" >> $GITHUB_OUTPUT
+        else
+          echo "message=$(git log -1 --pretty=%B ${{ github.sha }})" >> $GITHUB_OUTPUT
+        fi
     - name: Trigger Pipeline
       run: |
         #!/bin/bash -e
-        declare -A ci_variables
-        if [ "${{ steps.src_changes.outputs.vllm }}" == "true" ]; then
-          ci_variables["RUN_VLLM"]="true"
-        fi
-
-        ci_args=""
-        for key in "${!ci_variables[@]}"; do
-          ci_args+="--form variables[$key]=${ci_variables[$key]} "
-        done
-
-        echo "Running Pipeline with Variables: $ci_args"
-
         if [ "${{ github.event_name }}" = "pull_request" ]; then
           REF="${{ github.event.pull_request.head.ref }}"
         else
           REF="${{ github.ref }}"
         fi
-        curl --fail-with-body \
-          --request POST \
-          --form token=${{ secrets.PIPELINE_TOKEN }} \
-          --form ref=${REF} \
-          $ci_args \
-          "${{ secrets.PIPELINE_URL }}"
+        python ./.github/workflows/trigger_ci.py \
+          --ref $REF \
+          --filters "${{ steps.src_changes.outputs }}" \
+          --commit-message "${{ steps.get_commit_message.outputs.message }}"
