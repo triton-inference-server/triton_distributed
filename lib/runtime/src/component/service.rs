@@ -69,26 +69,21 @@ impl ServiceConfigBuilder {
         }
 
         // create service on the secondary runtime
-        let secondary = component.drt.runtime.secondary();
         let builder = component.drt.nats_client.client().service_builder();
-        let service = secondary
-            .spawn(async move {
-                tracing::debug!("Starting service: {}", service_name);
 
-                builder
-                    .description(description)
-                    .stats_handler(move |name, stats| {
-                        log::trace!("stats_handler: {name}, {stats:?}");
-                        let mut guard = stats_handler_registry.lock().unwrap();
-                        match guard.get_mut(&name) {
-                            Some(handler) => handler(stats),
-                            None => serde_json::Value::Null,
-                        }
-                    })
-                    .start(service_name.clone(), version)
-                    .await
+        tracing::debug!("Starting service: {}", service_name);
+        let service = builder
+            .description(description)
+            .stats_handler(move |name, stats| {
+                log::trace!("stats_handler: {name}, {stats:?}");
+                let mut guard = stats_handler_registry.lock().unwrap();
+                match guard.get_mut(&name) {
+                    Some(handler) => handler(stats),
+                    None => serde_json::Value::Null,
+                }
             })
-            .await?
+            .start(service_name.clone(), version)
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to start service: {e}"))?;
 
         // new copy of service_name as the previous one is moved into the task above
