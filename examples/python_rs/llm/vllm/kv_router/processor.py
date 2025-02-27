@@ -161,7 +161,6 @@ class Processor(ProcessMixIn):
                 raise NotImplementedError(
                     f"Request type {request_type} not implemented"
                 )
-        prompt_idx += 1
 
     @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate_chat(self, raw_request):
