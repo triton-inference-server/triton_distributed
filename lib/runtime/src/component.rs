@@ -74,6 +74,7 @@ pub enum TransportType {
     NatsTcp(String),
 }
 
+#[derive(Default)]
 pub struct RegistryInner {
     services: HashMap<String, Service>,
     stats_handlers: HashMap<String, Arc<std::sync::Mutex<HashMap<String, EndpointStatsHandler>>>>,

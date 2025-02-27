@@ -27,15 +27,6 @@ impl Default for Registry {
     }
 }
 
-impl Default for RegistryInner {
-    fn default() -> Self {
-        Self {
-            services: HashMap::new(),
-            stats_handlers: HashMap::new(),
-        }
-    }
-}
-
 impl Registry {
     pub fn new() -> Self {
         Self {

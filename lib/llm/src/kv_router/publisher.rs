@@ -93,7 +93,8 @@ impl KvMetricsPublisher {
         let mut metrics_rx = self.rx.clone();
         let handler = Arc::new(KvLoadEndpoingHander::new(metrics_rx.clone()));
         let handler = Ingress::for_engine(handler)?;
-        let _ = component
+
+        component
             .service_builder()
             .create()
             .await?
@@ -105,9 +106,7 @@ impl KvMetricsPublisher {
             })
             .handler(handler)
             .start()
-            .await?;
-
-        Ok(())
+            .await
     }
 }
 
