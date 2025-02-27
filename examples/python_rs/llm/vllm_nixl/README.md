@@ -31,6 +31,8 @@ limitations under the License.
 
 ## Run example
 
+Add model to triton and start http server.
+
 In terminal 0:
 ```
 llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B test-nixl.vllm.generate
@@ -124,9 +126,9 @@ rm -r /tmp/nixl
 - [ ] Test under load
 - [ ] Support pp > 1
 - [ ] Check why adding extra seed input is crashing vllm with remote prefill
-- [ ] Concurrency > 2 is not working
-- [ ] Require sending two parallel requests to start decode for the first time
-- [ ] Parse cmdline args
+- [x] Require sending two parallel requests to start decode for the first time
+- [x] Concurrency > 2 is not working
+- [x] Parse cmdline args
 - [x] Manual nixl example with tp1
 - [x] Zero copy
 - [x] Conditional remote prefill
