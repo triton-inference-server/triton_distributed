@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import os
-import requests
 import argparse
 
 def parse_args():
