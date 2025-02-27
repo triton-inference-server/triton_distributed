@@ -60,6 +60,9 @@ def extract_options_from_commit(commit_message):
             # Normalize key: convert hyphens to underscores for consistent lookup
             normalized_key = key.replace('-', '_')
 
+            if normalized_key not in ALLOWED_CI_OPTIONS:
+                raise ValueError(f"Invalid CI option: '{key}'.\n\nAllowed options are:\n{sorted(ALLOWED_CI_OPTIONS)}")
+
             # Validate option type
             option_type = ALLOWED_CI_OPTIONS[normalized_key]['type']
             if option_type == 'bool' and value is not True:
