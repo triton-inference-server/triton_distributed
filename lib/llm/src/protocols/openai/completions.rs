@@ -22,7 +22,7 @@ use validator::Validate;
 mod aggregator;
 mod delta;
 
-pub use aggregator::DeltaAggregator;
+// pub use aggregator::DeltaAggregator;
 
 use super::{
     common::{self, SamplingOptionsProvider, StopConditionsProvider},
@@ -56,13 +56,13 @@ pub struct CompletionRequest {
     /// The token count of your prompt plus max_tokens cannot exceed the model's context length.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(into, strip_option))]
-    pub max_tokens: Option<i32>,
+    pub max_tokens: Option<u32>,
 
     /// The minimum number of tokens to generate. We ignore stop tokens until we see this many
     /// tokens. Leave this None unless you are working on the pre-processor.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(into, strip_option))]
-    pub min_tokens: Option<i32>,
+    pub min_tokens: Option<u32>,
 
     /// If set, partial message deltas will be sent, like in ChatGPT. Tokens will be sent as data-only
     /// server-sent events as they become available, with the stream terminated by a data: \[DONE\]
@@ -248,7 +248,7 @@ impl CompletionRequestBuilder {
     /// let request = CompletionRequest::builder()
     ///     .model("mixtral-8x7b-instruct-v0.1")
     ///     .prompt("Hello")
-    ///     .max_tokens(16)
+    ///     .max_tokens(16_u32)
     ///     .build()
     ///     .expect("Failed to build CompletionRequest");
     /// ```
@@ -433,11 +433,11 @@ impl OpenAISamplingOptionsProvider for CompletionRequest {
 }
 
 impl OpenAIStopConditionsProvider for CompletionRequest {
-    fn get_max_tokens(&self) -> Option<i32> {
+    fn get_max_tokens(&self) -> Option<u32> {
         self.max_tokens
     }
 
-    fn get_min_tokens(&self) -> Option<i32> {
+    fn get_min_tokens(&self) -> Option<u32> {
         self.min_tokens
     }
 
