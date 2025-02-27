@@ -16,11 +16,9 @@
 use anyhow::Ok;
 
 use serde::{Deserialize, Serialize};
-use triton_llm::model_card::model::{ModelDeploymentCard, PromptContextMixin};
-use triton_llm::preprocessor::prompt::PromptFormatter;
-use triton_llm::protocols::openai::chat_completions::{
-    ChatCompletionMessage, ChatCompletionRequest, Tool, ToolChoiceType,
-};
+use triton_distributed_llm::model_card::model::{ModelDeploymentCard, PromptContextMixin};
+use triton_distributed_llm::preprocessor::prompt::PromptFormatter;
+use triton_distributed_llm::protocols::openai::chat_completions::ChatCompletionRequest;
 
 use hf_hub::{api::tokio::ApiBuilder, Cache, Repo, RepoType};
 
@@ -33,10 +31,9 @@ use std::path::PathBuf;
 /// set in the environment variable `HF_TOKEN`.
 /// The model is downloaded and cached in `tests/data/sample-models` directory.
 /// make sure the token has access to `meta-llama/Llama-3.1-70B-Instruct` model
-
 fn check_hf_token() -> bool {
     let hf_token = std::env::var("HF_TOKEN").ok();
-    return hf_token.is_some();
+    hf_token.is_some()
 }
 
 async fn make_mdc_from_repo(
@@ -48,7 +45,7 @@ async fn make_mdc_from_repo(
     //TODO: remove this once we have nim-hub support. See the NOTE above.
     let downloaded_path = maybe_download_model(local_path, hf_repo, hf_revision).await;
     let display_name = format!("{}--{}", hf_repo, hf_revision);
-    let mut mdc = ModelDeploymentCard::from_local_path(downloaded_path, Some(display_name))
+    let mut mdc = ModelDeploymentCard::from_local_path(downloaded_path, Some(&display_name))
         .await
         .unwrap();
     mdc.prompt_context = mixins;
@@ -71,7 +68,7 @@ async fn maybe_download_model(local_path: &str, model: &str, revision: &str) -> 
     for file in &files_to_download {
         downloaded_path = repo_builder.get(file).await.unwrap();
     }
-    return downloaded_path.parent().unwrap().display().to_string();
+    downloaded_path.parent().unwrap().display().to_string()
 }
 
 async fn make_mdcs() -> Vec<ModelDeploymentCard> {
@@ -218,29 +215,40 @@ const TOOLS: &str = r#"
   ]
 "#;
 
+// Notes:
+// protocols::openai::chat_completions::ChatCompletionMessage -> async_openai::types::ChatCompletionRequestMessage
+// protocols::openai::chat_completions::Tool -> async_openai::types::ChatCompletionTool
+// protocols::openai::chat_completions::ToolChoiceType -> async_openai::types::ChatCompletionToolChoiceOption
 #[derive(Serialize, Deserialize)]
 struct Request {
-    messages: Vec<ChatCompletionMessage>,
-    tools: Option<Vec<Tool>>,
-    tool_choice: Option<ToolChoiceType>,
+    messages: Vec<async_openai::types::ChatCompletionRequestMessage>,
+    tools: Option<Vec<async_openai::types::ChatCompletionTool>>,
+    tool_choice: Option<async_openai::types::ChatCompletionToolChoiceOption>,
 }
 
 impl Request {
     fn from(
         messages: &str,
         tools: Option<&str>,
-        tool_choice: Option<ToolChoiceType>,
+        tool_choice: Option<async_openai::types::ChatCompletionToolChoiceOption>,
         model: String,
     ) -> ChatCompletionRequest {
-        let messages: Vec<ChatCompletionMessage> = serde_json::from_str(messages).unwrap();
-        let tools: Option<Vec<Tool>> = tools.map(|x| serde_json::from_str(x).unwrap());
-        ChatCompletionRequest::builder()
+        let messages: Vec<async_openai::types::ChatCompletionRequestMessage> =
+            serde_json::from_str(messages).unwrap();
+        let tools: Option<Vec<async_openai::types::ChatCompletionTool>> =
+            tools.map(|x| serde_json::from_str(x).unwrap());
+        let tools = tools.unwrap();
+        let tool_choice = tool_choice.unwrap();
+
+        let inner = async_openai::types::CreateChatCompletionRequestArgs::default()
             .model(model)
             .messages(messages)
             .tools(tools)
             .tool_choice(tool_choice)
             .build()
-            .unwrap()
+            .unwrap();
+
+        ChatCompletionRequest { inner, nvext: None }
     }
 }
 
@@ -296,7 +304,7 @@ async fn test_single_turn_with_tools() {
         let request = Request::from(
             SINGLE_CHAT_MESSAGE,
             Some(TOOLS),
-            Some(ToolChoiceType::Auto),
+            Some(async_openai::types::ChatCompletionToolChoiceOption::Auto),
             mdc.slug().to_string(),
         );
         let formatted_prompt = formatter.render(&request).unwrap();
@@ -403,7 +411,7 @@ async fn test_multi_turn_with_system_with_tools() {
         let request = Request::from(
             THREE_TURN_CHAT_MESSAGE_WITH_SYSTEM,
             Some(TOOLS),
-            Some(ToolChoiceType::Auto),
+            Some(async_openai::types::ChatCompletionToolChoiceOption::Auto),
             mdc.slug().to_string(),
         );
         let formatted_prompt = formatter.render(&request).unwrap();

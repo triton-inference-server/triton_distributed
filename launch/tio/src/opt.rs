@@ -26,6 +26,11 @@ pub enum Input {
 
     /// Pull requests from a namespace/component/endpoint path.
     Endpoint(String),
+
+    /// Start the engine but don't provide any way to talk to it.
+    /// For multi-node sglang, where the engine connects directly
+    /// to the co-ordinator via torch distributed / nccl.
+    None,
 }
 
 impl TryFrom<&str> for Input {
@@ -35,6 +40,7 @@ impl TryFrom<&str> for Input {
         match s {
             "http" => Ok(Input::Http),
             "text" => Ok(Input::Text),
+            "none" => Ok(Input::None),
             endpoint_path if endpoint_path.starts_with(ENDPOINT_SCHEME) => {
                 let path = endpoint_path.strip_prefix(ENDPOINT_SCHEME).unwrap();
                 Ok(Input::Endpoint(path.to_string()))
@@ -50,6 +56,7 @@ impl fmt::Display for Input {
             Input::Http => "http",
             Input::Text => "text",
             Input::Endpoint(path) => path,
+            Input::None => "none",
         };
         write!(f, "{s}")
     }
@@ -59,12 +66,19 @@ pub enum Output {
     /// Accept un-preprocessed requests, echo the prompt back as the response
     EchoFull,
 
+    /// Accept preprocessed requests, echo the tokens back as the response
+    EchoCore,
+
     /// Publish requests to a namespace/component/endpoint path.
     Endpoint(String),
 
     #[cfg(feature = "mistralrs")]
     /// Run inference on a model in a GGUF file using mistralrs w/ candle
     MistralRs,
+
+    #[cfg(feature = "sglang")]
+    /// Run inference using sglang
+    SgLang,
 }
 
 impl TryFrom<&str> for Output {
@@ -75,7 +89,11 @@ impl TryFrom<&str> for Output {
             #[cfg(feature = "mistralrs")]
             "mistralrs" => Ok(Output::MistralRs),
 
+            #[cfg(feature = "sglang")]
+            "sglang" => Ok(Output::SgLang),
+
             "echo_full" => Ok(Output::EchoFull),
+            "echo_core" => Ok(Output::EchoCore),
 
             endpoint_path if endpoint_path.starts_with(ENDPOINT_SCHEME) => {
                 let path = endpoint_path.strip_prefix(ENDPOINT_SCHEME).unwrap();
@@ -93,7 +111,11 @@ impl fmt::Display for Output {
             #[cfg(feature = "mistralrs")]
             Output::MistralRs => "mistralrs",
 
+            #[cfg(feature = "sglang")]
+            Output::SgLang => "sglang",
+
             Output::EchoFull => "echo_full",
+            Output::EchoCore => "echo_core",
 
             Output::Endpoint(path) => path,
         };

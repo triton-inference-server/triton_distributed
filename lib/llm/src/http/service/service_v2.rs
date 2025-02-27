@@ -99,14 +99,14 @@ impl HttpServiceConfigBuilder {
         ];
 
         if config.enable_chat_endpoints {
-            routes.push(super::openai::completions_router(
+            routes.push(super::openai::chat_completions_router(
                 model_manager.state(),
                 None,
             ));
         }
 
         if config.enable_cmpl_endpoints {
-            routes.push(super::openai::chat_completions_router(
+            routes.push(super::openai::completions_router(
                 model_manager.state(),
                 None,
             ));

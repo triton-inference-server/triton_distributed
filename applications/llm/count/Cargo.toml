@@ -17,6 +17,7 @@
 name = "count"
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
 
 [dependencies]
 # local
@@ -26,7 +27,9 @@ triton-distributed-llm = { path = "../../../lib/llm" }
 # workspace - todo
 
 # crates.io
+clap = { version = "4.5", features = ["derive", "env"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 tokio = { version = "1", features = ["full"] }
 tracing = { version = "0.1" }
+thiserror = "1.0"

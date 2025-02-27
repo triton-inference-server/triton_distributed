@@ -34,7 +34,6 @@ use std::time::SystemTime;
 
 use super::TokenIdType;
 
-pub mod kv_routing;
 pub mod llm_backend;
 pub mod postprocessor;
 pub mod preprocessor;
@@ -65,6 +64,33 @@ pub enum FinishReason {
 
     #[serde(rename = "cancelled")]
     Cancelled,
+}
+
+impl std::fmt::Display for FinishReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FinishReason::EoS => write!(f, "eos"),
+            FinishReason::Length => write!(f, "length"),
+            FinishReason::Stop => write!(f, "stop"),
+            FinishReason::Error(msg) => write!(f, "error: {}", msg),
+            FinishReason::Cancelled => write!(f, "cancelled"),
+        }
+    }
+}
+
+impl std::str::FromStr for FinishReason {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "eos" => Ok(FinishReason::EoS),
+            "length" => Ok(FinishReason::Length),
+            "stop" => Ok(FinishReason::Stop),
+            "cancelled" => Ok(FinishReason::Cancelled),
+            s if s.starts_with("error: ") => Ok(FinishReason::Error(s[7..].to_string())),
+            _ => Err(anyhow::anyhow!("Invalid FinishReason variant: '{}'", s)),
+        }
+    }
 }
 
 /// LLM Inference Engines can accept a variety of input types. Not all Engines will support all

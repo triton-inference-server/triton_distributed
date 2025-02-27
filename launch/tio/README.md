@@ -62,3 +62,12 @@ The `ns/backend/mistralrs` are purely symbolic, pick anything as long as it has 
 
 Run `tio --help` for more options.
 
+## sglang
+
+```
+uv venv
+source .venv/bin/activate
+uv pip install pip
+uv pip install sgl-kernel --force-reinstall --no-deps
+uv pip install "sglang[all]==0.4.2" --find-links https://flashinfer.ai/whl/cu124/torch2.4/flashinfer/
+```

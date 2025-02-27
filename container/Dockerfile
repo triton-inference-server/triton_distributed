@@ -65,7 +65,8 @@ RUN find /opt/tritonserver/python -maxdepth 1 -type f -name \
     "tritonserver-*.whl" | xargs -I {} pip3 install --force-reinstall --upgrade {}[all]
 
 # GENAI Perf Install
-ARG GENAI_PERF_TAG="r25.01"
+# TODO: Move to tag when fix for genai-perf will be released
+ARG GENAI_PERF_TAG="25d0188713adc47868d6b3f22426375237a90529"
 RUN pip install "git+https://github.com/triton-inference-server/perf_analyzer.git@${GENAI_PERF_TAG}#subdirectory=genai-perf"
 
 # Backend & Framework Specific Installation

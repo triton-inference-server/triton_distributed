@@ -37,6 +37,10 @@ pub mod openai {
     pub mod chat_completions {
         use super::*;
 
+        // pub use async_openai::types::CreateChatCompletionRequest as ChatCompletionRequest;
+        // pub use protocols::openai::chat_completions::{
+        //     ChatCompletionResponse, ChatCompletionResponseDelta,
+        // };
         pub use protocols::openai::chat_completions::{
             ChatCompletionRequest, ChatCompletionResponse, ChatCompletionResponseDelta,
         };

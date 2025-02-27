@@ -15,6 +15,7 @@
 
 use std::{cmp::min, num::NonZero, path::Path, sync::Arc};
 
+use async_openai::types::FinishReason;
 use async_stream::stream;
 use async_trait::async_trait;
 use either::Either;
@@ -33,8 +34,7 @@ use triton_distributed_runtime::pipeline::{Error, ManyOut, SingleIn};
 use triton_distributed_runtime::protocols::annotated::Annotated;
 
 use crate::protocols::openai::chat_completions::{
-    ChatCompletionChoiceDelta, ChatCompletionContent, ChatCompletionRequest,
-    ChatCompletionResponseDelta, Content, FinishReason, MessageRole,
+    ChatCompletionRequest, ChatCompletionResponseDelta,
 };
 use crate::types::openai::chat_completions::OpenAIChatCompletionsStreamingEngine;
 
@@ -174,11 +174,14 @@ impl
         let (tx, mut rx) = channel(10_000);
         let maybe_tok = self.pipeline.lock().await.tokenizer();
 
-        let mut prompt_tokens = 0;
+        let mut prompt_tokens = 0i32;
         let mut messages = vec![];
-        for m in request.messages {
-            let content = match m.content {
-                Content::Text(prompt) => {
+        for m in request.inner.messages {
+            let async_openai::types::ChatCompletionRequestMessage::User(inner_m) = m else {
+                continue;
+            };
+            let content = match inner_m.content {
+                async_openai::types::ChatCompletionRequestUserMessageContent::Text(prompt) => {
                     if let Some(tok) = maybe_tok.as_ref() {
                         prompt_tokens = tok
                             .encode(prompt.clone(), false)
@@ -187,12 +190,12 @@ impl
                     }
                     prompt
                 }
-                Content::ImageUrl(_) => {
-                    anyhow::bail!("Content::ImageUrl type is not supported");
+                _ => {
+                    anyhow::bail!("Only Text type is supported");
                 }
             };
             let r = IndexMap::from([
-                ("role".to_string(), Either::Left(m.role.to_string())),
+                ("role".to_string(), Either::Left("user".to_string())),
                 ("content".to_string(), Either::Left(content)),
             ]);
             messages.push(r);
@@ -204,7 +207,11 @@ impl
         // level.
         //tracing::info!(prompt_tokens, "Received prompt");
         let limit = DEFAULT_MAX_TOKENS - prompt_tokens;
-        let max_output_tokens = min(request.max_tokens.unwrap_or(limit), limit);
+        #[allow(deprecated)]
+        let max_output_tokens = min(
+            request.inner.max_tokens.map(|x| x as i32).unwrap_or(limit),
+            limit,
+        );
 
         let mistralrs_request = Request::Normal(NormalRequest {
             messages: RequestMessage::Chat(messages),
@@ -247,35 +254,39 @@ impl
                                 .unwrap_or(0);
                         }
                         let finish_reason = match &c.choices[0].finish_reason {
-                            Some(fr) => Some(fr.parse::<FinishReason>().unwrap_or(FinishReason::null)),
+                            Some(_fr) => Some(FinishReason::Stop), //Some(fr.parse::<FinishReason>().unwrap_or(FinishReason::Stop)),
                             None if used_output_tokens >= max_output_tokens => {
                                 tracing::debug!(used_output_tokens, max_output_tokens, "Met or exceed max_tokens. Stopping.");
-                                Some(FinishReason::length)
+                                Some(FinishReason::Length)
                             }
                             None => None,
                         };
                         //tracing::trace!("from_assistant: {from_assistant}");
 
-                        let delta = ChatCompletionResponseDelta{
+                        #[allow(deprecated)]
+                        let inner = async_openai::types::CreateChatCompletionStreamResponse{
                             id: c.id,
-                            choices: vec![ChatCompletionChoiceDelta{
+                            choices: vec![async_openai::types::ChatChoiceStream{
                                 index: 0,
-                                delta: ChatCompletionContent{
+                                delta: async_openai::types::ChatCompletionStreamResponseDelta{
                                     //role: c.choices[0].delta.role,
-                                    role: Some(MessageRole::assistant),
+                                    role: Some(async_openai::types::Role::Assistant),
                                     content: Some(from_assistant),
                                     tool_calls: None,
+                                    refusal: None,
+                                    function_call: None,
                                 },
                                 logprobs: None,
                                 finish_reason,
                             }],
                             model: c.model,
-                            created: c.created as u64,
+                            created: c.created as u32,
                             object: c.object.clone(),
                             usage: None,
                             system_fingerprint: Some(c.system_fingerprint),
                             service_tier: None,
                         };
+                        let delta = ChatCompletionResponseDelta{inner};
                         let ann = Annotated{
                             id: None,
                             data: Some(delta),

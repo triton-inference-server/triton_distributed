@@ -72,7 +72,7 @@ impl OpenAIPreprocessor {
         let PromptFormatter::OAI(formatter) = formatter;
 
         let tokenizer = match &mdc.tokenizer {
-            TokenizerKind::HfTokenizerJson(file) => HuggingFaceTokenizer::from_file(&file)?,
+            TokenizerKind::HfTokenizerJson(file) => HuggingFaceTokenizer::from_file(file)?,
         };
         let tokenizer = Arc::new(tokenizer);
 
@@ -109,7 +109,7 @@ impl OpenAIPreprocessor {
 
         let use_raw_prompt = request
             .nvext()
-            .map_or(false, |ext| ext.use_raw_prompt.unwrap_or(false));
+            .is_some_and(|ext| ext.use_raw_prompt.unwrap_or(false));
 
         let formatted_prompt = if use_raw_prompt {
             match request.raw_prompt() {
@@ -275,7 +275,7 @@ impl
         let (common_request, annotations) = self.preprocess_request(&request)?;
 
         // update isl
-        response_generator.update_isl(common_request.token_ids.len() as i32);
+        response_generator.update_isl(common_request.token_ids.len() as u32);
 
         // repack the common completion request
         let common_request = context.map(|_| common_request);

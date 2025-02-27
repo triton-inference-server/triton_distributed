@@ -181,36 +181,45 @@ index 1ca9e49d..b1591c0c 100644
  
          # Reuse the cached content hash
 diff --git a/vllm/core/block_manager.py b/vllm/core/block_manager.py
-index c5b3b04f..8a483aa2 100644
+index c5b3b04f..c72001f7 100644
 --- a/vllm/core/block_manager.py
 +++ b/vllm/core/block_manager.py
-@@ -9,10 +9,12 @@ from vllm.core.block.cpu_gpu_block_allocator import CpuGpuBlockAllocator
- from vllm.core.block.interfaces import Block
+@@ -10,7 +10,10 @@ from vllm.core.block.interfaces import Block
  from vllm.core.block.prefix_caching_block import (ComputedBlocksTracker,
                                                    LastAccessBlocksTracker)
-+from vllm.core.event_manager import KVCacheEventManager
  from vllm.core.block.utils import check_no_caching_or_swa_for_blockmgr_encdec
++from vllm.core.event_manager import KVCacheEventManager
  from vllm.core.interfaces import AllocStatus, BlockSpaceManager
++from vllm.envs import (VLLM_KV_CAPI_PATH, VLLM_KV_COMPONENT, VLLM_KV_NAMESPACE,
++                       VLLM_WORKER_ID)
  from vllm.sequence import Sequence, SequenceGroup, SequenceStatus
  from vllm.utils import Device
-+from vllm.envs import VLLM_WORKER_ID, VLLM_KV_CAPI_PATH
  
- SeqId = int
- EncoderSeqId = str
-@@ -60,6 +62,7 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
+@@ -60,6 +63,7 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
  
      def __init__(
          self,
-+        model_name: str, 
++        model_name: str,
          block_size: int,
          num_gpu_blocks: int,
          num_cpu_blocks: int,
-@@ -91,11 +94,17 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
+@@ -91,11 +95,28 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
  
          self.watermark_blocks = int(watermark * num_gpu_blocks)
  
-+        if VLLM_WORKER_ID is not None and VLLM_KV_CAPI_PATH is not None:
-+            self.event_manager = KVCacheEventManager(model_name, worker_id=str(VLLM_WORKER_ID).encode(), lib_path=VLLM_KV_CAPI_PATH)
++        kv_event_manager_params = [
++            VLLM_WORKER_ID, VLLM_KV_CAPI_PATH, VLLM_KV_NAMESPACE,
++            VLLM_KV_COMPONENT
++        ]
++        set_kv_event_manager_params = len(
++            [param for param in kv_event_manager_params if param is not None])
++
++        if set_kv_event_manager_params == len(kv_event_manager_params):
++            self.event_manager = KVCacheEventManager(
++                namespace=VLLM_KV_NAMESPACE,
++                component=VLLM_KV_COMPONENT,
++                worker_id=VLLM_WORKER_ID,
++                lib_path=VLLM_KV_CAPI_PATH)
 +        else:
 +            self.event_manager = None
 +
@@ -225,84 +234,96 @@ index c5b3b04f..8a483aa2 100644
          self.block_tables: Dict[SeqId, BlockTable] = {}
 diff --git a/vllm/core/event_manager.py b/vllm/core/event_manager.py
 new file mode 100644
-index 00000000..4aa90a4a
+index 00000000..350453cd
 --- /dev/null
 +++ b/vllm/core/event_manager.py
-@@ -0,0 +1,89 @@
-+from typing import Optional
+@@ -0,0 +1,102 @@
++# SPDX-License-Identifier: Apache-2.0
++import ctypes
 +import logging
++import uuid
++from ctypes import c_char_p, c_size_t, c_uint32, c_void_p, c_int64
++from typing import Optional
++
 +from vllm.core.block.prefix_caching_block import PrefixCachingBlock, PrefixHash
 +
-+import ctypes
-+from ctypes import c_char_p, c_uint32, c_void_p, c_size_t
-+import uuid
-+
 +logger = logging.getLogger(__name__)
++
 +
 +class TritonResult:
 +    OK = 0
 +    ERR = 1
 +
++
 +class KVCacheEventManager:
-+    def __init__(self, model_name: str, worker_id: bytes, lib_path: str):
++
++    def __init__(self, namespace: str, component: str, worker_id: int,
++                 lib_path: str):
 +        self.lib = None
 +
 +        try:
 +            self.lib = ctypes.CDLL(lib_path)
-+            self.lib.triton_llm_init.argtypes = [c_char_p, c_char_p]
++            self.lib.triton_llm_init.argtypes = [c_char_p, c_char_p, c_int64]
 +            self.lib.triton_llm_init.restype = c_uint32
 +
-+            result = self.lib.triton_llm_init(model_name.encode(), worker_id)
++            result = self.lib.triton_llm_init(namespace.encode(),
++                                              component.encode(), worker_id)
 +            if result == TritonResult.OK:
-+                logger.info("KVCacheEventManager initialized successfully. Ready to publish KV Cache Events")
++                logger.info(
++                    "KVCacheEventManager initialized successfully. Ready to publish KV Cache Events"
++                )
 +            else:
 +                logger.info("KVCacheEventManager initialization failed!")
 +
 +        except Exception as e:
 +            print(f"Failed to load {lib_path}")
 +            raise e
-+        
++
 +        self.lib.triton_kv_event_publish_stored.argtypes = [
-+            ctypes.c_uint64,                    # event_id
-+            ctypes.POINTER(ctypes.c_uint32),    # token_ids
-+            ctypes.POINTER(ctypes.c_size_t),    # num_block_tokens
-+            ctypes.POINTER(ctypes.c_uint64),    # block_ids
-+            ctypes.c_size_t,                    # num_blocks
-+            ctypes.POINTER(ctypes.c_uint64),    # parent_hash
-+            ctypes.c_uint64,                    # lora_id
++            ctypes.c_uint64,  # event_id
++            ctypes.POINTER(ctypes.c_uint32),  # token_ids
++            ctypes.POINTER(ctypes.c_size_t),  # num_block_tokens
++            ctypes.POINTER(ctypes.c_uint64),  # block_ids
++            ctypes.c_size_t,  # num_blocks
++            ctypes.POINTER(ctypes.c_uint64),  # parent_hash
++            ctypes.c_uint64,  # lora_id
 +        ]
 +        self.lib.triton_kv_event_publish_stored.restype = ctypes.c_uint32  # triton_llm_result_t
 +
 +        self.lib.triton_kv_event_publish_removed.argtypes = [
-+            ctypes.c_uint64,                    # event_id
-+            ctypes.POINTER(ctypes.c_uint64),    # block_ids
-+            ctypes.c_size_t,                    # num_blocks
++            ctypes.c_uint64,  # event_id
++            ctypes.POINTER(ctypes.c_uint64),  # block_ids
++            ctypes.c_size_t,  # num_blocks
 +        ]
 +        self.lib.triton_kv_event_publish_removed.restype = ctypes.c_uint32  # triton_llm_result_t
 +
 +        self.event_id_counter = 0
 +
-+    def enqueue_stored_event(self, parent: Optional[PrefixCachingBlock], block: PrefixCachingBlock):
-+        token_ids_arr = (ctypes.c_uint32 * len(block.token_ids))(*block.token_ids)
++    def enqueue_stored_event(self, parent: Optional[PrefixCachingBlock],
++                             block: PrefixCachingBlock):
++        token_ids_arr = (ctypes.c_uint32 *
++                         len(block.token_ids))(*block.token_ids)
 +        num_block_tokens = (ctypes.c_size_t * 1)(len(block.token_ids))
 +        block_hash = (ctypes.c_uint64 * 1)(block.content_hash)
-+        parent_hash = ((ctypes.c_uint64 * 1)(parent.content_hash) if parent is not None else None)
++        parent_hash = ((ctypes.c_uint64 * 1)(parent.content_hash)
++                       if parent is not None else None)
 +
 +        # Publish the event
 +        result = self.lib.triton_kv_event_publish_stored(
-+            self.event_id_counter,        # uint64_t event_id
-+            token_ids_arr,                # const uint32_t *token_ids
-+            num_block_tokens,             # const uintptr_t *num_block_tokens
-+            block_hash,                   # const uint64_t *block_ids
-+            1,                            # uintptr_t num_blocks
-+            parent_hash,                  # const uint64_t *parent_hash
-+            0,                            # uint64_t lora_id
++            self.event_id_counter,  # uint64_t event_id
++            token_ids_arr,  # const uint32_t *token_ids
++            num_block_tokens,  # const uintptr_t *num_block_tokens
++            block_hash,  # const uint64_t *block_ids
++            1,  # uintptr_t num_blocks
++            parent_hash,  # const uint64_t *parent_hash
++            0,  # uint64_t lora_id
 +        )
 +
 +        if result == TritonResult.OK:
 +            logger.debug(f"Store - Published KV Event: {block.content_hash}")
 +        else:
-+            logger.debug(f"Store - Failed to Publish KV Event: {block.content_hash}")
++            logger.debug(
++                f"Store - Failed to Publish KV Event: {block.content_hash}")
 +
 +        self.event_id_counter += 1
 +
@@ -310,15 +331,15 @@ index 00000000..4aa90a4a
 +        result = self.lib.triton_kv_event_publish_removed(
 +            self.event_id_counter,
 +            (ctypes.c_uint64 * 1)(block_hash),
-+            1,)
-+        
++            1,
++        )
++
 +        if result == TritonResult.OK:
 +            logger.debug(f"Remove - Published KV Event: {block_hash}")
 +        else:
 +            logger.debug(f"Remove - Failed to Publish KV Event: {block_hash}")
 +
 +        self.event_id_counter += 1
-\ No newline at end of file
 diff --git a/vllm/core/scheduler.py b/vllm/core/scheduler.py
 index f507847a..6af77646 100644
 --- a/vllm/core/scheduler.py
@@ -1728,20 +1749,255 @@ index d82d9ad9..542ccfe8 100644
                  self.parallel_config.pipeline_parallel_size,
                  self.async_callbacks[v_id]
                  if self.model_config.use_async_output_proc else None)
+diff --git a/vllm/engine/multiprocessing/__init__.py b/vllm/engine/multiprocessing/__init__.py
+index 3cf1850e..38acca0e 100644
+--- a/vllm/engine/multiprocessing/__init__.py
++++ b/vllm/engine/multiprocessing/__init__.py
+@@ -21,6 +21,7 @@ IPC_INPUT_EXT = "_input_socket"
+ IPC_OUTPUT_EXT = "_output_socket"
+ IPC_HEALTH_EXT = "_health_socket"
+ IPC_DATA_EXT = "_data_socket"
++IPC_METRICS_EXT = "_metrics_socket"
+ 
+ 
+ class MQEngineDeadError(RuntimeError):
+@@ -157,3 +158,10 @@ def ENGINE_DEAD_ERROR(
+     return MQEngineDeadError(
+         "Engine loop is not running. Inspect the stacktrace to "
+         f"find the original error: {repr(error)}.")
++
++@dataclass
++class KvMetrics:
++    request_active_slots: int
++    request_total_slots: int
++    kv_active_blocks: int
++    kv_total_blocks: int
+diff --git a/vllm/engine/multiprocessing/client.py b/vllm/engine/multiprocessing/client.py
+index 85b5f31e..6a7ea3ae 100644
+--- a/vllm/engine/multiprocessing/client.py
++++ b/vllm/engine/multiprocessing/client.py
+@@ -25,14 +25,15 @@ from vllm.engine.async_llm_engine import (
+     build_guided_decoding_logits_processor_async)
+ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
+                                          IPC_HEALTH_EXT, IPC_INPUT_EXT,
+-                                         IPC_OUTPUT_EXT, RPC_REQUEST_T,
++                                         IPC_OUTPUT_EXT, IPC_METRICS_EXT,
++                                         RPC_REQUEST_T,
+                                          VLLM_RPC_SUCCESS_STR, RPCAbortRequest,
+                                          RPCAdapterLoadedResponse, RPCError,
+                                          RPCLoadAdapterRequest,
+                                          RPCProcessRequest,
+                                          RPCResetPrefixCacheRequest,
+                                          RPCStartupRequest, RPCStartupResponse,
+-                                         RPCUProfileRequest)
++                                         RPCUProfileRequest, KvMetrics)
+ from vllm.engine.protocol import EngineClient
+ # yapf: enable
+ from vllm.envs import VLLM_RPC_TIMEOUT
+@@ -115,6 +116,10 @@ class MQLLMEngineClient(EngineClient):
+         self.heartbeat_socket: Socket = self.context.socket(zmq.constants.PULL)
+         self.heartbeat_socket.connect(f"{ipc_path}{IPC_HEALTH_EXT}")
+ 
++        # Metrics.
++        self.metrics_socket: Socket = self.context.socket(zmq.constants.PULL)
++        self.metrics_socket.connect(f"{ipc_path}{IPC_METRICS_EXT}")
++
+         # IPC path for the data socket.
+         self.data_ipc_path = f"{ipc_path}{IPC_DATA_EXT}"
+ 
+@@ -129,6 +134,12 @@ class MQLLMEngineClient(EngineClient):
+         # Loop to check health of the LLMEngine periodically.
+         # Started after the MQLLMEngine is ready.
+         self.health_loop: Optional[asyncio.Task] = None
++
++        # Loop to check metrics of the LLMEngine periodically.
++        # Started after the MQLLMEngine is ready.
++        self.metrics_loop: Optional[asyncio.Task] = None
++        self.metrics_publisher = None
++
+         self._engine_process = psutil.Process(engine_pid)
+ 
+     @staticmethod
+@@ -180,6 +191,46 @@ class MQLLMEngineClient(EngineClient):
+         except Exception as e:
+             self._set_errored(e)
+ 
++    async def run_metrics_loop(self, timeout: int):
++        """Background loop that continually checks to ensure the engine process
++        is still alive.
++        """
++        try:
++            while True:
++                # Check if the engine process is running:
++                if not self._engine_process.is_running() or (
++                        self._engine_process.status() == psutil.STATUS_ZOMBIE):
++                    # NB: is_running() returns True for zombies
++                    self._set_errored(
++                        RuntimeError(
++                            f"Engine process (pid {self._engine_process.pid}) "
++                            "died."))
++                    break
++
++                if await self.metrics_socket.poll(timeout=timeout):
++                    # Metrics received- check the message
++                    message: Frame = await self.metrics_socket.recv(copy=False)
++                    kv_metrics = pickle.loads(message.buffer)
++                    if self.metrics_publisher is not None:
++                        if isinstance(kv_metrics, KvMetrics):
++                            self.metrics_publisher.publish(kv_metrics.request_active_slots,
++                                                        kv_metrics.request_total_slots,
++                                                        kv_metrics.kv_active_blocks,
++                                                        kv_metrics.kv_total_blocks)
++
++                logger.debug("Metircs successful.")
++
++        except asyncio.CancelledError:
++            logger.debug("Shutting down MQLLMEngineClient check metrics loop.")
++
++        except psutil.NoSuchProcess:
++            self._set_errored(
++                RuntimeError(
++                    f"Engine process (pid {self._engine_process.pid}) died."))
++
++        except Exception as e:
++            self._set_errored(e)
++
+     async def run_output_handler_loop(self):
+         """Get RequestOutputs from Engine and stream to Request Queues"""
+ 
+@@ -284,6 +335,12 @@ class MQLLMEngineClient(EngineClient):
+             if self.health_loop is None:
+                 self.health_loop = asyncio.create_task(
+                     self.run_heartbeat_loop(timeout=VLLM_RPC_TIMEOUT))
++                
++            # Start metrics_loop.
++            if self.metrics_loop is None:
++                self.metrics_loop = asyncio.create_task(
++                    self.run_metrics_loop(timeout=VLLM_RPC_TIMEOUT))
++
+ 
+     def close(self):
+         """Destroy the ZeroMQ Context."""
+@@ -293,6 +350,8 @@ class MQLLMEngineClient(EngineClient):
+         # Cancel background tasks.
+         if self.health_loop is not None:
+             self.health_loop.cancel()
++        if self.metrics_loop is not None:
++            self.metrics_loop.cancel()
+         if self.output_loop is not None:
+             self.output_loop.cancel()
+ 
+@@ -705,3 +764,6 @@ class MQLLMEngineClient(EngineClient):
+         # Raise on error, otherwise happily return None
+         if isinstance(request_output, BaseException):
+             raise request_output
++
++    def set_metrics_publisher(self, metrics_publisher):
++        self.metrics_publisher = metrics_publisher
+diff --git a/vllm/engine/multiprocessing/engine.py b/vllm/engine/multiprocessing/engine.py
+index a0dd7958..dc6ea25d 100644
+--- a/vllm/engine/multiprocessing/engine.py
++++ b/vllm/engine/multiprocessing/engine.py
+@@ -14,24 +14,56 @@ from vllm.engine.llm_engine import LLMEngine
+ # yapf: disable
+ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
+                                          IPC_HEALTH_EXT, IPC_INPUT_EXT,
+-                                         IPC_OUTPUT_EXT, REQUEST_OUTPUTS_T,
++                                         IPC_OUTPUT_EXT, IPC_METRICS_EXT,
++                                         REQUEST_OUTPUTS_T,
+                                          VLLM_RPC_SUCCESS_STR, RPCAbortRequest,
+                                          RPCAdapterLoadedResponse, RPCError,
+                                          RPCLoadAdapterRequest,
+                                          RPCProcessRequest,
+                                          RPCResetPrefixCacheRequest,
+                                          RPCStartupRequest, RPCStartupResponse,
+-                                         RPCUProfileRequest)
++                                         RPCUProfileRequest, KvMetrics)
+ # yapf: enable
+ from vllm.logger import init_logger
+ from vllm.outputs import RequestOutput
+ from vllm.usage.usage_lib import UsageContext
++from vllm.engine.metrics_types import StatLoggerBase, Stats, SupportsMetricsInfo
++from dataclasses import dataclass, field
+ 
+ logger = init_logger(__name__)
+ 
+ POLLING_TIMEOUT_MS = 10000
+ HEALTHY_RESPONSE = (pickle.dumps(VLLM_RPC_SUCCESS_STR), )
+ 
++class KvStatLogger(StatLoggerBase):
++    def __init__(
++        self,
++        max_num_seqs: int,
++        num_total_gpu_blocks: int,
++        metrics_socket
++    ):
++        # Must query initialized scheduler for max infos
++        self.request_total_slots = max_num_seqs
++        self.kv_total_blocks = num_total_gpu_blocks
++        self.metrics_socket = metrics_socket
++
++        # KV metrics
++        self._send_kv_metrics(0, 0)
++
++    def log(self, stats: Stats) -> None:
++        self._send_kv_metrics(
++            stats.num_running_sys,
++            int(stats.gpu_cache_usage_sys * self.kv_total_blocks)
++        )
++
++    def info(self, type: str, obj: SupportsMetricsInfo) -> None:
++        pass
++
++    def _send_kv_metrics(self, active_slots, active_kv_blocks):
++        if not self.metrics_socket.closed:
++            metrics_bytes = pickle.dumps(KvMetrics(active_slots, self.request_total_slots, active_kv_blocks, self.kv_total_blocks))
++            self.metrics_socket.send_multipart((metrics_bytes, ), copy=False)
++
+ 
+ class MQLLMEngine:
+     """A multiprocessing wrapper for :class:`LLMEngine`.
+@@ -94,12 +126,24 @@ class MQLLMEngine:
+         self.heartbeat_socket = self.ctx.socket(zmq.constants.PUSH)
+         self.heartbeat_socket.bind(f"{ipc_path}{IPC_HEALTH_EXT}")
+ 
++        # Send metrics back to client.
++        self.metrics_socket = self.ctx.socket(zmq.constants.PUSH)
++        self.metrics_socket.bind(f"{ipc_path}{IPC_METRICS_EXT}")
++
+         # IPC path for the data socket.
+         self.data_ipc_path = f"{ipc_path}{IPC_DATA_EXT}"
+ 
+         # Error state.
+         self._errored_with: Optional[BaseException] = None
+ 
++        # Attach logger for continuous metrics publishing
++        self.stat_logger = KvStatLogger(
++            self.engine.scheduler_config.max_num_seqs,
++            self.engine.cache_config.num_gpu_blocks,
++            self.metrics_socket
++        )
++        self.engine.add_logger("kv_metrics", self.stat_logger)
++
+     @property
+     def dead_error(self) -> BaseException:
+         if self._errored_with is not None:
 diff --git a/vllm/envs.py b/vllm/envs.py
-index 745b068b..438142e3 100644
+index 745b068b..0ae63d9b 100644
 --- a/vllm/envs.py
 +++ b/vllm/envs.py
-@@ -87,6 +87,8 @@ if TYPE_CHECKING:
+@@ -87,6 +87,10 @@ if TYPE_CHECKING:
      VLLM_ENABLE_MOE_ALIGN_BLOCK_SIZE_TRITON: bool = False
      VLLM_RAY_PER_WORKER_GPUS: float = 1.0
      VLLM_RAY_BUNDLE_INDICES: str = ""
 +    VLLM_KV_CAPI_PATH: Optional[str] = None
-+    VLLM_WORKER_ID: Optional[str] = None
++    VLLM_KV_NAMESPACE: Optional[str] = None
++    VLLM_KV_COMPONENT: Optional[str] = None
++    VLLM_WORKER_ID: Optional[int] = None
  
  
  def get_default_cache_root():
-@@ -572,6 +574,14 @@ environment_variables: Dict[str, Callable[[], Any]] = {
+@@ -572,6 +576,21 @@ environment_variables: Dict[str, Callable[[], Any]] = {
      # models the alignment is already naturally aligned to 256 bytes.
      "VLLM_CUDA_MEM_ALIGN_KV_CACHE":
      lambda: bool(int(os.getenv("VLLM_CUDA_MEM_ALIGN_KV_CACHE", "1"))),
@@ -1750,9 +2006,16 @@ index 745b068b..438142e3 100644
 +    "VLLM_KV_CAPI_PATH":
 +    lambda: os.environ.get("VLLM_KV_CAPI_PATH", None),
 +
++    # Identifiers to publish KV related information
++    "VLLM_KV_NAMESPACE":
++    lambda: os.environ.get("VLLM_KV_NAMESPACE", None),
++    "VLLM_KV_COMPONENT":
++    lambda: os.environ.get("VLLM_KV_COMPONENT", None),
++
 +    # Worker ID used for identifying workers in distributed settings
 +    "VLLM_WORKER_ID":
-+    lambda: os.getenv("VLLM_WORKER_ID", None),
++    lambda: int(os.getenv("VLLM_WORKER_ID", "0"))
++    if "VLLM_WORKER_ID" in os.environ else None,
  }
  
  # end-env-vars-definition
