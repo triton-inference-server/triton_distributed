@@ -640,7 +640,7 @@ data: [DONE]
 
     #[tokio::test]
     async fn test_openai_chat_stream() {
-        use crate::protocols::openai::chat_completions::ChatCompletionResponseDelta;
+        use crate::protocols::openai::chat_completions::NvCreateChatCompletionStreamResponse;
 
         // let cursor = Cursor::new(SAMPLE_CHAT_DATA);
         // let mut framed = FramedRead::new(cursor, SseLineCodec::new());
@@ -652,7 +652,7 @@ data: [DONE]
         loop {
             match stream.next().await {
                 Some(Ok(message)) => {
-                    let delta: ChatCompletionResponseDelta =
+                    let delta: NvCreateChatCompletionStreamResponse =
                         serde_json::from_str(&message.data.unwrap()).unwrap();
                     counter += 1;
                     println!("counter: {}", counter);

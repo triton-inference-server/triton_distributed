@@ -43,7 +43,7 @@ PYTHON_PACKAGE_VERSION=${current_tag:-$latest_tag.dev+$commit_id}
 # dependencies are specified in the /container/deps folder and
 # installed within framework specific sections of the Dockerfile.
 
-declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3)
+declare -A FRAMEWORKS=(["STANDARD"]=1 ["TENSORRTLLM"]=2 ["VLLM"]=3 ["VLLM_NIXL"]=4)
 DEFAULT_FRAMEWORK=STANDARD
 
 SOURCE_DIR=$(dirname "$(readlink -f "$0")")
@@ -65,10 +65,17 @@ TENSORRTLLM_BACKEND_REPO_TAG=triton-llm/v0.17.0
 # Set this as 1 to rebuild and replace trtllm backend bits in the container.
 # This will allow building triton distributed container image with custom
 # trt-llm backend repo branch.
-TENSORRTLLM_BACKEND_REBUILD=1
+TENSORRTLLM_BACKEND_REBUILD=0
+# Set this as 1 to skip cloning the trt-llm backend repo. If cloning is skipped, trt-llm
+# backend repo tag and rebuild flag will be ignored. Use this option if you are using
+# trtllm llmapi worker.
+TENSORRTLLM_SKIP_CLONE=0
 
 VLLM_BASE_IMAGE="nvcr.io/nvidia/cuda-dl-base"
 VLLM_BASE_IMAGE_TAG="25.01-cuda12.8-devel-ubuntu24.04"
+
+VLLM_NIXL_BASE_IMAGE="nvcr.io/nvidia/cuda-dl-base"
+VLLM_NIXL_BASE_IMAGE_TAG="25.01-cuda12.8-devel-ubuntu24.04"
 
 get_options() {
     while :; do
@@ -104,6 +111,14 @@ get_options() {
         --tensorrtllm-backend-rebuild)
             if [ "$2" ]; then
                 TRTLLM_BACKEND_REBUILD=$2
+                shift
+            else
+                missing_requirement $1
+            fi
+            ;;
+        --skip-clone-tensorrtllm)
+            if [ "$2" ]; then
+                TENSORRTLLM_SKIP_CLONE=$2
                 shift
             else
                 missing_requirement $1
@@ -163,6 +178,14 @@ get_options() {
         --cache-from)
             if [ "$2" ]; then
                 CACHE_FROM="--cache-from $2"
+                shift
+            else
+                missing_requirement $1
+            fi
+            ;;
+        --build-context)
+            if [ "$2" ]; then
+                BUILD_CONTEXT_ARG="--build-context $2"
                 shift
             else
                 missing_requirement $1
@@ -241,6 +264,7 @@ show_image_options() {
     if [[ $FRAMEWORK == "TENSORRTLLM" ]]; then
         echo "   Tensorrtllm Backend Repo Tag: '${TENSORRTLLM_BACKEND_REPO_TAG}'"
         echo "   Tensorrtllm Backend Rebuild: '${TENSORRTLLM_BACKEND_REBUILD}'"
+        echo "   Tensorrtllm Skip Clone: '${TENSORRTLLM_SKIP_CLONE}'"
     fi
     echo "   Build Context: '${BUILD_CONTEXT}'"
     echo "   Build Arguments: '${BUILD_ARGS}'"
@@ -256,10 +280,12 @@ show_help() {
     echo "  [--framework framework one of ${!FRAMEWORKS[@]}]"
     echo "  [--tensorrtllm-backend-repo-tag commit or tag]"
     echo "  [--tensorrtllm-backend-rebuild whether or not to rebuild the backend]"
+    echo "  [--skip-clone-tensorrtllm whether or not to skip cloning the trt-llm backend repo]"
     echo "  [--build-arg additional build args to pass to docker build]"
     echo "  [--tag tag for image]"
     echo "  [--no-cache disable docker build cache]"
     echo "  [--dry-run print docker commands without running]"
+    echo "  [--build-context name=path to add build context]"
     exit 0
 }
 
@@ -278,6 +304,8 @@ get_options "$@"
 # Update DOCKERFILE if framework is VLLM
 if [[ $FRAMEWORK == "VLLM" ]]; then
     DOCKERFILE=${SOURCE_DIR}/Dockerfile.vllm
+elif [[ $FRAMEWORK == "VLLM_NIXL" ]]; then
+    DOCKERFILE=${SOURCE_DIR}/Dockerfile.vllm_nixl
 fi
 
 # BUILD DEV IMAGE
@@ -295,6 +323,7 @@ fi
 if [[ $FRAMEWORK == "TENSORRTLLM" ]] && [ ! -z ${TENSORRTLLM_BACKEND_REPO_TAG} ]; then
     BUILD_ARGS+=" --build-arg TENSORRTLLM_BACKEND_REPO_TAG=${TENSORRTLLM_BACKEND_REPO_TAG} "
     BUILD_ARGS+=" --build-arg TENSORRTLLM_BACKEND_REBUILD=${TENSORRTLLM_BACKEND_REBUILD} "
+    BUILD_ARGS+=" --build-arg TENSORRTLLM_SKIP_CLONE=${TENSORRTLLM_SKIP_CLONE} "
 fi
 
 if [ ! -z ${HF_TOKEN} ]; then
@@ -312,7 +341,7 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $TAG $LATEST_TAG $BUILD_CONTEXT $NO_CACHE
+$RUN_PREFIX docker build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $TAG $LATEST_TAG $BUILD_CONTEXT_ARG $BUILD_CONTEXT $NO_CACHE
 
 { set +x; } 2>/dev/null
 

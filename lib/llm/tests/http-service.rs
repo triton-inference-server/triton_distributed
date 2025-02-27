@@ -26,7 +26,7 @@ use triton_distributed_llm::http::service::{
 };
 use triton_distributed_llm::protocols::{
     openai::{
-        chat_completions::{ChatCompletionRequest, ChatCompletionResponseDelta},
+        chat_completions::{NvCreateChatCompletionRequest, NvCreateChatCompletionStreamResponse},
         completions::{CompletionRequest, CompletionResponse},
     },
     Annotated,
@@ -44,22 +44,22 @@ struct CounterEngine {}
 #[async_trait]
 impl
     AsyncEngine<
-        SingleIn<ChatCompletionRequest>,
-        ManyOut<Annotated<ChatCompletionResponseDelta>>,
+        SingleIn<NvCreateChatCompletionRequest>,
+        ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>,
         Error,
     > for CounterEngine
 {
     async fn generate(
         &self,
-        request: SingleIn<ChatCompletionRequest>,
-    ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
+        request: SingleIn<NvCreateChatCompletionRequest>,
+    ) -> Result<ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>, Error> {
         let (request, context) = request.transfer(());
         let ctx = context.context();
 
         // ALLOW: max_tokens is deprecated in favor of completion_usage_tokens
         let max_tokens = request.inner.max_tokens.unwrap_or(0) as u64;
 
-        // let generator = ChatCompletionResponseDelta::generator(request.model.clone());
+        // let generator = NvCreateChatCompletionStreamResponse::generator(request.model.clone());
         let generator = request.response_generator();
 
         let stream = stream! {
@@ -67,7 +67,7 @@ impl
             for i in 0..10 {
                 let inner = generator.create_choice(i,Some(format!("choice {i}")), None, None);
 
-                let output = ChatCompletionResponseDelta {
+                let output = NvCreateChatCompletionStreamResponse {
                     inner,
                 };
 
@@ -84,15 +84,15 @@ struct AlwaysFailEngine {}
 #[async_trait]
 impl
     AsyncEngine<
-        SingleIn<ChatCompletionRequest>,
-        ManyOut<Annotated<ChatCompletionResponseDelta>>,
+        SingleIn<NvCreateChatCompletionRequest>,
+        ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>,
         Error,
     > for AlwaysFailEngine
 {
     async fn generate(
         &self,
-        _request: SingleIn<ChatCompletionRequest>,
-    ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
+        _request: SingleIn<NvCreateChatCompletionRequest>,
+    ) -> Result<ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>, Error> {
         Err(HttpError {
             code: 403,
             message: "Always fail".to_string(),
