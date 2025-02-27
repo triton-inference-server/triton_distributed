@@ -37,6 +37,8 @@ from compoundai import depends, nova_endpoint, service, tdist_context
         "enabled": True,
         "namespace": "triton-init",
     },
+    resources={"cpu": "10", "memory": "10Gi"},
+    workers=1
 )
 class Processor(ProcessMixIn):
     """
@@ -106,14 +108,10 @@ class Processor(ProcessMixIn):
             Tokens(tokens=engine_prompt["prompt_token_ids"]).model_dump_json()
         ):
             worker_id = worker
-            print("worker_id: ", worker_id)
             break
-        print(f"Worker ID: {worker_id}")
         runtime = tdist_context["runtime"]
         comp_ns, comp_name = VllmEngine.nova_address()
-        print("PROCESSOR COMPONENT NS: {} COMPONENT NAME: {}".format(comp_ns, comp_name))
         worker_client = await runtime.namespace(comp_ns).component(comp_name).endpoint("generate").client()
-        print("PROCESSOR WORKER CLIENT: ", worker_client)
         if worker_id == "":
             print("PROCESSOR using empty worker_id: ", worker_id)
             engine_generator = await worker_client.generate(

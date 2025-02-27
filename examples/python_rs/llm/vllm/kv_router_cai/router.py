@@ -39,6 +39,8 @@ class RoutingStrategy(Enum):
         "enabled": True,
         "namespace": "triton-init",
     },
+    resources={"cpu": "5", "memory": "10Gi"},
+    workers=1
 )
 class Router:
     """

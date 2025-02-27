@@ -18,13 +18,10 @@ import uuid
 
 import bentoml
 with bentoml.importing():
-    # from triton_distributed_rs import DistributedRuntime, triton_endpoint, triton_worker
     from vllm.engine.arg_utils import AsyncEngineArgs
     from vllm.logger import logger as vllm_logger
     from vllm.sampling_params import RequestOutputKind
     from common.base_engine import BaseVllmEngine
-
-    # from common.parser import parse_vllm_args
     from common.protocol import MyRequestOutput, vLLMGenerateRequest
 
 from compoundai import async_onstart, nova_endpoint, service, tdist_context
@@ -40,7 +37,8 @@ lease_id = None
         "enabled": True,
         "namespace": "triton-init",
     },
-    resources={"gpu": 1}
+    resources={"gpu": 1, "cpu": "5", "memory": "10Gi"},
+    workers=1
 )
 class VllmEngine(BaseVllmEngine):
     """
@@ -56,19 +54,20 @@ class VllmEngine(BaseVllmEngine):
             block_size=64,
             max_model_len=16384,
         )
-        print(f"VLLM worker tdist_context: {tdist_context}")
         VLLM_WORKER_ID = uuid.UUID(int=tdist_context["endpoints"][0].lease_id())
         os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
-        print(f"VLLM worker id: {VLLM_WORKER_ID}")
         vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
         super().__init__(self.engine_args)
 
-    @nova_endpoint()
-    async def generate(self, request: vLLMGenerateRequest):
+    @async_onstart
+    async def init_engine(self):
         if self.engine_client is None:
             await self.initialize()
             print("VLLM ENGINE INITIALIZED")
         assert self.engine_client is not None, "engine_client was not initialized"
+
+    @nova_endpoint()
+    async def generate(self, request: vLLMGenerateRequest):
         sampling_params = request.sampling_params
         # rust HTTP requires Delta streaming
         sampling_params.output_kind = RequestOutputKind.DELTA
@@ -78,7 +77,6 @@ class VllmEngine(BaseVllmEngine):
         ):
             # MyRequestOutput takes care of serializing the response as
             # vLLM's RequestOutput is not serializable by default
-            print("BEFORE VLLM ENGINE RESPONSE: ", response)
             resp = MyRequestOutput(
                 request_id=response.request_id,
                 prompt=response.prompt,
@@ -87,5 +85,4 @@ class VllmEngine(BaseVllmEngine):
                 outputs=response.outputs,
                 finished=response.finished,
             ).model_dump_json()
-            print("AFTER VLLM ENGINE RESPONSE: ", resp)
             yield resp
