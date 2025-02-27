@@ -21,7 +21,9 @@ import msgspec
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic_core import core_schema
 from typing_extensions import NotRequired
-from vllm import CompletionOutput, SamplingParams, TokensPrompt
+from vllm.inputs.data import TokensPrompt
+from vllm.outputs import CompletionOutput
+from vllm.sampling_params import SamplingParams
 from vllm.sequence import PromptLogprobs, RequestMetrics
 
 
