@@ -18,25 +18,25 @@ name: NVIDIA Test Lab Validation
 on:
   push:
     branches:
-    # - main
+    - main
 
   pull_request:
 
 jobs:
-  # mirror_repo:
-  #   name: Mirror Repository to GitLab
-  #   environment: GITLAB
-  #   runs-on: self-hosted
-  #   steps:
-  #   - name: Checkout repository
-  #     uses: actions/checkout@v4
-  #   - name: Sync Mirror Repository
-  #     run: ./.github/workflows/mirror_repo.sh ${{ secrets.TOKEN }} ${{ secrets.MIRROR_URL }}
+  mirror_repo:
+    name: Mirror Repository to GitLab
+    environment: GITLAB
+    runs-on: self-hosted
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Sync Mirror Repository
+      run: ./.github/workflows/mirror_repo.sh ${{ secrets.TOKEN }} ${{ secrets.MIRROR_URL }}
 
   trigger-ci:
     name: Trigger CI Pipeline
     environment: GITLAB
-    # needs: mirror_repo
+    needs: mirror_repo
     runs-on: self-hosted
     steps:
     - name: Checkout repository
