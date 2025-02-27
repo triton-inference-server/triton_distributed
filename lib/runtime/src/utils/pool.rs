@@ -19,7 +19,9 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use tokio::sync::{Mutex, Notify};
 
+/// Trait for items that can be returned to a pool
 pub trait Returnable: Send + Sync + 'static {
+    /// Called when an item is returned to the pool
     fn on_return(&mut self) {}
 }
 
@@ -56,7 +58,7 @@ impl<T: Returnable> PoolValue<T> {
         }
     }
 
-    /// Reset the underlying item
+    /// Call on_return on the underlying item
     pub fn on_return(&mut self) {
         self.get_mut().on_return();
     }
@@ -95,14 +97,122 @@ pub trait PoolExt<T: Returnable>: Clone + Send + Sync + 'static {
 
     /// Create a new PoolItem (only available to implementors)
     fn create_pool_item(&self, value: PoolValue<T>) -> PoolItem<T, Self> {
-        PoolItem {
+        PoolItem::new(value, self.clone())
+    }
+}
+
+/// An item borrowed from a pool
+pub struct PoolItem<T: Returnable, P: PoolExt<T>> {
+    value: Option<PoolValue<T>>,
+    pool: P,
+    _token: private::PoolItemToken,
+}
+
+impl<T: Returnable, P: PoolExt<T>> PoolItem<T, P> {
+    /// Create a new PoolItem (only available within this module)
+    fn new(value: PoolValue<T>, pool: P) -> Self {
+        Self {
             value: Some(value),
-            pool: self.clone(),
+            pool,
             _token: private::PoolItemToken::new(),
+        }
+    }
+
+    /// Convert this unique PoolItem into a shared reference
+    pub fn into_shared(self) -> SharedPoolItem<T, P> {
+        SharedPoolItem {
+            inner: Arc::new(self),
+        }
+    }
+
+    /// Return this item to a different pool
+    pub async fn return_to_different_pool<P2: PoolExt<T>>(mut self, other_pool: &P2) {
+        if let Some(mut value) = self.value.take() {
+            value.on_return();
+            other_pool.return_to_pool(value).await;
+            other_pool.notify_return();
+            // Prevent the original drop from happening
+            std::mem::forget(self);
+        }
+    }
+
+    /// Get a reference to the pool this item belongs to
+    pub fn pool(&self) -> &P {
+        &self.pool
+    }
+
+    /// Check if this item still contains a value
+    pub fn has_value(&self) -> bool {
+        self.value.is_some()
+    }
+}
+
+impl<T: Returnable, P: PoolExt<T>> Deref for PoolItem<T, P> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.value.as_ref().unwrap().get()
+    }
+}
+
+impl<T: Returnable, P: PoolExt<T>> DerefMut for PoolItem<T, P> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.value.as_mut().unwrap().get_mut()
+    }
+}
+
+impl<T: Returnable, P: PoolExt<T>> Drop for PoolItem<T, P> {
+    fn drop(&mut self) {
+        if let Some(mut value) = self.value.take() {
+            value.on_return();
+            // Use blocking version for drop
+            futures::executor::block_on(self.pool.return_to_pool(value));
+            self.pool.notify_return();
         }
     }
 }
 
+/// A shared reference to a pooled item
+#[derive(Clone)]
+pub struct SharedPoolItem<T: Returnable, P: PoolExt<T>> {
+    inner: Arc<PoolItem<T, P>>,
+}
+
+impl<T: Returnable, P: PoolExt<T>> SharedPoolItem<T, P> {
+    /// Get a reference to the underlying item
+    pub fn get(&self) -> &T {
+        self.inner.value.as_ref().unwrap().get()
+    }
+
+    /// Get a reference to the pool this item belongs to
+    pub fn pool(&self) -> &P {
+        &self.inner.pool
+    }
+
+    /// Return this shared item to a different pool
+    pub async fn return_to_different_pool<P2: PoolExt<T>>(self, other_pool: &P2) -> bool {
+        // Only return if we're the last reference
+        if Arc::strong_count(&self.inner) == 1 {
+            if let Some(mut value) = Arc::get_mut(&mut self.inner.clone()).unwrap().value.take() {
+                value.on_return();
+                other_pool.return_to_pool(value).await;
+                other_pool.notify_return();
+                return true;
+            }
+        }
+        false
+    }
+}
+
+impl<T: Returnable, P: PoolExt<T>> Deref for SharedPoolItem<T, P> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.value.as_ref().unwrap().get()
+    }
+}
+
+/// Standard pool implementation
 pub struct Pool<T: Returnable> {
     pool: Arc<Mutex<VecDeque<PoolValue<T>>>>,
     available: Arc<Notify>,
@@ -179,93 +289,6 @@ impl<T: Returnable> Clone for Pool<T> {
             available: Arc::clone(&self.available),
             capacity: self.capacity,
         }
-    }
-}
-
-pub struct PoolItem<T: Returnable, P: PoolExt<T>> {
-    value: Option<PoolValue<T>>,
-    pool: P,
-    // Private token that can only be created within this module
-    _token: private::PoolItemToken,
-}
-
-impl<T: Returnable, P: PoolExt<T>> PoolItem<T, P> {
-    /// Convert this unique PoolItem into a shared reference
-    pub fn into_shared(self) -> SharedPoolItem<T, P> {
-        SharedPoolItem {
-            inner: Arc::new(self),
-        }
-    }
-
-    /// Return this item to a different pool
-    pub async fn return_to_different_pool<P2: PoolExt<T>>(mut self, other_pool: &P2) {
-        if let Some(mut value) = self.value.take() {
-            value.on_return();
-            other_pool.return_to_pool(value).await;
-            other_pool.notify_return();
-            // Prevent the original drop from happening
-            std::mem::forget(self);
-        }
-    }
-}
-
-impl<T: Returnable, P: PoolExt<T>> Deref for PoolItem<T, P> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.value.as_ref().unwrap().get()
-    }
-}
-
-impl<T: Returnable, P: PoolExt<T>> DerefMut for PoolItem<T, P> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.value.as_mut().unwrap().get_mut()
-    }
-}
-
-impl<T: Returnable, P: PoolExt<T>> Drop for PoolItem<T, P> {
-    fn drop(&mut self) {
-        if let Some(mut value) = self.value.take() {
-            value.on_return();
-            // Use blocking version for drop
-            futures::executor::block_on(self.pool.return_to_pool(value));
-            self.pool.notify_return();
-        }
-    }
-}
-
-/// A shared reference to a pooled item
-#[derive(Clone)]
-pub struct SharedPoolItem<T: Returnable, P: PoolExt<T>> {
-    inner: Arc<PoolItem<T, P>>,
-}
-
-impl<T: Returnable, P: PoolExt<T>> SharedPoolItem<T, P> {
-    /// Get a reference to the underlying item
-    pub fn get(&self) -> &T {
-        self.inner.value.as_ref().unwrap().get()
-    }
-
-    /// Return this shared item to a different pool
-    pub async fn return_to_different_pool<P2: PoolExt<T>>(self, other_pool: &P2) -> bool {
-        // Only return if we're the last reference
-        if Arc::strong_count(&self.inner) == 1 {
-            if let Some(mut value) = Arc::get_mut(&mut self.inner.clone()).unwrap().value.take() {
-                value.on_return();
-                other_pool.return_to_pool(value).await;
-                other_pool.notify_return();
-                return true;
-            }
-        }
-        false
-    }
-}
-
-impl<T: Returnable, P: PoolExt<T>> Deref for SharedPoolItem<T, P> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.inner.value.as_ref().unwrap().get()
     }
 }
 
