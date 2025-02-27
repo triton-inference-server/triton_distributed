@@ -84,8 +84,7 @@ def add_path_filter(ci_options, vllm_filter):
     """
     Add path filter result to CI options
     """
-    print(f"VLLM filter: {vllm_filter}")
-    if vllm_filter:
+    if vllm_filter == 'true':
         print(f"Detected changes in VLLM path filter")
         ci_options["RUN_VLLM"] = True
     return ci_options
@@ -104,18 +103,26 @@ def run_ci(ref, ci_options):
             "Missing required environment variables: PIPELINE_TOKEN and/or PIPELINE_URL"
         )
 
-    # Prepare form data
-    form_data = {
+    # Convert boolean values to strings
+    variables = {}
+    for key, value in ci_options.items():
+        variables[key] = str(value).lower() if isinstance(value, bool) else str(value)
+
+    # Prepare request data as JSON
+    json_data = {
         "token": pipeline_token,
         "ref": ref,
-        "variables": {}
+        "variables": variables
     }
 
-    # Add CI options to form data as variables
-    for key, value in ci_options.items():
-        form_data["variables"][key] = str(value).lower() if isinstance(value, bool) else value
+    # Send the request as JSON
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(pipeline_url, json=json_data, headers=headers)
 
-    response = requests.post(pipeline_url, data=form_data)
+    # Print response for debugging
+    print(f"Response status code: {response.status_code}")
+    print(f"Response content: {response.text}")
+
     response.raise_for_status()
     print(f"CI pipeline triggered successfully: {response.text}")
 
