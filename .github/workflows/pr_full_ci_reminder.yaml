@@ -20,7 +20,11 @@ on:
 jobs:
   pr_reminder:
     if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-
+    permissions:
+      actions: read
+      issues: write
+      pull-requests: write
+    
     runs-on: ubuntu-latest
     steps:
       - name: Reminder to run full CI on PR
