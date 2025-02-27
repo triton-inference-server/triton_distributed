@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{ChatCompletionResponseDelta, NvCreateChatCompletionRequest};
+use super::{NvCreateChatCompletionRequest, NvCreateChatCompletionStreamResponse};
 use crate::protocols::common;
 
 impl NvCreateChatCompletionRequest {
@@ -135,11 +135,13 @@ impl DeltaGenerator {
     }
 }
 
-impl crate::protocols::openai::DeltaGeneratorExt<ChatCompletionResponseDelta> for DeltaGenerator {
+impl crate::protocols::openai::DeltaGeneratorExt<NvCreateChatCompletionStreamResponse>
+    for DeltaGenerator
+{
     fn choice_from_postprocessor(
         &mut self,
         delta: crate::protocols::common::llm_backend::BackendOutput,
-    ) -> anyhow::Result<ChatCompletionResponseDelta> {
+    ) -> anyhow::Result<NvCreateChatCompletionStreamResponse> {
         // aggregate usage
         if self.options.enable_usage {
             self.usage.completion_tokens += delta.token_ids.len() as u32;
@@ -163,7 +165,7 @@ impl crate::protocols::openai::DeltaGeneratorExt<ChatCompletionResponseDelta> fo
         let index = 0;
         let stream_response = self.create_choice(index, delta.text, finish_reason, logprobs);
 
-        Ok(ChatCompletionResponseDelta {
+        Ok(NvCreateChatCompletionStreamResponse {
             inner: stream_response,
         })
     }

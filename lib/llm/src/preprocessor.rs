@@ -44,7 +44,7 @@ use triton_distributed_runtime::protocols::annotated::{Annotated, AnnotationsPro
 use crate::protocols::{
     common::{SamplingOptionsProvider, StopConditionsProvider},
     openai::{
-        chat_completions::{ChatCompletionResponseDelta, NvCreateChatCompletionRequest},
+        chat_completions::{NvCreateChatCompletionRequest, NvCreateChatCompletionStreamResponse},
         completions::{CompletionRequest, CompletionResponse},
         nvext::NvExtProvider,
         DeltaGeneratorExt,
@@ -225,7 +225,7 @@ impl OpenAIPreprocessor {
 
                     tracing::trace!(
                         request_id = inner.context.id(),
-                        "OpenAI ChatCompletionResponseDelta: {:?}",
+                        "OpenAI NvCreateChatCompletionStreamResponse: {:?}",
                         response
                     );
 
@@ -252,7 +252,7 @@ impl OpenAIPreprocessor {
 impl
     Operator<
         SingleIn<NvCreateChatCompletionRequest>,
-        ManyOut<Annotated<ChatCompletionResponseDelta>>,
+        ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>,
         SingleIn<BackendInput>,
         ManyOut<Annotated<BackendOutput>>,
     > for OpenAIPreprocessor
@@ -263,7 +263,7 @@ impl
         next: Arc<
             dyn AsyncEngine<SingleIn<BackendInput>, ManyOut<Annotated<BackendOutput>>, Error>,
         >,
-    ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
+    ) -> Result<ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>, Error> {
         // unpack the request
         let (request, context) = request.into_parts();
 
@@ -281,7 +281,7 @@ impl
         let common_request = context.map(|_| common_request);
 
         // create a stream of annotations this will be prepend to the response stream
-        let annotations: Vec<Annotated<ChatCompletionResponseDelta>> = annotations
+        let annotations: Vec<Annotated<NvCreateChatCompletionStreamResponse>> = annotations
             .into_iter()
             .flat_map(|(k, v)| Annotated::from_annotation(k, &v))
             .collect();

@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{ChatCompletionResponseDelta, NvCreateChatCompletionResponse};
+use super::{NvCreateChatCompletionResponse, NvCreateChatCompletionStreamResponse};
 use crate::protocols::{
     codec::{Message, SseCodecError},
     convert_sse_stream, Annotated,
@@ -24,7 +24,7 @@ use std::{collections::HashMap, pin::Pin};
 
 type DataStream<T> = Pin<Box<dyn Stream<Item = T> + Send + Sync>>;
 
-/// Aggregates a stream of [`ChatCompletionResponseDelta`]s into a single [`ChatCompletionResponse`].
+/// Aggregates a stream of [`NvCreateChatCompletionStreamResponse`]s into a single [`NvCreateChatCompletionResponse`].
 pub struct DeltaAggregator {
     id: String,
     model: String,
@@ -66,9 +66,9 @@ impl DeltaAggregator {
         }
     }
 
-    /// Aggregates a stream of [`ChatCompletionResponseDelta`]s into a single [`ChatCompletionResponse`].
+    /// Aggregates a stream of [`NvCreateChatCompletionStreamResponse`]s into a single [`NvCreateChatCompletionResponse`].
     pub async fn apply(
-        stream: DataStream<Annotated<ChatCompletionResponseDelta>>,
+        stream: DataStream<Annotated<NvCreateChatCompletionStreamResponse>>,
     ) -> Result<NvCreateChatCompletionResponse, String> {
         let aggregator = stream
             .fold(DeltaAggregator::new(), |mut aggregator, delta| async move {
@@ -184,12 +184,12 @@ impl NvCreateChatCompletionResponse {
     pub async fn from_sse_stream(
         stream: DataStream<Result<Message, SseCodecError>>,
     ) -> Result<NvCreateChatCompletionResponse, String> {
-        let stream = convert_sse_stream::<ChatCompletionResponseDelta>(stream);
+        let stream = convert_sse_stream::<NvCreateChatCompletionStreamResponse>(stream);
         NvCreateChatCompletionResponse::from_annotated_stream(stream).await
     }
 
     pub async fn from_annotated_stream(
-        stream: DataStream<Annotated<ChatCompletionResponseDelta>>,
+        stream: DataStream<Annotated<NvCreateChatCompletionStreamResponse>>,
     ) -> Result<NvCreateChatCompletionResponse, String> {
         DeltaAggregator::apply(stream).await
     }
@@ -207,7 +207,7 @@ mod tests {
         text: &str,
         role: Option<async_openai::types::Role>,
         finish_reason: Option<async_openai::types::FinishReason>,
-    ) -> Annotated<ChatCompletionResponseDelta> {
+    ) -> Annotated<NvCreateChatCompletionStreamResponse> {
         // ALLOW: function_call is deprecated
         let delta = async_openai::types::ChatCompletionStreamResponseDelta {
             content: Some(text.to_string()),
@@ -234,7 +234,7 @@ mod tests {
             object: "chat.completion".to_string(),
         };
 
-        let data = ChatCompletionResponseDelta { inner };
+        let data = NvCreateChatCompletionStreamResponse { inner };
 
         Annotated {
             data: Some(data),
@@ -247,7 +247,8 @@ mod tests {
     #[tokio::test]
     async fn test_empty_stream() {
         // Create an empty stream
-        let stream: DataStream<Annotated<ChatCompletionResponseDelta>> = Box::pin(stream::empty());
+        let stream: DataStream<Annotated<NvCreateChatCompletionStreamResponse>> =
+            Box::pin(stream::empty());
 
         // Call DeltaAggregator::apply
         let result = DeltaAggregator::apply(stream).await;
@@ -375,7 +376,7 @@ mod tests {
             object: "chat.completion".to_string(),
         };
 
-        let data = ChatCompletionResponseDelta { inner: delta };
+        let data = NvCreateChatCompletionStreamResponse { inner: delta };
 
         // Wrap it in Annotated and create a stream
         let annotated_delta = Annotated {

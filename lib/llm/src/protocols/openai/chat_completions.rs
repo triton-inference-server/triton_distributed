@@ -47,7 +47,7 @@ pub struct ChatCompletionContent {
 }
 
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
-pub struct ChatCompletionResponseDelta {
+pub struct NvCreateChatCompletionStreamResponse {
     #[serde(flatten)]
     pub inner: async_openai::types::CreateChatCompletionStreamResponse,
 }
