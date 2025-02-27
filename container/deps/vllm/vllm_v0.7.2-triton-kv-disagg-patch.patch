@@ -133,6 +133,18 @@ index 359b5b26..d52ee050 100644
  
          self._swap_mapping: Dict[int, int] = {}
          self._null_block: Optional[Block] = None
+diff --git a/vllm/core/block/naive_block.py b/vllm/core/block/naive_block.py
+index c388366b..c1883736 100644
+--- a/vllm/core/block/naive_block.py
++++ b/vllm/core/block/naive_block.py
+@@ -135,6 +135,7 @@ class NaiveBlockAllocator(BlockAllocator):
+             raise BlockAllocator.NoFreeBlocksError()
+ 
+         block_id = self._free_block_indices.popleft()
++        # TODO: figure out why sometime block_id is None
+         self._refcounter.incr(block_id)
+         return block_id
+ 
 diff --git a/vllm/core/block/prefix_caching_block.py b/vllm/core/block/prefix_caching_block.py
 index 1ca9e49d..b1591c0c 100644
 --- a/vllm/core/block/prefix_caching_block.py
@@ -595,11 +607,10 @@ index f507847a..446b0421 100644
                        seq_group: SequenceGroup,
 diff --git a/vllm/distributed/device_communicators/nixl.py b/vllm/distributed/device_communicators/nixl.py
 new file mode 100644
-index 00000000..fdee9b09
+index 00000000..bc962726
 --- /dev/null
 +++ b/vllm/distributed/device_communicators/nixl.py
-@@ -0,0 +1,255 @@
-+import nixl_bindings as nixl
+@@ -0,0 +1,249 @@
 +import torch
 +from typing import List, Tuple
 +from vllm.config import VllmConfig
@@ -607,9 +618,38 @@ index 00000000..fdee9b09
 +import msgspec
 +import time
 +import uuid
-+from nixl_wrapper import nixl_wrapper
++from nixl_wrapper import nixl_wrapper as NixlWrapper
 +
 +logger = init_logger(__name__)
++
++
++def nixl_wrapper_init_patch(self, agent_name, nixl_config):
++    logger.info("Initializing patched NixlWrapper")
++    import nixl_bindings as nixl
++    # Read available backends and device info from nixl_config
++    # For now setting the multithreading to enabled.
++    devices = nixl.nixlAgentConfig(False)
++    init = nixl.nixlUcxInitParams()
++
++    self.name = agent_name
++    self.notifs = {}
++    self.backends = {}
++    self.agent = nixl.nixlAgent(agent_name, devices)
++    self.backends["UCX"] = self.agent.createBackend(init)
++
++    self.nixl_mems = {"DRAM":       nixl.DRAM_SEG,
++                        "VRAM":       nixl.VRAM_SEG,
++                        "cpu":        nixl.DRAM_SEG,
++                        "cuda":       nixl.VRAM_SEG}
++    self.nixl_ops = {"WRITE":       nixl.NIXL_WR_FLUSH,
++                        "READ":        nixl.NIXL_RD_FLUSH,
++                        "WRITE_NOTIF": nixl.NIXL_WR_NOTIF,
++                        "READ_NOTIF":  nixl.NIXL_RD_NOTIF}
++
++    print("Initializied NIXL agent:", agent_name)
++
++NixlWrapper.__init__ = nixl_wrapper_init_patch
++
 +
 +
 +class NixlMetadata(
@@ -625,7 +665,7 @@ index 00000000..fdee9b09
 +class TritonNixlConnector:
 +    def __init__(self, vllm_config: VllmConfig, engine_id: str, rank: int):
 +        self.vllm_config = vllm_config
-+        self.nixl_wrapper = nixl_wrapper(str(uuid.uuid4()), None)
++        self.nixl_wrapper = NixlWrapper(str(uuid.uuid4()), None)
 +
 +        self.num_layers = None
 +        self.num_blocks = None
@@ -644,7 +684,7 @@ index 00000000..fdee9b09
 +        return self.nixl_wrapper.name
 +
 +    def register_kv_caches(self, kv_caches: List[torch.Tensor]):
-+        caches = []
++        caches_data = []
 +        self.num_layers = len(kv_caches)
 +        _, _, block_size, num_heads, head_dim = kv_caches[0].shape
 +        self.block_len = block_size * num_heads * head_dim * kv_caches[0].element_size()
@@ -652,11 +692,16 @@ index 00000000..fdee9b09
 +
 +        kv_caches_base_addr = []
 +        for key_cache, value_cache in kv_caches:
-+            caches.extend([key_cache, value_cache])
++            for cache in [key_cache, value_cache]:
++                base_addr = cache.data_ptr()
++                region_len = cache.numel() * cache.element_size()
++                gpu_id = cache.get_device()
++                assert gpu_id > -1, "Tensor is not on GPU"
++                caches_data.append((base_addr, region_len, gpu_id))
 +            kv_caches_base_addr.append((key_cache.data_ptr(), value_cache.data_ptr()))
 +        self.kv_caches_base_addr[self.engine_id] = kv_caches_base_addr
 +
-+        descs = get_descs(caches)
++        descs = self.nixl_wrapper.get_descs(("VRAM", caches_data))
 +        self.nixl_wrapper.register_memory(descs)
 +        self._registered_descs.append(descs)
 +
@@ -669,27 +714,10 @@ index 00000000..fdee9b09
 +        for agent_name in self._remote_agents.values():
 +            self.nixl_wrapper.remove_remote_agent(agent_name)
 +
-+
 +    def add_remote_agent(self, engine_id, agent_metadata):
 +        agent_name = self.nixl_wrapper.add_remote_agent(agent_metadata)
 +        self._remote_agents[engine_id] = agent_name
 +        return agent_name
-+
-+
-+    def get_blocks_descs(self, engine_id, layer_ids, block_ids, overlap_check=False):
-+        logger.debug("Getting blocks descs for layer_ids %s and block_ids %s", layer_ids, block_ids)
-+        if layer_ids == "all":
-+            layer_ids = list(range(self.num_layers))
-+        if block_ids == "all":
-+            block_ids = list(range(self.num_blocks))
-+        blocks_data = []
-+        for layer_id in layer_ids:
-+            key_base_addr, value_base_addr = self.kv_caches_base_addr[engine_id][layer_id]
-+            for block_id in block_ids:
-+                offset = block_id * self.block_len
-+                blocks_data.append((key_base_addr + offset, self.block_len, self.rank))
-+                blocks_data.append((value_base_addr + offset, self.block_len, self.rank))
-+        return get_descs(blocks_data, overlap_check=overlap_check)
 +    
 +    def get_descs_ids(self, layer_ids, block_ids):
 +        if layer_ids == "all":
@@ -703,9 +731,8 @@ index 00000000..fdee9b09
 +                descs_ids.append(2 * (self.num_blocks * layer_id + block_id))
 +                descs_ids.append(2 * (self.num_blocks * layer_id + block_id) + 1)
 +        return descs_ids
-+    
 +
-+    def _get_range_descs(self, engine_id, ranges, layer_ids, overlap_check=False):
++    def _get_range_descs(self, engine_id, ranges, layer_ids):
 +        if layer_ids == "all":
 +            layer_ids = list(range(self.num_layers))
 +        blocks_data = []
@@ -716,9 +743,8 @@ index 00000000..fdee9b09
 +                blocks_len = (range_end - range_start + 1) * self.block_len
 +                blocks_data.append((key_base_addr + start_offset, blocks_len, self.rank))
 +                blocks_data.append((value_base_addr + start_offset, blocks_len, self.rank))
-+        return get_descs(blocks_data, overlap_check=overlap_check)
++        return self.nixl_wrapper.get_descs(("VRAM", blocks_data))
 +    
-+
 +    def _get_ranges(self, block_ids):
 +        # This function should return a list of ranges of block ids that are contiguous
 +        # For example, if block_ids is [0, 1, 2, 4, 5, 6], the function should return [[0, 2], [4, 6]]
@@ -778,6 +804,13 @@ index 00000000..fdee9b09
 +
 +        start_time = time.perf_counter()
 +        logger.debug("Transferring memory from %s to %s with notify message %s", self.agent_name, dst_engine_id, notify_msg)
++
++        # hongkuanz: we send isl[:-1] tokens to the prefill where the kv for the last
++        # isl[-1] token is calculated in the first iteration in decode.
++        # If isl equals to a multiple of tokens_per_block + 1, prefill engine will have \
++        # one less block due to the missing last token.
++        dst_block_ids = dst_block_ids[:len(src_block_ids)]
++
 +        src_ranges = self._get_ranges(src_block_ids)
 +        dst_ranges = self._get_ranges(dst_block_ids)
 +        src_overlapping_ranges, dst_overlapping_ranges = self._get_same_length_ranges(src_ranges, dst_ranges)
@@ -791,7 +824,6 @@ index 00000000..fdee9b09
 +
 +        logger.debug("Time to get descs: %s ms", (time.perf_counter() - start_time) * 1000)
 +
-+        # TODO ptarasiewicz hongkuanz: on large datasets the handle is sometimes 0x00000000 which crashed the transfer
 +        handle = self.nixl_wrapper.initialize_xfer(src_descs, dst_descs, self._remote_agents[dst_engine_id], notify_msg, "WRITE")
 +        logger.debug("Time to initialize xfer: %s ms", (time.perf_counter() - start_time) * 1000)
 +        logger.debug("Transfer handle: %s", handle)
@@ -828,33 +860,6 @@ index 00000000..fdee9b09
 +    
 +    def add_remote_kv_caches_base_addr(self, engine_id, kv_caches_base_addr):
 +        self.kv_caches_base_addr[engine_id] = kv_caches_base_addr
-+
-+def get_descs(args, ram_seg=nixl.VRAM_SEG, overlap_check=True):
-+    logger.debug("Getting descs for %s descs, ram_seg: %s, overlap_check: %s", len(args), ram_seg, overlap_check)
-+    start_time = time.perf_counter()
-+    descs = nixl.nixlDescList(ram_seg, True, False)
-+    for arg in args:
-+        if isinstance(arg, torch.Tensor):
-+            base_addr = arg.data_ptr()
-+            region_len = arg.numel() * arg.element_size()
-+            gpu_id = arg.get_device()
-+            if (gpu_id==-1): # DRAM
-+                assert ram_seg == nixl.DRAM_SEG
-+                gpu_id = 0
-+            descs.addDesc(nixl.nixlBasicDesc(base_addr, region_len, gpu_id), overlap_check)
-+
-+
-+        elif isinstance(arg, tuple):
-+            base_addr, region_len, gpu_id = arg
-+            descs.addDesc(nixl.nixlBasicDesc(base_addr, region_len, gpu_id), overlap_check)
-+
-+        else:
-+            raise ValueError(f"Unsupported argument type: {type(arg)}")
-+        
-+    logger.debug("Time to get descs: %s ms", (time.perf_counter() - start_time) * 1000)
-+
-+    return descs
-\ No newline at end of file
 diff --git a/vllm/distributed/kv_transfer/kv_connector/factory.py b/vllm/distributed/kv_transfer/kv_connector/factory.py
 index fe480533..61a357d0 100644
 --- a/vllm/distributed/kv_transfer/kv_connector/factory.py
