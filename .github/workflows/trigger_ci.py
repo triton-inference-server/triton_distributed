@@ -66,9 +66,8 @@ def extract_options_from_commit(commit_message):
             normalized_key = key.replace("-", "_").upper()
 
             if normalized_key not in ALLOWED_CI_OPTIONS:
-                raise ValueError(
-                    f"Invalid CI option: '{key}'.\n\nAllowed options are:\n{sorted(ALLOWED_CI_OPTIONS)}"
-                )
+                print(f"Warning: Ignoring invalid CI option: '{key}'. Not in allowed options list {ALLOWED_CI_OPTIONS}.")
+                continue
 
             # Validate option type
             option_type = ALLOWED_CI_OPTIONS[normalized_key]["type"]
