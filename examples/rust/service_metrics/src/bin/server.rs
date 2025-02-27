@@ -67,19 +67,20 @@ async fn backend(runtime: DistributedRuntime) -> Result<()> {
 
     // make the ingress discoverable via a component service
     // we must first create a service, then we can attach one more more endpoints
+
     runtime
         .namespace(DEFAULT_NAMESPACE)?
         .component("backend")?
         .service_builder()
-        // Dummy stats handler to demonstrate how to attach a custom stats handler
-        .stats_handler(Some(Box::new(|_name, _stats| {
-            let stats = MyStats { val: 10 };
-            serde_json::to_value(stats).unwrap()
-        })))
         .create()
         .await?
         .endpoint("generate")
         .endpoint_builder()
+        .stats_handler(|stats| {
+            println!("stats: {:?}", stats);
+            let stats = MyStats { val: 10 };
+            serde_json::to_value(stats).unwrap()
+        })
         .handler(ingress)
         .start()
         .await

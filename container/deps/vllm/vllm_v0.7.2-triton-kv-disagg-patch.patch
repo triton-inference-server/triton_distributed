@@ -368,7 +368,7 @@ index 00000000..350453cd
 +
 +        self.event_id_counter += 1
 diff --git a/vllm/core/scheduler.py b/vllm/core/scheduler.py
-index f507847a..446b0421 100644
+index f507847a..ee20d50c 100644
 --- a/vllm/core/scheduler.py
 +++ b/vllm/core/scheduler.py
 @@ -8,18 +8,17 @@ from collections import deque
@@ -532,7 +532,7 @@ index f507847a..446b0421 100644
 +    def _schedule(self, finished_prefills: Optional[Set[str]] = None) -> SchedulerOutputs:
          """Schedule queued requests."""
          if self.scheduler_config.chunked_prefill_enabled:
-+            if finished_prefills is not None:
++            if finished_prefills:
 +                raise ValueError("Chunked prefill does not support remote prefills")
              return self._schedule_chunked_prefill()
          else:

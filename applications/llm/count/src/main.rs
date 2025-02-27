@@ -92,13 +92,13 @@ pub struct LLMWorkerLoadCapacity {
 
 fn main() -> Result<()> {
     logging::init();
-    let args = Args::parse();
     let worker = Worker::from_settings()?;
-    worker.execute(|runtime| app(runtime, args))
+    worker.execute(app)
 }
 
 // TODO - refactor much of this back into the library
-async fn app(runtime: Runtime, args: Args) -> Result<()> {
+async fn app(runtime: Runtime) -> Result<()> {
+    let args = Args::parse();
     // we will start by assuming that there is no oscar and no planner
     // to that end, we will use CLI args to get a singular config for scraping a single backend
     let config = get_config(&args)?;
