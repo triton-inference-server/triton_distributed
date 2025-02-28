@@ -21,6 +21,7 @@ from typing import TypeVar, Any, Optional, Dict, Tuple, List
 
 from _bentoml_sdk import Service, ServiceConfig
 from _bentoml_sdk.images import Image
+
 from compoundai.sdk.decorators import NovaEndpoint
 
 T = TypeVar("T", bound=object)

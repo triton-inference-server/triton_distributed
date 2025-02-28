@@ -18,6 +18,7 @@ from typing import TypeVar, Any, Optional, Dict
 
 from _bentoml_sdk.service import Service
 from _bentoml_sdk.service.dependency import Dependency
+
 from compoundai.sdk.service import CompoundService
 
 T = TypeVar("T")

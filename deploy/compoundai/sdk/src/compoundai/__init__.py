@@ -13,6 +13,5 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from compoundai.sdk.service import service
 from compoundai.sdk.dependency import depends
-from bentoml._internal.context import server_context
+from compoundai.sdk.service import service
