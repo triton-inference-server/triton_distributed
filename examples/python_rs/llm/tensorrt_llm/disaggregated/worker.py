@@ -23,7 +23,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import uvloop
 from common.parser import parse_tensorrt_llm_args
-from common.processor import (
+from common.disagg_processor import (
     ChatProcessor,
     CompletionsProcessor,
     parse_chat_message_content,
@@ -234,13 +234,18 @@ class TensorrtLLMEngine:
             ):
                 logger.debug(f"Generated response: {response}")
                 if self.server_config.type == "ctx":
-                    yield DisaggregatedResponse(
-                        text=response.outputs[0].text,
-                        disaggregated_params=response.outputs[0].disaggregated_params,
-                    ).model_dump_json()
+                    disaggregated_response = self.chat_processor.get_chat_stream_response(
+                        request.id,
+                        response,
+                        first_iteration=True,
+                    )
+                    disaggregated_response.disaggregated_params = response.outputs[0].disaggregated_params
+                    yield disaggregated_response.model_dump_json()
                 else:
-                    yield DisaggregatedResponse(
-                        text=response.outputs[0].text
+                    yield self.chat_processor.get_chat_stream_response(
+                        request.id,
+                        response,
+                        first_iteration=True,
                     ).model_dump_json()
 
         except CppExecutorError:

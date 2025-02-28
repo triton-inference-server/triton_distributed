@@ -36,8 +36,7 @@ class DisaggChatStreamCompletionResponse(ChatCompletionStreamResponse):
     model_config = ConfigDict(extra="allow")
 
 
-class DisaggregatedResponse(BaseModel):
-    text: str
+class DisaggregatedResponse(ChatCompletionStreamResponse):
     disaggregated_params: DisaggregatedParams = {}
 
 
