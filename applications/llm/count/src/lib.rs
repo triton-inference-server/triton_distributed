@@ -19,16 +19,22 @@ pub struct LLMWorkerLoadCapacityConfig {
     pub endpoint_name: String,
 }
 
+// TODO: This is _really_ close to the async_nats::service::Stats object,
+// but it's missing a few fields like "name", so use a temporary struct
+// for easy deserialization. Ideally, this type already exists or can
+// be exposed in the library somewhere.
 /// Stats structure returned from NATS service API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StatsWithData {
+    // Standard NATS Service API fields
     pub average_processing_time: f64,
-    pub data: serde_json::Value,
     pub last_error: String,
     pub num_errors: u64,
     pub num_requests: u64,
     pub processing_time: u64,
     pub queue_group: String,
+    // Field containing custom stats handler data
+    pub data: serde_json::Value,
 }
 
 /// Prometheus metrics server for exposing metrics
@@ -54,6 +60,7 @@ impl PrometheusMetricsServer {
             String::from_utf8(buffer).unwrap()
         });
 
+        // TODO: Use axum instead of warp for consistency and less dependencies
         let server = warp::serve(metrics_route).run(([0, 0, 0, 0], port));
         tokio::spawn(server);
         tracing::info!("Prometheus metrics server started on port {}", port);
@@ -173,7 +180,7 @@ pub async fn collect_endpoints(
 pub fn extract_metrics(endpoints: &[EndpointInfo]) -> Vec<ForwardPassMetrics> {
     let endpoint_data = endpoints.iter().map(|e| e.data.clone()).collect::<Vec<_>>();
 
-    // Extract StatsWithData
+    // Extract StatsWithData objects from endpoint services
     let stats: Vec<StatsWithData> = endpoint_data
         .iter()
         .filter_map(|e| {
@@ -206,7 +213,7 @@ pub fn postprocess_metrics(
     metrics: &[ForwardPassMetrics],
     endpoints: &[EndpointInfo],
 ) -> ProcessedEndpoints {
-    let endpoints_for_router: Vec<Endpoint> = metrics
+    let processed_endpoints: Vec<Endpoint> = metrics
         .iter()
         .zip(endpoints.iter())
         .filter_map(|(m, e)| {
@@ -218,5 +225,5 @@ pub fn postprocess_metrics(
         })
         .collect();
 
-    ProcessedEndpoints::new(endpoints_for_router)
+    ProcessedEndpoints::new(processed_endpoints)
 }
