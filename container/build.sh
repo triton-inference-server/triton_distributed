@@ -183,6 +183,14 @@ get_options() {
                 missing_requirement $1
             fi
             ;;
+        --cache-to)
+            if [ "$2" ]; then
+                CACHE_TO="--cache-to $2"
+                shift
+            else
+                missing_requirement $1
+            fi
+            ;;
         --build-context)
             if [ "$2" ]; then
                 BUILD_CONTEXT_ARG="--build-context $2"
@@ -282,6 +290,8 @@ show_help() {
     echo "  [--tensorrtllm-backend-rebuild whether or not to rebuild the backend]"
     echo "  [--skip-clone-tensorrtllm whether or not to skip cloning the trt-llm backend repo]"
     echo "  [--build-arg additional build args to pass to docker build]"
+    echo "  [--cache-from cache location to start from]"
+    echo "  [--cache-to location where to cache the build output]"
     echo "  [--tag tag for image]"
     echo "  [--no-cache disable docker build cache]"
     echo "  [--dry-run print docker commands without running]"
@@ -341,7 +351,7 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $TAG $LATEST_TAG $BUILD_CONTEXT_ARG $BUILD_CONTEXT $NO_CACHE
+$RUN_PREFIX docker buildx build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $CACHE_TO --output type=docker $TAG $LATEST_TAG $BUILD_CONTEXT_ARG $BUILD_CONTEXT $NO_CACHE
 
 { set +x; } 2>/dev/null
 
