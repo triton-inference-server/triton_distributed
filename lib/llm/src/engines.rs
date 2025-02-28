@@ -21,3 +21,6 @@ pub mod sglang;
 
 #[cfg(feature = "llamacpp")]
 pub mod llamacpp;
+
+#[cfg(feature = "vllm")]
+pub mod vllm;

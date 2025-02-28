@@ -83,6 +83,10 @@ pub enum Output {
     #[cfg(feature = "llamacpp")]
     /// Run inference using llama.cpp
     LlamaCpp,
+
+    #[cfg(feature = "vllm")]
+    /// Run inference using vllm's engine
+    Vllm,
 }
 
 impl TryFrom<&str> for Output {
@@ -98,6 +102,9 @@ impl TryFrom<&str> for Output {
 
             #[cfg(feature = "llamacpp")]
             "llamacpp" | "llama_cpp" => Ok(Output::LlamaCpp),
+
+            #[cfg(feature = "vllm")]
+            "vllm" => Ok(Output::Vllm),
 
             "echo_full" => Ok(Output::EchoFull),
             "echo_core" => Ok(Output::EchoCore),
@@ -123,6 +130,9 @@ impl fmt::Display for Output {
 
             #[cfg(feature = "llamacpp")]
             Output::LlamaCpp => "llamacpp",
+
+            #[cfg(feature = "vllm")]
+            Output::Vllm => "vllm",
 
             Output::EchoFull => "echo_full",
             Output::EchoCore => "echo_core",
