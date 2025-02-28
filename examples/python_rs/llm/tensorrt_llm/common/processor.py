@@ -17,6 +17,7 @@ import json
 import time
 from typing import Any, AsyncGenerator, AsyncIterator, Dict, List, Tuple, TypedDict
 
+from common.protocol import DisaggregatedResponse
 from openai.types.chat import ChatCompletionMessageParam
 from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
@@ -34,7 +35,6 @@ from tensorrt_llm.serve.openai_protocol import (
     CompletionResponse,
     CompletionResponseChoice,
     CompletionResponseStreamChoice,
-    CompletionStreamResponse,
     DeltaMessage,
     FunctionCall,
     ToolCall,
@@ -357,6 +357,7 @@ class CompletionsProcessor:
         request: CompletionRequest,
         generator: AsyncIterator[Tuple[int, RequestOutput]],
         num_choices: int,
+        disagg_request: bool = False,
     ):
         num_repsonse_per_request = 1 if request.n is None else request.n
         echoed = [False] * num_choices
@@ -368,8 +369,9 @@ class CompletionsProcessor:
                 if request.echo and not echoed[response_idx]:
                     delta_text = prompt + delta_text
                     echoed[response_idx] = True
-                response = CompletionStreamResponse(
+                response = DisaggregatedResponse(
                     model=self.model,
+                    text=delta_text,
                     choices=[
                         CompletionResponseStreamChoice(
                             index=response_idx,
@@ -379,6 +381,8 @@ class CompletionsProcessor:
                         )
                     ],
                 )
+                if disagg_request:
+                    response.disaggregated_params = output.disaggregated_params
                 response_json = response.model_dump_json(exclude_unset=False)
                 yield response_json
 

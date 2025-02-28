@@ -19,14 +19,12 @@ from enum import Enum
 
 import uvloop
 from common.processor import ChatProcessor
-from common.protocol import (
-    DisaggChatCompletionRequest,
-    DisaggChatStreamCompletionResponse,
-    DisaggregatedResponse,
-    nvCompletionRequest,
-)
+from common.protocol import DisaggregatedResponse
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (
+    ChatCompletionRequest,
+    ChatCompletionStreamResponse,
+    CompletionRequest,
     CompletionStreamResponse,
     DisaggregatedParams,
 )
@@ -67,27 +65,16 @@ class Router:
         request.add_special_tokens = False
         request.spaces_between_special_tokens = False
 
-        if request_type == RequestType.CHAT:
-            disaggregated_request = DisaggChatCompletionRequest(**request.model_dump())
-        else:
-            disaggregated_request = nvCompletionRequest(**request.model_dump())
+        logger.debug(f"Received request {request}")
 
-        logger.debug(f"Received request {disaggregated_request}")
+        gen_req = copy.deepcopy(request)
 
-        gen_req = copy.deepcopy(disaggregated_request)
-
-        disaggregated_request.max_tokens = 1
-        disaggregated_request.disaggregated_params = DisaggregatedParams(
-            request_type="context_only"
-        )
-        logger.debug(
-            f"[router] Sending request to context server: {disaggregated_request}"
-        )
+        request.max_tokens = 1
+        request.disaggregated_params = DisaggregatedParams(request_type="context_only")
+        logger.debug(f"[router] Sending request to context server: {request}")
         ctx_resp = [
             resp
-            async for resp in await ctx_client.round_robin(
-                disaggregated_request.model_dump_json()
-            )
+            async for resp in await ctx_client.round_robin(request.model_dump_json())
         ]
         if len(ctx_resp) > 1:
             raise ValueError(
@@ -109,7 +96,7 @@ class Router:
             logger.debug(f"[router] Got response from generation server: {response}")
             yield response
 
-    @triton_endpoint(nvCompletionRequest, CompletionStreamResponse)
+    @triton_endpoint(CompletionRequest, CompletionStreamResponse)
     async def generate_completion(self, request):
         yield self.generate(
             request,
@@ -118,7 +105,7 @@ class Router:
             RequestType.COMPLETION,
         )
 
-    @triton_endpoint(DisaggChatCompletionRequest, DisaggChatStreamCompletionResponse)
+    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate_chat(self, request):
         yield self.generate(
             request, self.ctx_chat_client, self.gen_chat_client, RequestType.CHAT
@@ -146,26 +133,10 @@ async def worker(runtime: DistributedRuntime):
         .endpoint("completions")
         .client()
     )
-    ctx_chat_client = (
-        await runtime.namespace("triton-init")
-        .component("tensorrt-llm-ctx")
-        .endpoint("chat/completions")
-        .client()
-    )
-    gen_chat_client = (
-        await runtime.namespace("triton-init")
-        .component("tensorrt-llm-gen")
-        .endpoint("chat/completions")
-        .client()
-    )
 
-    chat_endpoint = component.endpoint("chat/completions")
     completions_endpoint = component.endpoint("completions")
-    router = Router(
-        ctx_chat_client, gen_chat_client, ctx_completion_client, gen_completion_client
-    )
+    router = Router(None, None, ctx_completion_client, gen_completion_client)
     await asyncio.gather(
-        chat_endpoint.serve_endpoint(router.generate),
         completions_endpoint.serve_endpoint(router.generate_completion),
     )
 
