@@ -19,18 +19,27 @@ import signal
 import threading
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Optional, Tuple
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 import uvloop
-from common.chat_processor import ChatProcessor, parse_chat_message_content
 from common.parser import parse_tensorrt_llm_args
+from common.processor import (
+    ChatProcessor,
+    CompletionsProcessor,
+    merge_promises,
+    parse_chat_message_content,
+)
 from tensorrt_llm._torch import LLM
 from tensorrt_llm._torch.pyexecutor.config import PyTorchConfig
 from tensorrt_llm.executor import CppExecutorError
+from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
+    CompletionRequest,
+    CompletionStreamResponse,
 )
 from transformers import AutoTokenizer
 
@@ -41,6 +50,11 @@ from triton_distributed.runtime import (
 )
 
 logger.set_level("info")
+
+
+class RequestType(Enum):
+    CHAT = "chat"
+    COMPLETION = "completion"
 
 
 class TensorrtLLMEngine:
@@ -57,8 +71,8 @@ class TensorrtLLMEngine:
             self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(self.model)
-
         self.chat_processor = ChatProcessor(self.model, self.tokenizer)
+        self.completions_processor = CompletionsProcessor(self.model)
 
     def _init_engine(self):
         logger.info("Initializing engine")
@@ -148,8 +162,7 @@ class TensorrtLLMEngine:
         self._llm_engine = None
         logger.info("Shutdown complete")
 
-    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
-    async def generate(self, request):
+    async def _generate_chat(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
 
@@ -187,12 +200,11 @@ class TensorrtLLMEngine:
                     response_generator = self.chat_processor.stream_response(
                         request, request_id, conversation, promise
                     )
-                    async for response in response_generator:
-                        yield response
+                    return response_generator
+
                 else:
-                    raise RuntimeError("Streaming is not supported")
-            else:
-                raise RuntimeError("Engine not initialized")
+                    # TODO: Implement non-streaming chat completion
+                    raise RuntimeError("Non-streaming is not supported")
         except CppExecutorError:
             # If internal executor error is raised, shutdown the server
             signal.raise_signal(signal.SIGINT)
@@ -200,6 +212,70 @@ class TensorrtLLMEngine:
             raise RuntimeError("Failed to generate: " + str(e))
         finally:
             self._ongoing_request_count -= 1
+
+    async def _generate_completions(self, request):
+        if self._llm_engine is None:
+            raise RuntimeError("Engine not initialized")
+
+        self._ongoing_request_count += 1
+        logger.debug(f"Received request: {request}")
+
+        if isinstance(request, str):
+            request = CompletionRequest.parse_raw(request)
+        if isinstance(request.prompt, str) or (
+            isinstance(request.prompt, list) and isinstance(request.prompt[0], int)
+        ):
+            prompts = [request.prompt]
+        else:
+            prompts = request.prompt
+
+        promises: List[RequestOutput] = []
+        sampling_params = request.to_sampling_params()
+        disaggregated_params = request.to_llm_disaggregated_params()
+
+        for prompt in prompts:
+            promise = self._llm_engine.generate_async(
+                prompt,
+                sampling_params,
+                streaming=request.stream,
+                disaggregated_params=disaggregated_params,
+            )
+            promises.append(promise)
+
+        generator = merge_promises(promises)
+        num_choices = len(prompts) if request.n is None else len(prompts) * request.n
+        if request.stream:
+            response_generator = self.completions_processor.create_completion_generator(
+                request, generator, num_choices
+            )
+            return response_generator
+        else:
+            # TODO: Implement non-streaming completion
+            # response = await self.chat_processor.create_completion_response(
+            #    request, generator, num_choices
+            # )
+            # yield response
+            raise RuntimeError("Non-streaming is not supported")
+
+        self._ongoing_request_count -= 1
+
+    async def _generate(self, raw_request, request_type: RequestType):
+        if request_type == RequestType.CHAT:
+            return self._generate_chat(raw_request)
+        elif request_type == RequestType.COMPLETION:
+            return self._generate_completions(raw_request)
+        else:
+            raise NotImplementedError(f"Request type {request_type} not implemented")
+
+    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
+    async def generate_chat(self, raw_request):
+        async for response in self._generate(raw_request, RequestType.CHAT):
+            yield response
+
+    @triton_endpoint(CompletionRequest, CompletionStreamResponse)
+    async def generate_completion(self, raw_request):
+        async for response in self._generate(raw_request, RequestType.COMPLETION):
+            yield response
 
 
 @triton_worker()
@@ -213,8 +289,15 @@ async def worker(
     component = runtime.namespace("triton-init").component("tensorrt-llm")
     await component.create_service()
 
-    endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(TensorrtLLMEngine(engine_args).generate)
+    chat_endpoint = component.endpoint("chat/completions")
+    completions_endpoint = component.endpoint("completions")
+
+    engine = TensorrtLLMEngine(engine_args)
+
+    await asyncio.gather(
+        chat_endpoint.serve_endpoint(engine.generate_chat),
+        completions_endpoint.serve_endpoint(engine.generate_completion),
+    )
 
 
 if __name__ == "__main__":

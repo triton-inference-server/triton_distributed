@@ -19,10 +19,8 @@ import os
 import threading
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Tuple
-import json
 
 import uvloop
-from common.chat_processor import ChatProcessor, merge_promises
 from common.parser import parse_tensorrt_llm_args
 from mpi4py.futures import MPICommExecutor
 from mpi4py.MPI import COMM_WORLD
@@ -38,13 +36,13 @@ from tensorrt_llm.llmapi.disagg_utils import (
 )
 from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
-from tensorrt_llm.serve.openai_protocol import CompletionRequest, CompletionResponse
+from tensorrt_llm.serve.openai_protocol import CompletionRequest
 
-from triton_distributed.runtime import (
-    DistributedRuntime,
-    triton_endpoint,
-    triton_worker,
+from examples.python_rs.llm.tensorrt_llm.common.processor import (
+    ChatProcessor,
+    merge_promises,
 )
+from triton_distributed.runtime import DistributedRuntime, triton_worker
 
 logger.set_level("debug")
 
@@ -174,7 +172,7 @@ class TensorrtLLMEngine:
         self._llm_engine = None
         logger.info("Shutdown complete")
 
-    #@triton_endpoint(CompletionRequest, CompletionResponse)
+    # @triton_endpoint(CompletionRequest, CompletionResponse)
     async def generate(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
@@ -195,7 +193,9 @@ class TensorrtLLMEngine:
         sampling_params = request.to_sampling_params()
         disaggregated_params = request.to_llm_disaggregated_params()
 
-        logger.debug(f"Received request Tanmyyyyy: going to call generate async for context")
+        logger.debug(
+            "Received request Tanmyyyyy: going to call generate async for context"
+        )
         for prompt in prompts:
             promise = self._llm_engine.generate_async(
                 prompt,

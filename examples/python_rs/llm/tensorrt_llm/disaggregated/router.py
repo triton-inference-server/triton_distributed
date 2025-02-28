@@ -13,11 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import argparse
 import asyncio
 import copy
-from dataclasses import asdict
+import json
 from typing import List
 
 import uvloop

@@ -72,30 +72,6 @@ def parse_chat_message_content(
     return [ConversationMessage(role=role, content=text_prompt)]
 
 
-def merge_promises(
-    promises: List[RequestOutput],
-) -> AsyncIterator[Tuple[int, RequestOutput]]:
-    outputs = asyncio.Queue()
-    finished = [False] * len(promises)
-
-    async def producer(i: int, promise: RequestOutput):
-        async for output in promise:
-            await outputs.put((i, output))
-        finished[i] = True
-
-    _tasks = [
-        asyncio.create_task(producer(i, promise)) for i, promise in enumerate(promises)
-    ]
-
-    async def consumer():
-        while not all(finished) or not outputs.empty():
-            item = await outputs.get()
-            yield item
-        await asyncio.gather(*_tasks)
-
-    return consumer()
-
-
 class ChatProcessor:
     def __init__(self, model: str, tokenizer: AutoTokenizer):
         self.model = model
@@ -344,6 +320,35 @@ class ChatProcessor:
         )
         return response
 
+
+def merge_promises(
+    promises: List[RequestOutput],
+) -> AsyncIterator[Tuple[int, RequestOutput]]:
+    outputs = asyncio.Queue()
+    finished = [False] * len(promises)
+
+    async def producer(i: int, promise: RequestOutput):
+        async for output in promise:
+            await outputs.put((i, output))
+        finished[i] = True
+
+    _tasks = [
+        asyncio.create_task(producer(i, promise)) for i, promise in enumerate(promises)
+    ]
+
+    async def consumer():
+        while not all(finished) or not outputs.empty():
+            item = await outputs.get()
+            yield item
+        await asyncio.gather(*_tasks)
+
+    return consumer()
+
+
+class CompletionsProcessor:
+    def __init__(self, model: str):
+        self.model = model
+
     async def create_completion_generator(
         self,
         request: CompletionRequest,
@@ -381,7 +386,6 @@ class ChatProcessor:
         generator: AsyncIterator[Tuple[int, RequestOutput]],
         num_choices: int,
     ):
-        print("Creating completion response")
         choices = [None] * num_choices
         num_repsonse_per_request = 1 if request.n is None else request.n
         num_prompt_tokens = num_gen_tokens = 0
@@ -397,7 +401,6 @@ class ChatProcessor:
                 disaggregated_params = CompletionResponseChoice.to_disaggregated_params(
                     output.disaggregated_params
                 )
-                print(f"passing dissag params {disaggregated_params}")
                 choice = CompletionResponseChoice(
                     index=idx,
                     text=output_text,
