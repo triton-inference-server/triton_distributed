@@ -244,7 +244,7 @@ pub fn extract_metrics(endpoints: &[EndpointInfo]) -> Vec<ForwardPassMetrics> {
         .iter()
         .filter_map(|e| {
             let metrics_data = e.as_ref()?;
-            serde_json::from_value::<StatsWithData>(metrics_data.0.clone()).ok()
+            metrics_data.clone().decode::<StatsWithData>().ok()
         })
         .collect();
     tracing::debug!("Stats: {stats:?}");
