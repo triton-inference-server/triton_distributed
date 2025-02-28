@@ -21,3 +21,4 @@ pytest-cov
 pytest-md-report
 pytest-mypy
 pytest-timeout
+types-requests
