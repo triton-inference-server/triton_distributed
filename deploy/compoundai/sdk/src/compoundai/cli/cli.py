@@ -32,7 +32,7 @@ def create_bentoml_cli() -> click.Command:
     from bentoml_cli.models import model_command
     from bentoml_cli.secret import secret_command
     from compoundai.cli.serve import serve_command
-    from bentoml_cli.start import start_command
+    from compoundai.cli.start import start_command
     from bentoml_cli.utils import BentoMLCommandGroup
     from bentoml_cli.utils import get_entry_points
 
@@ -78,7 +78,6 @@ def create_bentoml_cli() -> click.Command:
 
 
 cli = create_bentoml_cli()
-
 
 if __name__ == "__main__":
     cli()

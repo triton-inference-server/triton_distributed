@@ -13,10 +13,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from compoundai.sdk.service import service
+from compoundai import api
 from compoundai.sdk.decorators import nova_endpoint
 from compoundai.sdk.dependency import depends
-from compoundai import api
+from compoundai.sdk.service import service
 
 """
 Pipeline Architecture:
@@ -71,7 +71,7 @@ class Backend:
 )
 class Middle:
     backend = depends(Backend)
-    
+
     def __init__(self) -> None:
         print("Starting middle")
 
@@ -91,7 +91,7 @@ class Middle:
 )
 class Frontend:
     middle = depends(Middle)
-    
+
     def __init__(self) -> None:
         print("Starting frontend")
 
@@ -100,4 +100,4 @@ class Frontend:
         """Stream results from the pipeline."""
         print(f"Frontend received: {text}")
         async for response in self.middle.generate(text):
-            yield f"Frontend: {response}" 
+            yield f"Frontend: {response}"

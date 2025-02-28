@@ -16,23 +16,25 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import os
-import typing as t
 import random
 import string
+import typing as t
+from typing import Any
+
 import click
 from triton_distributed_rs import triton_worker, DistributedRuntime, triton_endpoint
-from typing import Any
-import inspect
-
 
 logger = logging.getLogger("compoundai.serve.nova")
+
 
 def generate_run_id():
     """Generate a random 6-character run ID"""
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
 
 @click.command()
 @click.argument("bento_identifier", type=click.STRING, required=False, default=".")
@@ -44,9 +46,9 @@ def generate_run_id():
     help="JSON string of runners map, default sets to envars `BENTOML_RUNNER_MAP`",
 )
 @click.option(
-    "--worker-env", 
-    type=click.STRING, 
-    default=None, 
+    "--worker-env",
+    type=click.STRING,
+    default=None,
     help="Environment variables"
 )
 @click.option(
@@ -57,11 +59,11 @@ def generate_run_id():
     help="If set, start the server as a bare worker with the given worker ID. Otherwise start a standalone server with a supervisor process.",
 )
 def main(
-    bento_identifier: str,
-    service_name: str,
-    runner_map: str | None,
-    worker_env: str | None,
-    worker_id: int | None,
+        bento_identifier: str,
+        service_name: str,
+        runner_map: str | None,
+        worker_env: str | None,
+        worker_id: int | None,
 ) -> None:
     """Start a worker for the given service - either Nova or regular service"""
     from _bentoml_impl.loader import import_service
@@ -70,6 +72,9 @@ def main(
     from bentoml._internal.log import configure_server_logging
 
     run_id = generate_run_id()
+
+    # print the contents of the environment variable BENTOML_RUNNER_MAP
+    print(f"BENTOML_RUNNER_MAP: {os.environ['BENTOML_RUNNER_MAP']}")
 
     # Import service first to check configuration
     service = import_service(bento_identifier)
@@ -99,7 +104,7 @@ def main(
         if worker_id is not None:
             server_context.worker_index = worker_id
         class_instance = service.inner()
-        
+
         @triton_worker()
         async def worker(runtime: DistributedRuntime):
             if service_name and service_name != service.name:
@@ -113,7 +118,7 @@ def main(
             namespace, component_name = service.nova_address()
             logger.info(f"[{run_id}] Registering component {namespace}/{component_name}")
             component = runtime.namespace(namespace).component(component_name)
-            
+
             try:
                 # Create service first
                 await component.create_service()
@@ -164,6 +169,7 @@ def main(
                 raise
 
         asyncio.run(worker())
+
 
 if __name__ == "__main__":
     main()
