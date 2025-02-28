@@ -618,10 +618,8 @@ index 00000000..bc962726
 +import msgspec
 +import time
 +import uuid
-+from nixl_wrapper import nixl_wrapper as NixlWrapper
 +
 +logger = init_logger(__name__)
-+
 +
 +def nixl_wrapper_init_patch(self, agent_name, nixl_config):
 +    logger.info("Initializing patched NixlWrapper")
@@ -646,9 +644,17 @@ index 00000000..bc962726
 +                        "WRITE_NOTIF": nixl.NIXL_WR_NOTIF,
 +                        "READ_NOTIF":  nixl.NIXL_RD_NOTIF}
 +
-+    print("Initializied NIXL agent:", agent_name)
++    logger.info("Initializied NIXL agent: %s", agent_name)
 +
-+NixlWrapper.__init__ = nixl_wrapper_init_patch
++
++# Lazy import nixl_wrapper to avoid loading nixl_bindings if nixl is not used
++try:
++    from nixl_wrapper import nixl_wrapper as NixlWrapper # type: ignore
++    logger.info("NIXL is available")
++    NixlWrapper.__init__ = nixl_wrapper_init_patch
++except ImportError:
++    logger.warning("NIXL is not available")
++    NixlWrapper = None
 +
 +
 +
@@ -665,6 +671,10 @@ index 00000000..bc962726
 +class TritonNixlConnector:
 +    def __init__(self, vllm_config: VllmConfig, engine_id: str, rank: int):
 +        self.vllm_config = vllm_config
++        if NixlWrapper is None:
++            logger.error("NIXL is not available")
++            raise RuntimeError("NIXL is not available")
++        logger.info("Initializing NIXL wrapper")
 +        self.nixl_wrapper = NixlWrapper(str(uuid.uuid4()), None)
 +
 +        self.num_layers = None
