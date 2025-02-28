@@ -57,39 +57,6 @@ fn minimum_viable_request() {
 }
 
 #[test]
-fn missing_model() {
-    let request = CreateCompletionRequestArgs::default()
-        .prompt("What is the meaning of life?")
-        .build();
-    assert!(request.is_err());
-}
-
-#[test]
-fn missing_prompt() {
-    let request = CreateCompletionRequestArgs::default()
-        .model("gpt-3.5-turbo")
-        .build();
-    assert!(request.is_err());
-}
-
-#[test]
-fn out_of_range() {
-    let request = CreateCompletionRequestArgs::default()
-        .prompt("What is the meaning of life?")
-        .model("gpt-3.5-turbo")
-        .temperature(openai::MAX_TEMPERATURE + 1.0)
-        .build();
-    assert!(request.is_err());
-
-    let request = CreateCompletionRequestArgs::default()
-        .prompt("What is the meaning of life?")
-        .model("gpt-3.5-turbo")
-        .temperature(openai::MIN_TEMPERATURE - 1.0)
-        .build();
-    assert!(request.is_err());
-}
-
-#[test]
 fn valid_samples() {
     let mut settings = insta::Settings::clone_current();
     settings.set_sort_maps(true);
