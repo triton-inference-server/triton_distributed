@@ -13,17 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(feature = "mistralrs")]
-pub mod mistralrs;
+use super::kv::ForwardPassMetrics;
+use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "sglang")]
-pub mod sglang;
-
-#[cfg(feature = "llamacpp")]
-pub mod llamacpp;
-
-#[cfg(feature = "vllm")]
-pub mod vllm;
-
-#[cfg(feature = "trtllm")]
-pub mod trtllm;
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IterStats {
+    pub stats: Vec<ForwardPassMetrics>,
+}
