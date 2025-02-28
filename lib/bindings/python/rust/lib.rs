@@ -63,8 +63,14 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Endpoint>()?;
     m.add_class::<Client>()?;
     m.add_class::<AsyncResponseStream>()?;
+    m.add_class::<TritonLlmResult>()?;
     m.add_class::<llm::kv::KvRouter>()?;
     m.add_class::<llm::kv::KvMetricsPublisher>()?;
+
+    // functions
+    m.add_function(wrap_pyfunction!(llm::events::triton_llm_event_init, m)?)?;
+    m.add_function(wrap_pyfunction!(llm::events::triton_kv_event_publish_stored, m)?)?;
+    m.add_function(wrap_pyfunction!(llm::events::triton_kv_event_publish_removed, m)?)?;
 
     engine::add_to_module(m)?;
 
@@ -116,6 +122,13 @@ struct Endpoint {
 #[derive(Clone)]
 struct Client {
     inner: rs::component::Client<serde_json::Value, serde_json::Value>,
+}
+
+#[pyclass]
+#[derive(Clone)]
+enum TritonLlmResult {
+    OK,
+    ERR,
 }
 
 #[pymethods]
