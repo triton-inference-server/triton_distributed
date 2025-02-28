@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import json
 import argparse
 import asyncio
 import copy
@@ -38,7 +38,7 @@ from triton_distributed.runtime import (
     triton_worker,
 )
 
-logger.set_level("info")
+logger.set_level("debug")
 
 
 class Router:
@@ -51,6 +51,7 @@ class Router:
 
     @triton_endpoint(CompletionRequest, CompletionResponse)
     async def generate(self, request):
+        logger.debug(f"Received request {request}")
         gen_req = copy.deepcopy(request)
 
         if not isinstance(request.prompt, str) and not isinstance(
@@ -60,11 +61,16 @@ class Router:
                 "Disaggregated server currently only supports single prompt in request"
             )
 
-        # Send request to context server
+        # Send request to context serve
+        # These settings are needed to satisfy request checks.
         request.max_tokens = 1
-        request.disaggregated_params = asdict(
-            DisaggregatedParams(request_type="context_only")
-        )
+        request.skip_special_tokens = False
+        request.add_special_tokens = False
+        request.spaces_between_special_tokens = False
+
+        gen_req = copy.deepcopy(request)
+
+        request.disaggregated_params = DisaggregatedParams(request_type="context_only")
 
         ctx_resp = [
             resp
@@ -72,19 +78,23 @@ class Router:
                 request.model_dump_json()
             )
         ]
-        if len(ctx_resp) > 1:
+        if len(ctx_resp) > 2:
             raise ValueError(
                 "Context server returned more than one response. This is currently not supported in disaggregated server."
             )
 
-        ctx_response = ctx_resp[0]
+        logger.debug(f"Tanmaybbbbccsdfd {ctx_resp[0].data()}")
+        ddata = ctx_resp[0].data()
+        ctx_response = json.loads(ddata)
         # TODO: Context server should skip de-tokenization and return raw tokens
-        choices = ctx_response.choices
+        logger.debug(f"Tanmaybbbbccsdfd2222 {ddata}")
+        logger.debug(f"datatype {type(ddata)}")
+        choices = ctx_response["choices"]
         if len(choices) > 1:
             raise ValueError(
                 "Disagg server returned more than one choice. This is currently not supported in disaggregated server."
             )
-        if choices[0].disaggregated_params is None:
+        if choices[0]["disaggregated_params"] is None:
             raise ValueError("Context server did not return disaggregated params")
 
         if request.stream:

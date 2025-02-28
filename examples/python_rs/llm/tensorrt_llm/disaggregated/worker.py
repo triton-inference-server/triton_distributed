@@ -19,6 +19,7 @@ import os
 import threading
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Tuple
+import json
 
 import uvloop
 from common.chat_processor import ChatProcessor, merge_promises
@@ -45,7 +46,7 @@ from triton_distributed.runtime import (
     triton_worker,
 )
 
-logger.set_level("info")
+logger.set_level("debug")
 
 
 class TensorrtLLMEngine:
@@ -173,13 +174,15 @@ class TensorrtLLMEngine:
         self._llm_engine = None
         logger.info("Shutdown complete")
 
-    @triton_endpoint(CompletionRequest, CompletionResponse)
+    #@triton_endpoint(CompletionRequest, CompletionResponse)
     async def generate(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
 
         self._ongoing_request_count += 1
-        logger.debug(f"Received request: {request}")
+        logger.debug(f"Received request Tanmyyyyy: {request}")
+        if isinstance(request, str):
+            request = CompletionRequest.parse_raw(request)
         if isinstance(request.prompt, str) or (
             isinstance(request.prompt, list) and isinstance(request.prompt[0], int)
         ):
@@ -187,10 +190,12 @@ class TensorrtLLMEngine:
         else:
             prompts = request.prompt
 
+        logger.debug(f"got the prompt Tanmyyyyy: {prompts}")
         promises: List[RequestOutput] = []
         sampling_params = request.to_sampling_params()
         disaggregated_params = request.to_llm_disaggregated_params()
 
+        logger.debug(f"Received request Tanmyyyyy: going to call generate async for context")
         for prompt in prompts:
             promise = self._llm_engine.generate_async(
                 prompt,
@@ -202,11 +207,12 @@ class TensorrtLLMEngine:
 
         generator = merge_promises(promises)
         num_choices = len(prompts) if request.n is None else len(prompts) * request.n
-        if request.stream:
+        if False:
             response_generator = self.chat_processor.create_completion_generator(
                 request, generator, num_choices
             )
             async for response in response_generator:
+                logger.debug(f"yielding response {response}")
                 yield response
         else:
             response = await self.chat_processor.create_completion_response(

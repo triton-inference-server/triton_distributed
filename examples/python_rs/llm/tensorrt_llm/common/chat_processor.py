@@ -372,8 +372,8 @@ class ChatProcessor:
                     ],
                 )
                 response_json = response.model_dump_json(exclude_unset=False)
-                yield f"data: {response_json}\n\n"
-        yield "data: [DONE]\n\n"
+                yield f"{response_json}\n\n"
+        yield "[DONE]\n\n"
 
     async def create_completion_response(
         self,
@@ -381,6 +381,7 @@ class ChatProcessor:
         generator: AsyncIterator[Tuple[int, RequestOutput]],
         num_choices: int,
     ):
+        print("Creating completion response")
         choices = [None] * num_choices
         num_repsonse_per_request = 1 if request.n is None else request.n
         num_prompt_tokens = num_gen_tokens = 0
@@ -396,6 +397,7 @@ class ChatProcessor:
                 disaggregated_params = CompletionResponseChoice.to_disaggregated_params(
                     output.disaggregated_params
                 )
+                print(f"passing dissag params {disaggregated_params}")
                 choice = CompletionResponseChoice(
                     index=idx,
                     text=output_text,
