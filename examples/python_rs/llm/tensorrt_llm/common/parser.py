@@ -16,6 +16,7 @@
 import argparse
 import json
 import os
+from pathlib import Path
 from typing import Any, Dict, Tuple
 
 # Define the expected keys for each config
@@ -65,6 +66,8 @@ def _get_llm_args(args_dict):
     }
     if "model" not in llm_engine_args:
         raise ValueError("Model name is required in the TRT-LLM engine config.")
+    if os.path.exists(llm_engine_args["model"]):
+        llm_engine_args["model"] = Path(llm_engine_args["model"])
 
     return (pytorch_config_args, llm_engine_args)
 
