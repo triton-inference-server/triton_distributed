@@ -126,6 +126,27 @@ class Client:
         """
         ...
 
+class HttpService:
+    """
+    A HTTP service for a distributed NOVA applications.
+    The primary purpose of the service is to serve OpenAI compatible HTTP endpoints.
+    It is meant to be a gateway/ingress into the Nova LLM Distributed Runtime.
+    """
+    ...
+class HttpError:
+    """
+    An error that occurred in the HTTP service
+    """
+    ...
+
+class HttpAsyncEngine:
+    """
+    An async engine for a distributed NOVA http service. This is an extension of the
+    python based AsyncEngine that handles HttpError exceptions from Python and
+    converts them to the Rust version of HttpError
+    """
+    ...
+
 class KvRouter:
     """
     A router will determine which worker should handle a given request.
@@ -169,5 +190,38 @@ class KvMetricsPublisher:
         kv_total_blocks: int) -> None:
         """
         Update the KV metrics being reported.
+        """
+        ...
+
+class ModelDeploymentCard:
+    """
+    A model deployment card is a collection of model information
+    """
+    ...
+
+
+class OAIChatPreprocessor:
+    """
+    A preprocessor for OpenAI chat completions
+    """
+    ...
+
+    async def start(self) -> None:
+        """
+        Start the preprocessor
+        """
+        ...
+
+
+class Backend:
+    """
+    LLM Backend engine manages resources and concurrency for executing inference
+    requests in LLM engines (trtllm, vllm, sglang etc)
+    """
+    ...
+
+    async def start(self, handler: RequestHandler) -> None:
+        """
+        Start the backend engine and requests to the downstream LLM engine
         """
         ...
