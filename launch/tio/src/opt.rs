@@ -79,6 +79,10 @@ pub enum Output {
     #[cfg(feature = "sglang")]
     /// Run inference using sglang
     SgLang,
+
+    #[cfg(feature = "llamacpp")]
+    /// Run inference using llama.cpp
+    LlamaCpp,
 }
 
 impl TryFrom<&str> for Output {
@@ -91,6 +95,9 @@ impl TryFrom<&str> for Output {
 
             #[cfg(feature = "sglang")]
             "sglang" => Ok(Output::SgLang),
+
+            #[cfg(feature = "llamacpp")]
+            "llamacpp" | "llama_cpp" => Ok(Output::LlamaCpp),
 
             "echo_full" => Ok(Output::EchoFull),
             "echo_core" => Ok(Output::EchoCore),
@@ -113,6 +120,9 @@ impl fmt::Display for Output {
 
             #[cfg(feature = "sglang")]
             Output::SgLang => "sglang",
+
+            #[cfg(feature = "llamacpp")]
+            Output::LlamaCpp => "llamacpp",
 
             Output::EchoFull => "echo_full",
             Output::EchoCore => "echo_core",
