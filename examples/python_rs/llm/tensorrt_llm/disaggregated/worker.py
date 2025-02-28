@@ -35,7 +35,7 @@ from tensorrt_llm._torch import LLM
 from tensorrt_llm._torch.pyexecutor.config import PyTorchConfig
 from tensorrt_llm._utils import set_mpi_comm
 from tensorrt_llm.executor import CppExecutorError
-from tensorrt_llm.llmapi import KvCacheConfig, MpiCommSession
+from tensorrt_llm.llmapi import DisaggregatedParams, KvCacheConfig, MpiCommSession
 from tensorrt_llm.llmapi.disagg_utils import (
     CtxGenServerConfig,
     DisaggServerConfig,
@@ -50,7 +50,6 @@ from triton_distributed.runtime import (
     triton_endpoint,
     triton_worker,
 )
-from tensorrt_llm.llmapi import DisaggregatedParams
 
 logger.set_level("debug")
 
@@ -240,7 +239,9 @@ class TensorrtLLMEngine:
                         disaggregated_params=response.outputs[0].disaggregated_params,
                     ).model_dump_json()
                 else:
-                    yield response.outputs[0].text
+                    yield DisaggregatedResponse(
+                        text=response.outputs[0].text
+                    ).model_dump_json()
 
         except CppExecutorError:
             # If internal executor error is raised, shutdown the server

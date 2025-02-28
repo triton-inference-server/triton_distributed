@@ -24,15 +24,13 @@ from common.protocol import (
     DisaggregatedResponse,
     nvChatCompletionRequest,
 )
+from tensorrt_llm.llmapi import DisaggregatedParams
 from tensorrt_llm.llmapi.disagg_utils import (
     CtxGenServerConfig,
     parse_disagg_config_file,
 )
 from tensorrt_llm.logger import logger
-from tensorrt_llm.serve.openai_protocol import (
-    ChatCompletionStreamResponse,
-)
-from tensorrt_llm.llmapi import DisaggregatedParams
+
 from triton_distributed.runtime import (
     DistributedRuntime,
     triton_endpoint,
@@ -51,7 +49,7 @@ class Router:
         logger.info("INITIALIZED ROUTER")
         self.chat_processor = ChatProcessor("disagg_router", None)
 
-    @triton_endpoint(nvChatCompletionRequest, ChatCompletionStreamResponse)
+    @triton_endpoint(nvChatCompletionRequest, DisaggregatedResponse)
     async def generate(self, request):
         # Send request to context serve
         # These settings are needed to satisfy request checks.
