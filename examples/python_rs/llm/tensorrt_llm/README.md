@@ -243,7 +243,18 @@ python3 -m disaggregated.router -c disaggregated/llmapi_disaggregated_configs/si
 
 3. **Send Requests**
 
+```bash
+# Chat Completion
+curl localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "messages": [
+      {"role": "user", "content": "What is the capital of France?"}
+    ]
+  }'
 
+```
 
 
 For more details on the disaggregated deployment, please refer to the [TRT-LLM example](#TODO).

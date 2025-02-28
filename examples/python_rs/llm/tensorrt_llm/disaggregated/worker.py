@@ -16,17 +16,25 @@
 
 import asyncio
 import os
+import signal
 import threading
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import uvloop
 from common.parser import parse_tensorrt_llm_args
+from common.processor import (
+    ChatProcessor,
+    CompletionsProcessor,
+    parse_chat_message_content,
+)
+from common.protocol import DisaggChatCompletionRequest, DisaggregatedResponse
 from mpi4py.futures import MPICommExecutor
 from mpi4py.MPI import COMM_WORLD
 from tensorrt_llm._torch import LLM
 from tensorrt_llm._torch.pyexecutor.config import PyTorchConfig
 from tensorrt_llm._utils import set_mpi_comm
+from tensorrt_llm.executor import CppExecutorError
 from tensorrt_llm.llmapi import KvCacheConfig, MpiCommSession
 from tensorrt_llm.llmapi.disagg_utils import (
     CtxGenServerConfig,
@@ -34,15 +42,14 @@ from tensorrt_llm.llmapi.disagg_utils import (
     parse_disagg_config_file,
     split_world_comm,
 )
-from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
-from tensorrt_llm.serve.openai_protocol import CompletionRequest
+from transformers import AutoTokenizer
 
-from examples.python_rs.llm.tensorrt_llm.common.processor import (
-    ChatProcessor,
-    merge_promises,
+from triton_distributed.runtime import (
+    DistributedRuntime,
+    triton_endpoint,
+    triton_worker,
 )
-from triton_distributed.runtime import DistributedRuntime, triton_worker
 
 logger.set_level("debug")
 
@@ -68,7 +75,13 @@ class TensorrtLLMEngine:
         self.mpi_session = MpiCommSession(sub_comm, n_workers=sub_comm.Get_size())
         self._init_engine()
         self.model = self.llm_engine_args["model"]
-        self.chat_processor = ChatProcessor(self.model, None)
+        if "tokenizer" in self.llm_engine_args.keys():
+            tokenizer = self.llm_engine_args["tokenizer"]
+            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model)
+        self.chat_processor = ChatProcessor(self.model, self.tokenizer)
+        self.completions_processor = CompletionsProcessor(self.model)
 
     def _init_engine(self):
         logger.info("Initializing engine")
@@ -172,53 +185,67 @@ class TensorrtLLMEngine:
         self._llm_engine = None
         logger.info("Shutdown complete")
 
-    # @triton_endpoint(CompletionRequest, CompletionResponse)
-    async def generate(self, request):
+    @triton_endpoint(DisaggChatCompletionRequest, DisaggregatedResponse)
+    async def generate(self, raw_request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
 
+        request = DisaggChatCompletionRequest(**raw_request.model_dump())
+
         self._ongoing_request_count += 1
         logger.debug(f"Received request Tanmyyyyy: {request}")
-        if isinstance(request, str):
-            request = CompletionRequest.parse_raw(request)
-        if isinstance(request.prompt, str) or (
-            isinstance(request.prompt, list) and isinstance(request.prompt[0], int)
-        ):
-            prompts = [request.prompt]
-        else:
-            prompts = request.prompt
+        logger.debug(f"Received request Tanmyyyyy: {type(request)}")
 
-        logger.debug(f"got the prompt Tanmyyyyy: {prompts}")
-        promises: List[RequestOutput] = []
-        sampling_params = request.to_sampling_params()
-        disaggregated_params = request.to_llm_disaggregated_params()
+        try:
+            conversation = []
+            for message in request.messages:
+                conversation.extend(parse_chat_message_content(message))
+            tool_dicts = (
+                None
+                if request.tools is None
+                else [tool.model_dump() for tool in request.tools]
+            )
+            prompt: str = self.tokenizer.apply_chat_template(
+                conversation=conversation,
+                tokenize=False,
+                add_generation_prompt=request.add_generation_prompt,
+                tools=tool_dicts,
+                documents=request.documents,
+                chat_template=request.chat_template,
+                **(request.chat_template_kwargs or {}),
+            )
+            sampling_params = request.to_sampling_params()
+            disaggregated_params = request.disaggregated_params
 
-        logger.debug(
-            "Received request Tanmyyyyy: going to call generate async for context"
-        )
-        for prompt in prompts:
-            promise = self._llm_engine.generate_async(
+            # Opaque state is  described as an additional state needing to be exchanged
+            # between context and gen instances
+            if disaggregated_params.opaque_state is not None:
+                disaggregated_params.opaque_state = (
+                    disaggregated_params.opaque_state.encode("utf-8")
+                    .decode("unicode_escape")
+                    .encode("latin1")
+                )
+
+            async for response in self._llm_engine.generate_async(
                 prompt,
                 sampling_params,
                 streaming=request.stream,
                 disaggregated_params=disaggregated_params,
-            )
-            promises.append(promise)
+            ):
+                logger.debug(f"Generated response: {response}")
+                if self.server_config.type == "ctx":
+                    yield DisaggregatedResponse(
+                        text=response.outputs[0].text,
+                        disaggregated_params=response.outputs[0].disaggregated_params,
+                    ).model_dump_json()
+                else:
+                    yield response.outputs[0].text
 
-        generator = merge_promises(promises)
-        num_choices = len(prompts) if request.n is None else len(prompts) * request.n
-        if False:
-            response_generator = self.chat_processor.create_completion_generator(
-                request, generator, num_choices
-            )
-            async for response in response_generator:
-                logger.debug(f"yielding response {response}")
-                yield response
-        else:
-            response = await self.chat_processor.create_completion_response(
-                request, generator, num_choices
-            )
-            yield response
+        except CppExecutorError:
+            # If internal executor error is raised, shutdown the server
+            signal.raise_signal(signal.SIGINT)
+        except Exception as e:
+            raise RuntimeError("Failed to generate: " + str(e))
 
         self._ongoing_request_count -= 1
 
