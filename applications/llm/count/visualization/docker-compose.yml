@@ -12,9 +12,10 @@ services:
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--web.enable-lifecycle'
-    ports:
-      - "9090:9090"
     restart: unless-stopped
+    # TODO: Use more explicit networking setup when count is containerized
+    #ports:
+    #  - "9090:9090"
     #networks:
     #  - monitoring
     network_mode: "host"
@@ -32,9 +33,10 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
-    ports:
-      - "3000:3000"
     restart: unless-stopped
+    # TODO: Use more explicit networking setup when count is containerized
+    #ports:
+    #  - "3000:3000"
     #networks:
     #  - monitoring
     network_mode: "host"
