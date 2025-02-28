@@ -35,6 +35,7 @@ PYTORCH_CONFIG_KEYS = {
 
 LLM_ENGINE_KEYS = {
     "model",
+    "model_path",
     "tokenizer",
     "tokenizer_model",
     "skip_tokenizer_init",
@@ -66,8 +67,13 @@ def _get_llm_args(args_dict):
     }
     if "model" not in llm_engine_args:
         raise ValueError("Model name is required in the TRT-LLM engine config.")
-    if os.path.exists(llm_engine_args["model"]):
-        llm_engine_args["model"] = Path(llm_engine_args["model"])
+    if llm_engine_args.get("model_path", ""):
+        if os.path.exists(llm_engine_args.get("model_path", "")):
+            llm_engine_args["model_path"] = Path(llm_engine_args["model_path"])
+        else:
+            raise ValueError(
+                f"Model path {llm_engine_args['model_path']} does not exist"
+            )
 
     return (pytorch_config_args, llm_engine_args)
 

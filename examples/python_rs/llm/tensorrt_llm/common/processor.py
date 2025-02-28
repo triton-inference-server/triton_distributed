@@ -19,6 +19,7 @@ from typing import Any, AsyncGenerator, AsyncIterator, Dict, List, Tuple, TypedD
 
 from openai.types.chat import ChatCompletionMessageParam
 from tensorrt_llm.llmapi.llm import RequestOutput
+from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (
     ChatCompletionLogProbs,
     ChatCompletionLogProbsContent,
@@ -40,6 +41,8 @@ from tensorrt_llm.serve.openai_protocol import (
     UsageInfo,
 )
 from transformers import AutoTokenizer
+
+logger.set_level("debug")
 
 
 class ConversationMessage(TypedDict):
@@ -377,8 +380,7 @@ class CompletionsProcessor:
                     ],
                 )
                 response_json = response.model_dump_json(exclude_unset=False)
-                yield f"{response_json}\n\n"
-        yield "[DONE]\n\n"
+                yield response_json
 
     async def create_completion_response(
         self,

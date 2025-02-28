@@ -96,7 +96,8 @@ By default the server will run on port 8080.
 
 Add model to the server:
 ```bash
-llmctl http add chat-models TinyLlama/TinyLlama-1.1B-Chat-v1.0 triton-init.tensorrt-llm.chat/completions
+llmctl http add chat DeepSeek/DeepSeek-R1-FP4 triton-init.tensorrt-llm.chat/completions
+llmctl http add completion DeepSeek/DeepSeek-R1-FP4 triton-init.tensorrt-llm.completions
 ```
 
 #### 2. Workers
@@ -108,7 +109,7 @@ Note: The following commands are tested on machines withH100x8 GPUs
 ```bash
 # Launch worker
 cd /workspace/examples/python_rs/llm/tensorrt_llm
-mpirun --allow-run-as-root -n 1 --oversubscribe python3 -m monolith.worker --engine_args model.json
+mpirun --allow-run-as-root -n 1 --oversubscribe python3 -m monolith.worker --engine_args model.json 1>agg_worker.log 2>&1 &
 ```
 
 Upon successful launch, the output should look similar to:
@@ -132,7 +133,7 @@ For this example, we will load the model with 4 GPUs.
 ```bash
 # Launch worker
 cd /workspace/examples/python_rs/llm/tensorrt_llm
-mpirun --allow-run-as-root -n 1 --oversubscribe python3 -m monolith.worker --engine_args model.json
+mpirun --allow-run-as-root -n 1 --oversubscribe python3 -m monolith.worker --engine_args model.json 1>agg_worker.log 2>&1 &
 ```
 `nvidia-smi` can be used to check the GPU usage and the model is loaded on 4 GPUs.
 
@@ -153,6 +154,16 @@ curl localhost:8080/v1/chat/completions \
     ]
   }'
 
+# completion
+curl localhost:8080/v1/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "prompt": "NVIDIA is a great company because",
+    "max_tokens": 16,
+    "temperature": 0,
+    "stream": true
+  }'
 ```
 
 The output should look similar to:
@@ -211,7 +222,7 @@ By default the server will run on port 8080.
 
 Add model to the server:
 ```bash
-llmctl http add chat-models TinyLlama/TinyLlama-1.1B-Chat-v1.0 triton-init.router.generate
+llmctl http add chat-models DeepSeek/DeepSeek-R1-FP4 triton-init.router.generate
 ```
 
 #### 2. Workers
@@ -230,7 +241,7 @@ For example, 2 TP2 generation servers are 2 servers but 4 workers/mpi executor.
 
 ```bash
 cd /workspace/examples/python_rs/llm/tensorrt_llm/
-mpirun --allow-run-as-root --oversubscribe -n WORLD_SIZE python3 -m disaggregated.worker --engine_args model.json -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml &
+mpirun --allow-run-as-root --oversubscribe -n 8 python3 -m disaggregated.worker --engine_args model.json -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml 1>workers.log 2>&1 &
 ```
 If using the provided [single_node_config.yaml](disaggregated/llmapi_disaggregated_configs/single_node_config.yaml), WORLD_SIZE should be 3 as it has 2 context servers(TP=1) and 1 generation server(TP=1).
 
@@ -238,7 +249,7 @@ If using the provided [single_node_config.yaml](disaggregated/llmapi_disaggregat
 
 ```bash
 cd /workspace/examples/python_rs/llm/tensorrt_llm/
-python3 -m disaggregated.router -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml &
+python3 -m disaggregated.router -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml 1>router.log 2>&1 &
 ```
 
 3. **Send Requests**
@@ -248,14 +259,22 @@ python3 -m disaggregated.router -c disaggregated/llmapi_disaggregated_configs/si
 curl localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "model": "DeepSeek/DeepSeek-R1-FP4",
     "messages": [
       {"role": "user", "content": "What is the capital of France?"}
     ]
   }'
 
+# Completions
+curl localhost:8080/v1/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "DeepSeek/DeepSeek-R1-FP4",
+    "prompt": "NVIDIA is a great company because",
+    "max_tokens": 16,
+    "temperature": 0
+  }'
 ```
-
 
 For more details on the disaggregated deployment, please refer to the [TRT-LLM example](#TODO).
 
