@@ -18,6 +18,7 @@ use futures::stream::StreamExt;
 use std::{sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 use tracing as log;
+use tracing;
 use triton_distributed_runtime::{component::Component, DistributedRuntime};
 
 pub mod indexer;
@@ -28,7 +29,7 @@ mod scoring;
 
 use crate::kv_router::{
     indexer::{KvIndexer, KvIndexerInterface, RouterEvent},
-    scheduler::{Endpoint, KvScheduler, Service},
+    scheduler::{Endpoint, FlexibleService, KvScheduler, Service},
     scoring::ProcessedEndpoints,
 };
 
@@ -146,21 +147,34 @@ async fn collect_endpoints(
             .await
             .unwrap();
 
-        // [FIXME] Endpoint is parsed from nats stats handler which may not include 'data' field
-        // if the service hasn't registered the handler. Need to be tolerant to this.
-        // Another option is to make sure the router is configured properly that
-        // it listens to the right subject (where other publisher has stats).
-        let services: Vec<Service> = values
+        tracing::debug!("values: {:?}", values);
+        let services: Vec<FlexibleService> = values
             .into_iter()
             .filter(|v| !v.is_empty())
-            .map(|v| {
-                let value: serde_json::Value = serde_json::from_slice(&v).unwrap();
-                log::trace!("service value: {:?}", value);
-                serde_json::from_slice(&v).unwrap()
+            .filter_map(|v| {
+                match serde_json::from_slice::<FlexibleService>(&v) {
+                    Ok(service) => {
+                        Some(service)
+                    },
+                    Err(e) => {
+                        tracing::warn!("For value: {:?} \nFailed to parse service: {:?}", v, e);
+                        None
+                    }
+                }
             })
             .collect();
+        tracing::debug!("services: {:?}", services);
 
-        let endpoints: Vec<Endpoint> = services.into_iter().flat_map(|s| s.endpoints).collect();
+        let endpoints: Vec<Endpoint> = services
+            .into_iter()
+            .flat_map(|s| s.endpoints)
+            .filter(|s| s.data.is_some())
+            .map(|s| Endpoint {
+                name: s.name,
+                subject: s.subject,
+                data: s.data.unwrap(),
+            }).collect();
+        tracing::debug!("endpoints: {:?}", endpoints);
 
         log::trace!(
             "found {} endpoints for service: {}",
