@@ -82,7 +82,7 @@ def nova_endpoint(
     return decorator
 
 
-def api(func: t.Callable) -> t.Callable:
+def nova_api(func: t.Callable) -> t.Callable:
     """Decorator for BentoML API endpoints.
     
     Args:

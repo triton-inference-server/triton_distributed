@@ -17,4 +17,4 @@
 
 import bentoml
 
-NOVA_IMAGE = bentoml.images.PythonImage(base_image="triton-distributed:cai")
+NOVA_IMAGE = bentoml.images.PythonImage(base_image="triton-distributed:latest-vllm")
