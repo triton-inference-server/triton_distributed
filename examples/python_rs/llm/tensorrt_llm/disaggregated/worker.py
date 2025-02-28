@@ -104,8 +104,12 @@ class TensorrtLLMEngine:
                     None,
                     lambda: LLM(
                         **self.llm_engine_args,
-                        tensor_parallel_size=self.server_config.other_args.get("tensor_parallel_size", 1),
-                        pipeline_parallel_size=self.server_config.other_args.get("pipeline_parallel_size", 1),
+                        tensor_parallel_size=self.server_config.other_args.get(
+                            "tensor_parallel_size", 1
+                        ),
+                        pipeline_parallel_size=self.server_config.other_args.get(
+                            "pipeline_parallel_size", 1
+                        ),
                         gpus_per_node=None,
                         trust_remote_code=True,
                         _mpi_session=self.mpi_session,
