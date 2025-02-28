@@ -38,6 +38,8 @@ pub use delta::DeltaGenerator;
 pub struct NvCreateChatCompletionRequest {
     #[serde(flatten)]
     pub inner: async_openai::types::CreateChatCompletionRequest,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub nvext: Option<NvExt>,
 }
 
