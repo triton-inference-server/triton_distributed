@@ -452,7 +452,7 @@ dependencies = [
  "bitflags 2.8.0",
  "cexpr",
  "clang-sys",
- "itertools 0.11.0",
+ "itertools 0.12.1",
  "lazy_static",
  "lazycell",
  "log",
@@ -464,6 +464,26 @@ dependencies = [
  "shlex",
  "syn 2.0.98",
  "which",
+]
+
+[[package]]
+name = "bindgen"
+version = "0.70.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f49d8fed880d473ea71efb9bf597651e77201bdd4893efe54c9e5d65ae04ce6f"
+dependencies = [
+ "bitflags 2.8.0",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.13.0",
+ "log",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash 1.1.0",
+ "shlex",
+ "syn 2.0.98",
 ]
 
 [[package]]
@@ -2674,7 +2694,7 @@ version = "0.1.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0522f9894e22dd988dd2e34222bda7acba53a0dcce744ca6d8ddce905ba33a4e"
 dependencies = [
- "bindgen",
+ "bindgen 0.69.5",
  "cc",
  "cmake",
  "find_cuda_helper",
@@ -5584,10 +5604,12 @@ dependencies = [
  "async-trait",
  "async_zmq",
  "axum 0.8.1",
+ "bindgen 0.70.1",
  "blake3",
  "bs62",
  "bytes",
  "chrono",
+ "cmake",
  "derive_builder",
  "either",
  "erased-serde",
@@ -5607,6 +5629,7 @@ dependencies = [
  "serde",
  "serde-pickle",
  "serde_json",
+ "serde_repr",
  "strum 0.27.1",
  "thiserror 2.0.11",
  "tokenizers",

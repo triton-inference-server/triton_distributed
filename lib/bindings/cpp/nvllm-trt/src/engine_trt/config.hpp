@@ -13,17 +13,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(feature = "mistralrs")]
-pub mod mistralrs;
+#pragma once
 
-#[cfg(feature = "sglang")]
-pub mod sglang;
+#include "tensorrt_llm/executor/executor.h"
 
-#[cfg(feature = "llamacpp")]
-pub mod llamacpp;
+namespace nvidia::nvllm::trt {
 
-#[cfg(feature = "vllm")]
-pub mod vllm;
+struct Config
+{
+    std::string model_path;
+    std::string log_level;
+    tensorrt_llm::executor::ExecutorConfig config;
+};
 
-#[cfg(feature = "trtllm")]
-pub mod trtllm;
+Config deserialize_config(const std::string& request);
+
+}  // namespace nvidia::nvllm::trt

@@ -13,17 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(feature = "mistralrs")]
-pub mod mistralrs;
+use super::{cpp, protocols};
+use anyhow::Result;
+use std::sync::Arc;
 
-#[cfg(feature = "sglang")]
-pub mod sglang;
+mod iteration;
+mod kv;
+mod response;
 
-#[cfg(feature = "llamacpp")]
-pub mod llamacpp;
+pub use iteration::{IterationProcessor, SubscriptionChannel as IterationStatsSubscriptionChannel};
+pub use kv::{KvEventProcessor, KvEventSubscriptionChannel};
+pub use response::ResponseProcessor;
 
-#[cfg(feature = "vllm")]
-pub mod vllm;
+#[derive(Debug)]
+pub(crate) struct ProcessorState {
+    executor: Arc<cpp::Executor>,
+}
 
-#[cfg(feature = "trtllm")]
-pub mod trtllm;
+impl ProcessorState {
+    pub fn new(executor: Arc<cpp::Executor>) -> Self {
+        Self { executor }
+    }
+}
