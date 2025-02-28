@@ -16,10 +16,11 @@
 //! Scoring functions for the KV router.
 
 use std::collections::HashSet;
+use serde::{Deserialize, Serialize};
 
 use crate::kv_router::scheduler::Endpoint;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ProcessedEndpoints {
     pub endpoints: Vec<Endpoint>,
     pub worker_ids: Vec<i64>,

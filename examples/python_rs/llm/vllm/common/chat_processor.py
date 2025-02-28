@@ -17,7 +17,6 @@ import json
 import time
 from typing import AsyncIterator, List, Optional, Protocol, Union, runtime_checkable
 
-from vllm import TokensPrompt
 from vllm.config import ModelConfig
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.chat_utils import ConversationMessage
@@ -29,6 +28,7 @@ from vllm.entrypoints.openai.protocol import (
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 from vllm.entrypoints.openai.serving_completion import OpenAIServingCompletion
 from vllm.entrypoints.openai.serving_engine import RequestPrompt
+from vllm.inputs.data import TokensPrompt
 from vllm.transformers_utils.tokenizer import AnyTokenizer
 
 

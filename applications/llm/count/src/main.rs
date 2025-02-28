@@ -24,12 +24,19 @@
 //!   - KV Cache Blocks: [Active, Total]
 
 use clap::Parser;
-use serde::{Deserialize, Serialize};
 use prometheus::register_gauge_vec;
+use serde::{Deserialize, Serialize};
 use warp::Filter;
 
+// Import the types from the KV router library
+use triton_distributed_llm::kv_router::protocols::ForwardPassMetrics;
+use triton_distributed_llm::kv_router::scheduler::Endpoint;
+use triton_distributed_llm::kv_router::scoring::ProcessedEndpoints;
+
 use triton_distributed_runtime::{
+    distributed::Component,
     error, logging,
+    service::EndpointInfo,
     traits::events::EventPublisher,
     utils::{Duration, Instant},
     DistributedRuntime, ErrorContext, Result, Runtime, Worker,
@@ -83,22 +90,216 @@ pub struct LLMWorkerLoadCapacityConfig {
     endpoint_name: String,
 }
 
-/// LLM Worker Load Capacity Metrics
+// FIXME: The object returned from scraping stats is _almost_ the
+// async_nats::service::endpoint::Stats object, but is missing some fields
+// like "name". Define a custom struct for deserializing into for now.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LLMWorkerLoadCapacity {
-    pub requests_active_slots: u32,
-    pub requests_total_slots: u32,
-    pub kv_blocks_active: u32,
-    pub kv_blocks_total: u32,
+struct StatsWithData {
+    average_processing_time: f64,
+    data: serde_json::Value,
+    last_error: String,
+    num_errors: u64,
+    num_requests: u64,
+    processing_time: u64,
+    queue_group: String,
 }
 
-fn main() -> Result<()> {
-    logging::init();
-    let worker = Worker::from_settings()?;
-    worker.execute(app)
+// Define a struct to hold all Prometheus metrics and server
+struct PrometheusMetricsServer {
+    // Encapsulate the metrics in a struct
+    metrics: PrometheusMetrics,
 }
 
-// TODO - refactor much of this back into the library
+impl PrometheusMetricsServer {
+    // Initialize all metrics
+    fn new() -> Result<Self> {
+        Ok(Self {
+            metrics: PrometheusMetrics::new()?,
+        })
+    }
+
+    // Start the metrics server
+    fn start(&mut self, port: u16) {
+        let metrics_route = warp::path!("metrics").map(|| {
+            use prometheus::Encoder;
+            let encoder = prometheus::TextEncoder::new();
+            let mut buffer = Vec::new();
+            encoder.encode(&prometheus::gather(), &mut buffer).unwrap();
+            String::from_utf8(buffer).unwrap()
+        });
+
+        let server = warp::serve(metrics_route).run(([0, 0, 0, 0], port));
+        tokio::spawn(server);
+        tracing::info!("Prometheus metrics server started on port {}", port);
+    }
+
+    // Update metrics with current values
+    fn update(&mut self, config: &LLMWorkerLoadCapacityConfig, processed: &ProcessedEndpoints) {
+        self.metrics.update(config, processed);
+    }
+}
+
+// TODO: Should prometheus metrics move into library with ForwardPassMetrics?
+struct PrometheusMetrics {
+    kv_blocks_active: prometheus::GaugeVec,
+    kv_blocks_total: prometheus::GaugeVec,
+    requests_active: prometheus::GaugeVec,
+    requests_total: prometheus::GaugeVec,
+    load_avg: prometheus::GaugeVec,
+    load_std: prometheus::GaugeVec,
+}
+
+impl PrometheusMetrics {
+    // Initialize all metrics
+    fn new() -> Result<Self> {
+        Ok(Self {
+            kv_blocks_active: register_gauge_vec!(
+                "llm_kv_blocks_active",
+                "Active KV cache blocks",
+                &["component", "endpoint", "worker_id"]
+            )?,
+            kv_blocks_total: register_gauge_vec!(
+                "llm_kv_blocks_total",
+                "Total KV cache blocks",
+                &["component", "endpoint", "worker_id"]
+            )?,
+            requests_active: register_gauge_vec!(
+                "llm_requests_active_slots",
+                "Active request slots",
+                &["component", "endpoint", "worker_id"]
+            )?,
+            requests_total: register_gauge_vec!(
+                "llm_requests_total_slots",
+                "Total request slots",
+                &["component", "endpoint", "worker_id"]
+            )?,
+            load_avg: register_gauge_vec!(
+                "llm_load_avg",
+                "Average load across workers",
+                &["component", "endpoint"]
+            )?,
+            load_std: register_gauge_vec!(
+                "llm_load_std",
+                "Load standard deviation across workers",
+                &["component", "endpoint"]
+            )?,
+        })
+    }
+
+    // Update metrics with current values
+    fn update(&self, config: &LLMWorkerLoadCapacityConfig, processed: &ProcessedEndpoints) {
+        // Update per-worker metrics
+        for endpoint in processed.endpoints.iter() {
+            let worker_id = endpoint.worker_id().to_string();
+            let metrics = endpoint.data.clone();
+            self.kv_blocks_active
+                .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
+                .set(metrics.kv_active_blocks as f64);
+
+            self.kv_blocks_total
+                .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
+                .set(metrics.kv_total_blocks as f64);
+
+            self.requests_active
+                .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
+                .set(metrics.request_active_slots as f64);
+
+            self.requests_total
+                .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
+                .set(metrics.request_total_slots as f64);
+        }
+
+        // Update aggregate metrics
+        self.load_avg
+            .with_label_values(&[&config.component_name, &config.endpoint_name])
+            .set(processed.load_avg);
+
+        self.load_std
+            .with_label_values(&[&config.component_name, &config.endpoint_name])
+            .set(processed.load_std);
+    }
+}
+
+// Helper function to collect endpoints from a component
+async fn collect_endpoints(
+    target: &Component,
+    service_subject: &str,
+    timeout: Duration,
+) -> Result<Vec<EndpointInfo>> {
+    // Collect stats from each backend
+    let stream = target.scrape_stats(timeout).await?;
+    tracing::debug!("Scraped Stats Stream: {stream:?}");
+
+    // Filter the stats by the service subject
+    let endpoints = stream
+        .into_endpoints()
+        .filter(|e| e.subject.starts_with(service_subject))
+        .collect::<Vec<_>>();
+
+    tracing::debug!("Endpoints: {endpoints:?}");
+    if endpoints.is_empty() {
+        tracing::warn!("No endpoints found matching subject {}", service_subject);
+    }
+
+    Ok(endpoints)
+}
+
+// Helper function to extract metrics from endpoints
+fn extract_metrics(
+    endpoints: &[triton_distributed_runtime::service::EndpointInfo],
+) -> Vec<ForwardPassMetrics> {
+    let endpoint_data = endpoints.iter().map(|e| e.data.clone()).collect::<Vec<_>>();
+    tracing::debug!("Endpoint Data: {endpoint_data:?}");
+
+    // Extract StatsWithData
+    let stats: Vec<StatsWithData> = endpoint_data
+        .iter()
+        .filter_map(|e| {
+            let metrics_data = e.as_ref()?;
+            serde_json::from_value::<StatsWithData>(metrics_data.0.clone()).ok()
+        })
+        .collect();
+    tracing::debug!("Stats: {stats:?}");
+
+    // TODO: Make this more general to various types of metrics
+    // Extract ForwardPassMetrics nested within Stats object
+    let metrics: Vec<ForwardPassMetrics> = stats
+        .iter()
+        .filter_map(
+            |s| match serde_json::from_value::<ForwardPassMetrics>(s.data.clone()) {
+                Ok(metrics) => Some(metrics),
+                Err(err) => {
+                    tracing::warn!("Error decoding metrics: {err}");
+                    None
+                }
+            },
+        )
+        .collect();
+    tracing::debug!("Metrics: {metrics:?}");
+
+    metrics
+}
+
+// Helper function to create ProcessedEndpoints
+fn postprocess_metrics(
+    metrics: &[ForwardPassMetrics],
+    endpoints: &[EndpointInfo],
+) -> ProcessedEndpoints {
+    let endpoints_for_router: Vec<Endpoint> = metrics
+        .iter()
+        .zip(endpoints.iter())
+        .filter_map(|(m, e)| {
+            e.id().ok().map(|id| Endpoint {
+                name: format!("worker-{}", id),
+                subject: e.subject.clone(),
+                data: m.clone(),
+            })
+        })
+        .collect();
+
+    ProcessedEndpoints::new(endpoints_for_router)
+}
+
 async fn app(runtime: Runtime) -> Result<()> {
     let args = Args::parse();
     // we will start by assuming that there is no oscar and no planner
@@ -136,208 +337,26 @@ async fn app(runtime: Runtime) -> Result<()> {
     let address = format!("{}.{}", config.component_name, config.endpoint_name,);
     let event_name = format!("l2c.{}", address);
 
-    // Initialize Prometheus metrics
-    let kv_blocks_active_gauge = register_gauge_vec!(
-        "llm_kv_blocks_active",
-        "Active KV cache blocks",
-        &["component", "endpoint", "worker_id"]
-    )?;
-
-    let kv_blocks_total_gauge = register_gauge_vec!(
-        "llm_kv_blocks_total",
-        "Total KV cache blocks",
-        &["component", "endpoint", "worker_id"]
-    )?;
-
-    let requests_active_gauge = register_gauge_vec!(
-        "llm_requests_active_slots",
-        "Active request slots",
-        &["component", "endpoint", "worker_id"]
-    )?;
-
-    let requests_total_gauge = register_gauge_vec!(
-        "llm_requests_total_slots",
-        "Total request slots",
-        &["component", "endpoint", "worker_id"]
-    )?;
-
-    let load_avg_gauge = register_gauge_vec!(
-        "llm_load_avg",
-        "Average load across workers",
-        &["component", "endpoint"]
-    )?;
-
-    let load_std_gauge = register_gauge_vec!(
-        "llm_load_std",
-        "Load standard deviation across workers",
-        &["component", "endpoint"]
-    )?;
-
-    // Start metrics server
-    let metrics_route = warp::path!("metrics").map(|| {
-        use prometheus::Encoder;
-        let encoder = prometheus::TextEncoder::new();
-        let mut buffer = Vec::new();
-        encoder.encode(&prometheus::gather(), &mut buffer).unwrap();
-        String::from_utf8(buffer).unwrap()
-    });
-
-    let metrics_server = warp::serve(metrics_route).run(([0, 0, 0, 0], 9091));
-    tokio::spawn(metrics_server);
+    // Initialize Prometheus metrics and start server
+    let mut metrics_server = PrometheusMetricsServer::new()?;
+    metrics_server.start(9091);
 
     loop {
         let next = Instant::now() + Duration::from_secs(args.poll_interval);
-
-        // collect stats from each backend
-        let stream = target.scrape_stats(Duration::from_secs(1)).await?;
-        tracing::debug!("Scraped Stats Stream: {stream:?}");
-
-        // filter the stats by the service subject
-        let endpoints = stream
-            .into_endpoints()
-            .filter(|e| e.subject.starts_with(&service_subject))
-            .collect::<Vec<_>>();
-
-        tracing::debug!("Endpoints: {endpoints:?}");
-        if endpoints.is_empty() {
-            tracing::warn!("No endpoints found matching subject {}", service_subject);
-        } else {
-            // Log each endpoint's details
-            for (i, endpoint) in endpoints.iter().enumerate() {
-                tracing::info!(
-                    "Endpoint[{}]: subject={}, name={}, data={:?}",
-                    i,
-                    endpoint.subject,
-                    endpoint.name,
-                    endpoint.data
-                );
-
-                // Extract and log the nested data structure
-                if let Some(metrics) = &endpoint.data {
-                    if let serde_json::Value::Object(map) = &metrics.0 {
-                        // Check if there's a "data" field in the metrics JSON
-                        if let Some(data_value) = map.get("data") {
-                            tracing::info!("Endpoint[{}] nested data: {}", i, data_value);
-
-                            // If the nested data is also an object, log its fields
-                            if let serde_json::Value::Object(nested_map) = data_value {
-                                for (key, value) in nested_map {
-                                    tracing::info!("Endpoint[{}] nested field: {} = {}", i, key, value);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // extract the custom data from the stats and try to decode it as LLMWorkerLoadCapacity
-        let metrics = endpoints
-            .iter()
-            .filter_map(|e| {
-                match &e.data {
-                    Some(metrics) => {
-                        // Check if there's a nested data object
-                        if let serde_json::Value::Object(map) = &metrics.0 {
-                            if let Some(data_value) = map.get("data") {
-                                // Try to decode the nested data value
-                                let result = serde_json::from_value::<LLMWorkerLoadCapacity>(data_value.clone());
-                                match &result {
-                                    Ok(m) => tracing::info!("Successfully decoded nested metrics: {:?}", m),
-                                    Err(e) => tracing::error!("Failed to decode nested metrics: {}", e),
-                                }
-                                return result.ok();
-                            }
-                        }
-
-                        // Fall back to trying the top-level object if no nested data
-                        let result = metrics.clone().decode::<LLMWorkerLoadCapacity>();
-                        match &result {
-                            Ok(m) => tracing::info!("Successfully decoded top-level metrics: {:?}", m),
-                            Err(e) => tracing::error!("Failed to decode top-level metrics: {}", e),
-                        }
-                        result.ok()
-                    },
-                    None => {
-                        tracing::warn!("No metrics data for endpoint: {}", e.subject);
-                        None
-                    },
-                }
-            })
-            .collect::<Vec<_>>();
-        tracing::debug!("Metrics: {metrics:?}");
-
-        // parse the endpoint ids
-        // the ids are the last part of the subject in hexadecimal
-        // form a list of tuples (kv_blocks_total - kv_blocks_active, requests_total_slots - requests_active_slots, id)
-        // this tuple represent the remaining capacity of each endpoint
-        let capacity_with_ids = metrics
-            .iter()
-            .zip(endpoints.iter())
-            .filter_map(|(m, e)| {
-                e.id().ok().map(|id| {
-                    (
-                        m.kv_blocks_total - m.kv_blocks_active,
-                        m.requests_total_slots - m.requests_active_slots,
-                        id,
-                    )
-                })
-            })
-            .collect::<Vec<_>>();
-
-        // compute mean / std of LLMWorkerLoadCapacity
-        let load_values: Vec<f64> = metrics.iter().map(|x| x.kv_blocks_active as f64).collect();
-        let load_avg = load_values.iter().sum::<f64>() / load_values.len() as f64;
-        let variance = load_values
-            .iter()
-            .map(|&x| (x - load_avg).powi(2))
-            .sum::<f64>()
-            / load_values.len() as f64;
-        let load_std = variance.sqrt();
-
-        let processed = ProcessedEndpoints {
-            capacity_with_ids,
-            load_avg,
-            load_std,
-            address: address.clone(),
-        };
-
-        // publish using the namespace event plane
-        tracing::info!(
-            "Publishing event {event_name} on namespace {namespace:?} with {processed:?}"
-        );
-        namespace.publish(&event_name, &processed).await?;
+        let endpoints =
+            collect_endpoints(&target, &service_subject, Duration::from_secs(1)).await?;
+        let metrics = extract_metrics(&endpoints);
+        let postprocessed = postprocess_metrics(&metrics, &endpoints);
 
         // Update Prometheus metrics
-        for (metric, endpoint) in metrics.iter().zip(endpoints.iter()) {
-            if let Ok(id) = endpoint.id() {
-                let worker_id = id.to_string();
-                kv_blocks_active_gauge
-                    .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
-                    .set(metric.kv_blocks_active as f64);
+        metrics_server.update(&config, &postprocessed);
 
-                kv_blocks_total_gauge
-                    .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
-                    .set(metric.kv_blocks_total as f64);
-
-                requests_active_gauge
-                    .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
-                    .set(metric.requests_active_slots as f64);
-
-                requests_total_gauge
-                    .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
-                    .set(metric.requests_total_slots as f64);
-            }
-        }
-
-        // Update aggregate metrics
-        load_avg_gauge
-            .with_label_values(&[&config.component_name, &config.endpoint_name])
-            .set(load_avg);
-
-        load_std_gauge
-            .with_label_values(&[&config.component_name, &config.endpoint_name])
-            .set(load_std);
+        // TODO: Who should consume these events?
+        // Publish metrics event
+        tracing::debug!(
+            "Publishing event {event_name} on namespace {namespace:?} with {postprocessed:?}"
+        );
+        namespace.publish(&event_name, &postprocessed).await?;
 
         // wait until cancelled or the next tick
         match tokio::time::timeout_at(next, token.cancelled()).await {
@@ -352,19 +371,10 @@ async fn app(runtime: Runtime) -> Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProcessedEndpoints {
-    /// (kv_blocks_total - kv_blocks_active, requests_total_slots - requests_active_slots, id)
-    pub capacity_with_ids: Vec<(u32, u32, i64)>,
-
-    /// kv_blocks_active average
-    pub load_avg: f64,
-
-    /// kv_blocks_active standard deviation
-    pub load_std: f64,
-
-    /// {component}.{endpoint}
-    pub address: String,
+fn main() -> Result<()> {
+    logging::init();
+    let worker = Worker::from_settings()?;
+    worker.execute(app)
 }
 
 #[cfg(test)]

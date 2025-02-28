@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{ChatCompletionResponse, ChatCompletionResponseDelta};
+use super::{NvCreateChatCompletionResponse, NvCreateChatCompletionStreamResponse};
 use crate::protocols::{
     codec::{Message, SseCodecError},
     convert_sse_stream, Annotated,
@@ -22,37 +22,54 @@ use crate::protocols::{
 use futures::{Stream, StreamExt};
 use std::{collections::HashMap, pin::Pin};
 
+/// A type alias for a pinned, dynamically-dispatched stream that is `Send` and `Sync`.
 type DataStream<T> = Pin<Box<dyn Stream<Item = T> + Send + Sync>>;
 
-/// Aggregates a stream of [`ChatCompletionResponseDelta`]s into a single [`ChatCompletionResponse`].
+/// Aggregates a stream of [`NvCreateChatCompletionStreamResponse`]s into a single
+/// [`NvCreateChatCompletionResponse`]. This struct accumulates incremental responses
+/// from a streaming OpenAI API call into a complete final response.
 pub struct DeltaAggregator {
+    /// Unique identifier for the chat completion.
     id: String,
+    /// Model name used for the chat completion.
     model: String,
+    /// Timestamp (Unix epoch) indicating when the response was created.
     created: u32,
+    /// Optional usage statistics for the completion request.
     usage: Option<async_openai::types::CompletionUsage>,
+    /// Optional system fingerprint for version tracking.
     system_fingerprint: Option<String>,
+    /// Map of incremental response choices, keyed by index.
     choices: HashMap<u32, DeltaChoice>,
+    /// Optional error message if an error occurs during aggregation.
     error: Option<String>,
+    /// Optional service tier information for the response.
     service_tier: Option<async_openai::types::ServiceTierResponse>,
 }
 
-// Holds the accumulated state of a choice
+/// Represents the accumulated state of a single chat choice during streaming aggregation.
 struct DeltaChoice {
+    /// The index of the choice in the completion.
     index: u32,
+    /// The accumulated text content for the choice.
     text: String,
+    /// The role associated with this message (e.g., `system`, `user`, `assistant`).
     role: Option<async_openai::types::Role>,
+    /// The reason the completion was finished (if applicable).
     finish_reason: Option<async_openai::types::FinishReason>,
+    /// Optional log probabilities for the chat choice.
     logprobs: Option<async_openai::types::ChatChoiceLogprobs>,
 }
 
 impl Default for DeltaAggregator {
+    /// Provides a default implementation for `DeltaAggregator` by calling [`DeltaAggregator::new`].
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl DeltaAggregator {
-    /// Creates a new [`DeltaAggregator`].
+    /// Creates a new, empty [`DeltaAggregator`] instance.
     pub fn new() -> Self {
         Self {
             id: "".to_string(),
@@ -66,14 +83,21 @@ impl DeltaAggregator {
         }
     }
 
-    /// Aggregates a stream of [`ChatCompletionResponseDelta`]s into a single [`ChatCompletionResponse`].
+    /// Aggregates a stream of [`NvCreateChatCompletionStreamResponse`]s into a single
+    /// [`NvCreateChatCompletionResponse`].
+    ///
+    /// # Arguments
+    /// * `stream` - A stream of annotated chat completion responses.
+    ///
+    /// # Returns
+    /// * `Ok(NvCreateChatCompletionResponse)` if aggregation is successful.
+    /// * `Err(String)` if an error occurs during processing.
     pub async fn apply(
-        stream: DataStream<Annotated<ChatCompletionResponseDelta>>,
-    ) -> Result<ChatCompletionResponse, String> {
+        stream: DataStream<Annotated<NvCreateChatCompletionStreamResponse>>,
+    ) -> Result<NvCreateChatCompletionResponse, String> {
         let aggregator = stream
             .fold(DeltaAggregator::new(), |mut aggregator, delta| async move {
-                // these are cheap to move so we do it every time since we are consuming the delta
-
+                // Attempt to unwrap the delta, capturing any errors.
                 let delta = match delta.ok() {
                     Ok(delta) => delta,
                     Err(error) => {
@@ -83,15 +107,14 @@ impl DeltaAggregator {
                 };
 
                 if aggregator.error.is_none() && delta.data.is_some() {
-                    // note: we could extract annotations here and add them to the aggregator
-                    // to be return as part of the NIM Response Extension
-                    // TODO(#14) - Aggregate Annotation
-
+                    // Extract the data payload from the delta.
                     let delta = delta.data.unwrap();
                     aggregator.id = delta.inner.id;
                     aggregator.model = delta.inner.model;
                     aggregator.created = delta.inner.created;
                     aggregator.service_tier = delta.inner.service_tier;
+
+                    // Aggregate usage statistics if available.
                     if let Some(usage) = delta.inner.usage {
                         aggregator.usage = Some(usage);
                     }
@@ -99,7 +122,7 @@ impl DeltaAggregator {
                         aggregator.system_fingerprint = Some(system_fingerprint);
                     }
 
-                    // handle the choices
+                    // Aggregate choices incrementally.
                     for choice in delta.inner.choices {
                         let state_choice =
                             aggregator
@@ -113,10 +136,12 @@ impl DeltaAggregator {
                                     logprobs: choice.logprobs,
                                 });
 
+                        // Append content if available.
                         if let Some(content) = &choice.delta.content {
                             state_choice.text.push_str(content);
                         }
 
+                        // Update finish reason if provided.
                         if let Some(finish_reason) = choice.finish_reason {
                             state_choice.finish_reason = Some(finish_reason);
                         }
@@ -126,14 +151,14 @@ impl DeltaAggregator {
             })
             .await;
 
-        // If we have an error, return it
+        // Return early if an error was encountered.
         let aggregator = if let Some(error) = aggregator.error {
             return Err(error);
         } else {
             aggregator
         };
 
-        // extra the aggregated deltas and sort by index
+        // Extract aggregated choices and sort them by index.
         let mut choices: Vec<_> = aggregator
             .choices
             .into_values()
@@ -142,6 +167,7 @@ impl DeltaAggregator {
 
         choices.sort_by(|a, b| a.index.cmp(&b.index));
 
+        // Construct the final response object.
         let inner = async_openai::types::CreateChatCompletionResponse {
             id: aggregator.id,
             created: aggregator.created,
@@ -153,17 +179,19 @@ impl DeltaAggregator {
             service_tier: aggregator.service_tier,
         };
 
-        let response = ChatCompletionResponse { inner };
+        let response = NvCreateChatCompletionResponse { inner };
 
         Ok(response)
     }
 }
 
-// todo - handle tool calls
 #[allow(deprecated)]
 impl From<DeltaChoice> for async_openai::types::ChatChoice {
+    /// Converts a [`DeltaChoice`] into an [`async_openai::types::ChatChoice`].
+    ///
+    /// # Note
+    /// The `function_call` field is deprecated.
     fn from(delta: DeltaChoice) -> Self {
-        // ALLOW: function_call is deprecated
         async_openai::types::ChatChoice {
             message: async_openai::types::ChatCompletionResponseMessage {
                 role: delta.role.expect("delta should have a Role"),
@@ -180,17 +208,33 @@ impl From<DeltaChoice> for async_openai::types::ChatChoice {
     }
 }
 
-impl ChatCompletionResponse {
+impl NvCreateChatCompletionResponse {
+    /// Converts an SSE stream into a [`NvCreateChatCompletionResponse`].
+    ///
+    /// # Arguments
+    /// * `stream` - A stream of SSE messages containing chat completion responses.
+    ///
+    /// # Returns
+    /// * `Ok(NvCreateChatCompletionResponse)` if aggregation succeeds.
+    /// * `Err(String)` if an error occurs.
     pub async fn from_sse_stream(
         stream: DataStream<Result<Message, SseCodecError>>,
-    ) -> Result<ChatCompletionResponse, String> {
-        let stream = convert_sse_stream::<ChatCompletionResponseDelta>(stream);
-        ChatCompletionResponse::from_annotated_stream(stream).await
+    ) -> Result<NvCreateChatCompletionResponse, String> {
+        let stream = convert_sse_stream::<NvCreateChatCompletionStreamResponse>(stream);
+        NvCreateChatCompletionResponse::from_annotated_stream(stream).await
     }
 
+    /// Aggregates an annotated stream of chat completion responses into a final response.
+    ///
+    /// # Arguments
+    /// * `stream` - A stream of annotated chat completion responses.
+    ///
+    /// # Returns
+    /// * `Ok(NvCreateChatCompletionResponse)` if aggregation succeeds.
+    /// * `Err(String)` if an error occurs.
     pub async fn from_annotated_stream(
-        stream: DataStream<Annotated<ChatCompletionResponseDelta>>,
-    ) -> Result<ChatCompletionResponse, String> {
+        stream: DataStream<Annotated<NvCreateChatCompletionStreamResponse>>,
+    ) -> Result<NvCreateChatCompletionResponse, String> {
         DeltaAggregator::apply(stream).await
     }
 }
@@ -207,7 +251,7 @@ mod tests {
         text: &str,
         role: Option<async_openai::types::Role>,
         finish_reason: Option<async_openai::types::FinishReason>,
-    ) -> Annotated<ChatCompletionResponseDelta> {
+    ) -> Annotated<NvCreateChatCompletionStreamResponse> {
         // ALLOW: function_call is deprecated
         let delta = async_openai::types::ChatCompletionStreamResponseDelta {
             content: Some(text.to_string()),
@@ -234,7 +278,7 @@ mod tests {
             object: "chat.completion".to_string(),
         };
 
-        let data = ChatCompletionResponseDelta { inner };
+        let data = NvCreateChatCompletionStreamResponse { inner };
 
         Annotated {
             data: Some(data),
@@ -247,7 +291,8 @@ mod tests {
     #[tokio::test]
     async fn test_empty_stream() {
         // Create an empty stream
-        let stream: DataStream<Annotated<ChatCompletionResponseDelta>> = Box::pin(stream::empty());
+        let stream: DataStream<Annotated<NvCreateChatCompletionStreamResponse>> =
+            Box::pin(stream::empty());
 
         // Call DeltaAggregator::apply
         let result = DeltaAggregator::apply(stream).await;
@@ -375,7 +420,7 @@ mod tests {
             object: "chat.completion".to_string(),
         };
 
-        let data = ChatCompletionResponseDelta { inner: delta };
+        let data = NvCreateChatCompletionStreamResponse { inner: delta };
 
         // Wrap it in Annotated and create a stream
         let annotated_delta = Annotated {

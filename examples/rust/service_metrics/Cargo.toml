@@ -24,6 +24,7 @@ repository.workspace = true
 
 [dependencies]
 triton-distributed-runtime = { workspace = true }
+triton-distributed-llm = { path = "../../../lib/llm" }
 
 # third-party
 futures = { workspace = true }

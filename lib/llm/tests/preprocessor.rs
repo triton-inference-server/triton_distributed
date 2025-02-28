@@ -18,7 +18,7 @@ use anyhow::Ok;
 use serde::{Deserialize, Serialize};
 use triton_distributed_llm::model_card::model::{ModelDeploymentCard, PromptContextMixin};
 use triton_distributed_llm::preprocessor::prompt::PromptFormatter;
-use triton_distributed_llm::protocols::openai::chat_completions::ChatCompletionRequest;
+use triton_distributed_llm::protocols::openai::chat_completions::NvCreateChatCompletionRequest;
 
 use hf_hub::{api::tokio::ApiBuilder, Cache, Repo, RepoType};
 
@@ -232,7 +232,7 @@ impl Request {
         tools: Option<&str>,
         tool_choice: Option<async_openai::types::ChatCompletionToolChoiceOption>,
         model: String,
-    ) -> ChatCompletionRequest {
+    ) -> NvCreateChatCompletionRequest {
         let messages: Vec<async_openai::types::ChatCompletionRequestMessage> =
             serde_json::from_str(messages).unwrap();
         let tools: Option<Vec<async_openai::types::ChatCompletionTool>> =
@@ -248,7 +248,7 @@ impl Request {
             .build()
             .unwrap();
 
-        ChatCompletionRequest { inner, nvext: None }
+        NvCreateChatCompletionRequest { inner, nvext: None }
     }
 }
 

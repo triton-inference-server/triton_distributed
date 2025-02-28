@@ -25,7 +25,25 @@ license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "pytest>=8.3.4",
+    "pydantic>=2.10.6",
+    "uvloop>=0.21.0",
 ]
+
+[tool.maturin]
+module-name = "triton_distributed._core"
+# Point to the Rust crate directory
+manifest-path = "lib/bindings/python/Cargo.toml"
+# Include all Python packages
+python-packages = ["triton_distributed"]
+# Specify the Python source directory
+python-source = "lib/bindings/python/src"
+
+[tool.uv]
+config-settings = { build-args = '--auditwheel repair --manylinux' }
+
+[build-system]
+requires = ["maturin>=1.0,<2.0", "patchelf"]
+build-backend = "maturin"
 
 [tool.codespell]
 # note: pre-commit passes explicit lists of files here, which this skip file list doesn't override -
@@ -104,8 +122,9 @@ indent-width = 4
 # disable_error_code = []
 
 # --explicit-package-bases: WAR errors about duplicate module names used
-#   throughout project such as launch_workers.py
-# explicit_package_bases = true
+#   throughout the llm examples. For example, the common module in
+#   tensorrt_llm and vllm are both named common.
+explicit_package_bases = true
 
 # --ignore-missing-imports: WAR too many errors when developing outside
 #   of container environment with PYTHONPATH set and packages installed.

@@ -3231,6 +3231,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "triton-distributed-llm",
  "triton-distributed-runtime",
 ]
 
@@ -3932,7 +3933,7 @@ dependencies = [
 
 [[package]]
 name = "triton-distributed-llm"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "async-openai",
@@ -3978,7 +3979,7 @@ dependencies = [
 
 [[package]]
 name = "triton-distributed-runtime"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "async-nats",

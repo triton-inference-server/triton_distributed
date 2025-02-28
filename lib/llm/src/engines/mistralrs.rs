@@ -34,7 +34,7 @@ use triton_distributed_runtime::pipeline::{Error, ManyOut, SingleIn};
 use triton_distributed_runtime::protocols::annotated::Annotated;
 
 use crate::protocols::openai::chat_completions::{
-    ChatCompletionRequest, ChatCompletionResponseDelta,
+    ChatCompletionRequest, NvCreateChatCompletionStreamResponse,
 };
 use crate::types::openai::chat_completions::OpenAIChatCompletionsStreamingEngine;
 
@@ -161,14 +161,14 @@ impl MistralRsEngine {
 impl
     AsyncEngine<
         SingleIn<ChatCompletionRequest>,
-        ManyOut<Annotated<ChatCompletionResponseDelta>>,
+        ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>,
         Error,
     > for MistralRsEngine
 {
     async fn generate(
         &self,
         request: SingleIn<ChatCompletionRequest>,
-    ) -> Result<ManyOut<Annotated<ChatCompletionResponseDelta>>, Error> {
+    ) -> Result<ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>, Error> {
         let (request, context) = request.transfer(());
         let ctx = context.context();
         let (tx, mut rx) = channel(10_000);
@@ -286,7 +286,7 @@ impl
                             system_fingerprint: Some(c.system_fingerprint),
                             service_tier: None,
                         };
-                        let delta = ChatCompletionResponseDelta{inner};
+                        let delta = NvCreateChatCompletionStreamResponse{inner};
                         let ann = Annotated{
                             id: None,
                             data: Some(delta),

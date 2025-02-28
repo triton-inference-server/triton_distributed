@@ -13,7 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use service_metrics::{MyStats, DEFAULT_NAMESPACE};
+use service_metrics::DEFAULT_NAMESPACE;
+use triton_distributed_llm::kv_router::protocols::ForwardPassMetrics;
 use rand::Rng;
 use std::sync::Arc;
 use triton_distributed_runtime::{
@@ -67,28 +68,32 @@ async fn backend(runtime: DistributedRuntime) -> Result<()> {
 
     // make the ingress discoverable via a component service
     // we must first create a service, then we can attach one more more endpoints
+
     runtime
         .namespace(DEFAULT_NAMESPACE)?
         .component("backend")?
         .service_builder()
-        // Dummy stats handler to demonstrate how to attach a custom stats handler
-        .stats_handler(Some(Box::new(|_name, _stats| {
-            let requests_total_slots = 100;
-            let requests_active_slots = rand::thread_rng().gen_range(0..requests_total_slots);
-            let kv_blocks_total = 100;
-            let kv_blocks_active = rand::thread_rng().gen_range(0..kv_blocks_total);
-            let stats = MyStats {
-                requests_active_slots,
-                requests_total_slots,
-                kv_blocks_active,
-                kv_blocks_total,
-            };
-            serde_json::to_value(stats).unwrap()
-        })))
         .create()
         .await?
         .endpoint("generate")
         .endpoint_builder()
+        // Dummy stats handler to demonstrate how to attach a custom stats handler
+        .stats_handler(|_stats| {
+            println!("stats in: {:?}", _stats);
+            let request_total_slots = 100;
+            let request_active_slots = rand::thread_rng().gen_range(0..request_total_slots);
+            let kv_total_blocks = 100;
+            let kv_active_blocks = rand::thread_rng().gen_range(0..kv_total_blocks);
+            // FIXME: Use ForwardPassMetrics instead of MyStats
+            let stats = ForwardPassMetrics {
+                request_active_slots,
+                request_total_slots,
+                kv_active_blocks,
+                kv_total_blocks,
+            };
+            println!("stats out: {:?}", stats);
+            serde_json::to_value(stats).unwrap()
+        })
         .handler(ingress)
         .start()
         .await

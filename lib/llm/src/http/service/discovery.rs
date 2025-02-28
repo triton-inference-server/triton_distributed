@@ -28,7 +28,7 @@ use triton_distributed_runtime::{
 use super::ModelManager;
 use crate::model_type::ModelType;
 use crate::protocols::openai::chat_completions::{
-    ChatCompletionRequest, ChatCompletionResponseDelta,
+    NvCreateChatCompletionRequest, NvCreateChatCompletionStreamResponse,
 };
 use crate::protocols::openai::completions::{CompletionRequest, CompletionResponse};
 use tracing;
@@ -135,7 +135,7 @@ async fn handle_put(kv: &KeyValue, state: Arc<ModelWatchState>) -> Result<(&str,
                 .namespace(model_entry.endpoint.namespace)?
                 .component(model_entry.endpoint.component)?
                 .endpoint(model_entry.endpoint.name)
-                .client::<ChatCompletionRequest, Annotated<ChatCompletionResponseDelta>>()
+                .client::<NvCreateChatCompletionRequest, Annotated<NvCreateChatCompletionStreamResponse>>()
                 .await?;
             state
                 .manager
