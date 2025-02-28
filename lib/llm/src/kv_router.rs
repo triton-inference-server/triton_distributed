@@ -85,8 +85,18 @@ impl KvRouter {
 
         tokio::spawn(async move {
             while let Some(event) = kv_events_rx.next().await {
-                let event: RouterEvent = serde_json::from_slice(&event.payload).unwrap();
-                tracing::debug!("received kv event: {:?}", event);
+                let event: RouterEvent = match serde_json::from_slice(&event.payload) {
+                    Ok(event) => {
+                        tracing::debug!("received kv event: {:?}", event);
+                        event
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to deserialize RouterEvent: {:?}", e);
+                        // Choosing warn and continue to process other events from other workers
+                        // A bad event likely signals a problem with a worker, but potentially other workers are still healthy
+                        continue;
+                    }
+                };
                 if let Err(e) = kv_events_tx.send(event).await {
                     tracing::trace!("failed to send kv event to indexer; shutting down: {:?}", e);
                 }
@@ -141,10 +151,16 @@ async fn collect_endpoints(
             }
         }
 
-        let values = nats_client
+        let values = match nats_client
             .get_endpoints(&service_name, Duration::from_secs(1))
             .await
-            .unwrap();
+        {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::warn!("Failed to retrieve endpoints for {}: {:?}", service_name, e);
+                continue;
+            }
+        };
 
         tracing::debug!("values: {:?}", values);
         let services: Vec<Service> = values
