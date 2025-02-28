@@ -61,13 +61,17 @@ jobs:
             echo "cache_from_location=${{ env.DEFAULT_CACHE_LOCATION }}" >> $GITHUB_OUTPUT
           fi
           echo "cache_to_location=${{ env.IMAGE_TAG }}" >> $GITHUB_OUTPUT
-      - name: Build image
+      - name: Build and cache image
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         env:
           CACHE_FROM: "type=registry,ref=${{ steps.which_cache.outputs.cache_from_location }}"
           CACHE_TO: "type=registry,ref=${{ steps.which_cache.outputs.cache_to_location }},image-manifest=true,mode=max"
-
         run: |
-          ./container/build.sh --tag $IMAGE_TAG --framework ${{ matrix.framework }} --cache-from "${{ env.CACHE_FROM }}" --cache-to "${{ env.CACHE_TO }}"
+          ./container/build.sh --tag ${{ env.IMAGE_TAG }} --framework ${{ matrix.framework }} --cache-from "${{ env.CACHE_FROM }}" --cache-to "${{ env.CACHE_TO }}"
+      - name: Build image (fork)
+        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+        run: |
+          ./container/build.sh --tag ${{ env.IMAGE_TAG }} --framework ${{ matrix.framework }}"
       - name: Run pytest
         env:
           PYTEST_MARKS: "pre_merge or mypy"
