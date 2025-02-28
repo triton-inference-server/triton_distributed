@@ -68,7 +68,9 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<llm::kv::KvMetricsPublisher>()?;
 
     // functions
-    m.add_function(wrap_pyfunction!(llm::kv::triton_llm_event_init, m)?)?;
+    m.add_function(wrap_pyfunction!(llm::events::triton_llm_event_init, m)?)?;
+    m.add_function(wrap_pyfunction!(llm::events::triton_kv_event_publish_stored, m)?)?;
+    m.add_function(wrap_pyfunction!(llm::events::triton_kv_event_publish_removed, m)?)?;
 
     engine::add_to_module(m)?;
 

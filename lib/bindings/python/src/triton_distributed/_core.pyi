@@ -182,8 +182,32 @@ class TritonLlmResult(Enum):
     ...
 
 
-def triton_llm_event_init(namespace: str, component: str, worker_id: int) -> TritonLlmResult:
+def triton_llm_event_init(namespace: str,
+                          component: str,
+                          worker_id: int) -> TritonLlmResult:
     """
     Initialize the Triton LLM event runtime
+    """
+    ...
+
+
+def triton_kv_event_publish_stored(event_id: int,
+                                   token_ids: List[int],
+                                   num_block_tokens: List[int],
+                                   block_ids: List[int],
+                                   num_blocks: int,
+                                   lora_id: int,
+                                   parent_hash: int | None = None) -> TritonLlmResult:
+    """
+    Publish a stored KV event
+    """
+    ...
+
+
+def triton_kv_event_publish_removed(event_id: int,
+                                    block_ids: List[int],
+                                    num_blocks: int) -> TritonLlmResult:
+    """
+    Publish a removed KV event
     """
     ...

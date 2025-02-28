@@ -14,16 +14,7 @@
 // limitations under the License.
 
 use super::*;
-use async_once_cell::OnceCell as AsyncOnceCell;
 
-use triton_distributed_runtime::{DistributedRuntime, Worker};
-use triton_distributed_llm::kv_router::{
-    indexer::compute_block_hash_for_seq, protocols::*, publisher::KvEventPublisher,
-};
-
-static WK: OnceCell<Worker> = OnceCell::new();
-static DRT: AsyncOnceCell<DistributedRuntime> = AsyncOnceCell::new();
-static KV_PUB: OnceCell<KvEventPublisher> = OnceCell::new();
 
 #[pyclass]
 pub(crate) struct KvRouter {
@@ -117,82 +108,3 @@ impl KvMetricsPublisher {
     }
 }
 
-
-#[pyfunction]
-pub fn triton_llm_event_init(
-    namespace: String,
-    component: String,
-    worker_id: i64,
-) -> PyResult<TritonLlmResult> {
-    let wk = rs::Worker::from_settings().map_err(to_pyerr)?;
-    INIT.get_or_try_init(|| {
-        let primary = worker.tokio_runtime()?;
-        pyo3_async_runtimes::tokio::init_with_runtime(primary)
-            .map_err(|e| rs::error!("failed to initialize runtime: {:?}", e))?;
-        rs::OK(())
-    })
-    .map_err(to_pyerr)?;
-
-    let rt = wk.runtime().clone();
-    let secondary = rt.secondary().clone();
-    let result = secondary.block_on(async {
-        // Initialize the distributed runtime
-        match DRT
-            .get_or_try_init(async { DistributedRuntime::from_settings(rt.clone()).await })
-            .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                map_err!("Failed to initialize distributed runtime: {:?}", e);
-                Err(TritonLlmResult::ERR)
-            }
-        }
-    });
-    let namespace = match namespace {
-        Ok(s) => s.to_string(),
-        Err(e) => {
-            eprintln!("Failed to convert C string to Rust string: {:?}", e);
-            return TritonLlmResult::ERR;
-        }
-    };
-
-    let component = match component {
-        Ok(s) => s.to_string(),
-        Err(e) => {
-            eprintln!("Failed to convert C string to Rust string: {:?}", e);
-            return TritonLlmResult::ERR;
-        }
-    };
-
-    match result {
-        Ok(_) => match KV_PUB
-            .get_or_try_init(move || triton_create_kv_publisher(namespace, component, worker_id))
-        {
-            Ok(_) => TritonLlmResult::OK,
-            Err(e) => {
-                eprintln!("Failed to initialize distributed runtime: {:?}", e);
-                TritonLlmResult::ERR
-            }
-        },
-        Err(e) => e,
-    }
-}
-
-
-fn triton_create_kv_publisher(
-    namespace: String,
-    component: String,
-    worker_id: i64,
-) -> Result<KvEventPublisher, anyhow::Error> {
-    tracing::info!("Creating KV Publisher for model: {}", component);
-    match DRT
-        .get()
-        .ok_or(anyhow::Error::msg("Could not get Distributed Runtime"))
-    {
-        Ok(drt) => {
-            let backend = drt.namespace(namespace)?.component(component)?;
-            KvEventPublisher::new(drt.clone(), backend, worker_id)
-        }
-        Err(e) => Err(e),
-    }
-}
