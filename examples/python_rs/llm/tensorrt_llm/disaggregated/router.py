@@ -84,7 +84,7 @@ class Router:
 
         ctx_resp_obj = DisaggregatedResponse.parse_raw(ctx_resp[0].data())
         logger.debug(f"[router] Got response from context server: {ctx_resp_obj}")
-        if request.streaming:
+        if request.stream:
             # TODO: Return the first token and the rest of the tokens
             # are returned in the generation server.
             pass
