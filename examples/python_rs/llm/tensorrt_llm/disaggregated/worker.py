@@ -80,7 +80,6 @@ class TensorrtLLMEngine:
             self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(self.model)
-        self.chat_processor = ChatProcessor(self.model, self.tokenizer)
         self.completions_processor = CompletionsProcessor(self.model)
 
     def _init_engine(self):
@@ -189,8 +188,9 @@ class TensorrtLLMEngine:
     async def generate(self, raw_request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
-
+        
         request = DisaggChatCompletionRequest(**raw_request.model_dump())
+        chat_processor = ChatProcessor(self.model, self.tokenizer, request)
 
         self._ongoing_request_count += 1
         logger.debug(f"Received request Tanmyyyyy: {request}")
@@ -234,7 +234,7 @@ class TensorrtLLMEngine:
             ):
                 logger.debug(f"Generated response: {response}")
                 if self.server_config.type == "ctx":
-                    disaggregated_response = self.chat_processor.get_chat_stream_response(
+                    disaggregated_response = chat_processor.get_chat_stream_response(
                         request.id,
                         response,
                         first_iteration=True,

@@ -16,7 +16,7 @@
 import argparse
 import asyncio
 import copy
-
+import uuid
 import uvloop
 from common.processor import ChatProcessor
 from common.protocol import (
@@ -56,6 +56,7 @@ class Router:
         request.skip_special_tokens = False
         request.add_special_tokens = False
         request.spaces_between_special_tokens = False
+        request.id = str(uuid.uuid4())
 
         disaggregated_request = DisaggChatCompletionRequest(**request.model_dump())
         logger.debug(f"Received request {disaggregated_request}")

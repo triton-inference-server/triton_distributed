@@ -73,7 +73,7 @@ def parse_chat_message_content(
     return [ConversationMessage(role=role, content=text_prompt)]
 
 
-class ChatStreamResponseTemplate:
+class ChatProcessor:
     def __init__(self, model: str, tokenizer: AutoTokenizer, request: ChatCompletionRequest):
         self.model = model
         self.tokenizer = tokenizer
