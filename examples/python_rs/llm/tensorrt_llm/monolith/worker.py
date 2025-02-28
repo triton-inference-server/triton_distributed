@@ -30,15 +30,14 @@ from common.processor import (
     merge_promises,
     parse_chat_message_content,
 )
+from common.protocol import nvChatCompletionRequest, nvCompletionRequest
 from tensorrt_llm._torch import LLM
 from tensorrt_llm._torch.pyexecutor.config import PyTorchConfig
 from tensorrt_llm.executor import CppExecutorError
 from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (
-    ChatCompletionRequest,
     ChatCompletionStreamResponse,
-    CompletionRequest,
     CompletionStreamResponse,
 )
 from transformers import AutoTokenizer
@@ -49,7 +48,7 @@ from triton_distributed.runtime import (
     triton_worker,
 )
 
-logger.set_level("info")
+logger.set_level("debug")
 
 
 class RequestType(Enum):
@@ -162,12 +161,12 @@ class TensorrtLLMEngine:
         self._llm_engine = None
         logger.info("Shutdown complete")
 
-    async def _generate_chat(self, request):
+    @triton_endpoint(nvChatCompletionRequest, ChatCompletionStreamResponse)
+    async def generate_chat(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
 
-        self._ongoing_request_count += 1
-        logger.debug(f"Received request: {request}")
+        logger.debug(f"Received chat request: {request}")
         request_id = str(uuid.uuid4())
 
         try:
@@ -200,8 +199,8 @@ class TensorrtLLMEngine:
                     response_generator = self.chat_processor.stream_response(
                         request, request_id, conversation, promise
                     )
-                    return response_generator
-
+                    for response in response_generator:
+                        yield response
                 else:
                     # TODO: Implement non-streaming chat completion
                     raise RuntimeError("Non-streaming is not supported")
@@ -210,18 +209,17 @@ class TensorrtLLMEngine:
             signal.raise_signal(signal.SIGINT)
         except Exception as e:
             raise RuntimeError("Failed to generate: " + str(e))
-        finally:
-            self._ongoing_request_count -= 1
 
-    async def _generate_completions(self, request):
+    @triton_endpoint(nvCompletionRequest, CompletionStreamResponse)
+    async def generate_completion(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
 
         self._ongoing_request_count += 1
-        logger.debug(f"Received request: {request}")
+        logger.debug(f"Received completion request: {request}")
 
         if isinstance(request, str):
-            request = CompletionRequest.parse_raw(request)
+            request = nvCompletionRequest.parse_raw(request)
         if isinstance(request.prompt, str) or (
             isinstance(request.prompt, list) and isinstance(request.prompt[0], int)
         ):
@@ -248,7 +246,8 @@ class TensorrtLLMEngine:
             response_generator = self.completions_processor.create_completion_generator(
                 request, generator, num_choices
             )
-            return response_generator
+            for response in response_generator:
+                yield response
         else:
             # TODO: Implement non-streaming completion
             # response = await self.chat_processor.create_completion_response(
@@ -257,25 +256,6 @@ class TensorrtLLMEngine:
             # yield response
             raise RuntimeError("Non-streaming is not supported")
 
-        self._ongoing_request_count -= 1
-
-    async def _generate(self, raw_request, request_type: RequestType):
-        if request_type == RequestType.CHAT:
-            return self._generate_chat(raw_request)
-        elif request_type == RequestType.COMPLETION:
-            return self._generate_completions(raw_request)
-        else:
-            raise NotImplementedError(f"Request type {request_type} not implemented")
-
-    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
-    async def generate_chat(self, raw_request):
-        async for response in self._generate(raw_request, RequestType.CHAT):
-            yield response
-
-    @triton_endpoint(CompletionRequest, CompletionStreamResponse)
-    async def generate_completion(self, raw_request):
-        async for response in self._generate(raw_request, RequestType.COMPLETION):
-            yield response
 
 
 @triton_worker()

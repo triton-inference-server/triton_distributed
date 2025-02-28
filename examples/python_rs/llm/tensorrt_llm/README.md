@@ -96,7 +96,7 @@ By default the server will run on port 8080.
 
 Add model to the server:
 ```bash
-llmctl http add chat-models TinyLlama/TinyLlama-1.1B-Chat-v1.0 triton-init.tensorrt-llm.generate
+llmctl http add chat-models TinyLlama/TinyLlama-1.1B-Chat-v1.0 triton-init.tensorrt-llm.chat/completions
 ```
 
 #### 2. Workers
