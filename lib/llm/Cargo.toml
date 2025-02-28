@@ -34,6 +34,7 @@ mistralrs = ["dep:mistralrs"]
 llamacpp = ["dep:llama-cpp-2"]
 sglang = ["dep:async_zmq"]
 sentencepiece = ["dep:sentencepiece"]
+vllm = ["dep:async_zmq"]
 
 cuda = ["mistralrs/cuda", "llama-cpp-2/cuda"]
 metal = ["mistralrs/metal", "llama-cpp-2/metal"]
