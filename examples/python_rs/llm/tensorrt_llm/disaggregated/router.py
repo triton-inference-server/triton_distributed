@@ -13,24 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
 import asyncio
 import copy
+from enum import Enum
 
 import uvloop
 from common.processor import ChatProcessor
 from common.protocol import (
     DisaggChatCompletionRequest,
+    DisaggChatStreamCompletionResponse,
     DisaggregatedResponse,
-    nvChatCompletionRequest,
-)
-from tensorrt_llm.llmapi.disagg_utils import (
-    CtxGenServerConfig,
-    parse_disagg_config_file,
+    nvCompletionRequest,
 )
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (
-    ChatCompletionStreamResponse,
+    CompletionStreamResponse,
     DisaggregatedParams,
 )
 
@@ -43,24 +40,38 @@ from triton_distributed.runtime import (
 logger.set_level("debug")
 
 
+class RequestType(Enum):
+    CHAT = "chat"
+    COMPLETION = "completion"
+
+
 class Router:
-    def __init__(self, ctx_client, gen_client):
-        self.ctx_server_idx = 0
-        self.gen_server_idx = 0
-        self.ctx_client = ctx_client
-        self.gen_client = gen_client
+    def __init__(
+        self,
+        ctx_chat_client,
+        gen_chat_client,
+        ctx_completion_client,
+        gen_completion_client,
+    ):
+        self.ctx_chat_client = ctx_chat_client
+        self.gen_chat_client = gen_chat_client
+        self.ctx_completion_client = ctx_completion_client
+        self.gen_completion_client = gen_completion_client
         logger.info("INITIALIZED ROUTER")
         self.chat_processor = ChatProcessor("disagg_router", None)
 
-    @triton_endpoint(nvChatCompletionRequest, ChatCompletionStreamResponse)
-    async def generate(self, request):
+    async def generate(self, request, ctx_client, gen_client, request_type):
         # Send request to context serve
         # These settings are needed to satisfy request checks.
         request.skip_special_tokens = False
         request.add_special_tokens = False
         request.spaces_between_special_tokens = False
 
-        disaggregated_request = DisaggChatCompletionRequest(**request.model_dump())
+        if request_type == RequestType.CHAT:
+            disaggregated_request = DisaggChatCompletionRequest(**request.model_dump())
+        else:
+            disaggregated_request = nvCompletionRequest(**request.model_dump())
+
         logger.debug(f"Received request {disaggregated_request}")
 
         gen_req = copy.deepcopy(disaggregated_request)
@@ -74,7 +85,7 @@ class Router:
         )
         ctx_resp = [
             resp
-            async for resp in await self.ctx_client.round_robin(
+            async for resp in await ctx_client.round_robin(
                 disaggregated_request.model_dump_json()
             )
         ]
@@ -94,15 +105,28 @@ class Router:
         gen_req.disaggregated_params.request_type = "generation_only"
 
         logger.debug(f"[router] Sending request to generation server: {gen_req}")
-        async for response in await self.gen_client.round_robin(
-            gen_req.model_dump_json()
-        ):
+        async for response in await gen_client.round_robin(gen_req.model_dump_json()):
             logger.debug(f"[router] Got response from generation server: {response}")
             yield response
 
+    @triton_endpoint(nvCompletionRequest, CompletionStreamResponse)
+    async def generate_completion(self, request):
+        yield self.generate(
+            request,
+            self.ctx_completion_client,
+            self.gen_completion_client,
+            RequestType.COMPLETION,
+        )
+
+    @triton_endpoint(DisaggChatCompletionRequest, DisaggChatStreamCompletionResponse)
+    async def generate_chat(self, request):
+        yield self.generate(
+            request, self.ctx_chat_client, self.gen_chat_client, RequestType.CHAT
+        )
+
 
 @triton_worker()
-async def worker(runtime: DistributedRuntime, server_configs: list[CtxGenServerConfig]):
+async def worker(runtime: DistributedRuntime):
     """
     Instantiate a `backend` component and serve the `generate` endpoint
     A `Component` can serve multiple endpoints
@@ -110,36 +134,42 @@ async def worker(runtime: DistributedRuntime, server_configs: list[CtxGenServerC
     component = runtime.namespace("triton-init").component("router")
     await component.create_service()
 
-    ctx_client = (
+    ctx_completion_client = (
         await runtime.namespace("triton-init")
         .component("tensorrt-llm-ctx")
-        .endpoint("generate")
+        .endpoint("completions")
         .client()
     )
-    gen_client = (
+    gen_completion_client = (
         await runtime.namespace("triton-init")
         .component("tensorrt-llm-gen")
-        .endpoint("generate")
+        .endpoint("completions")
+        .client()
+    )
+    ctx_chat_client = (
+        await runtime.namespace("triton-init")
+        .component("tensorrt-llm-ctx")
+        .endpoint("chat/completions")
+        .client()
+    )
+    gen_chat_client = (
+        await runtime.namespace("triton-init")
+        .component("tensorrt-llm-gen")
+        .endpoint("chat/completions")
         .client()
     )
 
-    endpoint = component.endpoint("generate")
-    await endpoint.serve_endpoint(Router(ctx_client, gen_client).generate)
+    chat_endpoint = component.endpoint("chat/completions")
+    completions_endpoint = component.endpoint("completions")
+    router = Router(
+        ctx_chat_client, gen_chat_client, ctx_completion_client, gen_completion_client
+    )
+    await asyncio.gather(
+        chat_endpoint.serve_endpoint(router.generate),
+        completions_endpoint.serve_endpoint(router.generate_completion),
+    )
 
 
 if __name__ == "__main__":
     uvloop.install()
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--llmapi-disaggregated-config",
-        "-c",
-        type=str,
-        default="disaggregated/llmapi_disaggregated_configs/single_node_config.yaml",
-        help="Path to the llmapi disaggregated config file",
-    )
-    args = parser.parse_args()
-    disagg_config = parse_disagg_config_file(args.llmapi_disaggregated_config)
-    server_configs = disagg_config.server_configs
-
-    asyncio.run(worker(server_configs))
+    asyncio.run(worker())

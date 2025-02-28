@@ -222,7 +222,8 @@ By default the server will run on port 8080.
 
 Add model to the server:
 ```bash
-llmctl http add chat-models DeepSeek/DeepSeek-R1-FP4 triton-init.router.generate
+llmctl http add chat DeepSeek/DeepSeek-R1-FP4 triton-init.router.chat/completions
+llmctl http add completion DeepSeek/DeepSeek-R1-FP4 triton-init.router.completions
 ```
 
 #### 2. Workers
@@ -241,7 +242,7 @@ For example, 2 TP2 generation servers are 2 servers but 4 workers/mpi executor.
 
 ```bash
 cd /workspace/examples/python_rs/llm/tensorrt_llm/
-mpirun --allow-run-as-root --oversubscribe -n 8 python3 -m disaggregated.worker --engine_args model.json -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml 1>workers.log 2>&1 &
+mpirun --allow-run-as-root --oversubscribe -n 8 python3 -m disaggregated.worker --engine_args model.json -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml 1>disagg_workers.log 2>&1 &
 ```
 If using the provided [single_node_config.yaml](disaggregated/llmapi_disaggregated_configs/single_node_config.yaml), WORLD_SIZE should be 3 as it has 2 context servers(TP=1) and 1 generation server(TP=1).
 
@@ -249,7 +250,7 @@ If using the provided [single_node_config.yaml](disaggregated/llmapi_disaggregat
 
 ```bash
 cd /workspace/examples/python_rs/llm/tensorrt_llm/
-python3 -m disaggregated.router -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml 1>router.log 2>&1 &
+python3 -m disaggregated.router 1>router.log 2>&1 &
 ```
 
 3. **Send Requests**
@@ -272,7 +273,8 @@ curl localhost:8080/v1/completions \
     "model": "DeepSeek/DeepSeek-R1-FP4",
     "prompt": "NVIDIA is a great company because",
     "max_tokens": 16,
-    "temperature": 0
+    "temperature": 0,
+    "stream": true
   }'
 ```
 
