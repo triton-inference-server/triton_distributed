@@ -15,8 +15,8 @@
 
 //! Scoring functions for the KV router.
 
-use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 use crate::kv_router::scheduler::Endpoint;
 
