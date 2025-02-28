@@ -36,8 +36,8 @@ thiserror = "1.0"
 opentelemetry = "0.20"
 opentelemetry-prometheus = "0.13"
 prometheus = "0.13"
-warp = "0.3"
 rand = "0.8"
+axum = "0.6"
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["blocking"] }

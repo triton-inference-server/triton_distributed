@@ -15,9 +15,10 @@
 
 //! Library functions for the count application.
 
+use axum::{routing::get, Router};
 use prometheus::register_gauge_vec;
 use serde::{Deserialize, Serialize};
-use warp::Filter;
+use std::net::SocketAddr;
 
 use triton_distributed_llm::kv_router::protocols::ForwardPassMetrics;
 use triton_distributed_llm::kv_router::scheduler::Endpoint;
@@ -67,18 +68,31 @@ impl PrometheusMetricsServer {
 
     /// Start the metrics server on the specified port
     pub fn start(&mut self, port: u16) {
-        let metrics_route = warp::path!("metrics").map(|| {
-            use prometheus::Encoder;
-            let encoder = prometheus::TextEncoder::new();
-            let mut buffer = Vec::new();
-            encoder.encode(&prometheus::gather(), &mut buffer).unwrap();
-            String::from_utf8(buffer).unwrap()
+        // Create an axum router with a metrics endpoint
+        let app = Router::new().route(
+            "/metrics",
+            get(|| async {
+                // Gather and encode metrics
+                use prometheus::Encoder;
+                let encoder = prometheus::TextEncoder::new();
+                let mut buffer = Vec::new();
+                encoder.encode(&prometheus::gather(), &mut buffer).unwrap();
+                String::from_utf8(buffer).unwrap()
+            }),
+        );
+
+        // Create a socket address to listen on
+        let addr = SocketAddr::from(([0, 0, 0, 0], port));
+
+        // Spawn the server in a background task
+        tokio::spawn(async move {
+            axum::Server::bind(&addr)
+                .serve(app.into_make_service())
+                .await
+                .unwrap();
         });
 
-        // TODO: Use axum instead of warp for consistency and less dependencies
-        let server = warp::serve(metrics_route).run(([0, 0, 0, 0], port));
-        tokio::spawn(server);
-        tracing::info!("Prometheus metrics server started on port {}", port);
+        tracing::info!("Prometheus metrics server started at {addr:?}/metrics");
     }
 
     /// Update metrics with current values
@@ -185,7 +199,7 @@ pub async fn collect_endpoints(
     tracing::debug!("Endpoints: {endpoints:?}");
 
     if endpoints.is_empty() {
-        tracing::warn!("No endpoints found matching subject {}", subject);
+        tracing::warn!("No endpoints found matching subject {subject}");
     }
 
     Ok(endpoints)
@@ -233,7 +247,7 @@ pub fn postprocess_metrics(
         .zip(endpoints.iter())
         .filter_map(|(m, e)| {
             e.id().ok().map(|id| Endpoint {
-                name: format!("worker-{}", id),
+                name: format!("worker-{id}"),
                 subject: e.subject.clone(),
                 data: m.clone(),
             })
