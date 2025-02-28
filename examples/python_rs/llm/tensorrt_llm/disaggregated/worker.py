@@ -50,6 +50,7 @@ from triton_distributed.runtime import (
     triton_endpoint,
     triton_worker,
 )
+from tensorrt_llm.llmapi import DisaggregatedParams
 
 logger.set_level("debug")
 
@@ -215,7 +216,7 @@ class TensorrtLLMEngine:
                 **(request.chat_template_kwargs or {}),
             )
             sampling_params = request.to_sampling_params()
-            disaggregated_params = request.disaggregated_params
+            disaggregated_params = DisaggregatedParams(**request.disaggregated_params)
 
             # Opaque state is  described as an additional state needing to be exchanged
             # between context and gen instances

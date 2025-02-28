@@ -31,9 +31,8 @@ from tensorrt_llm.llmapi.disagg_utils import (
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (
     ChatCompletionStreamResponse,
-    DisaggregatedParams,
 )
-
+from tensorrt_llm.llmapi import DisaggregatedParams
 from triton_distributed.runtime import (
     DistributedRuntime,
     triton_endpoint,
