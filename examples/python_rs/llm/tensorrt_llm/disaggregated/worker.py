@@ -104,15 +104,17 @@ class TensorrtLLMEngine:
                     None,
                     lambda: LLM(
                         **self.llm_engine_args,
-                        tensor_parallel_size=self.server_config.other_args["tp_size"],
-                        pipeline_parallel_size=self.server_config.other_args["pp_size"],
+                        tensor_parallel_size=self.server_config.other_args.get(
+                            "tensor_parallel_size", 1
+                        ),
+                        pipeline_parallel_size=self.server_config.other_args.get(
+                            "pipeline_parallel_size", 1
+                        ),
                         gpus_per_node=None,
                         trust_remote_code=True,
                         _mpi_session=self.mpi_session,
                         kv_cache_config=KvCacheConfig(
-                            free_gpu_memory_fraction=self.server_config.other_args[
-                                "gpu_fraction"
-                            ]
+                            **self.server_config.other_args.get("kv_cache_config", {})
                         ),
                         pytorch_backend_config=pytorch_config,
                         backend="pytorch",
