@@ -112,7 +112,7 @@ if __name__ == "__main__":
     uvloop.install()
     engine_args = parse_vllm_args()
 
-    engine_args.tensor_parallel_size = 1
+    engine_args.tensor_parallel_size = 2
     engine_args.max_model_len = 10
     engine_args.gpu_memory_utilization = 0.4
 
