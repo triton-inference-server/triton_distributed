@@ -143,6 +143,7 @@ TODO: Add multi-node multi-GPU example
 #### 3. Client
 
 ```bash
+# Chat Completion
 curl localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -151,6 +152,7 @@ curl localhost:8080/v1/chat/completions \
       {"role": "user", "content": "What is the capital of France?"}
     ]
   }'
+
 ```
 
 The output should look similar to:
@@ -174,6 +176,20 @@ The output should look similar to:
   "system_fingerprint": null
 }
 ```
+
+```bash
+# Completion
+curl localhost:8080/v1/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+        "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+        "prompt": "NVIDIA is a great company because",
+        "max_tokens": 16,
+        "temperature": 0
+    }' -w "\n"
+```
+
+TODO: Fix the failure in the completion endpoint. application-logic-mismatch with CompletionStreamResponse.
 
 ### 2. Disaggregated Deployment
 

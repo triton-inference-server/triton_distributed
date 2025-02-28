@@ -199,7 +199,7 @@ class TensorrtLLMEngine:
                     response_generator = self.chat_processor.stream_response(
                         request, request_id, conversation, promise
                     )
-                    for response in response_generator:
+                    async for response in response_generator:
                         yield response
                 else:
                     # TODO: Implement non-streaming chat completion
@@ -246,7 +246,7 @@ class TensorrtLLMEngine:
             response_generator = self.completions_processor.create_completion_generator(
                 request, generator, num_choices
             )
-            for response in response_generator:
+            async for response in response_generator:
                 yield response
         else:
             # TODO: Implement non-streaming completion
@@ -255,7 +255,6 @@ class TensorrtLLMEngine:
             # )
             # yield response
             raise RuntimeError("Non-streaming is not supported")
-
 
 
 @triton_worker()
