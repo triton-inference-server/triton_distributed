@@ -29,6 +29,7 @@ T = TypeVar("T", bound=object)
 @dataclass
 class NovaConfig:
     """Configuration for Nova components"""
+
     enabled: bool = False
     name: str = None
     namespace: str = None
@@ -38,19 +39,20 @@ class CompoundService(Service[T]):
     """A custom service class that extends BentoML's base Service with Nova capabilities"""
 
     def __init__(
-            self,
-            config: ServiceConfig,
-            inner: type[T],
-            image: Optional[Image] = None,
-            envs: list[dict[str, Any]] = None,
-            nova_config: NovaConfig | None = None,
+        self,
+        config: ServiceConfig,
+        inner: type[T],
+        image: Optional[Image] = None,
+        envs: list[dict[str, Any]] = None,
+        nova_config: NovaConfig | None = None,
     ):
         super().__init__(config=config, inner=inner, image=image, envs=envs or [])
 
         # Initialize Nova configuration
-        self._nova_config = nova_config if nova_config else NovaConfig(
-            name=inner.__name__,
-            namespace="default"
+        self._nova_config = (
+            nova_config
+            if nova_config
+            else NovaConfig(name=inner.__name__, namespace="default")
         )
         if self._nova_config.name is None:
             self._nova_config.name = inner.__name__
@@ -71,7 +73,7 @@ class CompoundService(Service[T]):
         if not self.is_nova_component():
             raise ValueError("Service is not configured as a Nova component")
 
-        # Check if we have a runner map with Nova address        
+        # Check if we have a runner map with Nova address
         runner_map = os.environ.get("BENTOML_RUNNER_MAP")
         if runner_map:
             try:
@@ -82,12 +84,16 @@ class CompoundService(Service[T]):
                         # Parse nova://namespace/name into (namespace, name)
                         _, path = address.split("://", 1)
                         namespace, name = path.split("/", 1)
-                        print(f"Resolved Nova address from runner map: {namespace}/{name}")
+                        print(
+                            f"Resolved Nova address from runner map: {namespace}/{name}"
+                        )
                         return (namespace, name)
             except (json.JSONDecodeError, ValueError) as e:
                 raise ValueError(f"Failed to parse BENTOML_RUNNER_MAP: {str(e)}") from e
 
-        print(f"Using default Nova address: {self._nova_config.namespace}/{self._nova_config.name}")
+        print(
+            f"Using default Nova address: {self._nova_config.namespace}/{self._nova_config.name}"
+        )
         return (self._nova_config.namespace, self._nova_config.name)
 
     def get_nova_endpoints(self) -> Dict[str, NovaEndpoint]:
@@ -108,16 +114,16 @@ class CompoundService(Service[T]):
 
 
 def service(
-        inner: type[T] | None = None,
-        /,
-        *,
-        image: Image | None = None,
-        envs: list[dict[str, Any]] | None = None,
-        nova: Dict[str, Any] | NovaConfig | None = None,
-        **kwargs: Any,
+    inner: type[T] | None = None,
+    /,
+    *,
+    image: Image | None = None,
+    envs: list[dict[str, Any]] | None = None,
+    nova: Dict[str, Any] | NovaConfig | None = None,
+    **kwargs: Any,
 ) -> Any:
     """Enhanced service decorator that supports Nova configuration
-    
+
     Args:
         nova: Nova configuration, either as a NovaConfig object or dict with keys:
             - enabled: bool (default True)

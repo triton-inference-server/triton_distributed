@@ -36,7 +36,7 @@ class NovaEndpoint:
         args = list(hints.items())
 
         # Skip self/cls argument
-        if args[0][0] in ('self', 'cls'):
+        if args[0][0] in ("self", "cls"):
             args = args[1:]
 
         # Get request type from first arg
@@ -58,14 +58,12 @@ class NovaEndpoint:
         return await self.func(*args, **kwargs)
 
 
-def nova_endpoint(
-        name: str | None = None
-) -> t.Callable[[t.Callable], NovaEndpoint]:
+def nova_endpoint(name: str | None = None) -> t.Callable[[t.Callable], NovaEndpoint]:
     """Decorator for Nova endpoints.
-    
+
     Args:
         name: Optional name for the endpoint. Defaults to function name.
-    
+
     Example:
         @nova_endpoint()
         def my_endpoint(self, input: str) -> str:
@@ -84,10 +82,10 @@ def nova_endpoint(
 
 def nova_api(func: t.Callable) -> t.Callable:
     """Decorator for BentoML API endpoints.
-    
+
     Args:
         func: The function to be decorated.
-    
+
     Returns:
         The decorated function.
     """
@@ -95,8 +93,7 @@ def nova_api(func: t.Callable) -> t.Callable:
 
 
 def async_onstart(func: t.Callable) -> t.Callable:
-    """Decorator for async onstart functions.
-    """
+    """Decorator for async onstart functions."""
     # Mark the function as a startup hook
     setattr(func, "__bentoml_startup_hook__", True)
     return bentoml.on_startup(func)

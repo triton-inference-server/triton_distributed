@@ -53,10 +53,10 @@ logger = logging.getLogger("bentoml.serve")
 if POSIX and not IS_WSL:
 
     def _get_server_socket(
-            service: AnyService,
-            uds_path: str,
-            port_stack: contextlib.ExitStack,
-            backlog: int,
+        service: AnyService,
+        uds_path: str,
+        port_stack: contextlib.ExitStack,
+        backlog: int,
     ) -> tuple[str, CircusSocket]:
         from circus.sockets import CircusSocket
 
@@ -71,10 +71,10 @@ if POSIX and not IS_WSL:
 elif WINDOWS or IS_WSL:
 
     def _get_server_socket(
-            service: AnyService,
-            uds_path: str,
-            port_stack: contextlib.ExitStack,
-            backlog: int,
+        service: AnyService,
+        uds_path: str,
+        port_stack: contextlib.ExitStack,
+        backlog: int,
     ) -> tuple[str, CircusSocket]:
         from circus.sockets import CircusSocket
 
@@ -93,27 +93,28 @@ elif WINDOWS or IS_WSL:
 else:
 
     def _get_server_socket(
-            service: AnyService,
-            uds_path: str | None,
-            port_stack: contextlib.ExitStack,
-            backlog: int,
+        service: AnyService,
+        uds_path: str | None,
+        port_stack: contextlib.ExitStack,
+        backlog: int,
     ) -> tuple[str, CircusSocket]:
         from bentoml.exceptions import BentoMLException
 
         raise BentoMLException("Unsupported platform")
 
+
 _SERVICE_WORKER_SCRIPT = "_bentoml_impl.worker.service"
 
 
 def create_dependency_watcher(
-        bento_identifier: str,
-        svc: AnyService,
-        uds_path: str,
-        port_stack: contextlib.ExitStack,
-        backlog: int,
-        scheduler: ResourceAllocator,
-        working_dir: str | None = None,
-        env: dict[str, str] | None = None,
+    bento_identifier: str,
+    svc: AnyService,
+    uds_path: str,
+    port_stack: contextlib.ExitStack,
+    backlog: int,
+    scheduler: ResourceAllocator,
+    working_dir: str | None = None,
+    env: dict[str, str] | None = None,
 ) -> tuple[Watcher, CircusSocket, str]:
     from bentoml.serving import create_watcher
 
@@ -145,14 +146,14 @@ def create_dependency_watcher(
 
 
 def create_nova_watcher(
-        bento_identifier: str,
-        svc: AnyService,
-        uds_path: str,
-        port_stack: contextlib.ExitStack,
-        backlog: int,
-        scheduler: ResourceAllocator,
-        working_dir: str | None = None,
-        env: dict[str, str] | None = None,
+    bento_identifier: str,
+    svc: AnyService,
+    uds_path: str,
+    port_stack: contextlib.ExitStack,
+    backlog: int,
+    scheduler: ResourceAllocator,
+    working_dir: str | None = None,
+    env: dict[str, str] | None = None,
 ) -> tuple[Watcher, CircusSocket, str]:
     """Create a watcher for a Nova service in the dependency graph"""
     from bentoml.serving import create_watcher
@@ -191,7 +192,7 @@ def create_nova_watcher(
 
 @inject
 def server_on_deployment(
-        svc: AnyService, result_file: str = Provide[BentoMLContainer.result_store_file]
+    svc: AnyService, result_file: str = Provide[BentoMLContainer.result_store_file]
 ) -> None:
     # Resolve models before server starts.
     if bento := svc.bento:
@@ -210,27 +211,27 @@ def server_on_deployment(
 
 @inject(squeeze_none=True)
 def serve_http(
-        bento_identifier: str | AnyService,
-        working_dir: str | None = None,
-        host: str = Provide[BentoMLContainer.http.host],
-        port: int = Provide[BentoMLContainer.http.port],
-        backlog: int = Provide[BentoMLContainer.api_server_config.backlog],
-        timeout: int | None = None,
-        ssl_certfile: str | None = Provide[BentoMLContainer.ssl.certfile],
-        ssl_keyfile: str | None = Provide[BentoMLContainer.ssl.keyfile],
-        ssl_keyfile_password: str | None = Provide[BentoMLContainer.ssl.keyfile_password],
-        ssl_version: int | None = Provide[BentoMLContainer.ssl.version],
-        ssl_cert_reqs: int | None = Provide[BentoMLContainer.ssl.cert_reqs],
-        ssl_ca_certs: str | None = Provide[BentoMLContainer.ssl.ca_certs],
-        ssl_ciphers: str | None = Provide[BentoMLContainer.ssl.ciphers],
-        bentoml_home: str = Provide[BentoMLContainer.bentoml_home],
-        development_mode: bool = False,
-        reload: bool = False,
-        timeout_keep_alive: int | None = None,
-        timeout_graceful_shutdown: int | None = None,
-        dependency_map: dict[str, str] | None = None,
-        service_name: str = "",
-        threaded: bool = False,
+    bento_identifier: str | AnyService,
+    working_dir: str | None = None,
+    host: str = Provide[BentoMLContainer.http.host],
+    port: int = Provide[BentoMLContainer.http.port],
+    backlog: int = Provide[BentoMLContainer.api_server_config.backlog],
+    timeout: int | None = None,
+    ssl_certfile: str | None = Provide[BentoMLContainer.ssl.certfile],
+    ssl_keyfile: str | None = Provide[BentoMLContainer.ssl.keyfile],
+    ssl_keyfile_password: str | None = Provide[BentoMLContainer.ssl.keyfile_password],
+    ssl_version: int | None = Provide[BentoMLContainer.ssl.version],
+    ssl_cert_reqs: int | None = Provide[BentoMLContainer.ssl.cert_reqs],
+    ssl_ca_certs: str | None = Provide[BentoMLContainer.ssl.ca_certs],
+    ssl_ciphers: str | None = Provide[BentoMLContainer.ssl.ciphers],
+    bentoml_home: str = Provide[BentoMLContainer.bentoml_home],
+    development_mode: bool = False,
+    reload: bool = False,
+    timeout_keep_alive: int | None = None,
+    timeout_graceful_shutdown: int | None = None,
+    dependency_map: dict[str, str] | None = None,
+    service_name: str = "",
+    threaded: bool = False,
 ) -> Server:
     from circus.sockets import CircusSocket
 
@@ -292,7 +293,10 @@ def serve_http(
                         continue
 
                     # Check if this is a Nova service
-                    if hasattr(dep_svc, 'is_nova_component') and dep_svc.is_nova_component():
+                    if (
+                        hasattr(dep_svc, "is_nova_component")
+                        and dep_svc.is_nova_component()
+                    ):
                         new_watcher, new_socket, uri = create_nova_watcher(
                             bento_identifier,
                             dep_svc,
@@ -388,7 +392,7 @@ def serve_http(
         scheme = "https" if BentoMLContainer.ssl.enabled.get() else "http"
 
         # Check if this is a Nova service
-        if hasattr(svc, 'is_nova_component') and svc.is_nova_component():
+        if hasattr(svc, "is_nova_component") and svc.is_nova_component():
             # Create Nova-specific watcher using existing socket
             args = [
                 "-m",
@@ -456,12 +460,12 @@ def serve_http(
         arbiter.exit_stack.callback(shutil.rmtree, uds_path, ignore_errors=True)
         arbiter.start(
             cb=lambda _: logger.info(  # type: ignore
-                'Starting Nova Service %s (%s/%s) listening on %s://%s:%d (Press CTRL+C to quit)'
-                if (hasattr(svc, 'is_nova_component') and svc.is_nova_component()) else
-                'Starting production %s BentoServer from "%s" (Press CTRL+C to quit)',
+                "Starting Nova Service %s (%s/%s) listening on %s://%s:%d (Press CTRL+C to quit)"
+                if (hasattr(svc, "is_nova_component") and svc.is_nova_component())
+                else 'Starting production %s BentoServer from "%s" (Press CTRL+C to quit)',
                 *(
                     (svc.name, *svc.nova_address(), scheme, log_host, port)
-                    if (hasattr(svc, 'is_nova_component') and svc.is_nova_component())
+                    if (hasattr(svc, "is_nova_component") and svc.is_nova_component())
                     else (scheme.upper(), bento_identifier)
                 ),
             ),

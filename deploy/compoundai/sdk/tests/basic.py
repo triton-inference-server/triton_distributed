@@ -46,7 +46,7 @@ Users/Clients (HTTP)
     nova={
         "enabled": True,
         "namespace": "inference",
-    }
+    },
 )
 class Backend:
     def __init__(self) -> None:
@@ -64,10 +64,7 @@ class Backend:
 @service(
     resources={"cpu": "2"},
     traffic={"timeout": 30},
-    nova={
-        "enabled": True,
-        "namespace": "inference"
-    }
+    nova={"enabled": True, "namespace": "inference"},
 )
 class Middle:
     backend = depends(Backend)
@@ -87,7 +84,7 @@ class Middle:
 
 @service(
     resources={"cpu": "1"},
-    traffic={"timeout": 60}  # Regular HTTP API
+    traffic={"timeout": 60},  # Regular HTTP API
 )
 class Frontend:
     middle = depends(Middle)

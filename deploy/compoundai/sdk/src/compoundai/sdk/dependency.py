@@ -51,10 +51,12 @@ class NovaClient:
                     # Use existing runtime if available
                     async def stream_worker():
                         try:
-                            client = await self._runtime.namespace(namespace) \
-                                .component(component_name) \
-                                .endpoint(name) \
+                            client = (
+                                await self._runtime.namespace(namespace)
+                                .component(component_name)
+                                .endpoint(name)
                                 .client()
+                            )
 
                             # TODO: Potentially model dump for a user here so they can pass around Pydantic models
                             stream = await client.generate(*args, **kwargs)
@@ -77,10 +79,12 @@ class NovaClient:
                             # Store runtime for future use
                             self._runtime = runtime
 
-                            client = await runtime.namespace(namespace) \
-                                .component(component_name) \
-                                .endpoint(name) \
+                            client = (
+                                await runtime.namespace(namespace)
+                                .component(component_name)
+                                .endpoint(name)
                                 .client()
+                            )
 
                             stream = await client.generate(*args, **kwargs)
 
@@ -118,11 +122,11 @@ class NovaDependency(Dependency[T]):
     """Enhanced dependency that supports Nova endpoints"""
 
     def __init__(
-            self,
-            on: Service[T] | None = None,
-            url: str | None = None,
-            deployment: str | None = None,
-            cluster: str | None = None,
+        self,
+        on: Service[T] | None = None,
+        url: str | None = None,
+        deployment: str | None = None,
+        cluster: str | None = None,
     ):
         super().__init__(on, url=url, deployment=deployment, cluster=cluster)
         self._nova_client: Optional[NovaClient] = None
@@ -148,14 +152,14 @@ class NovaDependency(Dependency[T]):
 
 
 def depends(
-        on: Service[T] | None = None,
-        *,
-        url: str | None = None,
-        deployment: str | None = None,
-        cluster: str | None = None,
+    on: Service[T] | None = None,
+    *,
+    url: str | None = None,
+    deployment: str | None = None,
+    cluster: str | None = None,
 ) -> NovaDependency[T]:
     """Create a dependency that's Nova-aware.
-    
+
     If the dependency is on a Nova-enabled service, this will return a client
     that can call Nova endpoints. Otherwise behaves like normal BentoML dependency.
 
@@ -164,7 +168,7 @@ def depends(
         url: URL for remote service
         deployment: Deployment name
         cluster: Cluster name
-    
+
     Raises:
         AttributeError: When trying to call a non-existent Nova endpoint
     """

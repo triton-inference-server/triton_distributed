@@ -59,13 +59,13 @@ def build_start_command() -> click.Group:
         type=click.STRING,
         envvar="BENTOML_SERVE_RUNNER_MAP",
         help="[Deprecated] use --depends instead. "
-             "JSON string of runners map. For backword compatibility for yatai < 1.0.0",
+        "JSON string of runners map. For backword compatibility for yatai < 1.0.0",
     )
     @click.option(
         "--bind",
         type=click.STRING,
         help="[Deprecated] use --host and --port instead."
-             "Bind address for the server. For backword compatibility for yatai < 1.0.0",
+        "Bind address for the server. For backword compatibility for yatai < 1.0.0",
         required=False,
     )
     @click.option(
@@ -140,27 +140,27 @@ def build_start_command() -> click.Group:
     )
     @add_experimental_docstring
     def start(  # type: ignore (unused warning)
-            bento: str,
-            service_name: str,
-            depends: list[str] | None,
-            runner_map: str | None,
-            bind: str | None,
-            port: int | None,
-            host: str | None,
-            backlog: int | None,
-            working_dir: str | None,
-            api_workers: int | None,
-            timeout: int | None,
-            ssl_certfile: str | None,
-            ssl_keyfile: str | None,
-            ssl_keyfile_password: str | None,
-            ssl_version: int | None,
-            ssl_cert_reqs: int | None,
-            ssl_ca_certs: str | None,
-            ssl_ciphers: str | None,
-            timeout_keep_alive: int | None,
-            timeout_graceful_shutdown: int | None,
-            reload: bool = False,
+        bento: str,
+        service_name: str,
+        depends: list[str] | None,
+        runner_map: str | None,
+        bind: str | None,
+        port: int | None,
+        host: str | None,
+        backlog: int | None,
+        working_dir: str | None,
+        api_workers: int | None,
+        timeout: int | None,
+        ssl_certfile: str | None,
+        ssl_keyfile: str | None,
+        ssl_keyfile_password: str | None,
+        ssl_version: int | None,
+        ssl_cert_reqs: int | None,
+        ssl_ca_certs: str | None,
+        ssl_ciphers: str | None,
+        timeout_keep_alive: int | None,
+        timeout_graceful_shutdown: int | None,
+        reload: bool = False,
     ) -> None:
         """
         Start a HTTP API server standalone. This will be used inside Yatai.
@@ -238,6 +238,7 @@ def build_start_command() -> click.Group:
         else:
             # for >=1.2 bentos
             from compoundai.cli.serving import serve_http
+
             print(f"Starting service {service_name}")
             svc.inject_config()
             serve_http(

@@ -39,7 +39,7 @@ def deprecated_option(*param_decls: str, **attrs: t.Any):
     assert new_behaviour is not None, "current_behaviour is required"
 
     def show_deprecated_callback(
-            ctx: click.Context, param: click.Parameter, value: t.Any
+        ctx: click.Context, param: click.Parameter, value: t.Any
     ):
         if value is not param.default and deprecated:
             name = "'--%(name)s'" if attrs.get("is_flag", False) else "'%(name)s'"
@@ -206,25 +206,25 @@ def build_serve_command() -> click.Group:
     )
     @env_manager
     def serve(  # type: ignore (unused warning)
-            bento: str,
-            development: bool,
-            port: int,
-            host: str,
-            api_workers: int,
-            timeout: int | None,
-            backlog: int,
-            reload: bool,
-            working_dir: str | None,
-            ssl_certfile: str | None,
-            ssl_keyfile: str | None,
-            ssl_keyfile_password: str | None,
-            ssl_version: int | None,
-            ssl_cert_reqs: int | None,
-            ssl_ca_certs: str | None,
-            ssl_ciphers: str | None,
-            timeout_keep_alive: int | None,
-            timeout_graceful_shutdown: int | None,
-            **attrs: t.Any,
+        bento: str,
+        development: bool,
+        port: int,
+        host: str,
+        api_workers: int,
+        timeout: int | None,
+        backlog: int,
+        reload: bool,
+        working_dir: str | None,
+        ssl_certfile: str | None,
+        ssl_keyfile: str | None,
+        ssl_keyfile_password: str | None,
+        ssl_version: int | None,
+        ssl_cert_reqs: int | None,
+        ssl_ca_certs: str | None,
+        ssl_ciphers: str | None,
+        timeout_keep_alive: int | None,
+        timeout_graceful_shutdown: int | None,
+        **attrs: t.Any,
     ) -> None:
         """Start a HTTP BentoServer from a given 🍱
 
