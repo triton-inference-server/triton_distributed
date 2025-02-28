@@ -13,15 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use async_openai::types::CreateCompletionRequestArgs;
 use serde::{Deserialize, Serialize};
-use triton_distributed_llm::protocols::{
-    common,
-    openai::{
-        self,
-        completions::{CompletionRequest, CompletionRequestBuilder},
-        nvext::NvExt,
-    },
-};
+use triton_distributed_llm::protocols::openai::{self, completions::CompletionRequest};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct CompletionSample {
@@ -32,15 +26,20 @@ struct CompletionSample {
 impl CompletionSample {
     fn new<F>(description: impl Into<String>, configure: F) -> Result<Self, String>
     where
-        F: FnOnce(&mut CompletionRequestBuilder) -> &mut CompletionRequestBuilder,
+        F: FnOnce(&mut CreateCompletionRequestArgs) -> &mut CreateCompletionRequestArgs,
     {
-        let mut builder = CompletionRequestBuilder::default();
+        let mut builder = CreateCompletionRequestArgs::default();
         builder
             .model("gpt-3.5-turbo")
             .prompt("What is the meaning of life?");
         configure(&mut builder);
+
+        let inner = builder.build().unwrap();
+
+        let request = CompletionRequest { inner, nvext: None };
+
         Ok(Self {
-            request: builder.build().unwrap(),
+            request,
             description: description.into(),
         })
     }
@@ -48,64 +47,13 @@ impl CompletionSample {
 
 #[test]
 fn minimum_viable_request() {
-    let request = CompletionRequest::builder()
+    let request = CreateCompletionRequestArgs::default()
         .prompt("What is the meaning of life?")
         .model("gpt-3.5-turbo")
         .build()
         .expect("error building request");
 
     insta::assert_json_snapshot!(request);
-}
-
-#[test]
-fn missing_model() {
-    let request = CompletionRequest::builder()
-        .prompt("What is the meaning of life?")
-        .build();
-    assert!(request.is_err());
-}
-
-#[test]
-fn missing_prompt() {
-    let request = CompletionRequest::builder().model("gpt-3.5-turbo").build();
-    assert!(request.is_err());
-}
-
-#[test]
-fn out_of_range() {
-    let request = CompletionRequest::builder()
-        .prompt("What is the meaning of life?")
-        .model("gpt-3.5-turbo")
-        .temperature(openai::MAX_TEMPERATURE + 1.0)
-        .build();
-    assert!(request.is_err());
-
-    let request = CompletionRequest::builder()
-        .prompt("What is the meaning of life?")
-        .model("gpt-3.5-turbo")
-        .temperature(openai::MIN_TEMPERATURE - 1.0)
-        .build();
-    assert!(request.is_err());
-}
-
-#[test]
-fn ignore_eos() {
-    let request = CompletionRequest::builder()
-        .prompt("What is the meaning of life?")
-        .model("gpt-3.5-turbo")
-        .nvext(
-            NvExt::builder()
-                .ignore_eos(true)
-                .build()
-                .expect("error building nvext"),
-        )
-        .build()
-        .expect("error building request");
-
-    let request = common::CompletionRequest::try_from(request).expect("error converting request");
-
-    let ignore_eos = request.stop_conditions.ignore_eos.unwrap();
-    assert!(ignore_eos);
 }
 
 #[test]
@@ -172,11 +120,6 @@ fn build_samples() -> Result<Vec<CompletionSample>, String> {
     samples.push(CompletionSample::new(
         "should have prompt, model, and stream fields",
         |builder| builder.stream(true),
-    )?);
-
-    samples.push(CompletionSample::new(
-        "should have prompt, model, and logit_bias fields with the logits_bias having two key/value pairs",
-        |builder| builder.add_logit_bias(1337, -100).add_logit_bias("42", 100),
     )?);
 
     Ok(samples)

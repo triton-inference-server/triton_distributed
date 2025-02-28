@@ -1,10 +1,10 @@
 ---
-source: triton-llm/tests/openai_completions.rs
+source: tests/openai_completions.rs
 description: "should have prompt, model, and presence_penalty fields"
 expression: sample.request
 ---
 {
   "model": "gpt-3.5-turbo",
-  "prompt": "What is the meaning of life?",
-  "presence_penalty": -2.0
+  "presence_penalty": -2.0,
+  "prompt": "What is the meaning of life?"
 }

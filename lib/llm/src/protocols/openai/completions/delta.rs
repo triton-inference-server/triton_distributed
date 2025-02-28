@@ -26,7 +26,7 @@ impl CompletionRequest {
             enable_logprobs: false,
         };
 
-        DeltaGenerator::new(self.model.clone(), options)
+        DeltaGenerator::new(self.inner.model.clone(), options)
     }
 }
 

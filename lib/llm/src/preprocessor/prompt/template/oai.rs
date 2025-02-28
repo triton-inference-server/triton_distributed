@@ -60,7 +60,7 @@ impl OAIChatLikeRequest for CompletionRequest {
         let message = async_openai::types::ChatCompletionRequestMessage::User(
             async_openai::types::ChatCompletionRequestUserMessage {
                 content: async_openai::types::ChatCompletionRequestUserMessageContent::Text(
-                    self.prompt.clone(),
+                    crate::protocols::openai::completions::prompt_to_string(&self.inner.prompt),
                 ),
                 name: None,
             },

@@ -140,17 +140,19 @@ async fn completions(
     let request_id = uuid::Uuid::new_v4().to_string();
 
     // todo - decide on default
-    let streaming = request.stream.unwrap_or(false);
+    let streaming = request.inner.stream.unwrap_or(false);
 
     // update the request to always stream
-    let request = CompletionRequest {
+    let inner = async_openai::types::CreateCompletionRequest {
         stream: Some(true),
-        ..request
+        ..request.inner
     };
+
+    let request = CompletionRequest { inner, nvext: None };
 
     // todo - make the protocols be optional for model name
     // todo - when optional, if none, apply a default
-    let model = &request.model;
+    let model = &request.inner.model;
 
     // todo - error handling should be more robust
     let engine = state

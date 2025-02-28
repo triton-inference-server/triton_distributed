@@ -387,7 +387,7 @@ async fn test_http_service() {
     // ==== ChatCompletions / Unary / Error ====
 
     // ==== Completions / Unary / Error ====
-    let mut request = CompletionRequest::builder()
+    let mut request = async_openai::types::CreateCompletionRequestArgs::default()
         .model("bar")
         .prompt("hi")
         .build()
