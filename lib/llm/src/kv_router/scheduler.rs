@@ -64,21 +64,12 @@ impl Endpoint {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FlexibleService {
-    pub name: String,
-    pub id: String,
-    pub version: String,
-    pub started: String,
-    pub endpoints: Vec<FlexibleEndpoint>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Service {
     pub name: String,
     pub id: String,
     pub version: String,
     pub started: String,
-    pub endpoints: Vec<Endpoint>,
+    pub endpoints: Vec<FlexibleEndpoint>,
 }
 
 pub struct SchedulingRequest {
