@@ -148,37 +148,67 @@ impl PrometheusMetrics {
         })
     }
 
+    /// Helper method to set a gauge with worker-specific labels (3 labels)
+    fn set_worker_gauge(
+        &self,
+        gauge: &prometheus::GaugeVec,
+        config: &LLMWorkerLoadCapacityConfig,
+        worker_id: &str,
+        value: f64,
+    ) {
+        gauge
+            .with_label_values(&[&config.component_name, &config.endpoint_name, worker_id])
+            .set(value);
+    }
+
+    /// Helper method to set a gauge with component/endpoint labels only (2 labels)
+    fn set_endpoint_gauge(
+        &self,
+        gauge: &prometheus::GaugeVec,
+        config: &LLMWorkerLoadCapacityConfig,
+        value: f64,
+    ) {
+        gauge
+            .with_label_values(&[&config.component_name, &config.endpoint_name])
+            .set(value);
+    }
+
     /// Update metrics with current values
     fn update(&self, config: &LLMWorkerLoadCapacityConfig, processed: &ProcessedEndpoints) {
         // Update per-worker metrics
         for endpoint in processed.endpoints.iter() {
             let worker_id = endpoint.worker_id().to_string();
             let metrics = endpoint.data.clone();
-            self.kv_blocks_active
-                .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
-                .set(metrics.kv_active_blocks as f64);
 
-            self.kv_blocks_total
-                .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
-                .set(metrics.kv_total_blocks as f64);
-
-            self.requests_active
-                .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
-                .set(metrics.request_active_slots as f64);
-
-            self.requests_total
-                .with_label_values(&[&config.component_name, &config.endpoint_name, &worker_id])
-                .set(metrics.request_total_slots as f64);
+            self.set_worker_gauge(
+                &self.kv_blocks_active,
+                config,
+                &worker_id,
+                metrics.kv_active_blocks as f64,
+            );
+            self.set_worker_gauge(
+                &self.kv_blocks_total,
+                config,
+                &worker_id,
+                metrics.kv_total_blocks as f64,
+            );
+            self.set_worker_gauge(
+                &self.requests_active,
+                config,
+                &worker_id,
+                metrics.request_active_slots as f64,
+            );
+            self.set_worker_gauge(
+                &self.requests_total,
+                config,
+                &worker_id,
+                metrics.request_total_slots as f64,
+            );
         }
 
         // Update aggregate metrics
-        self.load_avg
-            .with_label_values(&[&config.component_name, &config.endpoint_name])
-            .set(processed.load_avg);
-
-        self.load_std
-            .with_label_values(&[&config.component_name, &config.endpoint_name])
-            .set(processed.load_std);
+        self.set_endpoint_gauge(&self.load_avg, config, processed.load_avg);
+        self.set_endpoint_gauge(&self.load_std, config, processed.load_std);
     }
 }
 
