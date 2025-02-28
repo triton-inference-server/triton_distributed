@@ -14,6 +14,7 @@
 // limitations under the License.
 
 use service_metrics::{MyStats, DEFAULT_NAMESPACE};
+
 use std::sync::Arc;
 use triton_distributed_runtime::{
     logging,
@@ -75,7 +76,6 @@ async fn backend(runtime: DistributedRuntime) -> Result<()> {
         .await?
         .endpoint("generate")
         .endpoint_builder()
-        // Dummy stats handler to demonstrate how to attach a custom stats handler
         .stats_handler(|stats| {
             println!("stats: {:?}", stats);
             let stats = MyStats { val: 10 };
