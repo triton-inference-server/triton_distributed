@@ -12,20 +12,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-services:
-  nats-server:
-    image: nats
-    command: [ "-js", "--trace" ]
-    ports:
-      - 4222:4222
-      - 6222:6222
-      - 8222:8222
-
-  etcd-server:
-    image: bitnami/etcd
-    environment:
-      - ALLOW_NONE_AUTHENTICATION=yes
-    ports:
-      - 2379:2379
-      - 2380:2380

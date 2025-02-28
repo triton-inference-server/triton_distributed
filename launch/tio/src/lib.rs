@@ -62,6 +62,15 @@ pub struct Flags {
     #[arg(long)]
     pub model_name: Option<String>,
 
+    /// llamacpp only
+    ///
+    /// The path to the tokenizer and model config because:
+    /// - llama_cpp only runs GGUF files
+    /// - our engine is a 'core' engine in that we do the tokenization, so we need the vocab
+    /// - TODO: we don't yet extract that from the GGUF. Once we do we can remove this flag.
+    #[arg(long)]
+    pub model_config: Option<PathBuf>,
+
     /// sglang only
     ///
     /// How many GPUs to use at once, total across all nodes.
@@ -289,6 +298,43 @@ pub async fn run(
             )
             .await?;
             extra = Some(sglang_process);
+            EngineConfig::StaticCore {
+                service_name: card.service_name.clone(),
+                engine,
+                card: Box::new(card),
+            }
+        }
+        #[cfg(feature = "llamacpp")]
+        Output::LlamaCpp => {
+            use anyhow::Context;
+            use triton_distributed_llm::engines::llamacpp;
+            let Some(model_path) = model_path else {
+                anyhow::bail!("out=llamacpp requires flag --model-path=<full-path-to-model-gguf>");
+            };
+            if !model_path.is_file() {
+                anyhow::bail!("--model-path should refer to a GGUF file. llama_cpp does not support safetensors.");
+            }
+            let card = match flags.model_config {
+                None => {
+                    anyhow::bail!("Pass --model-config so we can find the tokenizer, should be an HF checkout.");
+                }
+                Some(card_path) => {
+                    if !card_path.is_dir() {
+                        anyhow::bail!(
+                            "--model-config should be a Hugging Face repo checkout directory."
+                        );
+                    }
+                    ModelDeploymentCard::from_local_path(&card_path, model_name.as_deref())
+                        .await
+                        .with_context(|| {
+                            format!(
+                                "Failed loading ModelDeploymentCard from {}",
+                                card_path.display()
+                            )
+                        })?
+                }
+            };
+            let engine = llamacpp::make_engine(cancel_token.clone(), &model_path).await?;
             EngineConfig::StaticCore {
                 service_name: card.service_name.clone(),
                 engine,

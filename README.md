@@ -38,7 +38,13 @@ center scale without sacrificing performance or ease of use.
 
 ## Building Triton Distributed
 
+### Requirements
 Triton Distributed development and examples are container based.
+
+* [Docker](https://docs.docker.com/get-started/get-docker/)
+* [buildx](https://github.com/docker/buildx)
+
+### Development
 
 You can build the Triton Distributed container using the build scripts
 in `container/` (or directly with `docker build`).
