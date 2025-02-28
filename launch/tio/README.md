@@ -106,3 +106,36 @@ The extra `--model-config` flag is because:
 - We don't yet read it out of the GGUF (TODO), so we need an HF repo with `tokenizer.json` et al
 
 If the build step also builds llama_cpp libraries into `target/release` ("libllama.so", "libggml.so", "libggml-base.so", "libggml-cpu.so", "libggml-cuda.so"), then `tio` will need to find those at runtime. Set `LD_LIBRARY_PATH`, and be sure to deploy them alongside the `tio` binary.
+
+## vllm
+
+Using the [vllm](https://github.com/vllm-project/vllm) Python library. We only use the back half of vllm, talking to it over `zmq`. Slow startup, fast inference. Supports both safetensors from HF and GGUF files.
+
+We use [uv](https://docs.astral.sh/uv/) but any virtualenv manager should work.
+
+Setup:
+```
+uv venv
+source .venv/bin/activate
+uv pip install pip
+uv pip install vllm setuptools
+```
+
+**Note: If you're on Ubuntu 22.04 or earlier, you will need to add `--python=python3.10` to your `uv venv` command**
+
+Build:
+```
+cargo build --release --features vllm
+```
+
+Run (still inside that virtualenv) - HF repo:
+```
+./target/release/tio in=http out=vllm --model-path ~/llm_models/Llama-3.2-3B-Instruct/
+
+```
+
+Run (still inside that virtualenv) - GGUF:
+```
+./target/release/tio in=http out=vllm --model-path ~/llm_models/Llama-3.2-3B-Instruct-Q6_K.gguf --model-config ~/llm_models/Llama-3.2-3B-Instruct/
+```
+

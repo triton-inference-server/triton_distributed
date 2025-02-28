@@ -27,6 +27,7 @@ sglang = ["triton-distributed-llm/sglang", "dep:netlink-packet-route", "dep:rtne
 llamacpp = ["triton-distributed-llm/llamacpp"]
 cuda = ["triton-distributed-llm/cuda"]
 metal = ["triton-distributed-llm/metal"]
+vllm = ["triton-distributed-llm/vllm"]
 
 [dependencies]
 anyhow = "1"
