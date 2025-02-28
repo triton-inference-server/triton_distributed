@@ -33,6 +33,11 @@ pub struct EndpointConfig {
     /// Endpoint handler
     #[educe(Debug(ignore))]
     handler: Arc<dyn PushWorkHandler>,
+
+    /// Stats handler
+    #[educe(Debug(ignore))]
+    #[builder(default, private)]
+    _stats_handler: Option<EndpointStatsHandler>,
 }
 
 impl EndpointConfigBuilder {
@@ -40,8 +45,15 @@ impl EndpointConfigBuilder {
         Self::default().endpoint(endpoint)
     }
 
+    pub fn stats_handler<F>(self, handler: F) -> Self
+    where
+        F: FnMut(async_nats::service::endpoint::Stats) -> serde_json::Value + Send + Sync + 'static,
+    {
+        self._stats_handler(Some(Box::new(handler)))
+    }
+
     pub async fn start(self) -> Result<()> {
-        let (endpoint, lease, handler) = self.build_internal()?.dissolve();
+        let (endpoint, lease, handler, stats_handler) = self.build_internal()?.dissolve();
         let lease = lease.unwrap_or(endpoint.drt().primary_lease());
 
         tracing::debug!(
@@ -49,18 +61,34 @@ impl EndpointConfigBuilder {
             endpoint.etcd_path_with_id(lease.id())
         );
 
-        let group = endpoint
-            .component
-            .drt
-            .component_registry
+        let service_name = endpoint.component.service_name();
+
+        // acquire the registry lock
+        let registry = endpoint.drt().component_registry.inner.lock().await;
+
+        // get the group
+        let group = registry
             .services
-            .lock()
-            .await
-            .get(&endpoint.component.etcd_path())
+            .get(&service_name)
             .map(|service| service.group(endpoint.component.service_name()))
             .ok_or(error!("Service not found"))?;
 
-        // let group = service.group(service_name.as_str());
+        // get the stats handler map
+        let handler_map = registry
+            .stats_handlers
+            .get(&service_name)
+            .cloned()
+            .expect("no stats handler registry; this is unexpected");
+
+        drop(registry);
+
+        // insert the stats handler
+        if let Some(stats_handler) = stats_handler {
+            handler_map
+                .lock()
+                .unwrap()
+                .insert(endpoint.subject_to(lease.id()), stats_handler);
+        }
 
         // creates an endpoint for the service
         let service_endpoint = group
@@ -78,8 +106,6 @@ impl EndpointConfigBuilder {
 
         // launch in primary runtime
         let task = tokio::spawn(push_endpoint.start(service_endpoint));
-
-        // tracing::debug!(worker_id, "endpoint subject: {}", subject);
 
         // make the components service endpoint discovery in etcd
 

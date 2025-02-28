@@ -13,13 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    ChatCompletionChoice, ChatCompletionContent, ChatCompletionResponse,
-    ChatCompletionResponseDelta, CompletionUsage, FinishReason, MessageRole, ServiceTier,
-};
+use super::{NvCreateChatCompletionResponse, NvCreateChatCompletionStreamResponse};
 use crate::protocols::{
     codec::{Message, SseCodecError},
-    common::ChatCompletionLogprobs,
     convert_sse_stream, Annotated,
 };
 
@@ -28,25 +24,25 @@ use std::{collections::HashMap, pin::Pin};
 
 type DataStream<T> = Pin<Box<dyn Stream<Item = T> + Send + Sync>>;
 
-/// Aggregates a stream of [`ChatCompletionResponseDelta`]s into a single [`ChatCompletionResponse`].
+/// Aggregates a stream of [`NvCreateChatCompletionStreamResponse`]s into a single [`NvCreateChatCompletionResponse`].
 pub struct DeltaAggregator {
     id: String,
     model: String,
-    created: u64,
-    usage: Option<CompletionUsage>,
+    created: u32,
+    usage: Option<async_openai::types::CompletionUsage>,
     system_fingerprint: Option<String>,
-    choices: HashMap<u64, DeltaChoice>,
+    choices: HashMap<u32, DeltaChoice>,
     error: Option<String>,
-    service_tier: Option<ServiceTier>,
+    service_tier: Option<async_openai::types::ServiceTierResponse>,
 }
 
 // Holds the accumulated state of a choice
 struct DeltaChoice {
-    index: u64,
+    index: u32,
     text: String,
-    role: Option<MessageRole>,
-    finish_reason: Option<FinishReason>,
-    logprobs: Option<ChatCompletionLogprobs>,
+    role: Option<async_openai::types::Role>,
+    finish_reason: Option<async_openai::types::FinishReason>,
+    logprobs: Option<async_openai::types::ChatChoiceLogprobs>,
 }
 
 impl Default for DeltaAggregator {
@@ -70,10 +66,10 @@ impl DeltaAggregator {
         }
     }
 
-    /// Aggregates a stream of [`ChatCompletionResponseDelta`]s into a single [`ChatCompletionResponse`].
+    /// Aggregates a stream of [`NvCreateChatCompletionStreamResponse`]s into a single [`NvCreateChatCompletionResponse`].
     pub async fn apply(
-        stream: DataStream<Annotated<ChatCompletionResponseDelta>>,
-    ) -> Result<ChatCompletionResponse, String> {
+        stream: DataStream<Annotated<NvCreateChatCompletionStreamResponse>>,
+    ) -> Result<NvCreateChatCompletionResponse, String> {
         let aggregator = stream
             .fold(DeltaAggregator::new(), |mut aggregator, delta| async move {
                 // these are cheap to move so we do it every time since we are consuming the delta
@@ -92,19 +88,19 @@ impl DeltaAggregator {
                     // TODO(#14) - Aggregate Annotation
 
                     let delta = delta.data.unwrap();
-                    aggregator.id = delta.id;
-                    aggregator.model = delta.model;
-                    aggregator.created = delta.created;
-                    aggregator.service_tier = delta.service_tier;
-                    if let Some(usage) = delta.usage {
+                    aggregator.id = delta.inner.id;
+                    aggregator.model = delta.inner.model;
+                    aggregator.created = delta.inner.created;
+                    aggregator.service_tier = delta.inner.service_tier;
+                    if let Some(usage) = delta.inner.usage {
                         aggregator.usage = Some(usage);
                     }
-                    if let Some(system_fingerprint) = delta.system_fingerprint {
+                    if let Some(system_fingerprint) = delta.inner.system_fingerprint {
                         aggregator.system_fingerprint = Some(system_fingerprint);
                     }
 
                     // handle the choices
-                    for choice in delta.choices {
+                    for choice in delta.inner.choices {
                         let state_choice =
                             aggregator
                                 .choices
@@ -141,12 +137,12 @@ impl DeltaAggregator {
         let mut choices: Vec<_> = aggregator
             .choices
             .into_values()
-            .map(ChatCompletionChoice::from)
+            .map(async_openai::types::ChatChoice::from)
             .collect();
 
         choices.sort_by(|a, b| a.index.cmp(&b.index));
 
-        Ok(ChatCompletionResponse {
+        let inner = async_openai::types::CreateChatCompletionResponse {
             id: aggregator.id,
             created: aggregator.created,
             usage: aggregator.usage,
@@ -155,74 +151,93 @@ impl DeltaAggregator {
             system_fingerprint: aggregator.system_fingerprint,
             choices,
             service_tier: aggregator.service_tier,
-        })
+        };
+
+        let response = NvCreateChatCompletionResponse { inner };
+
+        Ok(response)
     }
 }
 
 // todo - handle tool calls
-impl From<DeltaChoice> for ChatCompletionChoice {
+#[allow(deprecated)]
+impl From<DeltaChoice> for async_openai::types::ChatChoice {
     fn from(delta: DeltaChoice) -> Self {
-        ChatCompletionChoice {
-            message: ChatCompletionContent {
-                role: delta.role,
+        // ALLOW: function_call is deprecated
+        async_openai::types::ChatChoice {
+            message: async_openai::types::ChatCompletionResponseMessage {
+                role: delta.role.expect("delta should have a Role"),
                 content: Some(delta.text),
                 tool_calls: None,
+                refusal: None,
+                function_call: None,
+                audio: None,
             },
             index: delta.index,
-            finish_reason: delta.finish_reason.unwrap_or(FinishReason::length),
+            finish_reason: delta.finish_reason,
             logprobs: delta.logprobs,
         }
     }
 }
 
-impl ChatCompletionResponse {
+impl NvCreateChatCompletionResponse {
     pub async fn from_sse_stream(
         stream: DataStream<Result<Message, SseCodecError>>,
-    ) -> Result<ChatCompletionResponse, String> {
-        let stream = convert_sse_stream::<ChatCompletionResponseDelta>(stream);
-        ChatCompletionResponse::from_annotated_stream(stream).await
+    ) -> Result<NvCreateChatCompletionResponse, String> {
+        let stream = convert_sse_stream::<NvCreateChatCompletionStreamResponse>(stream);
+        NvCreateChatCompletionResponse::from_annotated_stream(stream).await
     }
 
     pub async fn from_annotated_stream(
-        stream: DataStream<Annotated<ChatCompletionResponseDelta>>,
-    ) -> Result<ChatCompletionResponse, String> {
+        stream: DataStream<Annotated<NvCreateChatCompletionStreamResponse>>,
+    ) -> Result<NvCreateChatCompletionResponse, String> {
         DeltaAggregator::apply(stream).await
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::protocols::openai::chat_completions::ChatCompletionChoiceDelta;
 
     use super::*;
     use futures::stream;
 
+    #[allow(deprecated)]
     fn create_test_delta(
-        index: u64,
+        index: u32,
         text: &str,
-        role: Option<MessageRole>,
-        finish_reason: Option<FinishReason>,
-    ) -> Annotated<ChatCompletionResponseDelta> {
+        role: Option<async_openai::types::Role>,
+        finish_reason: Option<async_openai::types::FinishReason>,
+    ) -> Annotated<NvCreateChatCompletionStreamResponse> {
+        // ALLOW: function_call is deprecated
+        let delta = async_openai::types::ChatCompletionStreamResponseDelta {
+            content: Some(text.to_string()),
+            function_call: None,
+            tool_calls: None,
+            role,
+            refusal: None,
+        };
+        let choice = async_openai::types::ChatChoiceStream {
+            index,
+            delta,
+            finish_reason,
+            logprobs: None,
+        };
+
+        let inner = async_openai::types::CreateChatCompletionStreamResponse {
+            id: "test_id".to_string(),
+            model: "meta/llama-3.1-8b-instruct".to_string(),
+            created: 1234567890,
+            service_tier: None,
+            usage: None,
+            system_fingerprint: None,
+            choices: vec![choice],
+            object: "chat.completion".to_string(),
+        };
+
+        let data = NvCreateChatCompletionStreamResponse { inner };
+
         Annotated {
-            data: Some(ChatCompletionResponseDelta {
-                id: "test_id".to_string(),
-                model: "meta/llama-3.1-8b-instruct".to_string(),
-                created: 1234567890,
-                service_tier: None,
-                usage: None,
-                system_fingerprint: None,
-                choices: vec![ChatCompletionChoiceDelta {
-                    index,
-                    delta: ChatCompletionContent {
-                        role,
-                        content: Some(text.to_string()),
-                        tool_calls: None,
-                    },
-                    finish_reason,
-                    logprobs: None,
-                }],
-                object: "chat.completion".to_string(),
-            }),
+            data: Some(data),
             id: Some("test_id".to_string()),
             event: None,
             comment: None,
@@ -232,7 +247,8 @@ mod tests {
     #[tokio::test]
     async fn test_empty_stream() {
         // Create an empty stream
-        let stream: DataStream<Annotated<ChatCompletionResponseDelta>> = Box::pin(stream::empty());
+        let stream: DataStream<Annotated<NvCreateChatCompletionStreamResponse>> =
+            Box::pin(stream::empty());
 
         // Call DeltaAggregator::apply
         let result = DeltaAggregator::apply(stream).await;
@@ -242,19 +258,20 @@ mod tests {
         let response = result.unwrap();
 
         // Verify that the response is empty and has default values
-        assert_eq!(response.id, "");
-        assert_eq!(response.model, "");
-        assert_eq!(response.created, 0);
-        assert!(response.usage.is_none());
-        assert!(response.system_fingerprint.is_none());
-        assert_eq!(response.choices.len(), 0);
-        assert!(response.service_tier.is_none());
+        assert_eq!(response.inner.id, "");
+        assert_eq!(response.inner.model, "");
+        assert_eq!(response.inner.created, 0);
+        assert!(response.inner.usage.is_none());
+        assert!(response.inner.system_fingerprint.is_none());
+        assert_eq!(response.inner.choices.len(), 0);
+        assert!(response.inner.service_tier.is_none());
     }
 
     #[tokio::test]
     async fn test_single_delta() {
         // Create a sample delta
-        let annotated_delta = create_test_delta(0, "Hello,", Some(MessageRole::user), None);
+        let annotated_delta =
+            create_test_delta(0, "Hello,", Some(async_openai::types::Role::User), None);
 
         // Create a stream
         let stream = Box::pin(stream::iter(vec![annotated_delta]));
@@ -267,18 +284,18 @@ mod tests {
         let response = result.unwrap();
 
         // Verify the response fields
-        assert_eq!(response.id, "test_id");
-        assert_eq!(response.model, "meta/llama-3.1-8b-instruct");
-        assert_eq!(response.created, 1234567890);
-        assert!(response.usage.is_none());
-        assert!(response.system_fingerprint.is_none());
-        assert_eq!(response.choices.len(), 1);
-        let choice = &response.choices[0];
+        assert_eq!(response.inner.id, "test_id");
+        assert_eq!(response.inner.model, "meta/llama-3.1-8b-instruct");
+        assert_eq!(response.inner.created, 1234567890);
+        assert!(response.inner.usage.is_none());
+        assert!(response.inner.system_fingerprint.is_none());
+        assert_eq!(response.inner.choices.len(), 1);
+        let choice = &response.inner.choices[0];
         assert_eq!(choice.index, 0);
         assert_eq!(choice.message.content.as_ref().unwrap(), "Hello,");
-        assert_eq!(choice.finish_reason, FinishReason::length);
-        assert_eq!(choice.message.role.as_ref().unwrap(), &MessageRole::user);
-        assert!(response.service_tier.is_none());
+        assert!(choice.finish_reason.is_none());
+        assert_eq!(choice.message.role, async_openai::types::Role::User);
+        assert!(response.inner.service_tier.is_none());
     }
 
     #[tokio::test]
@@ -286,8 +303,14 @@ mod tests {
         // Create multiple deltas with the same choice index
         // One will have a MessageRole and no FinishReason,
         // the other will have a FinishReason and no MessageRole
-        let annotated_delta1 = create_test_delta(0, "Hello,", Some(MessageRole::user), None);
-        let annotated_delta2 = create_test_delta(0, " world!", None, Some(FinishReason::stop));
+        let annotated_delta1 =
+            create_test_delta(0, "Hello,", Some(async_openai::types::Role::User), None);
+        let annotated_delta2 = create_test_delta(
+            0,
+            " world!",
+            None,
+            Some(async_openai::types::FinishReason::Stop),
+        );
 
         // Create a stream
         let annotated_deltas = vec![annotated_delta1, annotated_delta2];
@@ -301,52 +324,63 @@ mod tests {
         let response = result.unwrap();
 
         // Verify the response fields
-        assert_eq!(response.choices.len(), 1);
-        let choice = &response.choices[0];
+        assert_eq!(response.inner.choices.len(), 1);
+        let choice = &response.inner.choices[0];
         assert_eq!(choice.index, 0);
         assert_eq!(choice.message.content.as_ref().unwrap(), "Hello, world!");
-        assert_eq!(choice.finish_reason, FinishReason::stop);
-        assert_eq!(choice.message.role.as_ref().unwrap(), &MessageRole::user);
+        assert_eq!(
+            choice.finish_reason,
+            Some(async_openai::types::FinishReason::Stop)
+        );
+        assert_eq!(choice.message.role, async_openai::types::Role::User);
     }
 
+    #[allow(deprecated)]
     #[tokio::test]
     async fn test_multiple_choices() {
         // Create a delta with multiple choices
-        let delta = ChatCompletionResponseDelta {
+        // ALLOW: function_call is deprecated
+        let delta = async_openai::types::CreateChatCompletionStreamResponse {
             id: "test_id".to_string(),
             model: "test_model".to_string(),
             created: 1234567890,
+            service_tier: None,
             usage: None,
             system_fingerprint: None,
             choices: vec![
-                ChatCompletionChoiceDelta {
+                async_openai::types::ChatChoiceStream {
                     index: 0,
-                    delta: ChatCompletionContent {
-                        role: Some(MessageRole::assistant),
+                    delta: async_openai::types::ChatCompletionStreamResponseDelta {
+                        role: Some(async_openai::types::Role::Assistant),
                         content: Some("Choice 0".to_string()),
+                        function_call: None,
                         tool_calls: None,
+                        refusal: None,
                     },
-                    finish_reason: Some(FinishReason::stop),
+                    finish_reason: Some(async_openai::types::FinishReason::Stop),
                     logprobs: None,
                 },
-                ChatCompletionChoiceDelta {
+                async_openai::types::ChatChoiceStream {
                     index: 1,
-                    delta: ChatCompletionContent {
-                        role: Some(MessageRole::assistant),
+                    delta: async_openai::types::ChatCompletionStreamResponseDelta {
+                        role: Some(async_openai::types::Role::Assistant),
                         content: Some("Choice 1".to_string()),
+                        function_call: None,
                         tool_calls: None,
+                        refusal: None,
                     },
-                    finish_reason: Some(FinishReason::stop),
+                    finish_reason: Some(async_openai::types::FinishReason::Stop),
                     logprobs: None,
                 },
             ],
             object: "chat.completion".to_string(),
-            service_tier: None,
         };
+
+        let data = NvCreateChatCompletionStreamResponse { inner: delta };
 
         // Wrap it in Annotated and create a stream
         let annotated_delta = Annotated {
-            data: Some(delta),
+            data: Some(data),
             id: Some("test_id".to_string()),
             event: None,
             comment: None,
@@ -361,24 +395,24 @@ mod tests {
         let mut response = result.unwrap();
 
         // Verify the response fields
-        assert_eq!(response.choices.len(), 2);
-        response.choices.sort_by(|a, b| a.index.cmp(&b.index)); // Ensure the choices are ordered
-        let choice0 = &response.choices[0];
+        assert_eq!(response.inner.choices.len(), 2);
+        response.inner.choices.sort_by(|a, b| a.index.cmp(&b.index)); // Ensure the choices are ordered
+        let choice0 = &response.inner.choices[0];
         assert_eq!(choice0.index, 0);
         assert_eq!(choice0.message.content.as_ref().unwrap(), "Choice 0");
-        assert_eq!(choice0.finish_reason, FinishReason::stop);
         assert_eq!(
-            choice0.message.role.as_ref().unwrap(),
-            &MessageRole::assistant
+            choice0.finish_reason,
+            Some(async_openai::types::FinishReason::Stop)
         );
+        assert_eq!(choice0.message.role, async_openai::types::Role::Assistant);
 
-        let choice1 = &response.choices[1];
+        let choice1 = &response.inner.choices[1];
         assert_eq!(choice1.index, 1);
         assert_eq!(choice1.message.content.as_ref().unwrap(), "Choice 1");
-        assert_eq!(choice1.finish_reason, FinishReason::stop);
         assert_eq!(
-            choice1.message.role.as_ref().unwrap(),
-            &MessageRole::assistant
+            choice1.finish_reason,
+            Some(async_openai::types::FinishReason::Stop)
         );
+        assert_eq!(choice1.message.role, async_openai::types::Role::Assistant);
     }
 }

@@ -20,7 +20,7 @@ limitations under the License.
 ## Build docker
 
 ```
-./container/build.sh --framework VLLM_NIXL --target dev --build-context nixl=<path to downloaded nixl repo @ main>
+./container/build.sh --framework VLLM_NIXL --target dev --build-context nixl=<path to downloaded nixl repo @ fc912eb012597be67de11fa9ba0599e4e1974fa2>
 ```
 
 ## Run container
@@ -28,6 +28,8 @@ limitations under the License.
 ```
 ./container/run.sh --framework VLLM_NIXL --target dev -it
 ```
+
+All of the commands below are run inside the same container.
 
 ## Run deployment
 
@@ -135,6 +137,7 @@ rm -r /tmp/nixl
 ## TODOs, limitations, known issues
 
 - [ ] Add etcd for discovery
+- [ ] Multi-node deployment support
 - [ ] Enable chunked prefill
 - [ ] Support mixed tp
 - [ ] Process many remote prefill in one iteration
@@ -145,6 +148,7 @@ rm -r /tmp/nixl
 - [ ] Test under load
 - [ ] Support pp > 1
 - [ ] Check why adding extra seed input is crashing vllm with remote prefill
+- [ ] Unified worker for both prefill and decode
 - [x] Require sending two parallel requests to start decode for the first time
 - [x] Concurrency > 2 is not working
 - [x] Parse cmdline args

@@ -21,10 +21,9 @@ use std::{
 use triton_distributed_llm::{
     backend::Backend,
     preprocessor::OpenAIPreprocessor,
-    protocols::openai::chat_completions::MessageRole,
     types::{
         openai::chat_completions::{
-            ChatCompletionRequest, ChatCompletionResponseDelta,
+            NvCreateChatCompletionRequest, NvCreateChatCompletionStreamResponse,
             OpenAIChatCompletionsStreamingEngine,
         },
         Annotated,
@@ -38,7 +37,7 @@ use triton_distributed_runtime::{
 use crate::EngineConfig;
 
 /// Max response tokens for each single query. Must be less than model context size.
-const MAX_TOKENS: i32 = 8192;
+const MAX_TOKENS: u32 = 8192;
 
 /// Output of `isatty` if the fd is indeed a TTY
 const IS_A_TTY: i32 = 1;
@@ -72,8 +71,8 @@ pub async fn run(
             card,
         } => {
             let frontend = ServiceFrontend::<
-                SingleIn<ChatCompletionRequest>,
-                ManyOut<Annotated<ChatCompletionResponseDelta>>,
+                SingleIn<NvCreateChatCompletionRequest>,
+                ManyOut<Annotated<NvCreateChatCompletionStreamResponse>>,
             >::new();
             let preprocessor = OpenAIPreprocessor::new(*card.clone())
                 .await?
@@ -96,11 +95,12 @@ pub async fn run(
     main_loop(cancel_token, &service_name, engine, inspect_template).await
 }
 
+#[allow(deprecated)]
 async fn main_loop(
     cancel_token: CancellationToken,
     service_name: &str,
     engine: OpenAIChatCompletionsStreamingEngine,
-    inspect_template: bool,
+    _inspect_template: bool,
 ) -> anyhow::Result<()> {
     tracing::info!("Ctrl-c to exit");
     let theme = dialoguer::theme::ColorfulTheme::default();
@@ -141,30 +141,31 @@ async fn main_loop(
                 }
             }
         };
-        messages.push((MessageRole::user, prompt.clone()));
+
+        // Construct messages
+        let user_message = async_openai::types::ChatCompletionRequestMessage::User(
+            async_openai::types::ChatCompletionRequestUserMessage {
+                content: async_openai::types::ChatCompletionRequestUserMessageContent::Text(prompt),
+                name: None,
+            },
+        );
+        messages.push(user_message);
 
         // Request
-        let mut req_builder = ChatCompletionRequest::builder();
-        req_builder
+        let inner = async_openai::types::CreateChatCompletionRequestArgs::default()
+            .messages(messages.clone())
             .model(service_name)
             .stream(true)
-            .max_tokens(MAX_TOKENS);
-        if inspect_template {
-            // This makes the pre-processor ignore stop tokens
-            req_builder.min_tokens(8192);
-        }
-        for (role, msg) in &messages {
-            match role {
-                MessageRole::user => {
-                    req_builder.add_user_message(msg);
-                }
-                MessageRole::assistant => {
-                    req_builder.add_assistant_message(msg);
-                }
-                x => panic!("Only 'user' and 'assistant' messages are supported, not {x}"),
-            }
-        }
-        let req = req_builder.build()?;
+            .max_tokens(MAX_TOKENS)
+            .build()?;
+
+        // TODO We cannot set min_tokens with async-openai
+        // if inspect_template {
+        //     // This makes the pre-processor ignore stop tokens
+        //     req_builder.min_tokens(8192);
+        // }
+
+        let req = NvCreateChatCompletionRequest { inner, nvext: None };
 
         // Call the model
         let mut stream = engine.generate(Context::new(req)).await?;
@@ -174,7 +175,7 @@ async fn main_loop(
         let mut assistant_message = String::new();
         while let Some(item) = stream.next().await {
             let data = item.data.as_ref().unwrap();
-            let entry = data.choices.first();
+            let entry = data.inner.choices.first();
             let chat_comp = entry.as_ref().unwrap();
             if let Some(c) = &chat_comp.delta.content {
                 let _ = stdout.write(c.as_bytes());
@@ -188,7 +189,23 @@ async fn main_loop(
         }
         println!();
 
-        messages.push((MessageRole::assistant, assistant_message));
+        let assistant_content =
+            async_openai::types::ChatCompletionRequestAssistantMessageContent::Text(
+                assistant_message,
+            );
+
+        // ALLOW: function_call is deprecated
+        let assistant_message = async_openai::types::ChatCompletionRequestMessage::Assistant(
+            async_openai::types::ChatCompletionRequestAssistantMessage {
+                content: Some(assistant_content),
+                refusal: None,
+                name: None,
+                audio: None,
+                tool_calls: None,
+                function_call: None,
+            },
+        );
+        messages.push(assistant_message);
     }
     println!();
     Ok(())

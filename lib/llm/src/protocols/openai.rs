@@ -147,9 +147,9 @@ trait OpenAISamplingOptionsProvider {
 }
 
 trait OpenAIStopConditionsProvider {
-    fn get_max_tokens(&self) -> Option<i32>;
+    fn get_max_tokens(&self) -> Option<u32>;
 
-    fn get_min_tokens(&self) -> Option<i32>;
+    fn get_min_tokens(&self) -> Option<u32>;
 
     fn get_stop(&self) -> Option<Vec<String>>;
 
@@ -200,7 +200,7 @@ impl<T: OpenAISamplingOptionsProvider> SamplingOptionsProvider for T {
 
 impl<T: OpenAIStopConditionsProvider> StopConditionsProvider for T {
     fn extract_stop_conditions(&self) -> Result<common::StopConditions> {
-        let max_tokens = self.get_max_tokens().map(|x| x as u32);
+        let max_tokens = self.get_max_tokens();
         let min_tokens = self.get_min_tokens();
         let stop = self.get_stop();
 
@@ -218,7 +218,7 @@ impl<T: OpenAIStopConditionsProvider> StopConditionsProvider for T {
 
         Ok(common::StopConditions {
             max_tokens,
-            min_tokens: min_tokens.map(|v| v as u32),
+            min_tokens,
             stop,
             stop_token_ids_hidden: None,
             ignore_eos,
@@ -321,6 +321,7 @@ pub trait DeltaGeneratorExt<ResponseType: Send + Sync + 'static + std::fmt::Debu
         response: common::llm_backend::BackendOutput,
     ) -> Result<ResponseType>;
 }
+
 #[cfg(test)]
 mod tests {
 

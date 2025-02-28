@@ -65,7 +65,6 @@ def find_remote_metadata(engine_id):
                     )
     return remote_metadata
 
-
 class NixlMetadataStore:
     NIXL_METADATA_KEY = "nixl_metadata"
 
