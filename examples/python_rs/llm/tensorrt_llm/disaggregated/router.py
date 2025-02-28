@@ -16,18 +16,21 @@
 import argparse
 import asyncio
 import copy
-import json
-from typing import List
 
 import uvloop
+from common.processor import ChatProcessor
+from common.protocol import (
+    DisaggChatCompletionRequest,
+    DisaggregatedResponse,
+    nvChatCompletionRequest,
+)
 from tensorrt_llm.llmapi.disagg_utils import (
     CtxGenServerConfig,
     parse_disagg_config_file,
 )
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (
-    CompletionRequest,
-    CompletionResponse,
+    ChatCompletionStreamResponse,
     DisaggregatedParams,
 )
 
@@ -47,68 +50,54 @@ class Router:
         self.ctx_client = ctx_client
         self.gen_client = gen_client
         logger.info("INITIALIZED ROUTER")
+        self.chat_processor = ChatProcessor("disagg_router", None)
 
-    @triton_endpoint(CompletionRequest, CompletionResponse)
+    @triton_endpoint(nvChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, request):
-        logger.debug(f"Received request {request}")
-        gen_req = copy.deepcopy(request)
-
-        if not isinstance(request.prompt, str) and not isinstance(
-            request.prompt, List[int]
-        ):
-            raise ValueError(
-                "Disaggregated server currently only supports single prompt in request"
-            )
-
         # Send request to context serve
         # These settings are needed to satisfy request checks.
-        request.max_tokens = 1
         request.skip_special_tokens = False
         request.add_special_tokens = False
         request.spaces_between_special_tokens = False
 
-        gen_req = copy.deepcopy(request)
+        disaggregated_request = DisaggChatCompletionRequest(**request.model_dump())
+        logger.debug(f"Received request {disaggregated_request}")
 
-        request.disaggregated_params = DisaggregatedParams(request_type="context_only")
+        gen_req = copy.deepcopy(disaggregated_request)
 
+        disaggregated_request.max_tokens = 1
+        disaggregated_request.disaggregated_params = DisaggregatedParams(
+            request_type="context_only"
+        )
+        logger.debug(
+            f"[router] Sending request to context server: {disaggregated_request}"
+        )
         ctx_resp = [
             resp
             async for resp in await self.ctx_client.round_robin(
-                request.model_dump_json()
+                disaggregated_request.model_dump_json()
             )
         ]
-        if len(ctx_resp) > 2:
+        if len(ctx_resp) > 1:
             raise ValueError(
                 "Context server returned more than one response. This is currently not supported in disaggregated server."
             )
 
-        logger.debug(f"Tanmaybbbbccsdfd {ctx_resp[0].data()}")
-        ddata = ctx_resp[0].data()
-        ctx_response = json.loads(ddata)
-        # TODO: Context server should skip de-tokenization and return raw tokens
-        logger.debug(f"Tanmaybbbbccsdfd2222 {ddata}")
-        logger.debug(f"datatype {type(ddata)}")
-        choices = ctx_response["choices"]
-        if len(choices) > 1:
-            raise ValueError(
-                "Disagg server returned more than one choice. This is currently not supported in disaggregated server."
-            )
-        if choices[0]["disaggregated_params"] is None:
-            raise ValueError("Context server did not return disaggregated params")
+        ctx_resp_obj = DisaggregatedResponse.parse_raw(ctx_resp[0].data())
+        logger.debug(f"[router] Got response from context server: {ctx_resp_obj}")
+        if request.streaming:
+            # TODO: Return the first token and the rest of the tokens
+            # are returned in the generation server.
+            pass
 
-        if request.stream:
-            # When streaming, the context server returns the first token and the rest of the tokens
-            # are returned in the generation server. We are return the first token here to ensure
-            # low TTFT
-            # NOTE: this might change in the future if trtllm context server returns raw tokens
-            yield ctx_response
-
-        gen_req.disaggregated_params = choices[0].disaggregated_params
+        gen_req.disaggregated_params = ctx_resp_obj.disaggregated_params
         gen_req.disaggregated_params.request_type = "generation_only"
 
+        logger.debug(f"[router] Sending request to generation server: {gen_req}")
         async for response in await self.gen_client.round_robin(
             gen_req.model_dump_json()
         ):
+            logger.debug(f"[router] Got response from generation server: {response}")
             yield response
 
 

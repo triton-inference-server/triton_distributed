@@ -13,12 +13,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pydantic import ConfigDict
-from tensorrt_llm.serve.openai_protocol import ChatCompletionRequest, CompletionRequest
+from pydantic import BaseModel, ConfigDict
+from tensorrt_llm.llmapi import DisaggregatedParams
+from tensorrt_llm.serve.openai_protocol import (
+    ChatCompletionRequest,
+    ChatCompletionStreamResponse,
+    CompletionRequest,
+)
 
 
 class nvChatCompletionRequest(ChatCompletionRequest):
     model_config = ConfigDict(extra="allow")
+
+
+class DisaggChatCompletionRequest(nvChatCompletionRequest):
+    disaggregated_params: dict = {}
+    model_config = ConfigDict(extra="allow")
+
+
+class DisaggChatStreamCompletionResponse(ChatCompletionStreamResponse):
+    disaggregated_params: dict = {}
+    model_config = ConfigDict(extra="allow")
+
+
+class DisaggregatedResponse(BaseModel):
+    text: str
+    disaggregated_params: DisaggregatedParams = {}
 
 
 class nvCompletionRequest(CompletionRequest):
