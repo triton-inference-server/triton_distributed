@@ -13,9 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use service_metrics::DEFAULT_NAMESPACE;
-use triton_distributed_llm::kv_router::protocols::ForwardPassMetrics;
-use rand::Rng;
+use service_metrics::{MyStats, DEFAULT_NAMESPACE};
 use std::sync::Arc;
 use triton_distributed_runtime::{
     logging,
@@ -78,20 +76,9 @@ async fn backend(runtime: DistributedRuntime) -> Result<()> {
         .endpoint("generate")
         .endpoint_builder()
         // Dummy stats handler to demonstrate how to attach a custom stats handler
-        .stats_handler(|_stats| {
-            println!("stats in: {:?}", _stats);
-            let request_total_slots = 100;
-            let request_active_slots = rand::thread_rng().gen_range(0..request_total_slots);
-            let kv_total_blocks = 100;
-            let kv_active_blocks = rand::thread_rng().gen_range(0..kv_total_blocks);
-            // FIXME: Use ForwardPassMetrics instead of MyStats
-            let stats = ForwardPassMetrics {
-                request_active_slots,
-                request_total_slots,
-                kv_active_blocks,
-                kv_total_blocks,
-            };
-            println!("stats out: {:?}", stats);
+        .stats_handler(|stats| {
+            println!("stats: {:?}", stats);
+            let stats = MyStats { val: 10 };
             serde_json::to_value(stats).unwrap()
         })
         .handler(ingress)
