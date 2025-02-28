@@ -48,11 +48,13 @@ The following configuration files should be present in this directory:
 
 ## Metrics
 
-The service exposes the following metrics:
-- `requests_active_slots`: Number of currently active request slots
-- `requests_total_slots`: Total available request slots
-- `kv_blocks_active`: Number of active KV blocks
-- `kv_blocks_total`: Total KV blocks available
+The prometheus service exposes the following metrics:
+- `llm_load_avg`: Average load across workers
+- `llm_load_std`: Load standard deviation across workers
+- `llm_requests_active_slots`: Number of currently active request slots
+- `llm_requests_total_slots`: Total available request slots
+- `llm_kv_blocks_active`: Number of active KV blocks
+- `llm_kv_blocks_total`: Total KV blocks available
 
 ## Troubleshooting
 
