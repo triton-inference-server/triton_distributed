@@ -23,7 +23,8 @@ on:
 
 jobs:
   build-test:
-    runs-on: ${{ fromJSON(vars.PR_FASTCHECK_RUNNERS) }}
+    runs-on:
+      group: Fastchecker
     strategy:
       matrix:
         framework:
