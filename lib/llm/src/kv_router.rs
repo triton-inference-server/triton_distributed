@@ -23,8 +23,8 @@ use triton_distributed_runtime::{component::Component, DistributedRuntime};
 pub mod indexer;
 pub mod protocols;
 pub mod publisher;
-mod scheduler;
-mod scoring;
+pub mod scheduler;
+pub mod scoring;
 
 use crate::kv_router::{
     indexer::{KvIndexer, KvIndexerInterface, RouterEvent},

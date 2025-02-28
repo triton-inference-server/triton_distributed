@@ -13,20 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[package]
-name = "service_metrics"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
+apiVersion: 1
 
-[dependencies]
-triton-distributed-runtime = { workspace = true }
-
-# third-party
-futures = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tokio = { workspace = true }
+datasources:
+  - name: prometheus
+    type: prometheus
+    access: proxy
+    # TODO: Use proper docker networking
+    # url: http://prometheus:9090
+    url: http://localhost:9090
+    isDefault: true

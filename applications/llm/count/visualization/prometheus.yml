@@ -13,20 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[package]
-name = "service_metrics"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
+global:
+  scrape_interval: 1s
+  evaluation_interval: 1s
 
-[dependencies]
-triton-distributed-runtime = { workspace = true }
-
-# third-party
-futures = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tokio = { workspace = true }
+scrape_configs:
+  - job_name: 'count'
+    static_configs:
+      # TODO: Use proper docker networking
+      # - targets: ['host.docker.internal:9091']
+      - targets: ['localhost:9091']
