@@ -26,9 +26,9 @@ def create_bentoml_cli() -> click.Command:
     from bentoml_cli.cloud import cloud_command
     from bentoml_cli.containerize import containerize_command
     from bentoml_cli.deployment import (
-       deploy_command,
-       deployment_command,
-       develop_command,
+        deploy_command,
+        deployment_command,
+        develop_command,
     )
     from bentoml_cli.env import env_command
     from bentoml_cli.models import model_command
