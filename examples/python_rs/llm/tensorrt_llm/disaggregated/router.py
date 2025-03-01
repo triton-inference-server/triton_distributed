@@ -15,18 +15,18 @@
 
 import asyncio
 import copy
+import uuid
 from enum import Enum
 
 import uvloop
 from common.processor import ChatProcessor
-from common.protocol import DisaggregatedResponse
+from common.protocol import ChatCompletionStreamResponse, DisaggregatedResponse
+from tensorrt_llm.llmapi import DisaggregatedParams
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (
     ChatCompletionRequest,
-    ChatCompletionStreamResponse,
     CompletionRequest,
     CompletionStreamResponse,
-    DisaggregatedParams,
 )
 
 from triton_distributed.runtime import (
@@ -64,6 +64,7 @@ class Router:
         request.skip_special_tokens = False
         request.add_special_tokens = False
         request.spaces_between_special_tokens = False
+        request.id = str(uuid.uuid4())
 
         logger.debug(f"Received request {request}")
 
@@ -83,7 +84,7 @@ class Router:
 
         ctx_resp_obj = DisaggregatedResponse.parse_raw(ctx_resp[0].data())
         logger.debug(f"[router] Got response from context server: {ctx_resp_obj}")
-        if request.streaming:
+        if request.stream:
             # TODO: Return the first token and the rest of the tokens
             # are returned in the generation server.
             pass
@@ -94,7 +95,10 @@ class Router:
         logger.debug(f"[router] Sending request to generation server: {gen_req}")
         async for response in await gen_client.round_robin(gen_req.model_dump_json()):
             logger.debug(f"[router] Got response from generation server: {response}")
-            yield response
+            data = ChatCompletionStreamResponse.parse_raw(
+                response.data()
+            ).model_dump_json()
+            yield data
 
     @triton_endpoint(CompletionRequest, CompletionStreamResponse)
     async def generate_completion(self, request):

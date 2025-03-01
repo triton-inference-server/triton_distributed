@@ -19,7 +19,6 @@ from tensorrt_llm.serve.openai_protocol import (
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
     CompletionRequest,
-    CompletionStreamResponse,
 )
 
 
@@ -37,7 +36,7 @@ class DisaggChatStreamCompletionResponse(ChatCompletionStreamResponse):
     model_config = ConfigDict(extra="allow")
 
 
-class DisaggregatedResponse(CompletionStreamResponse):
+class DisaggregatedResponse(ChatCompletionStreamResponse):
     text: str
     disaggregated_params: DisaggregatedParams = {}
 
