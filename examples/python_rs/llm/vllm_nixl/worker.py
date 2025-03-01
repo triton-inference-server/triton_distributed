@@ -19,7 +19,9 @@ import json
 
 import msgspec
 import uvloop
-from common import parse_vllm_args, temp_metadata_file
+import zmq
+from common import parse_vllm_args
+from vllm.distributed.device_communicators.nixl import NixlMetadata
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.multiprocessing.client import EngineClient
 from vllm.entrypoints.openai.api_server import (
@@ -129,16 +131,20 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
         # This should be replaced with etcd
 
         if engine_args.remote_prefill:
-            metadata = engine_client.nixl_metadata
-            with temp_metadata_file(metadata.engine_id, metadata):
-                await endpoint.serve_endpoint(
-                    RequestHandler(
-                        model_name=engine_args.model,
-                        engine_client=engine_client,
-                        prefill_client=prefill_client,
-                        do_remote_prefill=True,
-                    ).generate
-                )
+            metadata: NixlMetadata = engine_client.nixl_metadata
+            encoded_metadata = msgspec.msgpack.encode(metadata)
+            zmq_context = zmq.Context()
+            zmq_socket = zmq_context.socket(zmq.PAIR)
+            zmq_socket.bind("tcp://*:5555")
+            zmq_socket.send(encoded_metadata)
+            await endpoint.serve_endpoint(
+                RequestHandler(
+                    model_name=engine_args.model,
+                    engine_client=engine_client,
+                    prefill_client=prefill_client,
+                    do_remote_prefill=True,
+                ).generate
+            )
         else:
             await endpoint.serve_endpoint(
                 RequestHandler(

@@ -18,7 +18,8 @@ import asyncio
 
 import msgspec
 import uvloop
-from common import find_remote_metadata, parse_vllm_args, temp_metadata_file
+import zmq
+from common import parse_vllm_args
 from vllm.distributed.device_communicators.nixl import NixlMetadata
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.api_server import (
@@ -68,20 +69,15 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
     async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
         # This should be replaced with etcd
-        metadata = engine_client.nixl_metadata
-        with temp_metadata_file(metadata.engine_id, metadata):
-            print(f"Waiting for remote metadata for engine {metadata.engine_id}")
-            remote_metadata: list[NixlMetadata] = []
-            while not remote_metadata:
-                await asyncio.sleep(1)
-                remote_metadata = find_remote_metadata(metadata.engine_id)
-
-            print(
-                f"Found {len(remote_metadata)} remote metadata for engine {metadata.engine_id}"
-            )
-            for remote_metadata in remote_metadata:
-                await engine_client.add_remote_nixl_metadata(remote_metadata)
-            await endpoint.serve_endpoint(RequestHandler(engine_client).generate)
+        zmq_context = zmq.Context()
+        zmq_socket = zmq_context.socket(zmq.PAIR)
+        zmq_socket.connect("tcp://<decode_ip>:5555")
+        encoded_metadata = zmq_socket.recv()
+        remote_metadata: NixlMetadata = msgspec.msgpack.decode(
+            encoded_metadata, type=NixlMetadata
+        )
+        await engine_client.add_remote_nixl_metadata(remote_metadata)
+        await endpoint.serve_endpoint(RequestHandler(engine_client).generate)
 
 
 if __name__ == "__main__":
