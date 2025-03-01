@@ -18,7 +18,8 @@ import asyncio
 
 import msgspec
 import uvloop
-from common import find_remote_metadata, parse_vllm_args, temp_metadata_file
+from utils.nixl import find_remote_metadata, temp_metadata_file
+from utils.vllm import parse_vllm_args
 from vllm.distributed.device_communicators.nixl import NixlMetadata
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.api_server import (
@@ -61,7 +62,7 @@ class RequestHandler:
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
-    component = runtime.namespace("test-nixl").component("prefill")
+    component = runtime.namespace("triton-init").component("prefill")
     await component.create_service()
 
     endpoint = component.endpoint("generate")

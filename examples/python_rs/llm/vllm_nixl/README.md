@@ -17,6 +17,22 @@ limitations under the License.
 
 > **NOTE**: This example is based on an internal NVIDIA library that will soon be publicly released. The example won't work until the official release.
 
+## Prerequisites
+
+Start required services (etcd and NATS):
+
+   Option A: Using [Docker Compose](/runtime/rust/docker-compose.yml) (Recommended)
+   ```bash
+   docker-compose up -d
+   ```
+
+   Option B: Manual Setup
+
+    - [NATS.io](https://docs.nats.io/running-a-nats-service/introduction/installation) server with [Jetstream](https://docs.nats.io/nats-concepts/jetstream)
+        - example: `nats-server -js --trace`
+    - [etcd](https://etcd.io) server
+        - follow instructions in [etcd installation](https://etcd.io/docs/v3.5/install/) to start an `etcd-server` locally
+
 ## Build docker
 
 ```
@@ -35,42 +51,83 @@ All of the commands below are run inside the same container.
 
 Add model to triton and start http server.
 
-In terminal 0:
+
 ```
-llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B test-nixl.vllm.generate
+llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B triton-init.process.chat/completions
 TRT_LOG=DEBUG http --port 8181
 ```
 
+To launch disaggregated vllm deployment, there are three major components:
+1. Processor
+2. KV Router
+3. Disaggregated Router
+4. Prefill and Decode Workers
 
-
-### Monolithic deployment
-
-In terminal 1:
+### Processor
 
 ```
-cd /workspace/examples/python_rs/llm/vllm_nixl
-CUDA_VISIBLE_DEVICES=0 python3 worker.py \
+# Processor must take the same args as the worker
+# This is temporary until we communicate the ModelDeploymentCard over etcd
+cd /workspace/examples/python_rs/llm/vllm
+RUST_LOG=info python3 processor.py \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
-    --enforce-eager
+    --tokenizer deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --enable-prefix-caching \
+    --block-size 64 \
+    --max-model-len 16384
 ```
 
+### KV Router
 
-### Disaggregated deployment
+The KV Router is a component that aggregates KV Events from all the workers and maintains a prefix tree of the cached tokens. It makes decisions on which worker to route requests to based on the length of the prefix match and the load on the workers.
 
-In terminal 1:
+To launch the KV Router, run the following command:
+```
+RUST_LOG=info python3 router.py \
+    --routing-strategy prefix \
+    --model-name deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
+    --min-workers 1
+```
+
+You can choose only the prefix strategy for now:
+- `prefix`: Route requests to the worker that has the longest prefix match.
+
+
+### Disaggregated Router
+
+The disaggregated router determines whether a request should be send to a
+remote prefill engine or a local prefill engine for prefilling based on the
+prefill length. When prefilling locally, the vllm scheduler will prioritize
+prefill request and pause any ongoing decode requests.
+Each decoder worker will launch its own prefill worker.
+For now, we use a simple heuristic to route to prefill engine
+if prefill length (including prefix catch hit) is greater than a threshold.
+This threshold can by dynamically adjusted at runtime through etcd.
+
+To check the current threshold (this will print out all kv pairs in etcd):
+```
+curl -s -L http://localhost:2379/v3/kv/range -X POST   -d '{"key":"AA==", "range_end":"AA=="}' |   jq -r '.kvs[] | "KEY: \(.key | @base64d)\nVALUE: \(.value | @base64d)\n---"'
+```
+
+To update the threshold:
+```
+ETCDCTL_API=3 etcdctl --endpoints=http://localhost:2379 put 'public/components/disagg_router/models/chat/deepseek-ai/DeepSeek-R1-Distill-Llama-8B' '{"max_local_prefill_length": <new_threshold>}'
+```
+
+### Workers
 
 ```
+# start prefill worker in Terminal 1
+# for xPyD, please first start the decode workers
+# so that prefill workers can get metadata of all decode workers
 cd /workspace/examples/python_rs/llm/vllm_nixl
 CUDA_VISIBLE_DEVICES=0 python prefill_worker.py \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --enforce-eager \
     --kv-transfer-config \
     '{"kv_connector":"TritonNixlConnector"}'
-```
 
-In terminal 2:
-
-```
+# start decode worker in Terminal 2
 cd /workspace/examples/python_rs/llm/vllm_nixl
 CUDA_VISIBLE_DEVICES=1 python3 worker.py \
     --remote-prefill \
@@ -80,6 +137,16 @@ CUDA_VISIBLE_DEVICES=1 python3 worker.py \
     '{"kv_connector":"TritonNixlConnector"}'
 ```
 
+Alternatively, we also provide a script to launch all workers in one go:
+```
+./start_single_node.sh
+# Usage [--model <model>] [--p_tensor_parallel_size <size>] [--d_tensor_parallel_size <size>] [--max_model_len <len>] [--max_num_batched_tokens <tokens>] [--max_num_seqs <seqs>] [--gpu_memory_utilization <utilization>] [--enable_chunked_prefill <True/False>] [--num_p <p>] [--num_d <d>]
+```
+
+If torch GLOO backend is complaining about file name too long, set
+```
+export GLOO_SOCKET_IFNAME=lo
+```
 
 ## Client
 
@@ -94,26 +161,6 @@ curl localhost:8181/v1/chat/completions \
     ],
     "max_tokens": 10
   }'
-```
-
-## Disaggregated Router
-
-The disaggregated router determines whether a request should be send to a
-remote prefill engine or a local prefill engine for prefilling based on the
-prefill length. When prefilling locally, the vllm scheduler will prioritize
-prefill request and pause any ongoing decode requests.
-For now, we use a simple heuristic to route to prefill engine
-if prefill length (including prefix catch hit) is greater than a threshold.
-This threshold can by dynamically adjusted at runtime through etcd.
-
-To check the current threshold (this will print out all kv pairs in etcd):
-```
-curl -s -L http://localhost:2379/v3/kv/range -X POST   -d '{"key":"AA==", "range_end":"AA=="}' |   jq -r '.kvs[] | "KEY: \(.key | @base64d)\nVALUE: \(.value | @base64d)\n---"'
-```
-
-To update the threshold:
-```
-ETCDCTL_API=3 etcdctl --endpoints=http://localhost:2379 put 'public/components/disagg_router/models/chat/deepseek-ai/DeepSeek-R1-Distill-Llama-8B' '{"max_local_prefill_length": <new_threshold>}'
 ```
 
 ## Run genai-perf
