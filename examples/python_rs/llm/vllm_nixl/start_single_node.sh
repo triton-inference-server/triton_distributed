@@ -9,6 +9,7 @@ max_num_batched_tokens=16384
 max_num_seqs=1024
 gpu_memory_utilization=0.9
 enable_chunked_prefill=False
+block_size=64
 
 num_p=2
 num_d=2
@@ -72,6 +73,10 @@ while [[ $# -gt 0 ]]; do
             curr_kv_rank="$2"
             shift 2
             ;;
+        --block_size)
+            block_size="$2"
+            shift 2
+            ;;
         *)
             usage
             ;;
@@ -98,6 +103,7 @@ for (( i=1; i<=num_d; i++ )); do
     --enforce-eager \
     --enable-prefix-caching \
     --tensor-parallel-size ${d_tensor_parallel_size} \
+    --block-size ${block_size} \
     --kv-transfer-config '{"kv_connector":"TritonNixlConnector"}' & disown
     curr_rank=$((curr_rank + d_tensor_parallel_size))
     curr_kv_rank=$((curr_kv_rank + 1))
@@ -120,6 +126,7 @@ for (( i=1; i<=num_p; i++ )); do
     --gpu-memory-utilization ${gpu_memory_utilization} \
     --enforce-eager \
     --tensor-parallel-size ${p_tensor_parallel_size} \
+    --block-size ${block_size} \
     --kv-transfer-config '{"kv_connector":"TritonNixlConnector"}' & disown
     curr_rank=$((curr_rank + p_tensor_parallel_size))
     curr_kv_rank=$((curr_kv_rank + 1))

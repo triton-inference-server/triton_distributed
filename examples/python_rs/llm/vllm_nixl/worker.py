@@ -31,7 +31,7 @@ from vllm.logger import logger as vllm_logger
 from vllm.remote_prefill import RemotePrefillParams, RemotePrefillRequest
 from vllm.sampling_params import RequestOutputKind
 
-from triton_distributed.llm import KvMetricsPublisher
+from triton_distributed.llm import DisaggregatedRouter, KvMetricsPublisher
 from triton_distributed.runtime import (
     DistributedRuntime,
     triton_endpoint,
@@ -46,6 +46,7 @@ class RequestHandler:
         engine_client: EngineClient,
         prefill_client,
         do_remote_prefill: bool,
+        disaggregated_router: DisaggregatedRouter = None,
     ):
         self.model_name = model_name
         self.client = engine_client
@@ -53,8 +54,13 @@ class RequestHandler:
         self.openai_serving_chat = None
         self.initialized = False
         self.do_remote_prefill = (
-            do_remote_prefill  # TODO: this should be decided by the algorithm
+            do_remote_prefill  # remote prefill is still controlled by the router
         )
+        self.disaggregated_router = disaggregated_router
+        if do_remote_prefill:
+            assert (
+                disaggregated_router is not None
+            ), "Disaggregated router is required for remote prefill"
         print("RequestHandler initialized")
 
     def get_remote_prefill_request_callback(self):
@@ -66,13 +72,22 @@ class RequestHandler:
 
     @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
     async def generate(self, request):
-        if self.do_remote_prefill:
+        # TODO: consider prefix hit when deciding prefill locally or remotely
+        if self.do_remote_prefill and self.disaggregated_router.prefill_remote(
+            len(request.engine_prompt["prompt_token_ids"]), 0
+        ):
             remote_prefill_params = RemotePrefillParams(
                 is_remote_prefill=True,
                 remote_prefill_request_callback=self.get_remote_prefill_request_callback(),
             )
+            vllm_logger.info(
+                f"Prefilling remotely for request {request.request_id} with length {len(request.engine_prompt['prompt_token_ids'])}"
+            )
         else:
             remote_prefill_params = None
+            vllm_logger.info(
+                f"Prefilling locally for request {request.request_id} with length {len(request.engine_prompt['prompt_token_ids'])}"
+            )
 
         # rust HTTP requires Delta streaming
         request.sampling_params.output_kind = RequestOutputKind.DELTA
@@ -120,6 +135,12 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     metrics_publisher = KvMetricsPublisher()
 
     async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
+        disaggregated_router = DisaggregatedRouter(
+            runtime,
+            engine_args.model,
+            1000,  # note: this max_local_prefill_length will be updated by etcd
+        )
+
         engine_client.set_metrics_publisher(metrics_publisher)
 
         print("--------------------------------")
@@ -144,6 +165,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
                             engine_client=engine_client,
                             prefill_client=prefill_client,
                             do_remote_prefill=True,
+                            disaggregated_router=disaggregated_router,
                         ).generate
                     ),
                     metrics_publisher.create_endpoint(component),
