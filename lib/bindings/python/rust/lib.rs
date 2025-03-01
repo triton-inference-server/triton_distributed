@@ -62,6 +62,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Component>()?;
     m.add_class::<Endpoint>()?;
     m.add_class::<Client>()?;
+    m.add_class::<EtcdClient>()?;
     m.add_class::<AsyncResponseStream>()?;
     m.add_class::<llm::kv::KvRouter>()?;
     m.add_class::<llm::kv::KvMetricsPublisher>()?;
@@ -83,6 +84,12 @@ where
 struct DistributedRuntime {
     inner: rs::DistributedRuntime,
     event_loop: PyObject,
+}
+
+#[pyclass]
+#[derive(Clone)]
+struct EtcdClient {
+    inner: rs::transports::etcd::Client,
 }
 
 #[pyclass]
@@ -146,6 +153,12 @@ impl DistributedRuntime {
         Ok(Namespace {
             inner: self.inner.namespace(name).map_err(to_pyerr)?,
             event_loop: self.event_loop.clone(),
+        })
+    }
+
+    fn etcd_client(&self) -> PyResult<EtcdClient> {
+        Ok(EtcdClient {
+            inner: self.inner.etcd_client().clone(),
         })
     }
 
@@ -248,6 +261,27 @@ impl Namespace {
         Ok(Component {
             inner,
             event_loop: self.event_loop.clone(),
+        })
+    }
+}
+
+#[pymethods]
+impl EtcdClient {
+    #[pyo3(signature = (key, value, lease_id=None))]
+    fn kv_create_or_validate<'p>(
+        &self,
+        py: Python<'p>,
+        key: String,
+        value: Vec<u8>,
+        lease_id: Option<i64>,
+    ) -> PyResult<Bound<'p, PyAny>> {
+        let client = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            client
+                .kv_create_or_validate(key, value, lease_id)
+                .await
+                .map_err(to_pyerr)?;
+            Ok(())
         })
     }
 }
