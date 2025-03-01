@@ -46,14 +46,14 @@ class NovaEndpoint:
     async def __call__(self, *args: t.Any, **kwargs: t.Any) -> Any:
         # Validate request
         if len(args) > 1 and issubclass(self.request_type, BaseModel):
-            args = list(args)
+            args = list(args)  # type: ignore
             if isinstance(args[1], (str, dict)):
-                args[1] = self.request_type.parse_obj(args[1])
+                args[1] = self.request_type.parse_obj(args[1])  # type: ignore
 
         # Convert Pydantic model to dict before passing to triton
         if len(args) > 1 and isinstance(args[1], BaseModel):
-            args = list(args)
-            args[1] = args[1].model_dump()
+            args = list(args)  # type: ignore
+            args[1] = args[1].model_dump()  # type: ignore
 
         return await self.func(*args, **kwargs)
 

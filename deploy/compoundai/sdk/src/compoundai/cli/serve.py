@@ -24,8 +24,8 @@ import click
 import rich
 
 if t.TYPE_CHECKING:
-    P = t.ParamSpec("P")
-    F = t.Callable[P, t.Any]
+    P = t.ParamSpec("P")  # type: ignore
+    F = t.Callable[P, t.Any]  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def deprecated_option(*param_decls: str, **attrs: t.Any):
                 file=sys.stderr,
             )
 
-    def decorator(f: F[t.Any]) -> t.Callable[[F[t.Any]], click.Command]:
+    def decorator(f: F[t.Any]) -> t.Callable[[F[t.Any]], click.Command]:  # type: ignore
         msg = attrs.pop("help", "")
         msg += " (Deprecated)" if msg else "(Deprecated)"
         attrs.setdefault("help", msg)
@@ -204,7 +204,7 @@ def build_serve_command() -> click.Group:
         hidden=True,
     )
     @env_manager
-    def serve(  # type: ignore (unused warning)
+    def serve(
         bento: str,
         development: bool,
         port: int,
@@ -317,9 +317,8 @@ def build_serve_command() -> click.Group:
                 )
         else:
             # bentoml>=1.2
-
             # from _bentoml_impl.server import serve_http
-            from compoundai.cli.serving import serve_http
+            from compoundai.cli.serving import serve_http # type: ignore
 
             svc.inject_config()
             serve_http(
