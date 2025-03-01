@@ -45,3 +45,29 @@ jobs:
                 'Your PR reviewers may elect to test the changes comprehensively before approving your changes.\n\n' +
                 '🚀'
             })
+
+  add_label:
+    if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+    permissions:
+      actions: read
+      issues: write
+      pull-requests: write
+    needs: pr_reminder  # Ensures that this job runs after the pr_reminder job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Adding Label
+        uses: actions/github-script@v7
+        env:
+          REPOSITORY: ${{ github.repository }}
+          CONTRIBUTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          script: |
+            const { REPOSITORY, CONTRIBUTOR } = process.env
+
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ["external-contribution"]
+            });
