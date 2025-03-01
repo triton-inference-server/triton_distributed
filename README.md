@@ -101,7 +101,7 @@ APIs are subject to change.
 
 ### Hello World
 
-[Hello World](./lib/bindings/python/examples/python/hello_world)
+[Hello World](./lib/bindings/python/examples/hello_world)
 
 A basic example demonstrating the rust based runtime and python
 bindings.
