@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from typing import TypeVar, Any, Optional, Dict, Tuple, List
+from typing import Any, Dict, List, Optional, Tuple, TypeVar
 
 from _bentoml_sdk import Service, ServiceConfig
 from _bentoml_sdk.images import Image

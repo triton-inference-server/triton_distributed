@@ -31,16 +31,15 @@ from _bentoml_sdk import Service
 from bentoml._internal.container import BentoMLContainer
 from bentoml._internal.utils.circus import Server
 from bentoml.exceptions import BentoMLConfigException
-from simple_di import Provide
-from simple_di import inject
+from simple_di import Provide, inject
 
 AnyService = Service[t.Any]
 
 if t.TYPE_CHECKING:
+    from _bentoml_impl.server.allocator import ResourceAllocator
     from circus.sockets import CircusSocket
     from circus.watcher import Watcher
 
-    from _bentoml_impl.server.allocator import ResourceAllocator
 
 POSIX = os.name == "posix"
 WINDOWS = os.name == "nt"
@@ -58,9 +57,8 @@ if POSIX and not IS_WSL:
         port_stack: contextlib.ExitStack,
         backlog: int,
     ) -> tuple[str, CircusSocket]:
-        from circus.sockets import CircusSocket
-
         from bentoml._internal.utils.uri import path_to_uri
+        from circus.sockets import CircusSocket
 
         socket_path = os.path.join(uds_path, f"{id(service)}.sock")
         assert len(socket_path) < MAX_AF_UNIX_PATH_LENGTH
@@ -76,9 +74,8 @@ elif WINDOWS or IS_WSL:
         port_stack: contextlib.ExitStack,
         backlog: int,
     ) -> tuple[str, CircusSocket]:
-        from circus.sockets import CircusSocket
-
         from bentoml._internal.utils import reserve_free_port
+        from circus.sockets import CircusSocket
 
         runner_port = port_stack.enter_context(reserve_free_port())
         runner_host = "127.0.0.1"
@@ -233,29 +230,28 @@ def serve_http(
     service_name: str = "",
     threaded: bool = False,
 ) -> Server:
-    from circus.sockets import CircusSocket
-
+    from _bentoml_impl.loader import import_service, normalize_identifier
+    from _bentoml_impl.server.allocator import ResourceAllocator
     from bentoml._internal.log import SERVER_LOGGING_CONFIG
     from bentoml._internal.utils import reserve_free_port
     from bentoml._internal.utils.analytics.usage_stats import track_serve
     from bentoml._internal.utils.circus import create_standalone_arbiter
-    from bentoml.serving import construct_ssl_args
-    from bentoml.serving import construct_timeouts_args
-    from bentoml.serving import create_watcher
-    from bentoml.serving import ensure_prometheus_dir
-    from bentoml.serving import make_reload_plugin
-
-    from _bentoml_impl.loader import import_service
-    from _bentoml_impl.loader import normalize_identifier
-    from _bentoml_impl.server.allocator import ResourceAllocator
+    from bentoml.serving import (
+            construct_ssl_args,
+            construct_timeouts_args,
+            create_watcher,
+            ensure_prometheus_dir,
+            make_reload_plugin,
+        )
+    from circus.sockets import CircusSocket
 
     env = {"PROMETHEUS_MULTIPROC_DIR": ensure_prometheus_dir()}
     if isinstance(bento_identifier, Service):
         svc = bento_identifier
         bento_identifier = svc.import_string
-        assert working_dir is None, (
-            "working_dir should not be set when passing a service in process"
-        )
+        assert (
+            working_dir is None
+        ), "working_dir should not be set when passing a service in process"
         # use cwd
         bento_path = pathlib.Path(".")
     else:
@@ -274,7 +270,7 @@ def serve_http(
     # TODO: Only for testing, this will prevent any other dep services from getting started, relying entirely on configured deps in the runner-map
     standalone = False
     if service_name:
-        print(f"Running in standalone mode")
+        print("Running in standalone mode")
         print(f"service_name: {service_name}")
         standalone = True
 

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import typing as t
 from functools import wraps
-from typing import get_type_hints, Any
+from typing import Any, get_type_hints
 
 import bentoml
 from pydantic import BaseModel

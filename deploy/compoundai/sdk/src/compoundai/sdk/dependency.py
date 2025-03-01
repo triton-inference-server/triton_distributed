@@ -14,7 +14,7 @@
 #  limitations under the License.
 
 import asyncio
-from typing import TypeVar, Any, Optional, Dict
+from typing import Any, Dict, Optional, TypeVar
 
 from _bentoml_sdk.service import Service
 from _bentoml_sdk.service.dependency import Dependency
@@ -72,7 +72,7 @@ class NovaClient:
                             raise
                 else:
                     # Create nova worker if no runtime
-                    from triton_distributed_rs import triton_worker, DistributedRuntime
+                    from triton_distributed_rs import DistributedRuntime, triton_worker
 
                     @triton_worker()
                     async def stream_worker(runtime: DistributedRuntime):
