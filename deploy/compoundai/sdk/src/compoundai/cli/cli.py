@@ -26,16 +26,16 @@ def create_bentoml_cli() -> click.Command:
     from bentoml_cli.cloud import cloud_command
     from bentoml_cli.containerize import containerize_command
     from bentoml_cli.deployment import (
-           deploy_command,
-           deployment_command,
-           develop_command,
+       deploy_command,
+       deployment_command,
+       develop_command,
     )
     from bentoml_cli.env import env_command
     from bentoml_cli.models import model_command
     from bentoml_cli.secret import secret_command
+    from bentoml_cli.utils import BentoMLCommandGroup, get_entry_points
     from compoundai.cli.serve import serve_command
     from compoundai.cli.start import start_command
-    from bentoml_cli.utils import BentoMLCommandGroup, get_entry_points
 
     server_context.service_type = "cli"
 

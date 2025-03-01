@@ -237,12 +237,12 @@ def serve_http(
     from bentoml._internal.utils.analytics.usage_stats import track_serve
     from bentoml._internal.utils.circus import create_standalone_arbiter
     from bentoml.serving import (
-            construct_ssl_args,
-            construct_timeouts_args,
-            create_watcher,
-            ensure_prometheus_dir,
-            make_reload_plugin,
-        )
+        construct_ssl_args,
+        construct_timeouts_args,
+        create_watcher,
+        ensure_prometheus_dir,
+        make_reload_plugin,
+    )
     from circus.sockets import CircusSocket
 
     env = {"PROMETHEUS_MULTIPROC_DIR": ensure_prometheus_dir()}

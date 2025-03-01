@@ -63,10 +63,7 @@ def deprecated_option(*param_decls: str, **attrs: t.Any):
 def build_serve_command() -> click.Group:
     from bentoml._internal.log import configure_server_logging
     from bentoml_cli.env_manager import env_manager
-    from bentoml_cli.utils import (
-        AliasCommand,
-        BentoMLCommandGroup,
-    ) 
+    from bentoml_cli.utils import AliasCommand, BentoMLCommandGroup
 
     @click.group(name="serve", cls=BentoMLCommandGroup)
     def cli():

@@ -70,6 +70,7 @@ class NovaClient:
                         except Exception:
                             await queue.put(None)
                             raise
+
                 else:
                     # Create nova worker if no runtime
                     from triton_distributed_rs import DistributedRuntime, triton_worker
