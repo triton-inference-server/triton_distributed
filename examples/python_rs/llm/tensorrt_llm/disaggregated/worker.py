@@ -247,8 +247,8 @@ class TensorrtLLMEngine:
                     yield chat_processor.get_chat_stream_response(
                         request.id,
                         response,
-                        first_iteration=True,
-                    ).model_dump_json(exclude={"disaggregated_params"})
+                        first_iteration=False,
+                    ).model_dump_json(exclude_unset=True, exclude={"disaggregated_params"})
 
         except CppExecutorError:
             # If internal executor error is raised, shutdown the server

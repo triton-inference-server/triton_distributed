@@ -200,6 +200,7 @@ class TensorrtLLMEngine:
                         request, request_id, conversation, promise
                     )
                     async for response in response_generator:
+                        print(f"[worker] Sending response {response}")
                         yield response
                 else:
                     # TODO: Implement non-streaming chat completion

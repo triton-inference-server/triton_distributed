@@ -17,6 +17,7 @@ import argparse
 import asyncio
 import copy
 import uuid
+import json
 
 import uvloop
 from common.processor import ChatProcessor
@@ -100,8 +101,9 @@ class Router:
             logger.debug(f"[router] Got response from generation server: {response}")
             data = ChatCompletionStreamResponse.parse_raw(
                 response.data()
-            ).model_dump_json()
-            yield data
+            ).model_dump_json(exclude_unset=True)
+            logger.debug(f"[router] Sending response from generation server: {data}")
+            yield json.loads(data)
 
 
 @triton_worker()
