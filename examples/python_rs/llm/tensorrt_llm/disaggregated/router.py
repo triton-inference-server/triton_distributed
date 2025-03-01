@@ -87,9 +87,9 @@ class Router:
         ctx_resp_obj = DisaggregatedResponse.parse_raw(ctx_resp[0].data())
         logger.debug(f"[router] Got response from context server: {ctx_resp_obj}")
         if request.stream:
-            # TODO: Return the first token and the rest of the tokens
-            # are returned in the generation server.
-            pass
+            data = ctx_resp_obj.model_dump_json(exclude_unset=True)
+            logger.debug(f"[router] Sending response from generation server: {data}")
+            yield json.loads(data)
 
         gen_req.disaggregated_params = ctx_resp_obj.disaggregated_params
         gen_req.disaggregated_params.request_type = "generation_only"
