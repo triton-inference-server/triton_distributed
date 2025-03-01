@@ -199,13 +199,13 @@ class ChatProcessor:
                 self.request, prompt_tokens, output.length
             )
             return chunk
-    
+
     def create_final_stream_response(
         self,
         request_id: str,
         final_result: RequestOutput,
     ) -> DisaggregatedResponse:
-        prompt_tokens = len(res.prompt_token_ids)
+        prompt_tokens = len(final_result.prompt_token_ids)
         completion_tokens = sum(output.length for output in final_result.outputs)
         final_usage = UsageInfo(
             prompt_tokens=prompt_tokens,

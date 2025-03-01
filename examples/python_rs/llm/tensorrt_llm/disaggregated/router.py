@@ -16,8 +16,8 @@
 import argparse
 import asyncio
 import copy
-import uuid
 import json
+import uuid
 
 import uvloop
 from common.processor import ChatProcessor
@@ -40,7 +40,7 @@ from triton_distributed.runtime import (
     triton_worker,
 )
 
-logger.set_level("debug")
+logger.set_level("info")
 
 
 class Router:

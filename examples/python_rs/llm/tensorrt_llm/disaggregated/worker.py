@@ -51,7 +51,7 @@ from triton_distributed.runtime import (
     triton_worker,
 )
 
-logger.set_level("debug")
+logger.set_level("info")
 
 
 class TensorrtLLMEngine:
@@ -249,8 +249,10 @@ class TensorrtLLMEngine:
                         request.id,
                         result,
                         first_iteration=False,
-                    ).model_dump_json(exclude_unset=True, exclude={"disaggregated_params"})
-            
+                    ).model_dump_json(
+                        exclude_unset=True, exclude={"disaggregated_params"}
+                    )
+
             if request.stream_options and request.stream_options.include_usage:
                 yield chat_processor.create_final_stream_response(
                     request.id,
