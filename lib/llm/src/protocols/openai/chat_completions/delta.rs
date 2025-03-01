@@ -16,9 +16,12 @@
 use super::{NvCreateChatCompletionRequest, NvCreateChatCompletionStreamResponse};
 use crate::protocols::common;
 
+/// Provides a method for generating a [`DeltaGenerator`] from a chat completion request.
 impl NvCreateChatCompletionRequest {
-    // put this method on the request
-    // inspect the request to extract options
+    /// Creates a [`DeltaGenerator`] instance based on the chat completion request.
+    ///
+    /// # Returns
+    /// * [`DeltaGenerator`] configured with model name and response options.
     pub fn response_generator(&self) -> DeltaGenerator {
         let options = DeltaGeneratorOptions {
             enable_usage: true,
@@ -29,34 +32,50 @@ impl NvCreateChatCompletionRequest {
     }
 }
 
+/// Configuration options for the [`DeltaGenerator`], controlling response behavior.
 #[derive(Debug, Clone, Default)]
 pub struct DeltaGeneratorOptions {
+    /// Determines whether token usage statistics should be included in the response.
     pub enable_usage: bool,
+    /// Determines whether log probabilities should be included in the response.
     pub enable_logprobs: bool,
 }
 
+/// Generates incremental chat completion responses in a streaming fashion.
 #[derive(Debug, Clone)]
 pub struct DeltaGenerator {
+    /// Unique identifier for the chat completion session.
     id: String,
+    /// Object type, representing a streamed chat completion response.
     object: String,
+    /// Timestamp (Unix epoch) when the response was created.
     created: u32,
+    /// Model name used for generating responses.
     model: String,
+    /// Optional system fingerprint for version tracking.
     system_fingerprint: Option<String>,
+    /// Optional service tier information for the response.
     service_tier: Option<async_openai::types::ServiceTierResponse>,
+    /// Tracks token usage for the completion request.
     usage: async_openai::types::CompletionUsage,
-
-    // counter on how many messages we have issued
+    /// Counter tracking the number of messages issued.
     msg_counter: u64,
-
+    /// Configuration options for response generation.
     options: DeltaGeneratorOptions,
 }
 
 impl DeltaGenerator {
+    /// Creates a new [`DeltaGenerator`] instance with the specified model and options.
+    ///
+    /// # Arguments
+    /// * `model` - The model name used for response generation.
+    /// * `options` - Configuration options for enabling usage and log probabilities.
+    ///
+    /// # Returns
+    /// * A new instance of [`DeltaGenerator`].
     pub fn new(model: String, options: DeltaGeneratorOptions) -> Self {
-        // SAFETY: This is a fun one to write. We are casting from u64 to u32
-        // which typically is unsafe due to loss of precision after it
-        // exceeds u32::MAX. Fortunately, this won't be an issue until
-        // 2106. So whoever is still maintaining this then, enjoy!
+        // SAFETY: Casting from `u64` to `u32` could lead to precision loss after `u32::MAX`,
+        // but this will not be an issue until 2106.
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -83,10 +102,24 @@ impl DeltaGenerator {
         }
     }
 
+    /// Updates the prompt token usage count.
+    ///
+    /// # Arguments
+    /// * `isl` - The number of prompt tokens used.
     pub fn update_isl(&mut self, isl: u32) {
         self.usage.prompt_tokens = isl;
     }
 
+    /// Creates a choice within a chat completion response.
+    ///
+    /// # Arguments
+    /// * `index` - The index of the choice in the completion response.
+    /// * `text` - The text content for the response.
+    /// * `finish_reason` - The reason why the response finished (e.g., stop, length, etc.).
+    /// * `logprobs` - Optional log probabilities of the generated tokens.
+    ///
+    /// # Returns
+    /// * An [`async_openai::types::CreateChatCompletionStreamResponse`] instance representing the choice.
     #[allow(deprecated)]
     pub fn create_choice(
         &self,
@@ -96,7 +129,6 @@ impl DeltaGenerator {
         logprobs: Option<async_openai::types::ChatChoiceLogprobs>,
     ) -> async_openai::types::CreateChatCompletionStreamResponse {
         // TODO: Update for tool calling
-        // ALLOW: function_call is deprecated
         let delta = async_openai::types::ChatCompletionStreamResponseDelta {
             role: if self.msg_counter == 0 {
                 Some(async_openai::types::Role::Assistant)
@@ -135,21 +167,32 @@ impl DeltaGenerator {
     }
 }
 
+/// Implements the [`DeltaGeneratorExt`] trait for [`DeltaGenerator`], allowing
+/// it to transform backend responses into OpenAI-style streaming responses.
 impl crate::protocols::openai::DeltaGeneratorExt<NvCreateChatCompletionStreamResponse>
     for DeltaGenerator
 {
+    /// Converts a backend response into a structured OpenAI-style streaming response.
+    ///
+    /// # Arguments
+    /// * `delta` - The backend response containing generated text and metadata.
+    ///
+    /// # Returns
+    /// * `Ok(NvCreateChatCompletionStreamResponse)` if conversion succeeds.
+    /// * `Err(anyhow::Error)` if an error occurs.
     fn choice_from_postprocessor(
         &mut self,
         delta: crate::protocols::common::llm_backend::BackendOutput,
     ) -> anyhow::Result<NvCreateChatCompletionStreamResponse> {
-        // aggregate usage
+        // Aggregate token usage if enabled.
         if self.options.enable_usage {
             self.usage.completion_tokens += delta.token_ids.len() as u32;
         }
 
-        // todo logprobs
+        // TODO: Implement log probabilities aggregation.
         let logprobs = None;
 
+        // Map backend finish reasons to OpenAI's finish reasons.
         let finish_reason = match delta.finish_reason {
             Some(common::FinishReason::EoS) => Some(async_openai::types::FinishReason::Stop),
             Some(common::FinishReason::Stop) => Some(async_openai::types::FinishReason::Stop),
@@ -161,7 +204,7 @@ impl crate::protocols::openai::DeltaGeneratorExt<NvCreateChatCompletionStreamRes
             None => None,
         };
 
-        // create choice
+        // Create the streaming response.
         let index = 0;
         let stream_response = self.create_choice(index, delta.text, finish_reason, logprobs);
 

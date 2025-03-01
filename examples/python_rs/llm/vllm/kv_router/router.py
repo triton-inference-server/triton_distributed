@@ -67,7 +67,7 @@ class Router:
             # catch specific router exceptions once we have dedicated types.
             except Exception as e:
                 vllm_logger.info(f"{e}")
-                worker_id = None
+                worker_id = ""
                 vllm_logger.exception(f"Error during worker selection: {e}")
 
             vllm_logger.info(f"Scheduling to worker_id: {worker_id}")

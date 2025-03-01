@@ -95,9 +95,6 @@ impl KvMetricsPublisher {
         let handler = Ingress::for_engine(handler)?;
 
         component
-            .service_builder()
-            .create()
-            .await?
             .endpoint("load_metrics")
             .endpoint_builder()
             .stats_handler(move |_| {

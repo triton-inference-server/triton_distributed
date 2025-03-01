@@ -69,7 +69,7 @@ impl KvMetricsPublisher {
         })
     }
 
-    fn create_service<'p>(
+    fn create_endpoint<'p>(
         &self,
         py: Python<'p>,
         component: Component,

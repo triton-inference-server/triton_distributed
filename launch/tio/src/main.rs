@@ -41,7 +41,7 @@ const DEFAULT_OUT: Output = Output::EchoFull;
 
 const ZMQ_SOCKET_PREFIX: &str = "tio";
 
-const USAGE: &str = "USAGE: tio in=[http|text|tdr://<path>|none] out=[mistralrs|sglang|echo_full|echo_core] [--http-port 8080] [--model-path <path>] [--model-name <served-model-name>] [--tensor-parallel-size=1] [--num-nodes=1] [--node-rank=0] [--dist-init-addr=127.0.0.1:9876] [--base-gpu-id=0]";
+const USAGE: &str = "USAGE: tio in=[http|text|tdr://<path>|none] out=[mistralrs|sglang|llamacpp|vllm|trtllm|echo_full|echo_core] [--http-port 8080] [--model-path <path>] [--model-name <served-model-name>] [--model-config <hf-repo>] [--tensor-parallel-size=1] [--num-nodes=1] [--node-rank=0] [--dist-init-addr=127.0.0.1:9876] [--base-gpu-id=0]";
 
 fn main() -> anyhow::Result<()> {
     logging::init();
@@ -81,6 +81,28 @@ fn main() -> anyhow::Result<()> {
                 }
             } else {
                 panic!("Rebuild with --features=sglang");
+            }
+        }
+
+        #[allow(unused_variables)]
+        if flags.internal_vllm_process {
+            let Some(model_path) = flags.model_path_flag else {
+                anyhow::bail!("vllm subprocess requires --model-path flag");
+            };
+            let Some(model_config) = flags.model_config else {
+                anyhow::bail!("vllm subprocess requires --model-config");
+            };
+            if !model_config.is_dir() {
+                anyhow::bail!("vllm subprocess requires model config path to be a directory containing tokenizer.json, config.json, etc");
+            }
+            if cfg!(feature = "vllm") {
+                #[cfg(feature = "vllm")]
+                {
+                    use triton_distributed_llm::engines::vllm;
+                    return vllm::run_subprocess(ZMQ_SOCKET_PREFIX, &model_config, &model_path);
+                }
+            } else {
+                panic!("Rebuild with --features=vllm");
             }
         }
     }

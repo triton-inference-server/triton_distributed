@@ -79,6 +79,18 @@ pub enum Output {
     #[cfg(feature = "sglang")]
     /// Run inference using sglang
     SgLang,
+
+    #[cfg(feature = "llamacpp")]
+    /// Run inference using llama.cpp
+    LlamaCpp,
+
+    #[cfg(feature = "vllm")]
+    /// Run inference using vllm's engine
+    Vllm,
+
+    #[cfg(feature = "trtllm")]
+    /// Run inference using trtllm
+    TrtLLM,
 }
 
 impl TryFrom<&str> for Output {
@@ -91,6 +103,15 @@ impl TryFrom<&str> for Output {
 
             #[cfg(feature = "sglang")]
             "sglang" => Ok(Output::SgLang),
+
+            #[cfg(feature = "llamacpp")]
+            "llamacpp" | "llama_cpp" => Ok(Output::LlamaCpp),
+
+            #[cfg(feature = "vllm")]
+            "vllm" => Ok(Output::Vllm),
+
+            #[cfg(feature = "trtllm")]
+            "trtllm" => Ok(Output::TrtLLM),
 
             "echo_full" => Ok(Output::EchoFull),
             "echo_core" => Ok(Output::EchoCore),
@@ -113,6 +134,15 @@ impl fmt::Display for Output {
 
             #[cfg(feature = "sglang")]
             Output::SgLang => "sglang",
+
+            #[cfg(feature = "llamacpp")]
+            Output::LlamaCpp => "llamacpp",
+
+            #[cfg(feature = "vllm")]
+            Output::Vllm => "vllm",
+
+            #[cfg(feature = "trtllm")]
+            Output::TrtLLM => "trtllm",
 
             Output::EchoFull => "echo_full",
             Output::EchoCore => "echo_core",

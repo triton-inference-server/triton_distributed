@@ -62,7 +62,16 @@ pub struct Flags {
     #[arg(long)]
     pub model_name: Option<String>,
 
-    /// sglang only
+    /// llamacpp only
+    ///
+    /// The path to the tokenizer and model config because:
+    /// - llama_cpp only runs GGUF files
+    /// - our engine is a 'core' engine in that we do the tokenization, so we need the vocab
+    /// - TODO: we don't yet extract that from the GGUF. Once we do we can remove this flag.
+    #[arg(long)]
+    pub model_config: Option<PathBuf>,
+
+    /// sglang and trtllm only
     ///
     /// How many GPUs to use at once, total across all nodes.
     /// This must divide by num_nodes, and each node must use the same number of GPUs.
@@ -97,6 +106,12 @@ pub struct Flags {
     /// All nodes must use the same dist_init_addr, which is node_rank == 0's address.
     #[arg(long)]
     pub dist_init_addr: Option<String>,
+
+    /// Internal use only.
+    // Start the python vllm engine sub-process.
+    #[arg(long)]
+    #[clap(hide = true, default_value = "false")]
+    pub internal_vllm_process: bool,
 
     /// Internal use only.
     /// Start the sglang Python sub-process.
@@ -167,25 +182,37 @@ pub async fn run(
         .model_path_pos
         .or(flags.model_path_flag)
         .and_then(|p| p.canonicalize().ok());
-    // Serve the model under the name provided, or the name of the GGUF file.
+    // Serve the model under the name provided, or the name of the GGUF file or HF repo.
     let model_name = flags.model_name.or_else(|| {
         model_path
             .as_ref()
             .and_then(|p| p.iter().last())
             .map(|n| n.to_string_lossy().into_owned())
     });
-    // If model path is a directory we can build a model deployment card from it
-    let maybe_card = match &model_path {
-        Some(model_path) if model_path.is_dir() => {
-            ModelDeploymentCard::from_local_path(model_path, model_name.as_deref())
+    // Load the model deployment card, if any
+    // Only used by some engines, so without those feature flags it's unused.
+    #[allow(unused_variables)]
+    let (maybe_card_path, maybe_card) = match (&model_path, &flags.model_config) {
+        // --model-config takes precedence
+        (_, Some(model_config)) => {
+            let card = ModelDeploymentCard::from_local_path(model_config, model_name.as_deref())
                 .await
-                .ok()
+                .ok();
+            (Some(model_config.clone()), card)
         }
-        Some(_) | None => None,
+        // If --model-path is an HF repo use that
+        (Some(model_path), _) if model_path.is_dir() => {
+            let card = ModelDeploymentCard::from_local_path(model_path, model_name.as_deref())
+                .await
+                .ok();
+            (Some(model_path.clone()), card)
+        }
+        // Otherwise we don't have one, but we only need it if we're tokenizing
+        _ => (None, None),
     };
 
-    #[cfg(feature = "sglang")]
-    let mut extra = None; // sglang sub-process
+    #[cfg(any(feature = "vllm", feature = "sglang"))]
+    let mut extra = None; // vllm and sglang sub-process
 
     // Create the engine matching `out`
     let engine_config = match out_opt {
@@ -295,6 +322,81 @@ pub async fn run(
                 card: Box::new(card),
             }
         }
+        #[cfg(feature = "vllm")]
+        Output::Vllm => {
+            use triton_distributed_llm::engines::vllm;
+            let Some(model_path) = model_path else {
+                anyhow::bail!(
+                    "out=vllm requires flag --model-path=<full-path-to-hf-repo-or-model-gguf>"
+                );
+            };
+            let Some(card_path) = maybe_card_path else {
+                // If we have a gguf we also need a model card because we don't currently parse
+                // tokenizer et al out of gguf.
+                anyhow::bail!(
+                    "Running GGUF files also requires a `--model-config` for the tokenizer et al."
+                );
+            };
+            let Some(card) = maybe_card.clone() else {
+                anyhow::bail!(
+                    "out=vllm requires --model-path to be an HF repo, or for GGUF add flag --model-config <hf-repo>"
+                );
+            };
+            let Some(sock_prefix) = zmq_socket_prefix else {
+                anyhow::bail!("vllm requires zmq_socket_prefix");
+            };
+            let (engine, vllm_process) =
+                vllm::make_engine(cancel_token.clone(), &card_path, &model_path, &sock_prefix)
+                    .await?;
+            extra = Some(vllm_process);
+            EngineConfig::StaticCore {
+                service_name: card.service_name.clone(),
+                engine,
+                card: Box::new(card),
+            }
+        }
+        #[cfg(feature = "llamacpp")]
+        Output::LlamaCpp => {
+            use anyhow::Context;
+            use triton_distributed_llm::engines::llamacpp;
+            let Some(model_path) = model_path else {
+                anyhow::bail!("out=llamacpp requires flag --model-path=<full-path-to-model-gguf>");
+            };
+            if !model_path.is_file() {
+                anyhow::bail!("--model-path should refer to a GGUF file. llama_cpp does not support safetensors.");
+            }
+            let Some(card) = maybe_card else {
+                anyhow::bail!(
+                    "Pass --model-config so we can find the tokenizer, should be an HF checkout."
+                );
+            };
+            let engine = llamacpp::make_engine(cancel_token.clone(), &model_path).await?;
+            EngineConfig::StaticCore {
+                service_name: card.service_name.clone(),
+                engine,
+                card: Box::new(card),
+            }
+        }
+        #[cfg(feature = "trtllm")]
+        Output::TrtLLM => {
+            use triton_distributed_llm::engines::trtllm;
+            let Some(model_path) = model_path else {
+                anyhow::bail!("out=trtllm requires flag --model-path=<full-path-to-model-dir>");
+            };
+            if !model_path.is_dir() {
+                anyhow::bail!(
+                    "--model-path should point at a directory containing `.engine` files."
+                );
+            }
+            // Safety: Earlier we build maybe_card from model_path, which we checked right above
+            let card = maybe_card.clone().unwrap();
+            let engine = trtllm::make_engine(model_path.display(), flags.tensor_parallel_size)?;
+            EngineConfig::StaticCore {
+                service_name: card.service_name.clone(),
+                engine,
+                card: Box::new(card),
+            }
+        }
     };
 
     match in_opt {
@@ -315,9 +417,9 @@ pub async fn run(
         }
     }
 
-    #[cfg(feature = "sglang")]
+    #[cfg(any(feature = "vllm", feature = "sglang"))]
     // Allow engines to ask main thread to wait on an extra future.
-    // sglang uses this to shut down sub-process
+    // vllm and sglang use this to shut down sub-process
     if let Some(extra) = extra {
         extra.await?;
     }
