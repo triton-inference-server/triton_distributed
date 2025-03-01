@@ -68,11 +68,11 @@ llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B triton-init
 
 ##### Example Output
 ```
++------------+------------------------------------------+-----------+-----------+----------+
 | MODEL TYPE | MODEL NAME                               | NAMESPACE | COMPONENT | ENDPOINT |
 +------------+------------------------------------------+-----------+-----------+----------+
 | chat       | deepseek-ai/DeepSeek-R1-Distill-Llama-8B | test-nixl | vllm      | generate |
 +------------+------------------------------------------+-----------+-----------+----------+
-
 ```
 
 ### 2. Workers
