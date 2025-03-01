@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
 from tensorrt_llm.llmapi import DisaggregatedParams
 from tensorrt_llm.serve.openai_protocol import (
     ChatCompletionRequest,

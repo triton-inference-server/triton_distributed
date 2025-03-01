@@ -17,9 +17,11 @@ import argparse
 import asyncio
 import copy
 import uuid
+
 import uvloop
 from common.processor import ChatProcessor
 from common.protocol import (
+    ChatCompletionStreamResponse,
     DisaggChatCompletionRequest,
     DisaggregatedResponse,
     nvChatCompletionRequest,
@@ -49,7 +51,7 @@ class Router:
         logger.info("INITIALIZED ROUTER")
         self.chat_processor = ChatProcessor("disagg_router", None)
 
-    @triton_endpoint(nvChatCompletionRequest, DisaggregatedResponse)
+    @triton_endpoint(nvChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate(self, request):
         # Send request to context serve
         # These settings are needed to satisfy request checks.
@@ -96,7 +98,10 @@ class Router:
             gen_req.model_dump_json()
         ):
             logger.debug(f"[router] Got response from generation server: {response}")
-            yield response
+            data = ChatCompletionStreamResponse.parse_raw(
+                response.data()
+            ).model_dump_json()
+            yield data
 
 
 @triton_worker()

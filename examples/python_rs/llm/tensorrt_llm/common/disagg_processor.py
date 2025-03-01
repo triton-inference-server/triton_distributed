@@ -13,9 +13,8 @@
 # limitations under the License.
 
 import asyncio
-import json
 import time
-from typing import Any, AsyncGenerator, AsyncIterator, Dict, List, Tuple, TypedDict
+from typing import Any, AsyncIterator, Dict, List, Tuple, TypedDict
 
 from common.protocol import DisaggregatedResponse
 from openai.types.chat import ChatCompletionMessageParam
@@ -28,7 +27,6 @@ from tensorrt_llm.serve.openai_protocol import (
     ChatCompletionResponse,
     ChatCompletionResponseChoice,
     ChatCompletionResponseStreamChoice,
-    ChatCompletionStreamResponse,
     ChatMessage,
     CompletionRequest,
     CompletionResponse,
@@ -74,7 +72,9 @@ def parse_chat_message_content(
 
 
 class ChatProcessor:
-    def __init__(self, model: str, tokenizer: AutoTokenizer, request: ChatCompletionRequest):
+    def __init__(
+        self, model: str, tokenizer: AutoTokenizer, request: ChatCompletionRequest
+    ):
         self.model = model
         self.tokenizer = tokenizer
         self.request = request
@@ -131,7 +131,6 @@ class ChatProcessor:
         res: RequestOutput,
         first_iteration: bool,
     ) -> DisaggregatedResponse:
-        
         def get_first_chat(num_tokens: int, role: str = None, content: str = None):
             for i in range(self.num_choices):
                 choice_data = ChatCompletionResponseStreamChoice(
@@ -139,7 +138,7 @@ class ChatProcessor:
                     delta=DeltaMessage(role=role, content=content),
                     finish_reason=None,
                 )
-                chunk = ChatCompletionStreamResponse(
+                chunk = DisaggregatedResponse(
                     id=request_id,
                     created=int(time.time()),
                     object="chat.completion.chunk",
@@ -189,7 +188,7 @@ class ChatProcessor:
                 choice.finish_reason = output.finish_reason
                 choice.stop_reason = output.stop_reason
                 self.finish_reason_sent[i] = True
-            chunk = ChatCompletionStreamResponse(
+            chunk = DisaggregatedResponse(
                 id=request_id,
                 created=int(time.time()),
                 object="chat.completion.chunk",
@@ -200,7 +199,6 @@ class ChatProcessor:
                 self.request, prompt_tokens, output.length
             )
             return chunk
-
 
     async def create_chat_response(
         self,

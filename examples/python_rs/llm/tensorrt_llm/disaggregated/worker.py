@@ -22,12 +22,12 @@ from contextlib import asynccontextmanager
 from typing import Any, Dict, Optional, Tuple
 
 import uvloop
-from common.parser import parse_tensorrt_llm_args
 from common.disagg_processor import (
     ChatProcessor,
     CompletionsProcessor,
     parse_chat_message_content,
 )
+from common.parser import parse_tensorrt_llm_args
 from common.protocol import DisaggChatCompletionRequest, DisaggregatedResponse
 from mpi4py.futures import MPICommExecutor
 from mpi4py.MPI import COMM_WORLD
@@ -188,7 +188,7 @@ class TensorrtLLMEngine:
     async def generate(self, raw_request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
-        
+
         request = DisaggChatCompletionRequest(**raw_request.model_dump())
         chat_processor = ChatProcessor(self.model, self.tokenizer, request)
 
@@ -239,14 +239,16 @@ class TensorrtLLMEngine:
                         response,
                         first_iteration=True,
                     )
-                    disaggregated_response.disaggregated_params = response.outputs[0].disaggregated_params
+                    disaggregated_response.disaggregated_params = response.outputs[
+                        0
+                    ].disaggregated_params
                     yield disaggregated_response.model_dump_json()
                 else:
-                    yield self.chat_processor.get_chat_stream_response(
+                    yield chat_processor.get_chat_stream_response(
                         request.id,
                         response,
                         first_iteration=True,
-                    ).model_dump_json()
+                    ).model_dump_json(exclude={"disaggregated_params"})
 
         except CppExecutorError:
             # If internal executor error is raised, shutdown the server
