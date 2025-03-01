@@ -16,22 +16,16 @@
 
 import asyncio
 from enum import Enum
-from typing import Any, Dict, List, Tuple
+from typing import List
 
 import uvloop
 from common.base_engine import BaseTensorrtLLMEngine
-from common.parser import parse_tensorrt_llm_args
+from common.parser import LLMAPIConfig, parse_tensorrt_llm_args
 from common.processor import merge_promises
-from common.protocol import nvCompletionRequest
 from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
-from tensorrt_llm.serve.openai_protocol import CompletionStreamResponse
 
-from triton_distributed.runtime import (
-    DistributedRuntime,
-    triton_endpoint,
-    triton_worker,
-)
+from triton_distributed.runtime import DistributedRuntime, triton_worker
 
 logger.set_level("debug")
 
@@ -46,10 +40,10 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
     Request handler for the generate endpoint
     """
 
-    def __init__(self, engine_args: Tuple[Dict[str, Any], Dict[str, Any]]):
-        super().__init__(engine_args)
+    def __init__(self, engine_config: LLMAPIConfig):
+        super().__init__(engine_config)
 
-    @triton_endpoint(nvCompletionRequest, CompletionStreamResponse)
+    # @triton_endpoint(nvCompletionRequest, CompletionStreamResponse)
     async def generate_completion(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
@@ -97,9 +91,7 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
 
 
 @triton_worker()
-async def worker(
-    runtime: DistributedRuntime, engine_args: Tuple[Dict[str, Any], Dict[str, Any]]
-):
+async def worker(runtime: DistributedRuntime, engine_config: LLMAPIConfig):
     """
     Instantiate a `backend` component and serve the `generate` endpoint
     A `Component` can serve multiple endpoints
@@ -109,7 +101,7 @@ async def worker(
 
     completions_endpoint = component.endpoint("completions")
 
-    engine = TensorrtLLMEngine(engine_args)
+    engine = TensorrtLLMEngine(engine_config)
 
     await asyncio.gather(
         completions_endpoint.serve_endpoint(engine.generate_completion),
@@ -118,5 +110,5 @@ async def worker(
 
 if __name__ == "__main__":
     uvloop.install()
-    _, engine_args = parse_tensorrt_llm_args()
-    asyncio.run(worker(engine_args))
+    engine_config = parse_tensorrt_llm_args()
+    asyncio.run(worker(engine_config))

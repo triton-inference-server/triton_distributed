@@ -14,81 +14,58 @@
 # limitations under the License.
 
 import argparse
-import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
-# Define the expected keys for each config
-# TODO: Add more keys as needed
-PYTORCH_CONFIG_KEYS = {
-    "use_cuda_graph",
-    "cuda_graph_batch_sizes",
-    "cuda_graph_max_batch_size",
-    "cuda_graph_padding_enabled",
-    "enable_overlap_scheduler",
-    "kv_cache_dtype",
-    "torch_compile_enabled",
-    "torch_compile_fullgraph",
-    "torch_compile_inductor_enabled",
-}
-
-LLM_ENGINE_KEYS = {
-    "model",
-    "model_path",
-    "tokenizer",
-    "tokenizer_model",
-    "skip_tokenizer_init",
-    "trust_remote_code",
-    "tensor_parallel_size",
-    "dtype",
-    "revision",
-    "tokenizer_revision",
-    "speculative_model",
-    "enable_chunked_prefill",
-}
+import yaml
+from pydantic import BaseModel, ConfigDict
+from tensorrt_llm.llmapi import KvCacheConfig, PyTorchConfig
 
 
-def _get_llm_args(args_dict):
-    # Validation checks
-    for k, v in args_dict.items():
-        if (
-            k not in LLM_ENGINE_KEYS
-            and k not in PYTORCH_CONFIG_KEYS
-            and k != "copyright"
-        ):
-            raise ValueError(f"Unrecognized key in --engine_args file: {k}")
+class LLMAPIConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    model_name: str
+    model_path: str | Optional = None
+    pytorch_backend_config: PyTorchConfig | Optional = None
+    kv_cache_config: KvCacheConfig | Optional = None
 
-    pytorch_config_args = {
-        k: v for k, v in args_dict.items() if k in PYTORCH_CONFIG_KEYS and v is not None
-    }
-    llm_engine_args = {
-        k: v for k, v in args_dict.items() if k in LLM_ENGINE_KEYS and v is not None
-    }
-    if "model" not in llm_engine_args:
+
+def _get_llm_args(engine_config):
+    # Only do model validation checks and leave other checks to LLMAPI
+    if "model" not in engine_config:
         raise ValueError("Model name is required in the TRT-LLM engine config.")
-    if llm_engine_args.get("model_path", ""):
-        if os.path.exists(llm_engine_args.get("model_path", "")):
-            llm_engine_args["model_path"] = Path(llm_engine_args["model_path"])
-        else:
-            raise ValueError(
-                f"Model path {llm_engine_args['model_path']} does not exist"
-            )
 
-    return (pytorch_config_args, llm_engine_args)
+    if engine_config.get("model_path", ""):
+        if os.path.exists(engine_config.get("model_path", "")):
+            engine_config["model_path"] = Path(engine_config["model_path"])
+        else:
+            raise ValueError(f"Model path {engine_config['model_path']} does not exist")
+    # We can initialize the sub configs needed
+    if "pytorch_backend_config" in engine_config:
+        engine_config["pytorch_backend_config"] = PyTorchConfig(
+            **engine_config["pytorch_backend_config"]
+        )
+
+    if "kv_cache_config" in engine_config:
+        engine_config["kv_cache_config"] = KvCacheConfig(
+            **engine_config["kv_cache_config"]
+        )
+
+    return LLMAPIConfig(**engine_config)
 
 
 def _init_engine_args(engine_args_filepath):
     """Initialize engine arguments from config file."""
     if not os.path.isfile(engine_args_filepath):
         raise ValueError(
-            f"'{engine_args_filepath}' containing TRT-LLM engine args must be provided in when launching the worker"
+            "'YAML file containing TRT-LLM engine args must be provided in when launching the worker."
         )
 
     try:
         with open(engine_args_filepath) as file:
-            trtllm_engine_config = json.load(file)
-    except json.JSONDecodeError as e:
+            trtllm_engine_config = yaml.load(file)
+    except yaml.YAMLError as e:
         raise RuntimeError(f"Failed to parse engine config: {e}")
 
     return _get_llm_args(trtllm_engine_config)

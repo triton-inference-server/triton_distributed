@@ -109,7 +109,7 @@ Note: The following commands are tested on machines withH100x8 GPUs
 ```bash
 # Launch worker
 cd /workspace/examples/python_rs/llm/tensorrt_llm
-mpirun --allow-run-as-root -n 1 --oversubscribe python3 -m monolith.worker --engine_args model.json 1>agg_worker.log 2>&1 &
+mpirun --allow-run-as-root -n 1 --oversubscribe python3 -m monolith.worker --engine_args llm_api_config.yaml 1>agg_worker.log 2>&1 &
 ```
 
 Upon successful launch, the output should look similar to:

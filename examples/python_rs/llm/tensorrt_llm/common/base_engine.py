@@ -17,38 +17,40 @@
 import asyncio
 import threading
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
+from common.parser import LLMAPIConfig
 from common.processor import ChatProcessor, CompletionsProcessor
 from tensorrt_llm._torch import LLM
-from tensorrt_llm._torch.pyexecutor.config import PyTorchConfig
 from tensorrt_llm.logger import logger
 from transformers import AutoTokenizer
 
 
 class BaseTensorrtLLMEngine:
-    def __init__(self, engine_args: Tuple[Dict[str, Any], Dict[str, Any]]):
-        self.pytorch_config_args, self.llm_engine_args = engine_args
-        self.model_name = self.llm_engine_args["model"]
+    def __init__(self, engine_config: LLMAPIConfig):
+        self.engine_config = engine_config
+        # model name for chat processor
+        self.model_name = self.engine_config.model_name
         logger.info(f"Set model name: {self.model_name}")
 
-        if self.llm_engine_args.get("model_path", None):
-            self.llm_engine_args["model"] = self.llm_engine_args["model_path"]
+        # model for LLMAPI input
+        self.model = self.model_name
+
+        if self.engine_config.model_path:
+            self.model = self.engine_config.model_path
             self.tokenizer = AutoTokenizer.from_pretrained(
-                self.llm_engine_args["model"]
+                self.engine_config.model_path
             )
-            self.llm_engine_args.pop("model_path")
-            logger.info(f"Using model from path: {self.llm_engine_args['model']}")
+            logger.info(f"Using model from path: {self.engine_config.model_path}")
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(
-                self.llm_engine_args["model"]
+                self.engine_config.model_name
             )
 
         self._init_engine()
 
-        if "tokenizer" in self.llm_engine_args.keys():
-            tokenizer = self.llm_engine_args["tokenizer"]
-            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+        if self.engine_config.tokenizer:
+            self.tokenizer = AutoTokenizer.from_pretrained(self.engine_config.tokenizer)
 
         self.chat_processor = ChatProcessor(self.model_name, self.tokenizer)
         self.completions_processor = CompletionsProcessor(self.model_name)
@@ -86,13 +88,9 @@ class BaseTensorrtLLMEngine:
             # Create LLM in a thread to avoid blocking
             loop = asyncio.get_running_loop()
             try:
-                pytorch_config = PyTorchConfig(**self.pytorch_config_args)
-                print(self.llm_engine_args)
                 llm = await loop.run_in_executor(
                     None,
-                    lambda: LLM(
-                        **self.llm_engine_args, pytorch_backend_config=pytorch_config
-                    ),
+                    lambda: LLM(model=self.model, **self.engine_config),
                 )
                 yield llm
             finally:
