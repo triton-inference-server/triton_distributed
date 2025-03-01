@@ -17,7 +17,6 @@ import json
 import time
 from typing import Any, AsyncGenerator, AsyncIterator, Dict, List, Tuple, TypedDict
 
-from common.protocol import DisaggregatedResponse
 from openai.types.chat import ChatCompletionMessageParam
 from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
@@ -35,6 +34,7 @@ from tensorrt_llm.serve.openai_protocol import (
     CompletionResponse,
     CompletionResponseChoice,
     CompletionResponseStreamChoice,
+    CompletionStreamResponse,
     DeltaMessage,
     FunctionCall,
     ToolCall,
@@ -352,6 +352,31 @@ class CompletionsProcessor:
     def __init__(self, model: str):
         self.model = model
 
+    def _post_process(self, request, prompt_idx, num_choices, requst_output):
+        res = []
+        echoed = [False] * num_choices
+        num_repsonse_per_request = 1 if request.n is None else request.n
+        for gen_idx, output in enumerate(requst_output.outputs):
+            response_idx = prompt_idx * num_repsonse_per_request + gen_idx
+            delta_text = output.text_diff
+            if request.echo and not echoed[response_idx]:
+                delta_text = request.prompt + delta_text
+                echoed[response_idx] = True
+            choice = CompletionResponseStreamChoice(
+                index=response_idx,
+                text=delta_text,
+                stop_reason=output.stop_reason,
+                finish_reason=output.finish_reason,
+            )
+            chunk = CompletionStreamResponse(
+                model=self.model,
+                choices=[choice],
+            )
+            res.append(chunk.model_dump_json())
+            # if disagg_request:
+            #     response.disaggregated_params = output.disaggregated_params
+        return res
+
     async def create_completion_generator(
         self,
         request: CompletionRequest,
@@ -359,32 +384,11 @@ class CompletionsProcessor:
         num_choices: int,
         disagg_request: bool = False,
     ):
-        num_repsonse_per_request = 1 if request.n is None else request.n
-        echoed = [False] * num_choices
+        print(f"create_completion_generator: {request}")
         async for prompt_idx, requst_output in generator:
-            prompt = requst_output.prompt
-            for gen_idx, output in enumerate(requst_output.outputs):
-                response_idx = prompt_idx * num_repsonse_per_request + gen_idx
-                delta_text = output.text_diff
-                if request.echo and not echoed[response_idx]:
-                    delta_text = prompt + delta_text
-                    echoed[response_idx] = True
-                response = DisaggregatedResponse(
-                    model=self.model,
-                    text=delta_text,
-                    choices=[
-                        CompletionResponseStreamChoice(
-                            index=response_idx,
-                            text=delta_text,
-                            stop_reason=output.stop_reason,
-                            finish_reason=output.finish_reason,
-                        )
-                    ],
-                )
-                if disagg_request:
-                    response.disaggregated_params = output.disaggregated_params
-                response_json = response.model_dump_json(exclude_unset=False)
-                yield response_json
+            pp_res = self._post_process(request, prompt_idx, num_choices, requst_output)
+            for _p in pp_res:
+                yield _p
 
     async def create_completion_response(
         self,

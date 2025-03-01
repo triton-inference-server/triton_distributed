@@ -1,5 +1,5 @@
-model_name: "DeepSeek/DeepSeek-V3-Lite"
-model_path: "/home/scratch.trt_llm_data/llm-models/DeepSeek-V3-Lite/nvfp4_moe_only"
+model_name: "TinyLlama/TinyLlama-1.1B-Chat-v1.0" #"DeepSeek/DeepSeek-V3-Lite"
+model_path: null #"/home/scratch.trt_llm_data/llm-models/DeepSeek-V3-Lite/nvfp4_moe_only"
 tensor_parallel_size: 2
 moe_expert_parallel_size: 2
 enable_attention_dp: false
@@ -12,4 +12,4 @@ kv_cache_config:
 
 pytorch_backend_config:
   enable_overlap_scheduler: true
-  use_cuda_graph: true
+  use_cuda_graph: false

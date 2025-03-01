@@ -43,3 +43,8 @@ class DisaggregatedResponse(ChatCompletionStreamResponse):
 
 class nvCompletionRequest(CompletionRequest):
     model_config = ConfigDict(extra="allow")
+
+
+# class nvCompletionStreamResponse(BaseModel):
+#     model: str
+#     choices: List[CompletionResponseStreamChoice]

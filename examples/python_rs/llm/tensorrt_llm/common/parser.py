@@ -15,25 +15,50 @@
 
 import argparse
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 import yaml
-from pydantic import BaseModel, ConfigDict
-from tensorrt_llm.llmapi import KvCacheConfig, PyTorchConfig
+from tensorrt_llm._torch.pyexecutor.config import PyTorchConfig
+from tensorrt_llm.llmapi import KvCacheConfig
 
 
-class LLMAPIConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
+@dataclass
+class LLMAPIConfig:
     model_name: str
-    model_path: str | Optional = None
-    pytorch_backend_config: PyTorchConfig | Optional = None
-    kv_cache_config: KvCacheConfig | Optional = None
+    model_path: str | None = None
+    pytorch_backend_config: PyTorchConfig | None = None
+    kv_cache_config: KvCacheConfig | None = None
+    extra_args: Dict[str, Any] | None = None
+
+    def __init__(
+        self,
+        model_name: str,
+        model_path: str | None = None,
+        pytorch_backend_config: PyTorchConfig | None = None,
+        kv_cache_config: KvCacheConfig | None = None,
+        **kwargs,
+    ):
+        self.model_name = model_name
+        self.model_path = model_path
+        self.pytorch_backend_config = pytorch_backend_config
+        self.kv_cache_config = kv_cache_config
+        self.extra_args = kwargs
+
+    def to_dict(self) -> Dict[str, Any]:
+        data = {
+            "pytorch_backend_config": self.pytorch_backend_config,
+            "kv_cache_config": self.kv_cache_config,
+        }
+        if self.extra_args:
+            data.update(self.extra_args)
+        return data
 
 
 def _get_llm_args(engine_config):
     # Only do model validation checks and leave other checks to LLMAPI
-    if "model" not in engine_config:
+    if "model_name" not in engine_config:
         raise ValueError("Model name is required in the TRT-LLM engine config.")
 
     if engine_config.get("model_path", ""):
@@ -64,7 +89,7 @@ def _init_engine_args(engine_args_filepath):
 
     try:
         with open(engine_args_filepath) as file:
-            trtllm_engine_config = yaml.load(file)
+            trtllm_engine_config = yaml.safe_load(file)
     except yaml.YAMLError as e:
         raise RuntimeError(f"Failed to parse engine config: {e}")
 

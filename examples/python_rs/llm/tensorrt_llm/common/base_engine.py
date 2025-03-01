@@ -49,8 +49,10 @@ class BaseTensorrtLLMEngine:
 
         self._init_engine()
 
-        if self.engine_config.tokenizer:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.engine_config.tokenizer)
+        if self.engine_config.extra_args.get("tokenizer", None):
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self.engine_config.extra_args.get("tokenizer", None)
+            )
 
         self.chat_processor = ChatProcessor(self.model_name, self.tokenizer)
         self.completions_processor = CompletionsProcessor(self.model_name)
@@ -90,7 +92,7 @@ class BaseTensorrtLLMEngine:
             try:
                 llm = await loop.run_in_executor(
                     None,
-                    lambda: LLM(model=self.model, **self.engine_config),
+                    lambda: LLM(model=self.model, **self.engine_config.to_dict()),
                 )
                 yield llm
             finally:

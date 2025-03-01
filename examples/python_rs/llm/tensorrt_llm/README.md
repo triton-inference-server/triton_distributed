@@ -90,14 +90,14 @@ Note: NATS and ETCD servers should be running and accessible from the container 
 
 Run the server logging (with debug level logging):
 ```bash
-TRD_LOG=DEBUG http
+TRD_LOG=DEBUG http &
 ```
 By default the server will run on port 8080.
 
 Add model to the server:
 ```bash
 llmctl http add chat DeepSeek/DeepSeek-R1-FP4 triton-init.tensorrt-llm.chat/completions
-llmctl http add completion DeepSeek/DeepSeek-R1-FP4 triton-init.tensorrt-llm.completions
+llmctl http add completion TinyLlama/TinyLlama-1.1B-Chat-v1.0 triton-init.tensorrt-llm.completions
 ```
 
 #### 2. Workers

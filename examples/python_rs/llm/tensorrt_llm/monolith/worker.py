@@ -15,6 +15,7 @@
 
 
 import asyncio
+import json
 from enum import Enum
 from typing import List
 
@@ -24,8 +25,16 @@ from common.parser import LLMAPIConfig, parse_tensorrt_llm_args
 from common.processor import merge_promises
 from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
+from tensorrt_llm.serve.openai_protocol import (
+    CompletionRequest,
+    CompletionStreamResponse,
+)
 
-from triton_distributed.runtime import DistributedRuntime, triton_worker
+from triton_distributed.runtime import (
+    DistributedRuntime,
+    triton_endpoint,
+    triton_worker,
+)
 
 logger.set_level("debug")
 
@@ -43,7 +52,7 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
     def __init__(self, engine_config: LLMAPIConfig):
         super().__init__(engine_config)
 
-    # @triton_endpoint(nvCompletionRequest, CompletionStreamResponse)
+    @triton_endpoint(CompletionRequest, CompletionStreamResponse)
     async def generate_completion(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
@@ -73,21 +82,13 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
 
         generator = merge_promises(promises)
         num_choices = len(prompts) if request.n is None else len(prompts) * request.n
-        if request.stream:
-            response_generator = self.completions_processor.create_completion_generator(
-                request, generator, num_choices
-            )
-            async for response in response_generator:
-                yield response
-        else:
-            # TODO: why doesn't it read stream from input?
-            # stream is always True
+        response_generator = self.completions_processor.create_completion_generator(
+            request, generator, num_choices
+        )
+        async for response in response_generator:
+            yield json.loads(response)
 
-            raise NotImplementedError("Non-streaming is not supported")
-            # response = await self.completions_processor.create_completion_response(
-            #     request, generator, num_choices
-            # )
-            # yield response
+        self._ongoing_request_count -= 1
 
 
 @triton_worker()
@@ -103,12 +104,10 @@ async def worker(runtime: DistributedRuntime, engine_config: LLMAPIConfig):
 
     engine = TensorrtLLMEngine(engine_config)
 
-    await asyncio.gather(
-        completions_endpoint.serve_endpoint(engine.generate_completion),
-    )
+    await completions_endpoint.serve_endpoint(engine.generate_completion)
 
 
 if __name__ == "__main__":
     uvloop.install()
-    engine_config = parse_tensorrt_llm_args()
+    args, engine_config = parse_tensorrt_llm_args()
     asyncio.run(worker(engine_config))
