@@ -106,3 +106,74 @@ The extra `--model-config` flag is because:
 - We don't yet read it out of the GGUF (TODO), so we need an HF repo with `tokenizer.json` et al
 
 If the build step also builds llama_cpp libraries into `target/release` ("libllama.so", "libggml.so", "libggml-base.so", "libggml-cpu.so", "libggml-cuda.so"), then `tio` will need to find those at runtime. Set `LD_LIBRARY_PATH`, and be sure to deploy them alongside the `tio` binary.
+
+## vllm
+
+Using the [vllm](https://github.com/vllm-project/vllm) Python library. We only use the back half of vllm, talking to it over `zmq`. Slow startup, fast inference. Supports both safetensors from HF and GGUF files.
+
+We use [uv](https://docs.astral.sh/uv/) but any virtualenv manager should work.
+
+Setup:
+```
+uv venv
+source .venv/bin/activate
+uv pip install pip
+uv pip install vllm setuptools
+```
+
+**Note: If you're on Ubuntu 22.04 or earlier, you will need to add `--python=python3.10` to your `uv venv` command**
+
+Build:
+```
+cargo build --release --features vllm
+```
+
+Run (still inside that virtualenv) - HF repo:
+```
+./target/release/tio in=http out=vllm --model-path ~/llm_models/Llama-3.2-3B-Instruct/
+
+```
+
+Run (still inside that virtualenv) - GGUF:
+```
+./target/release/tio in=http out=vllm --model-path ~/llm_models/Llama-3.2-3B-Instruct-Q6_K.gguf --model-config ~/llm_models/Llama-3.2-3B-Instruct/
+```
+
+## trtllm
+
+TensorRT-LLM. Requires `clang` and `libclang-dev`.
+
+Build:
+```
+cargo build --release --features trtllm
+```
+
+Run:
+```
+tio in=text out=trtllm --model-path /app/trtllm_engine/ --model-config ~/llm_models/Llama-3.2-3B-Instruct/
+```
+
+Note that TRT-LLM uses it's own `.engine` format for weights. Repo models must be converted like so:
+
++ Get the build container
+```
+docker run --gpus all -it nvcr.io/nvidian/nemo-llm/trtllm-engine-builder:0.2.0 bash
+```
+
++ Fetch the model and convert
+```
+mkdir /tmp/model
+huggingface-cli download meta-llama/Llama-3.2-3B-Instruct --local-dir /tmp/model
+python convert_checkpoint.py --model_dir /tmp/model/ --output_dir ./converted --dtype [float16|bfloat16|whatever you want] --tp_size X --pp_size Y
+trtllm-build --checkpoint_dir ./converted --output_dir ./final/trtllm_engine --use_paged_context_fmha enable --gemm_plugin auto
+```
+
+The `--model-path` you give to `tio` must contain the `config.json` (TRT-LLM's , not the model's) and `rank0.engine` (plus other ranks if relevant).
+
++ Execute
+TRT-LLM is a C++ library that must have been previously built and installed. It needs a lot of memory to compile. Gitlab builds a container you can try:
+```
+sudo docker run --gpus all -it -v /home/graham:/outside-home gitlab-master.nvidia.com:5005/dl/ai-services/libraries/rust/nim-nvllm/tensorrt_llm_runtime:85fa4a6f
+```
+
+Copy the trt-llm engine, the model's `.json` files (for the model deployment card) and the `nio` binary built for the correct glibc (container is Ubuntu 22.04 currently) into that container.

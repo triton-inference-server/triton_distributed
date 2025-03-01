@@ -24,13 +24,17 @@
 //!   - KV Cache Blocks: [Active, Total]
 
 use clap::Parser;
-use serde::{Deserialize, Serialize};
-
 use triton_distributed_runtime::{
     error, logging,
     traits::events::EventPublisher,
     utils::{Duration, Instant},
     DistributedRuntime, ErrorContext, Result, Runtime, Worker,
+};
+
+// Import from our library
+use count::{
+    collect_endpoints, extract_metrics, postprocess_metrics, LLMWorkerLoadCapacityConfig,
+    PrometheusMetricsServer,
 };
 
 /// CLI arguments for the count application
@@ -73,34 +77,8 @@ fn get_config(args: &Args) -> Result<LLMWorkerLoadCapacityConfig> {
     })
 }
 
-// we will scrape the service_name and extract the endpoint_name metrics
-// we will bcast them as {namespace}.events.l2c.{service_name}.{endpoint_name}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LLMWorkerLoadCapacityConfig {
-    component_name: String,
-    endpoint_name: String,
-}
-
-/// LLM Worker Load Capacity Metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LLMWorkerLoadCapacity {
-    pub requests_active_slots: u32,
-    pub requests_total_slots: u32,
-    pub kv_blocks_active: u32,
-    pub kv_blocks_total: u32,
-}
-
-fn main() -> Result<()> {
-    logging::init();
-    let worker = Worker::from_settings()?;
-    worker.execute(app)
-}
-
-// TODO - refactor much of this back into the library
 async fn app(runtime: Runtime) -> Result<()> {
     let args = Args::parse();
-    // we will start by assuming that there is no oscar and no planner
-    // to that end, we will use CLI args to get a singular config for scraping a single backend
     let config = get_config(&args)?;
     tracing::info!("Config: {config:?}");
 
@@ -109,8 +87,7 @@ async fn app(runtime: Runtime) -> Result<()> {
     let namespace = drt.namespace(args.namespace)?;
     let component = namespace.component("count")?;
 
-    // there should only be one count
-    // check {component.etcd_path()}/instance for existing instances
+    // Create unique instance of Count
     let key = format!("{}/instance", component.etcd_path());
     tracing::info!("Creating unique instance of Count at {key}");
     drt.etcd_client()
@@ -122,113 +99,53 @@ async fn app(runtime: Runtime) -> Result<()> {
         .await
         .context("Unable to create unique instance of Count; possibly one already exists")?;
 
-    let target = namespace.component(&config.component_name)?;
-    let target_endpoint = target.endpoint(&config.endpoint_name);
+    let target_component = namespace.component(&config.component_name)?;
+    let target_endpoint = target_component.endpoint(&config.endpoint_name);
 
-    let service_name = target.service_name();
+    let service_name = target_component.service_name();
     let service_subject = target_endpoint.subject();
     tracing::info!("Scraping service {service_name} and filtering on subject {service_subject}");
 
     let token = drt.primary_lease().child_token();
+    let event_name = format!("l2c.{}.{}", config.component_name, config.endpoint_name);
 
-    let address = format!("{}.{}", config.component_name, config.endpoint_name,);
-    let event_name = format!("l2c.{}", address);
+    // TODO: Make metrics host/port configurable
+    // Initialize Prometheus metrics and start server
+    let mut metrics_server = PrometheusMetricsServer::new()?;
+    metrics_server.start(9091);
 
     loop {
         let next = Instant::now() + Duration::from_secs(args.poll_interval);
 
-        // collect stats from each backend
-        let stream = target.scrape_stats(Duration::from_secs(1)).await?;
-        tracing::debug!("Scraped Stats Stream: {stream:?}");
+        // Collect and process metrics
+        let scrape_timeout = Duration::from_secs(1);
+        let endpoints =
+            collect_endpoints(&target_component, &service_subject, scrape_timeout).await?;
+        let metrics = extract_metrics(&endpoints);
+        let processed = postprocess_metrics(&metrics, &endpoints);
+        tracing::info!("Aggregated metrics: {processed:?}");
 
-        // filter the stats by the service subject
-        let endpoints = stream
-            .into_endpoints()
-            .filter(|e| e.subject.starts_with(&service_subject))
-            .collect::<Vec<_>>();
+        // Update Prometheus metrics
+        metrics_server.update(&config, &processed);
 
-        tracing::debug!("Endpoints: {endpoints:?}");
-        if endpoints.is_empty() {
-            tracing::warn!("No endpoints found matching subject {}", service_subject);
-        }
-
-        // extract the custom data from the stats and try to decode it as LLMWorkerLoadCapacity
-        let metrics = endpoints
-            .iter()
-            .filter_map(|e| match e.data.clone() {
-                Some(metrics) => metrics.decode::<LLMWorkerLoadCapacity>().ok(),
-                None => None,
-            })
-            .collect::<Vec<_>>();
-        tracing::debug!("Metrics: {metrics:?}");
-
-        // parse the endpoint ids
-        // the ids are the last part of the subject in hexadecimal
-        // form a list of tuples (kv_blocks_total - kv_blocks_active, requests_total_slots - requests_active_slots, id)
-        // this tuple represent the remaining capacity of each endpoint
-        let capacity_with_ids = metrics
-            .iter()
-            .zip(endpoints.iter())
-            .filter_map(|(m, e)| {
-                e.id().ok().map(|id| {
-                    (
-                        m.kv_blocks_total - m.kv_blocks_active,
-                        m.requests_total_slots - m.requests_active_slots,
-                        id,
-                    )
-                })
-            })
-            .collect::<Vec<_>>();
-
-        // compute mean / std of LLMWorkerLoadCapacity
-        let load_values: Vec<f64> = metrics.iter().map(|x| x.kv_blocks_active as f64).collect();
-        let load_avg = load_values.iter().sum::<f64>() / load_values.len() as f64;
-        let variance = load_values
-            .iter()
-            .map(|&x| (x - load_avg).powi(2))
-            .sum::<f64>()
-            / load_values.len() as f64;
-        let load_std = variance.sqrt();
-
-        let processed = ProcessedEndpoints {
-            capacity_with_ids,
-            load_avg,
-            load_std,
-            address: address.clone(),
-        };
-
-        // publish using the namespace event plane
-        tracing::info!(
-            "Publishing event {event_name} on namespace {namespace:?} with {processed:?}"
-        );
+        // TODO: Who needs to consume these events?
+        // Publish metrics event
         namespace.publish(&event_name, &processed).await?;
 
-        // wait until cancelled or the next tick
+        // Wait until cancelled or the next tick
         match tokio::time::timeout_at(next, token.cancelled()).await {
             Ok(_) => break,
-            Err(_) => {
-                // timeout, we continue
-                continue;
-            }
+            Err(_) => continue,
         }
     }
 
     Ok(())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProcessedEndpoints {
-    /// (kv_blocks_total - kv_blocks_active, requests_total_slots - requests_active_slots, id)
-    pub capacity_with_ids: Vec<(u32, u32, i64)>,
-
-    /// kv_blocks_active average
-    pub load_avg: f64,
-
-    /// kv_blocks_active standard deviation
-    pub load_std: f64,
-
-    /// {component}.{endpoint}
-    pub address: String,
+fn main() -> Result<()> {
+    logging::init();
+    let worker = Worker::from_settings()?;
+    worker.execute(app)
 }
 
 #[cfg(test)]
@@ -239,11 +156,7 @@ mod tests {
     #[test]
     fn test_namespace_from_env() {
         env::set_var("TRD_NAMESPACE", "test-namespace");
-
-        // Parse args with no explicit namespace
         let args = Args::parse_from(["count", "--component", "comp", "--endpoint", "end"]);
-
-        // Verify namespace was taken from environment variable
         assert_eq!(args.namespace, "test-namespace");
     }
 }
