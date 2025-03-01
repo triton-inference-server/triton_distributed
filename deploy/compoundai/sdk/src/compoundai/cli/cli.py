@@ -45,7 +45,6 @@ def create_bentoml_cli() -> click.Command:
     @click.version_option(BENTOML_VERSION, "-v", "--version")
     def bentoml_cli():
         """
-               \b
           _____                                            _            _____
          / ____|                                          | |     /\   |_   _|
         | |     ___  _ __ ___  _ __   ___  _   _ _ __   __| |    /  \    | |
