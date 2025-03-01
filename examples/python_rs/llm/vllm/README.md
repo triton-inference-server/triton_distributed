@@ -53,7 +53,7 @@ The example is designed to run in a containerized environment using Triton Distr
 
 ## Deployment
 
-#### 1. HTTP Server
+### 1. HTTP Server
 
 Run the server logging (with debug level logging):
 ```bash
@@ -64,6 +64,15 @@ By default the server will run on port 8080.
 Add model to the server:
 ```bash
 llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B triton-init.vllm.generate
+```
+
+##### Example Output
+```
+| MODEL TYPE | MODEL NAME                               | NAMESPACE | COMPONENT | ENDPOINT |
+│ +------------+------------------------------------------+-----------+-----------+----------+
+│ | chat       | deepseek-ai/DeepSeek-R1-Distill-Llama-8B | test-nixl | vllm      | generate |
+│ +------------+------------------------------------------+-----------+-----------+----------+
+
 ```
 
 ### 2. Workers
