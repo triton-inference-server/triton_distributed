@@ -54,7 +54,7 @@ class RequestHandler:
         # get meta data
 
         if request.engine_id not in self._loaded_metadata:
-            remote_metadata = self._metadata_store.get(request.engine_id)
+            remote_metadata = await self._metadata_store.get(request.engine_id)
             await self.engine_client.add_remote_nixl_metadata(remote_metadata)
             print(
                 f"loaded metadata for {request.engine_id} into engine client {self.engine_client.nixl_metadata.engine_id}"
@@ -81,9 +81,9 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
         # This should be replaced with etcd
         metadata = engine_client.nixl_metadata
 
-        metadata_store = NixlMetadataStore("test-nixl")
+        metadata_store = NixlMetadataStore("test-nixl", runtime)
 
-        metadata_store.put(metadata.engine_id, metadata)
+        await metadata_store.put(metadata.engine_id, metadata)
 
         await endpoint.serve_endpoint(
             RequestHandler(engine_client, metadata_store).generate

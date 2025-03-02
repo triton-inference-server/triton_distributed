@@ -23,6 +23,7 @@ use rs::pipeline::network::Ingress;
 use std::{fmt::Display, sync::Arc};
 use tokio::sync::Mutex;
 use tracing_subscriber::FmtSubscriber;
+use pyo3::types::PyBytes;
 
 use triton_distributed_runtime::{
     self as rs,
@@ -317,7 +318,7 @@ impl EtcdClient {
                 for kv in result {
                     let dict = PyDict::new(py);
                     dict.set_item("key", String::from_utf8_lossy(kv.key()).to_string())?;
-                    dict.set_item("value", String::from_utf8_lossy(kv.value()).to_string())?;
+                    dict.set_item("value", PyBytes::new(py, kv.value()))?;
                     dict.set_item("create_revision", kv.create_revision())?;
                     dict.set_item("mod_revision", kv.mod_revision())?;
                     dict.set_item("version", kv.version())?;

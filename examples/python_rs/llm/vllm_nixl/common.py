@@ -16,13 +16,14 @@
 
 import os
 from contextlib import contextmanager
-from urllib.parse import urlparse
 
-import etcd3
+# import etcd3
 import msgspec
 from vllm.distributed.device_communicators.nixl import NixlMetadata
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.utils import FlexibleArgumentParser
+
+from triton_distributed.runtime import DistributedRuntime
 
 METADATA_DIR = "/tmp/nixl"
 
@@ -70,57 +71,43 @@ def find_remote_metadata(engine_id):
 class NixlMetadataStore:
     NIXL_METADATA_KEY = "nixl_metadata"
 
-    def _get_etcd_endpoint(self):
-        endpoints = os.environ.get("ETCD_ENDPOINTS", "")
-        result = []
-
-        if endpoints:
-            for endpoint in endpoints.split(","):
-                parsed = urlparse(endpoint.strip())
-                if parsed.scheme and parsed.netloc:
-                    host, port = parsed.netloc.split(":")
-                    result.append((host, int(port)))
-        if result:
-            return result[0]
-        else:
-            return None, None
-
-    def __init__(self, namespace: str) -> None:
+    def __init__(self, namespace: str, runtime: DistributedRuntime) -> None:
         self._namespace = namespace
         self._stored = set()
         self._cached = {}
-        host, port = self._get_etcd_endpoint()
-        if host:
-            self._client = etcd3.client(host=host, port=port)
-        else:
-            self._client = etcd3.client()
+        self._client = runtime.etcd_client()
         self._key_prefix = f"{self._namespace}/{NixlMetadataStore.NIXL_METADATA_KEY}"
 
-    def _watch_callback(self, event):
-        pass
-
-    def put(self, engine_id, metadata: NixlMetadata):
+    async def put(self, engine_id, metadata: NixlMetadata):
         serialized_metadata = msgspec.msgpack.encode(metadata)
         key = "/".join([self._key_prefix, engine_id])
-        self._client.put(key, serialized_metadata)
+
+        await self._client.kv_put(key, serialized_metadata, None)
 
         self._stored.add(engine_id)
 
-    def get(self, engine_id) -> NixlMetadata:
-        if engine_id in self._cached:
-            return self._cached[engine_id]
+    async def get(self, engine_id) -> NixlMetadata:
+        try:
+            if engine_id in self._cached:
+                return self._cached[engine_id]
 
-        value, metadata = self._client.get(
-            f"{self._namespace}/{NixlMetadataStore.NIXL_METADATA_KEY}/{engine_id}"
-        )
+            key = "/".join([self._key_prefix, engine_id])
 
-        deserialized_metadata = msgspec.msgpack.decode(value, type=NixlMetadata)
+            key_values = await self._client.kv_get_prefix(key)
 
-        self._cached[engine_id] = deserialized_metadata
+            for item in key_values:
+                deserialized_metadata = msgspec.msgpack.decode(
+                    bytes(item["value"], encoding="utf-8"), type=NixlMetadata
+                )
+                break
 
-        self._client.add_watch_callback(
-            f"{self._namespace}/{NixlMetadataStore.NIXL_METADATA_KEY}/{engine_id}",
-            self._watch_callback,
-        )
+            self._cached[engine_id] = deserialized_metadata
+
+            # self._client.add_watch_callback(
+            #     f"{self._namespace}/{NixlMetadataStore.NIXL_METADATA_KEY}/{engine_id}",
+            #     self._watch_callback,
+            # )
+        except Exception as e:
+            print(e)
 
         return deserialized_metadata
