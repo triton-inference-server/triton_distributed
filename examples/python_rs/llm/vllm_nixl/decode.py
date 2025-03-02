@@ -73,7 +73,7 @@ class RequestHandler:
     def get_remote_prefill_request_callback(self):
         async def callback(request: RemotePrefillRequest):
             json_request = msgspec.json.encode(request).decode("utf-8")
-            self.prefill_client.generate(json_request)
+            self.prefill_client.round_robin(json_request)
 
         return callback
 
@@ -124,10 +124,10 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
         metadata_store.put(metadata.engine_id, metadata)
 
-        with temp_metadata_file(metadata.engine_id, metadata):
-            await endpoint.serve_endpoint(
-                RequestHandler(engine_client, prefill_client).generate
-            )
+#        with temp_metadata_file(metadata.engine_id, metadata):
+        await endpoint.serve_endpoint(
+            RequestHandler(engine_client, prefill_client).generate
+        )
 
 
 if __name__ == "__main__":
@@ -135,8 +135,8 @@ if __name__ == "__main__":
     engine_args = parse_vllm_args()
 
     engine_args.tensor_parallel_size = 2
-    engine_args.max_model_len = 10
-    engine_args.gpu_memory_utilization = 0.4
+    engine_args.max_model_len = 1000
+    engine_args.gpu_memory_utilization = 0.8
 
     if engine_args.enable_chunked_prefill is not False:
         print("Chunked prefill is not supported yet, setting to False")

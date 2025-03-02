@@ -33,7 +33,7 @@ class RequestHandler:
         self.engine_client = engine_client
         self._metadata_store = metadata_store
         print("RequestHandler initialized")
-        self._loaded = False
+        self._loaded_metadata = {}
 
     async def generate(self, raw_request: str):
         try:
@@ -50,20 +50,13 @@ class RequestHandler:
                 decode_block_ids=request.block_ids,
                 decode_engine_id=request.engine_id,
             )
-            print("got request", request)
-
             # get meta data
 
-            remote_metadata = self._metadata_store.get(request.engine_id)
-
-            print("got metadata")
-            #        print(remote_metadata,flush = True)
-            print("got metadata_2")
-
-            #if not self._loaded:
-            x = await self.engine_client.add_remote_nixl_metadata(remote_metadata)
-            self._loaded = True
-            print("loaded into engine client", x)
+            if request.engine_id not in self._loaded_metadata:
+                remote_metadata = self._metadata_store.get(request.engine_id)
+                x = await self.engine_client.add_remote_nixl_metadata(remote_metadata)
+                print(f"loaded metadata for {request.engine_id} into engine client {self.engine_client.nixl_metadata.engine_id}")
+                self._loaded_metadata[request.engine_id] = remote_metadata
 
             async for _ in self.engine_client.generate(
                 request_id=request.request_id,
@@ -81,31 +74,20 @@ class RequestHandler:
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("test-nixl").component("prefill")
     await component.create_service()
-    print("hello!", flush=True)
 
     endpoint = component.endpoint("generate")
 
     metadata_store = NixlMetadataStore("test-nixl")
 
     async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
-        # This should be replaced with etcd
+
         metadata = engine_client.nixl_metadata
 
         metadata_store.put(metadata.engine_id, metadata)
 
-        with temp_metadata_file(metadata.engine_id, metadata):
-            # print(f"Waiting for remote metadata for engine {metadata.engine_id}")
-            # remote_metadata = []
-            # while not remote_metadata:
-            #     await asyncio.sleep(1)
-            #     remote_metadata = find_remote_metadata(metadata.engine_id)
-
-            # print(f"Found {len(remote_metadata)} remote metadata for engine {metadata.engine_id}")
-            # for remote_metadata in remote_metadata:
-            #     await engine_client.add_remote_nixl_metadata(remote_metadata)
-            await endpoint.serve_endpoint(
-                RequestHandler(engine_client, metadata_store).generate
-            )
+        await endpoint.serve_endpoint(
+            RequestHandler(engine_client, metadata_store).generate
+        )
 
 
 if __name__ == "__main__":
@@ -113,8 +95,8 @@ if __name__ == "__main__":
     engine_args = parse_vllm_args()
 
     engine_args.tensor_parallel_size = 2
-    engine_args.max_model_len = 10
-    engine_args.gpu_memory_utilization = 0.4
+    engine_args.max_model_len = 1000
+    engine_args.gpu_memory_utilization = 0.7
 
     if engine_args.enable_chunked_prefill is not False:
         print("Chunked prefill is not supported yet, setting to False")
