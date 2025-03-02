@@ -168,8 +168,6 @@ RUN cd /opt/nixl && \
     cp ../include/internal/*.h /usr/local/nixl/include/ && \
     cp ../src/utils/serdes/serdes.h /usr/local/nixl/include
 
-ENV LD_LIBRARY_PATH=/usr/local/nixl/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH
-ENV PYTHONPATH=/usr/local/nixl/lib/python${PYTHON_VERSION}/site-packages/:/opt/nixl/test/python/:$PYTHONPATH
 
 RUN ls -l /usr/local/nixl/
 RUN ls -l /usr/local/nixl/include/
@@ -277,6 +275,13 @@ COPY --from=dev /usr/local/bin/etcd/etcd /usr/local/bin/etcd
 COPY --from=dev /usr/bin/nats-server /usr/local/bin/nats-server
 COPY --from=dev /bin/uv /usr/local/bin/uv
 COPY --from=dev /bin/uvx /usr/local/bin/uvx
+
+# Copy nixl
+COPY --from=dev /usr/local/nixl /usr/local/nixl
+
+# Set environment variables for nixl
+ENV LD_LIBRARY_PATH=/usr/local/nixl/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH
+ENV PYTHONPATH=/usr/local/nixl/lib/python${PYTHON_VERSION}/site-packages/:/opt/nixl/test/python/:$PYTHONPATH
 
 # Copy venv with installed packages
 RUN uv python install 3.12
