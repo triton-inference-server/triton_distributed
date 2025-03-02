@@ -97,7 +97,7 @@ class NixlMetadataStore:
 
             for item in key_values:
                 deserialized_metadata = msgspec.msgpack.decode(
-                    bytes(item["value"], encoding="utf-8"), type=NixlMetadata
+                    item["value"], type=NixlMetadata
                 )
                 break
 
