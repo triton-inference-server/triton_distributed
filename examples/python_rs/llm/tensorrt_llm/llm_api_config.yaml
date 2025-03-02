@@ -1,11 +1,12 @@
 model_name: "TinyLlama/TinyLlama-1.1B-Chat-v1.0" #"DeepSeek/DeepSeek-V3-Lite"
 model_path: null #"/home/scratch.trt_llm_data/llm-models/DeepSeek-V3-Lite/nvfp4_moe_only"
-tensor_parallel_size: 2
-moe_expert_parallel_size: 2
+tensor_parallel_size: 1
+moe_expert_parallel_size: 1
 enable_attention_dp: false
 max_num_tokens: 10240
 max_batch_size: 16
 trust_remote_code: true
+backend: pytorch
 
 kv_cache_config:
   free_gpu_memory_fraction: 0.95

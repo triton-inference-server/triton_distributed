@@ -17,6 +17,7 @@ import json
 import time
 from typing import Any, AsyncGenerator, AsyncIterator, Dict, List, Tuple, TypedDict
 
+from common.protocol import nvCompletionResponseStreamChoice, nvCompletionStreamResponse
 from openai.types.chat import ChatCompletionMessageParam
 from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
@@ -33,8 +34,6 @@ from tensorrt_llm.serve.openai_protocol import (
     CompletionRequest,
     CompletionResponse,
     CompletionResponseChoice,
-    CompletionResponseStreamChoice,
-    CompletionStreamResponse,
     DeltaMessage,
     FunctionCall,
     ToolCall,
@@ -362,19 +361,23 @@ class CompletionsProcessor:
             if request.echo and not echoed[response_idx]:
                 delta_text = request.prompt + delta_text
                 echoed[response_idx] = True
-            choice = CompletionResponseStreamChoice(
+            choice = nvCompletionResponseStreamChoice(
                 index=response_idx,
                 text=delta_text,
                 stop_reason=output.stop_reason,
                 finish_reason=output.finish_reason,
             )
-            chunk = CompletionStreamResponse(
+            if output.disaggregated_params is not None:
+                choice.disaggregated_params = (
+                    nvCompletionResponseStreamChoice.to_disaggregated_params(
+                        output.disaggregated_params
+                    )
+                )
+            chunk = nvCompletionStreamResponse(
                 model=self.model,
                 choices=[choice],
             )
             res.append(chunk.model_dump_json())
-            # if disagg_request:
-            #     response.disaggregated_params = output.disaggregated_params
         return res
 
     async def create_completion_generator(
@@ -382,9 +385,7 @@ class CompletionsProcessor:
         request: CompletionRequest,
         generator: AsyncIterator[Tuple[int, RequestOutput]],
         num_choices: int,
-        disagg_request: bool = False,
     ):
-        print(f"create_completion_generator: {request}")
         async for prompt_idx, requst_output in generator:
             pp_res = self._post_process(request, prompt_idx, num_choices, requst_output)
             for _p in pp_res:

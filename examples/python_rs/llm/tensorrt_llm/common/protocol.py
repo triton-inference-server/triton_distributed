@@ -13,12 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pydantic import ConfigDict
-from tensorrt_llm.llmapi import DisaggregatedParams
+import base64
+import time
+import uuid
+from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+from tensorrt_llm.llmapi import DisaggregatedParams as LlmDisaggregatedParams
 from tensorrt_llm.serve.openai_protocol import (
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
     CompletionRequest,
+    CompletionResponseStreamChoice,
+    CompletionStreamResponse,
+    DisaggregatedParams,
+    UsageInfo,
 )
 
 
@@ -45,6 +54,39 @@ class nvCompletionRequest(CompletionRequest):
     model_config = ConfigDict(extra="allow")
 
 
-# class nvCompletionStreamResponse(BaseModel):
-#     model: str
-#     choices: List[CompletionResponseStreamChoice]
+class DisaggCompletionResponse(CompletionStreamResponse):
+    model_config = ConfigDict(extra="allow")
+    disaggregated_params: DisaggregatedParams = {}
+
+
+class nvCompletionResponseStreamChoice(CompletionResponseStreamChoice):
+    disaggregated_params: Optional[DisaggregatedParams] = Field(default=None)
+
+    @staticmethod
+    def to_disaggregated_params(
+        tllm_disagg_params: LlmDisaggregatedParams,
+    ) -> DisaggregatedParams:
+        if tllm_disagg_params is None:
+            return None
+        else:
+            encoded_opaque_state = (
+                base64.b64encode(tllm_disagg_params.opaque_state).decode("utf-8")
+                if tllm_disagg_params is not None
+                else None
+            )
+            return DisaggregatedParams(
+                request_type=tllm_disagg_params.request_type,
+                first_gen_tokens=tllm_disagg_params.first_gen_tokens,
+                ctx_request_id=tllm_disagg_params.ctx_request_id,
+                encoded_opaque_state=encoded_opaque_state,
+            )
+
+
+class nvCompletionStreamResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(default_factory=lambda: f"cmpl-{str(uuid.uuid4().hex)}")
+    object: str = "text_completion"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    model: str
+    choices: List[nvCompletionResponseStreamChoice]
+    usage: Optional[UsageInfo] = Field(default=None)

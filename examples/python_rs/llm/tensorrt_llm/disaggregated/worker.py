@@ -15,20 +15,26 @@
 
 
 import asyncio
+import json
 import os
 import signal
-from typing import Any, Dict, Tuple
 
 import uvloop
 from common.base_engine import BaseTensorrtLLMEngine
 from common.disagg_processor import ChatProcessor, parse_chat_message_content
-from common.parser import parse_tensorrt_llm_args
-from common.protocol import DisaggChatCompletionRequest, DisaggregatedResponse
+from common.parser import LLMAPIConfig, parse_tensorrt_llm_args
+from common.processor import merge_promises
+from common.protocol import (
+    DisaggChatCompletionRequest,
+    DisaggCompletionResponse,
+    DisaggregatedResponse,
+)
 from mpi4py.futures import MPICommExecutor
 from mpi4py.MPI import COMM_WORLD
 from tensorrt_llm._utils import set_mpi_comm
 from tensorrt_llm.executor import CppExecutorError
-from tensorrt_llm.llmapi import DisaggregatedParams, MpiCommSession
+from tensorrt_llm.llmapi import DisaggregatedParams as LlmDisaggregatedParams
+from tensorrt_llm.llmapi import MpiCommSession
 from tensorrt_llm.llmapi.disagg_utils import (
     CtxGenServerConfig,
     DisaggServerConfig,
@@ -36,7 +42,7 @@ from tensorrt_llm.llmapi.disagg_utils import (
     split_world_comm,
 )
 from tensorrt_llm.logger import logger
-from tensorrt_llm.serve.openai_protocol import CompletionRequest
+from tensorrt_llm.serve.openai_protocol import CompletionRequest, DisaggregatedParams
 
 from triton_distributed.runtime import (
     DistributedRuntime,
@@ -47,13 +53,9 @@ from triton_distributed.runtime import (
 logger.set_level("debug")
 
 
-def update_args_from_disagg_config(engine_args, server_config: CtxGenServerConfig):
-    pytorch_config_args, llm_engine_args = engine_args
-    _ = server_config.other_args.pop("kv_cache_config", {})
-    pytorch_config = server_config.other_args.pop("pytorch_config", {})
-    llm_engine_args.update(**server_config.other_args)
-    pytorch_config_args.update(**pytorch_config)
-    return pytorch_config_args, llm_engine_args
+def update_args_from_disagg_config(engine_config, server_config: CtxGenServerConfig):
+    engine_config.extra_args.update(**server_config.other_args)
+    return engine_config
 
 
 class TensorrtLLMEngine(BaseTensorrtLLMEngine):
@@ -63,7 +65,7 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
 
     def __init__(
         self,
-        engine_args: Tuple[Dict[str, Any], Dict[str, Any]],
+        engine_config: LLMAPIConfig,
         disagg_config: DisaggServerConfig,
         instance_idx: int,
         sub_comm,
@@ -73,12 +75,14 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
         self.server_config: CtxGenServerConfig = disagg_config.server_configs[
             instance_idx
         ]
+        engine_config = update_args_from_disagg_config(
+            engine_config, self.server_config
+        )
+
+        # needed for disagg
         self.mpi_session = MpiCommSession(sub_comm, n_workers=sub_comm.Get_size())
-        engine_args = update_args_from_disagg_config(engine_args, self.server_config)
-        engine_args[1]["_mpi_session"] = self.mpi_session
-        engine_args[1]["trust_remote_code"] = True
-        engine_args[1]["backend"] = "pytorch"
-        super().__init__(engine_args)
+        engine_config.extra_args["_mpi_session"] = self.mpi_session
+        super().__init__(engine_config)
 
     @triton_endpoint(DisaggChatCompletionRequest, DisaggregatedResponse)
     async def generate_chat(self, raw_request):
@@ -154,17 +158,17 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
 
         self._ongoing_request_count -= 1
 
-    @triton_endpoint(CompletionRequest, DisaggregatedResponse)
+    @triton_endpoint(CompletionRequest, DisaggCompletionResponse)
     async def generate_completions(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
 
         self._ongoing_request_count += 1
-        logger.debug(f"[worker] Received request: {request}")
+        logger.debug(f"[worker] Received completions request: {request}")
 
         if not isinstance(request.prompt, str):
             # Check if it's a list and contains integers
-            if type(request.prompt) is list and len(request.prompt) == 1:
+            if isinstance(request.prompt, list) and len(request.prompt) == 1:
                 request.prompt = request.prompt[0]
             elif not isinstance(request.prompt, list) or not all(
                 isinstance(x, int) for x in request.prompt
@@ -174,38 +178,33 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
                 )
 
         sampling_params = request.to_sampling_params()
-        disaggregated_params = request.disaggregated_params
-
-        if disaggregated_params.opaque_state is not None:
-            disaggregated_params.opaque_state = (
-                disaggregated_params.opaque_state.encode("utf-8")
-                .decode("unicode_escape")
-                .encode("latin1")
-            )
+        llm_disaggregated_params: LlmDisaggregatedParams = (
+            request.to_llm_disaggregated_params()
+        )
 
         # only 1 prompt is supported for now
-        generator = self._llm_engine.generate_async(
+        promise = self._llm_engine.generate_async(
             request.prompt,
             sampling_params,
             streaming=request.stream,
-            disaggregated_params=disaggregated_params,
+            disaggregated_params=llm_disaggregated_params,
         )
+        generator = merge_promises([promise])
         num_choices = 1 if request.n is None else request.n
         if request.stream:
             response_generator = self.completions_processor.create_completion_generator(
-                request, generator, num_choices, disagg_request=True
+                request, generator, num_choices
             )
             async for response in response_generator:
-                if self.server_config.type == "ctx":
-                    yield response
-                else:
-                    yield response.choices[0].text
+                yield json.loads(response)
+
+        self._ongoing_request_count -= 1
 
 
 @triton_worker()
 async def worker(
     runtime: DistributedRuntime,
-    engine_args: Tuple[Dict[str, Any], Dict[str, Any]],
+    engine_config: LLMAPIConfig,
     disagg_config: DisaggServerConfig,
     instance_idx: int,
     sub_comm,
@@ -224,16 +223,16 @@ async def worker(
 
     completions_endpoint = component.endpoint("completions")
     chat_endpoint = component.endpoint("chat/completions")
-    engine = TensorrtLLMEngine(engine_args, disagg_config, instance_idx, sub_comm)
+    engine = TensorrtLLMEngine(engine_config, disagg_config, instance_idx, sub_comm)
     await asyncio.gather(
         completions_endpoint.serve_endpoint(engine.generate_completions),
-        chat_endpoint.serve_endpoint(engine.generate_chat),
+        chat_endpoint.serve_endpoint(engine.generate_chat),  # TODO
     )
 
 
 if __name__ == "__main__":
     uvloop.install()
-    args, engine_args = parse_tensorrt_llm_args()
+    args, engine_config = parse_tensorrt_llm_args()
 
     if args.llmapi_disaggregated_config is None or not os.path.exists(
         args.llmapi_disaggregated_config
@@ -255,7 +254,7 @@ if __name__ == "__main__":
     logger.info(f"is_leader: {is_leader}, instance_idx: {instance_idx}")
 
     if is_leader:
-        asyncio.run(worker(engine_args, disagg_config, instance_idx, sub_comm))
+        asyncio.run(worker(engine_config, disagg_config, instance_idx, sub_comm))
     else:
         with MPICommExecutor(sub_comm) as executor:
             if not is_leader and executor is not None:

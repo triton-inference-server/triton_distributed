@@ -216,14 +216,14 @@ Run the container interactively with the following command:
 
 Run the server logging (with debug level logging):
 ```bash
-TRD_LOG=DEBUG http
+TRD_LOG=DEBUG http &
 ```
 By default the server will run on port 8080.
 
 Add model to the server:
 ```bash
-llmctl http add chat DeepSeek/DeepSeek-R1-FP4 triton-init.router.chat/completions
-llmctl http add completion DeepSeek/DeepSeek-R1-FP4 triton-init.router.completions
+llmctl http add chat TinyLlama/TinyLlama-1.1B-Chat-v1.0 triton-init.router.chat/completions
+llmctl http add completion TinyLlama/TinyLlama-1.1B-Chat-v1.0 triton-init.router.completions
 ```
 
 #### 2. Workers
@@ -242,7 +242,7 @@ For example, 2 TP2 generation servers are 2 servers but 4 workers/mpi executor.
 
 ```bash
 cd /workspace/examples/python_rs/llm/tensorrt_llm/
-mpirun --allow-run-as-root --oversubscribe -n 8 python3 -m disaggregated.worker --engine_args model.json -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml 1>disagg_workers.log 2>&1 &
+mpirun --allow-run-as-root --oversubscribe -n WORLD_SIZE python3 -m disaggregated.worker --engine_args llm_api_config.yaml -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml 1>disagg_workers.log 2>&1 &
 ```
 If using the provided [single_node_config.yaml](disaggregated/llmapi_disaggregated_configs/single_node_config.yaml), WORLD_SIZE should be 3 as it has 2 context servers(TP=1) and 1 generation server(TP=1).
 
@@ -270,7 +270,7 @@ curl localhost:8080/v1/chat/completions \
 curl localhost:8080/v1/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "DeepSeek/DeepSeek-R1-FP4",
+    "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
     "prompt": "NVIDIA is a great company because",
     "max_tokens": 16,
     "temperature": 0,
