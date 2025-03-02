@@ -16,14 +16,13 @@
 
 import os
 from contextlib import contextmanager
+from urllib.parse import urlparse
 
 import etcd3
 import msgspec
 from vllm.distributed.device_communicators.nixl import NixlMetadata
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.utils import FlexibleArgumentParser
-from urllib.parse import urlparse
-
 
 METADATA_DIR = "/tmp/nixl"
 
@@ -68,20 +67,18 @@ def find_remote_metadata(engine_id):
     return remote_metadata
 
 
-
-
 class NixlMetadataStore:
     NIXL_METADATA_KEY = "nixl_metadata"
 
     def _get_etcd_endpoint(self):
-        endpoints = os.environ.get('ETCD_ENDPOINTS', '')
+        endpoints = os.environ.get("ETCD_ENDPOINTS", "")
         result = []
-    
+
         if endpoints:
-            for endpoint in endpoints.split(','):
+            for endpoint in endpoints.split(","):
                 parsed = urlparse(endpoint.strip())
                 if parsed.scheme and parsed.netloc:
-                    host, port = parsed.netloc.split(':')
+                    host, port = parsed.netloc.split(":")
                     result.append((host, int(port)))
         if result:
             return result[0]
@@ -117,18 +114,7 @@ class NixlMetadataStore:
             f"{self._namespace}/{NixlMetadataStore.NIXL_METADATA_KEY}/{engine_id}"
         )
 
-        # print("got value", value,metadata)
-
-        print("got value")
-
-        try:
-            deserialized_metadata = msgspec.msgpack.decode(value, type=NixlMetadata)
-        except Exception as e:
-            print(e)
-
-        print("got deserialized value")
-
-        #        print(deserialized_metadata)
+        deserialized_metadata = msgspec.msgpack.decode(value, type=NixlMetadata)
 
         self._cached[engine_id] = deserialized_metadata
 

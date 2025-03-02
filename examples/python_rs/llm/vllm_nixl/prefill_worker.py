@@ -18,8 +18,7 @@ import asyncio
 
 import msgspec
 import uvloop
-from common import parse_vllm_args, NixlMetadataStore
-from vllm.distributed.device_communicators.nixl import NixlMetadata
+from common import NixlMetadataStore, parse_vllm_args
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.api_server import (
     build_async_engine_client_from_engine_args,
@@ -52,16 +51,16 @@ class RequestHandler:
             decode_engine_id=request.engine_id,
         )
 
-
         # get meta data
 
         if request.engine_id not in self._loaded_metadata:
             remote_metadata = self._metadata_store.get(request.engine_id)
             await self.engine_client.add_remote_nixl_metadata(remote_metadata)
-            print(f"loaded metadata for {request.engine_id} into engine client {self.engine_client.nixl_metadata.engine_id}")
+            print(
+                f"loaded metadata for {request.engine_id} into engine client {self.engine_client.nixl_metadata.engine_id}"
+            )
             self._loaded_metadata.add(request.engine_id)
-            
-        
+
         async for _ in self.engine_client.generate(
             request_id=request.request_id,
             prompt=TokensPrompt(prompt_token_ids=request.prompt_token_ids),
@@ -86,7 +85,9 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
 
         metadata_store.put(metadata.engine_id, metadata)
 
-        await endpoint.serve_endpoint(RequestHandler(engine_client, metadata_store).generate)
+        await endpoint.serve_endpoint(
+            RequestHandler(engine_client, metadata_store).generate
+        )
 
 
 if __name__ == "__main__":
