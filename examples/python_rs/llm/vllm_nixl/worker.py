@@ -17,9 +17,9 @@
 import asyncio
 import os
 
-import msgspec
 import uvloop
 from utils.nixl import temp_metadata_file
+from utils.prefill_queue import PrefillQueue
 from utils.protocol import MyRequestOutput, vLLMGenerateRequest
 from utils.vllm import parse_vllm_args
 from vllm.engine.arg_utils import AsyncEngineArgs
@@ -61,12 +61,25 @@ class RequestHandler:
             assert (
                 disaggregated_router is not None
             ), "Disaggregated router is required for remote prefill"
+
+        self.prefill_queue_nats_server = os.getenv(
+            "NATS_SERVER", "nats://localhost:4222"
+        )
+        self.prefill_queue_stream_name = model_name
+        vllm_logger.info(
+            f"Prefill queue: {self.prefill_queue_nats_server}:{self.prefill_queue_stream_name}"
+        )
+
         print("RequestHandler initialized")
 
     def get_remote_prefill_request_callback(self):
+        # TODO: integrate prefill_queue to an triton_distributed endpoint
         async def callback(request: RemotePrefillRequest):
-            json_request = msgspec.json.encode(request).decode("utf-8")
-            self.prefill_client.generate(json_request)
+            async with PrefillQueue.get_instance(
+                nats_server=self.prefill_queue_nats_server,
+                stream_name=self.prefill_queue_stream_name,
+            ) as prefill_queue:
+                await prefill_queue.enqueue_prefill_request(request)
 
         return callback
 
@@ -138,7 +151,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
         disaggregated_router = DisaggregatedRouter(
             runtime,
             engine_args.model,
-            1000,  # note: this max_local_prefill_length will be updated by etcd
+            100,  # note: this max_local_prefill_length will be updated by etcd
         )
 
         engine_client.set_metrics_publisher(metrics_publisher)

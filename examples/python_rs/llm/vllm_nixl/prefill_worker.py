@@ -15,10 +15,11 @@
 
 
 import asyncio
+import os
 
-import msgspec
 import uvloop
 from utils.nixl import find_remote_metadata, temp_metadata_file
+from utils.prefill_queue import PrefillQueue
 from utils.vllm import parse_vllm_args
 from vllm.distributed.device_communicators.nixl import NixlMetadata
 from vllm.engine.arg_utils import AsyncEngineArgs
@@ -26,6 +27,7 @@ from vllm.entrypoints.openai.api_server import (
     build_async_engine_client_from_engine_args,
 )
 from vllm.inputs.data import TokensPrompt
+from vllm.logger import logger as vllm_logger
 from vllm.remote_prefill import RemotePrefillParams, RemotePrefillRequest
 
 from triton_distributed.runtime import DistributedRuntime, triton_worker
@@ -36,11 +38,7 @@ class RequestHandler:
         self.engine_client = engine_client
         print("RequestHandler initialized")
 
-    async def generate(self, raw_request: str):
-        request: RemotePrefillRequest = msgspec.json.decode(
-            raw_request.encode("utf-8"), type=RemotePrefillRequest
-        )
-
+    async def generate(self, request: RemotePrefillRequest):
         sampling_params = request.sampling_params
         sampling_params.max_tokens = 1
         sampling_params.min_tokens = 1
@@ -65,8 +63,6 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     component = runtime.namespace("triton-init").component("prefill")
     await component.create_service()
 
-    endpoint = component.endpoint("generate")
-
     async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
         # This should be replaced with etcd
         metadata = engine_client.nixl_metadata
@@ -82,7 +78,28 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
             )
             for remote_metadata in remote_metadata:
                 await engine_client.add_remote_nixl_metadata(remote_metadata)
-            await endpoint.serve_endpoint(RequestHandler(engine_client).generate)
+
+            prefill_queue_nats_server = os.getenv(
+                "NATS_SERVER", "nats://localhost:4222"
+            )
+            prefill_queue_stream_name = engine_args.model
+            vllm_logger.info(
+                f"Prefill queue: {prefill_queue_nats_server}:{prefill_queue_stream_name}"
+            )
+
+            # TODO: integrate prefill_queue to an triton_distributed endpoint
+            async with PrefillQueue.get_instance(
+                nats_server=prefill_queue_nats_server,
+                stream_name=prefill_queue_stream_name,
+            ) as prefill_queue:
+                while True:
+                    prefill_request = await prefill_queue.dequeue_prefill_request()
+                    if prefill_request is not None:
+                        vllm_logger.info(f"Dequeued prefill request: {prefill_request}")
+                        async for _ in RequestHandler(engine_client).generate(
+                            prefill_request
+                        ):
+                            pass
 
 
 if __name__ == "__main__":
