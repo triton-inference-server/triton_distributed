@@ -71,7 +71,7 @@ pub struct Flags {
     #[arg(long)]
     pub model_config: Option<PathBuf>,
 
-    /// sglang only
+    /// sglang and trtllm only
     ///
     /// How many GPUs to use at once, total across all nodes.
     /// This must divide by num_nodes, and each node must use the same number of GPUs.
@@ -371,6 +371,26 @@ pub async fn run(
                 );
             };
             let engine = llamacpp::make_engine(cancel_token.clone(), &model_path).await?;
+            EngineConfig::StaticCore {
+                service_name: card.service_name.clone(),
+                engine,
+                card: Box::new(card),
+            }
+        }
+        #[cfg(feature = "trtllm")]
+        Output::TrtLLM => {
+            use triton_distributed_llm::engines::trtllm;
+            let Some(model_path) = model_path else {
+                anyhow::bail!("out=trtllm requires flag --model-path=<full-path-to-model-dir>");
+            };
+            if !model_path.is_dir() {
+                anyhow::bail!(
+                    "--model-path should point at a directory containing `.engine` files."
+                );
+            }
+            // Safety: Earlier we build maybe_card from model_path, which we checked right above
+            let card = maybe_card.clone().unwrap();
+            let engine = trtllm::make_engine(model_path.display(), flags.tensor_parallel_size)?;
             EngineConfig::StaticCore {
                 service_name: card.service_name.clone(),
                 engine,
