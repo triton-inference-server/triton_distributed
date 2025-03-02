@@ -16,7 +16,7 @@
 use futures::StreamExt;
 use once_cell::sync::OnceCell;
 use pyo3::exceptions::PyStopAsyncIteration;
-use pyo3::types::PyString;
+use pyo3::types::{PyDict, PyList, PyString};
 use pyo3::IntoPyObjectExt;
 use pyo3::{exceptions::PyException, prelude::*};
 use rs::pipeline::network::Ingress;
@@ -282,6 +282,52 @@ impl EtcdClient {
                 .await
                 .map_err(to_pyerr)?;
             Ok(())
+        })
+    }
+
+    #[pyo3(signature = (key, value, lease_id=None))]
+    fn kv_put<'p>(
+        &self,
+        py: Python<'p>,
+        key: String,
+        value: Vec<u8>,
+        lease_id: Option<i64>,
+    ) -> PyResult<Bound<'p, PyAny>> {
+        let client = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            client
+                .kv_put(key, value, lease_id)
+                .await
+                .map_err(to_pyerr)?;
+            Ok(())
+        })
+    }
+
+    fn kv_get_prefix<'p>(&self, py: Python<'p>, prefix: String) -> PyResult<Bound<'p, PyAny>> {
+        let client = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let result = client
+                .kv_get_prefix(prefix)
+                .await
+                .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+
+            // Convert Vec<KeyValue> to a list of dictionaries
+            let py_list = Python::with_gil(|py| {
+                let list = PyList::empty(py);
+                for kv in result {
+                    let dict = PyDict::new(py);
+                    dict.set_item("key", String::from_utf8_lossy(kv.key()).to_string())?;
+                    dict.set_item("value", String::from_utf8_lossy(kv.value()).to_string())?;
+                    dict.set_item("create_revision", kv.create_revision())?;
+                    dict.set_item("mod_revision", kv.mod_revision())?;
+                    dict.set_item("version", kv.version())?;
+                    dict.set_item("lease", kv.lease())?;
+                    list.append(dict)?;
+                }
+                Ok::<Py<PyList>, PyErr>(list.into())
+            })?;
+
+            Ok(py_list)
         })
     }
 }

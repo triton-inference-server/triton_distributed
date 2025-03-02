@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import AsyncGenerator, AsyncIterator, Callable, List, Optional
+from typing import AsyncGenerator, AsyncIterator, Callable, List, Optional, Dict
 
 class JsonLike:
     """
@@ -50,6 +50,18 @@ class EtcdClient:
     async def kv_create_or_validate(self, key: str, value: bytes, lease_id: Optional[int] = None) -> None:
         """
         Atomically create a key if it does not exist, or validate the values are identical if the key exists.
+        """
+        ...
+
+    async def kv_put(self, key: str, value: bytes, lease_id: Optional[int] = None) -> None:
+        """
+        Put a key-value pair into etcd
+        """
+        ...
+    
+    async def kv_get_prefix(self, prefix: str) -> List[Dict[str, JsonLike]]:
+        """
+        Get all keys with a given prefix
         """
         ...
 
