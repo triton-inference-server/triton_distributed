@@ -18,7 +18,7 @@ import asyncio
 
 import msgspec
 import uvloop
-from common import find_remote_metadata, parse_vllm_args, NixlMetadataStore
+from common import parse_vllm_args, NixlMetadataStore
 from vllm.distributed.device_communicators.nixl import NixlMetadata
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.api_server import (
