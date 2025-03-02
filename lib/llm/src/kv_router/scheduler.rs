@@ -78,7 +78,7 @@ pub struct Service {
     pub id: String,
     pub version: String,
     pub started: String,
-    pub endpoints: Vec<Endpoint>,
+    pub endpoints: Vec<FlexibleEndpoint>,
 }
 
 pub struct SchedulingRequest {

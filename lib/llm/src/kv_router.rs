@@ -17,15 +17,14 @@ use anyhow::Result;
 use futures::stream::StreamExt;
 use std::{sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
-use tracing as log;
 use tracing;
 use triton_distributed_runtime::{component::Component, DistributedRuntime};
 
 pub mod indexer;
 pub mod protocols;
 pub mod publisher;
-mod scheduler;
-mod scoring;
+pub mod scheduler;
+pub mod scoring;
 
 use crate::kv_router::{
     indexer::{KvIndexer, KvIndexerInterface, RouterEvent},
@@ -57,8 +56,8 @@ impl KvRouter {
         let nats_client = runtime.nats_client();
         let service_name = backend.service_name();
         let kv_subject = backend.event_subject(KV_EVENT_SUBJECT);
-        log::info!("Component Service Name {}", service_name);
-        log::info!("KV Subject {}", kv_subject);
+        tracing::info!("Component Service Name {}", service_name);
+        tracing::info!("KV Subject {}", kv_subject);
         Self::new(nats_client, service_name, kv_subject).await
     }
 
@@ -80,16 +79,26 @@ impl KvRouter {
         let indexer = KvIndexer::new(cancellation_token.clone());
         let scheduler = KvScheduler::start(ep_rx).await?;
 
-        log::debug!("subscribing to kv events: {}", kv_subject);
+        tracing::debug!("subscribing to kv events: {}", kv_subject);
         let mut kv_events_rx = nats_client.client().subscribe(kv_subject).await?;
         let kv_events_tx = indexer.event_sender();
 
         tokio::spawn(async move {
             while let Some(event) = kv_events_rx.next().await {
-                let event: RouterEvent = serde_json::from_slice(&event.payload).unwrap();
-                log::debug!("received kv event: {:?}", event);
+                let event: RouterEvent = match serde_json::from_slice(&event.payload) {
+                    Ok(event) => {
+                        tracing::debug!("received kv event: {:?}", event);
+                        event
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to deserialize RouterEvent: {:?}", e);
+                        // Choosing warn and continue to process other events from other workers
+                        // A bad event likely signals a problem with a worker, but potentially other workers are still healthy
+                        continue;
+                    }
+                };
                 if let Err(e) = kv_events_tx.send(event).await {
-                    log::trace!("failed to send kv event to indexer; shutting down: {:?}", e);
+                    tracing::trace!("failed to send kv event to indexer; shutting down: {:?}", e);
                 }
             }
         });
@@ -119,7 +128,7 @@ impl KvRouter {
             .indexer
             .find_matches_for_request(token_ids.as_slice())
             .await?;
-        log::debug!("KV router overlap_scores: {:?}", overlap_scores);
+        tracing::debug!("KV router overlap_scores: {:?}", overlap_scores);
         let worker_id = self.scheduler.schedule(overlap_scores, isl_tokens).await?;
         Ok(worker_id)
     }
@@ -134,32 +143,34 @@ async fn collect_endpoints(
     loop {
         tokio::select! {
             _ = cancel.cancelled() => {
-                log::debug!("cancellation token triggered");
+                tracing::debug!("cancellation token triggered");
                 break;
             }
             _ = tokio::time::sleep(Duration::from_secs(1)) => {
-                log::trace!("collecting endpoints for service: {}", service_name);
+                tracing::trace!("collecting endpoints for service: {}", service_name);
             }
         }
 
-        let values = nats_client
+        let values = match nats_client
             .get_endpoints(&service_name, Duration::from_secs(1))
             .await
-            .unwrap();
+        {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::warn!("Failed to retrieve endpoints for {}: {:?}", service_name, e);
+                continue;
+            }
+        };
 
         tracing::debug!("values: {:?}", values);
-        let services: Vec<FlexibleService> = values
+        let services: Vec<Service> = values
             .into_iter()
             .filter(|v| !v.is_empty())
-            .filter_map(|v| {
-                match serde_json::from_slice::<FlexibleService>(&v) {
-                    Ok(service) => {
-                        Some(service)
-                    },
-                    Err(e) => {
-                        tracing::warn!("For value: {:?} \nFailed to parse service: {:?}", v, e);
-                        None
-                    }
+            .filter_map(|v| match serde_json::from_slice::<Service>(&v) {
+                Ok(service) => Some(service),
+                Err(e) => {
+                    tracing::warn!("For value: {:?} \nFailed to parse service: {:?}", v, e);
+                    None
                 }
             })
             .collect();
@@ -173,10 +184,11 @@ async fn collect_endpoints(
                 name: s.name,
                 subject: s.subject,
                 data: s.data.unwrap(),
-            }).collect();
+            })
+            .collect();
         tracing::debug!("endpoints: {:?}", endpoints);
 
-        log::trace!(
+        tracing::trace!(
             "found {} endpoints for service: {}",
             endpoints.len(),
             service_name
@@ -186,7 +198,7 @@ async fn collect_endpoints(
 
         // process endpoints into
         if ep_tx.send(processed).await.is_err() {
-            log::trace!("failed to send processed endpoints; shutting down");
+            tracing::trace!("failed to send processed endpoints; shutting down");
             break;
         }
     }
