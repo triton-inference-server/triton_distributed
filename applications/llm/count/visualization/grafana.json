@@ -572,7 +572,7 @@
       ]
     }
   ],
-  "refresh": "5s",
+  "refresh": "2s",
   "schemaVersion": 38,
   "style": "dark",
   "tags": [
@@ -584,8 +584,8 @@
       {
         "current": {
           "selected": false,
-          "text": "backend",
-          "value": "backend"
+          "text": "component",
+          "value": "vllm"
         },
         "datasource": {
           "type": "prometheus",
@@ -611,8 +611,8 @@
       {
         "current": {
           "selected": false,
-          "text": "generate",
-          "value": "generate"
+          "text": "endpoint",
+          "value": "load_metrics"
         },
         "datasource": {
           "type": "prometheus",
@@ -638,7 +638,7 @@
     ]
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {},
