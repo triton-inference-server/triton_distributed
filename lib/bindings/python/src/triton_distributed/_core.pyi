@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import AsyncGenerator, AsyncIterator, Callable, List
+from typing import AsyncGenerator, AsyncIterator, Callable, List, Optional
 
 class JsonLike:
     """
@@ -34,6 +34,22 @@ class DistributedRuntime:
     def namespace(self, name: str, path: str) -> Namespace:
         """
         Create a `Namespace` object
+        """
+        ...
+
+    def etcd_client(self) -> EtcdClient:
+        """
+        Get the `EtcdClient` object
+        """
+        ...
+
+class EtcdClient:
+    """
+    Etcd is used for discovery in the DistributedRuntime
+    """
+    async def kv_create_or_validate(self, key: str, value: bytes, lease_id: Optional[int] = None) -> None:
+        """
+        Atomically create a key if it does not exist, or validate the values are identical if the key exists.
         """
         ...
 
