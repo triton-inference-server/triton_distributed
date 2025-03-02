@@ -71,7 +71,7 @@ llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B triton-init
 +------------+------------------------------------------+-----------+-----------+----------+
 | MODEL TYPE | MODEL NAME                               | NAMESPACE | COMPONENT | ENDPOINT |
 +------------+------------------------------------------+-----------+-----------+----------+
-| chat       | deepseek-ai/DeepSeek-R1-Distill-Llama-8B | test-nixl | vllm      | generate |
+| chat       | deepseek-ai/DeepSeek-R1-Distill-Llama-8B | triton-init | vllm      | generate |
 +------------+------------------------------------------+-----------+-----------+----------+
 ```
 
@@ -82,11 +82,31 @@ llmctl http add chat-models deepseek-ai/DeepSeek-R1-Distill-Llama-8B triton-init
 In a separate terminal run the vllm worker:
 
 ```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
 # Launch worker
 cd /workspace/examples/python_rs/llm/vllm
 python3 -m monolith.worker \
     --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B \
     --enforce-eager
+```
+
+##### Example Output
+
+```
+root@neelays-dt:/workspace/examples/python_rs/llm/vllm# INFO 03-02 05:30:36 __init__.py:190] Automatically detected platform cuda.
+WARNING 03-02 05:30:36 nixl.py:43] NIXL is not available
+
+INFO 03-02 05:30:43 config.py:542] This model supports multiple tasks: {'embed', 'score', 'generate', 'classify', 'reward'}. Defaulting to 'generate'.
+INFO 03-02 05:30:43 base_engine.py:43] Initializing engine client
+INFO 03-02 05:30:43 api_server.py:206] Started engine process with PID 1151
+INFO 03-02 05:30:44 config.py:542] This model supports multiple tasks: {'embed', 'score', 'generate', 'classify', 'reward'}. Defaulting to 'generate'.
+
+<SNIP>
+
+INFO 03-02 05:32:20 llm_engine.py:476] init engine (profile, create kv cache, warmup model) took 4.22 seconds
+
 ```
 
 #### 2.2. Disaggregated Deployment
@@ -95,6 +115,9 @@ This deployment option splits the model serving across prefill and decode worker
 
 **Terminal 1 - Prefill Worker:**
 ```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
 # Launch prefill worker
 cd /workspace/examples/python_rs/llm/vllm
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregated.prefill_worker \
@@ -106,8 +129,21 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=0 python3 -m disaggregat
     '{"kv_connector":"TritonNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2}'
 ```
 
+##### Example Output
+
+```
+INFO 03-02 05:59:44 worker.py:269] the current vLLM instance can use total_gpu_memory (47.54GiB) x gpu_memory_utilization (0.40) = 19.01GiB
+INFO 03-02 05:59:44 worker.py:269] model weights take 14.99GiB; non_torch_memory takes 0.06GiB; PyTorch activation peak memory takes 1.19GiB; the rest of the memory reserved for KV Cache is 2.78GiB.
+INFO 03-02 05:59:44 executor_base.py:110] # CUDA blocks: 1423, # CPU blocks: 2048
+INFO 03-02 05:59:44 executor_base.py:115] Maximum concurrency for 10 tokens per request: 2276.80x
+INFO 03-02 05:59:47 llm_engine.py:476] init engine (profile, create kv cache, warmup model) took 3.41 seconds
+```
+
 **Terminal 2 - Decode Worker:**
 ```bash
+# Activate virtual environment
+source /opt/triton/venv/bin/activate
+
 # Launch decode worker
 cd /workspace/examples/python_rs/llm/vllm
 VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggregated.decode_worker \
@@ -120,6 +156,16 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn CUDA_VISIBLE_DEVICES=1,2 python3 -m disaggreg
 ```
 
 The disaggregated deployment utilizes separate GPUs for prefill and decode operations, allowing for optimized resource allocation and improved performance. For more details on the disaggregated deployment, please refer to the [vLLM documentation](https://docs.vllm.ai/en/latest/features/disagg_prefill.html).
+
+##### Example Output
+
+```
+INFO 03-02 05:59:44 worker.py:269] the current vLLM instance can use total_gpu_memory (47.54GiB) x gpu_memory_utilization (0.40) = 19.01GiB
+INFO 03-02 05:59:44 worker.py:269] model weights take 14.99GiB; non_torch_memory takes 0.06GiB; PyTorch activation peak memory takes 1.19GiB; the rest of the memory reserved for KV Cache is 2.78GiB.
+INFO 03-02 05:59:44 executor_base.py:110] # CUDA blocks: 1423, # CPU blocks: 2048
+INFO 03-02 05:59:44 executor_base.py:115] Maximum concurrency for 10 tokens per request: 2276.80x
+INFO 03-02 05:59:47 llm_engine.py:476] init engine (profile, create kv cache, warmup model) took 3.41 seconds
+```
 
 
 ### 3. Client
@@ -135,7 +181,8 @@ curl localhost:8080/v1/chat/completions \
   }'
 ```
 
-Expected output:
+##### Example Output
+
 ```json
 {
     "id": "5b04e7b0-0dcd-4c45-baa0-1d03d924010c",
@@ -273,7 +320,8 @@ curl localhost:8080/v1/chat/completions   -H "Content-Type: application/json"   
     "max_tokens": 30
   }'
 ```
-Expected output:
+##### Example Output
+
 ```json
 {
     "id": "f435d1aa-d423-40a0-a616-00bc428a3e32",
