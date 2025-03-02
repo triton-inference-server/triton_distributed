@@ -95,7 +95,7 @@ python3 -m monolith.worker \
 ##### Example Output
 
 ```
-root@neelays-dt:/workspace/examples/python_rs/llm/vllm# INFO 03-02 05:30:36 __init__.py:190] Automatically detected platform cuda.
+INFO 03-02 05:30:36 __init__.py:190] Automatically detected platform cuda.
 WARNING 03-02 05:30:36 nixl.py:43] NIXL is not available
 
 INFO 03-02 05:30:43 config.py:542] This model supports multiple tasks: {'embed', 'score', 'generate', 'classify', 'reward'}. Defaulting to 'generate'.
