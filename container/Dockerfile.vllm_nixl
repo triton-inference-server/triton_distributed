@@ -278,6 +278,7 @@ COPY --from=dev /bin/uvx /usr/local/bin/uvx
 
 # Copy nixl
 COPY --from=dev /usr/local/nixl /usr/local/nixl
+COPY --from=dev /opt/nixl /opt/nixl
 
 # Set environment variables for nixl
 ENV LD_LIBRARY_PATH=/usr/local/nixl/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH
