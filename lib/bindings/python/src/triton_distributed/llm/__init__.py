@@ -15,3 +15,5 @@
 
 from triton_distributed._core import KvMetricsPublisher as KvMetricsPublisher
 from triton_distributed._core import KvRouter as KvRouter
+from triton_distributed._core import KvIndexer as KvIndexer
+from triton_distributed._core import KvMetricsAggregator as KvMetricsAggregator

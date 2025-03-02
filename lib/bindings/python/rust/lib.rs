@@ -65,6 +65,11 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<AsyncResponseStream>()?;
     m.add_class::<llm::kv::KvRouter>()?;
     m.add_class::<llm::kv::KvMetricsPublisher>()?;
+    m.add_class::<llm::kv::OverlapScores>()?;
+    m.add_class::<llm::kv::KvIndexer>()?;
+    m.add_class::<llm::kv::EndpiontKvMetrics>()?;
+    m.add_class::<llm::kv::AggregatedMetrics>()?;
+    m.add_class::<llm::kv::KvMetricsAggregator>()?;
 
     engine::add_to_module(m)?;
 
