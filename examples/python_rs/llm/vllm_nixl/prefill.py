@@ -60,10 +60,10 @@ class RequestHandler:
             #        print(remote_metadata,flush = True)
             print("got metadata_2")
 
-            if not self._loaded:
-                x = await self.engine_client.add_remote_nixl_metadata(remote_metadata)
-                self._loaded = True
-                print("loaded into engine client", x)
+            #if not self._loaded:
+            x = await self.engine_client.add_remote_nixl_metadata(remote_metadata)
+            self._loaded = True
+            print("loaded into engine client", x)
 
             async for _ in self.engine_client.generate(
                 request_id=request.request_id,
