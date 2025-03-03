@@ -56,7 +56,7 @@ def parse_chat_message_content(
     for part in content:
         part_type = part["type"]
         if part_type == "text":
-            text = part["text"]
+            text = part["text"]  # type: ignore
             texts.append(text)
         else:
             raise NotImplementedError(f"{part_type} is not supported")

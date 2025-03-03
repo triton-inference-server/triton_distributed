@@ -78,7 +78,7 @@ def parse_chat_message_content(
     for part in content:
         part_type = part["type"]
         if part_type == "text":
-            text = part["text"]
+            text = part["text"]  # type: ignore
             texts.append(text)
         else:
             raise NotImplementedError(f"{part_type} is not supported")
@@ -341,7 +341,7 @@ class ChatProcessor:
 def merge_promises(
     promises: List[RequestOutput],
 ) -> AsyncIterator[Tuple[int, RequestOutput]]:
-    outputs = asyncio.Queue()
+    outputs = asyncio.Queue()  # type: ignore
     finished = [False] * len(promises)
 
     async def producer(i: int, promise: RequestOutput):
