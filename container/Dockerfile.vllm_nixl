@@ -199,6 +199,7 @@ RUN apt update -y && \
     pkg-config && \
     curl https://sh.rustup.rs -sSf | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustup toolchain install 1.85.0-x86_64-unknown-linux-gnu
 
 # Working directory
 WORKDIR /workspace
@@ -291,7 +292,7 @@ COPY container/deps/vllm /workspace/container/deps/vllm
 COPY --from=dev ${VLLM_KV_CAPI_PATH} ${VLLM_KV_CAPI_PATH}
 # Copy minimal set of files for deployment/examples
 # FIXME: Use a more consolidated path after directory restructure
-COPY examples/python_rs/llm/vllm /workspace/examples/python_rs/llm/vllm
+COPY examples/python_rs/llm/vllm_nixl /workspace/examples/python_rs/llm/vllm_nixl
 
 WORKDIR /workspace
 
