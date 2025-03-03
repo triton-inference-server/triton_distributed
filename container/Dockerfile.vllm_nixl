@@ -49,9 +49,14 @@ RUN --mount=type=bind,source=./container/deps/requirements.test.txt,target=/tmp/
 ### NIXL SETUP ###
 
 ARG MOFED_VERSION=5.8-1.1.2.1
-ARG PYTHON_VERSION=3.12
 ARG NSYS_URL=https://developer.nvidia.com/downloads/assets/tools/secure/nsight-systems/2024_4/
 ARG NSYS_PKG=NsightSystems-linux-cli-public-2024.4.1.61-3431596.deb
+# Set environment variables for nixl
+ARG PYTHON_VERSION=3.12
+ENV LD_LIBRARY_PATH=/usr/local/nixl/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH
+ENV PYTHONPATH=/usr/local/nixl/lib/python${PYTHON_VERSION}/site-packages/:/opt/nixl/test/python/:$PYTHONPATH
+
+
 
 RUN apt-get update -y && apt-get -y install curl \
                                             git \
@@ -168,8 +173,6 @@ RUN cd /opt/nixl && \
     cp ../include/internal/*.h /usr/local/nixl/include/ && \
     cp ../src/utils/serdes/serdes.h /usr/local/nixl/include
 
-ENV LD_LIBRARY_PATH=/usr/local/nixl/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH
-ENV PYTHONPATH=/usr/local/nixl/lib/python${PYTHON_VERSION}/site-packages/:/opt/nixl/test/python/:$PYTHONPATH
 
 RUN ls -l /usr/local/nixl/
 RUN ls -l /usr/local/nixl/include/
@@ -279,8 +282,17 @@ COPY --from=dev /usr/bin/nats-server /usr/local/bin/nats-server
 COPY --from=dev /bin/uv /usr/local/bin/uv
 COPY --from=dev /bin/uvx /usr/local/bin/uvx
 
+# Copy nixl
+COPY --from=dev /usr/local/nixl /usr/local/nixl
+COPY --from=dev /opt/nixl /opt/nixl
+
+# Set environment variables for nixl
+ARG PYTHON_VERSION=3.12
+ENV LD_LIBRARY_PATH=/usr/local/nixl/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH
+ENV PYTHONPATH=/usr/local/nixl/lib/python${PYTHON_VERSION}/site-packages/:/opt/nixl/test/python/:$PYTHONPATH
+
 # Copy venv with installed packages
-RUN uv python install 3.12
+RUN uv python install ${PYTHON_VERSION}
 COPY --from=dev /opt/vllm /opt/vllm
 COPY --from=dev ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
