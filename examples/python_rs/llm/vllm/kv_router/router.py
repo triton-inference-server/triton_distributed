@@ -94,14 +94,6 @@ async def worker(runtime: DistributedRuntime, args: Namespace):
         .endpoint("generate")
         .client()
     )
-    wait_task = workers_client.wait_for_endpoints()
-    await asyncio.sleep(1)
-
-    while not wait_task.done():
-        vllm_logger.info("Waiting for workers to be ready...")
-        await asyncio.sleep(5)
-
-    wait_task.result()
 
     while len(workers_client.endpoint_ids()) < args.min_workers:
         vllm_logger.info(

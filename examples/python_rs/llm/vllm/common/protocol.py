@@ -16,6 +16,7 @@
 
 import json
 from typing import Any, List, Optional
+from enum import Enum
 
 import msgspec
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -26,7 +27,9 @@ from vllm.outputs import CompletionOutput
 from vllm.sampling_params import SamplingParams
 from vllm.sequence import PromptLogprobs, RequestMetrics
 
-
+class RequestType(Enum):
+    CHAT = "chat"
+    COMPLETION = "completion"
 class Request(BaseModel):
     prompt: str
     sampling_params: dict

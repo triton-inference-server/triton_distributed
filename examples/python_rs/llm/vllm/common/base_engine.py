@@ -17,7 +17,7 @@
 import abc
 import logging
 
-from common.chat_processor import ChatProcessor
+from common.chat_processor import ChatProcessor, CompletionsProcessor
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.openai.api_server import (
     build_async_engine_client_from_engine_args,
@@ -36,6 +36,7 @@ class BaseVllmEngine:
         self.model_config = self.engine_args.create_model_config()
         self.engine_client = None
         self.chat_processor: ChatProcessor | None = None
+        self.completions_processor: CompletionsProcessor | None = None
         self._engine_context = None
 
     async def initialize(self):
@@ -48,6 +49,9 @@ class BaseVllmEngine:
             self.engine_client = await self._engine_context.__aenter__()
             self.tokenizer = await self.engine_client.get_tokenizer()
             self.chat_processor = ChatProcessor(self.tokenizer, self.model_config)
+            self.completions_processor = CompletionsProcessor(
+                self.tokenizer, self.model_config
+            )
         else:
             raise RuntimeError("Failed to initialize engine client")
 

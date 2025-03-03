@@ -167,6 +167,8 @@ class ChatProcessor:
     ):
         request_metadata = RequestResponseMetadata(request_id=request_id)
         if not request.stream:
+            # Rust HTTP requires Delta streaming and overwrites the request.stream flag
+            # If stream was false it will aggregate all the responses and return them in a single response
             raise ValueError("Only streaming responses are supported")
         async for raw_response in self.openai_serving.chat_completion_stream_generator(
             request,
@@ -222,6 +224,8 @@ class CompletionsProcessor:
     ):
         request_metadata = RequestResponseMetadata(request_id=request_id)
         if not request.stream:
+            # Rust HTTP requires Delta streaming and overwrites the request.stream flag
+            # If stream was false it will aggregate all the responses and return them in a single response
             raise ValueError("Only streaming responses are supported")
         async for raw_response in self.openai_serving.completion_stream_generator(
             request,
