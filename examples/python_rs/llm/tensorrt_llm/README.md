@@ -179,7 +179,25 @@ curl localhost:8080/v1/completions \
         "prompt": "NVIDIA is a great company because",
         "max_tokens": 16,
         "temperature": 0
-    }' -w "\n"
+    }'
+```
+
+Output:
+```
+{
+  "id":"cmpl-e0d75aca1bd540399809c9b609eaf010",
+  "choices":[
+    {
+      "text":"they are always pushing the boundaries of what is possible with technology. They are constantly",
+      "index":0,
+      "finish_reason":"length"
+    }
+  ],
+  "created":1741024639,
+  "model":"TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "object":"completion",
+  "usage":null
+}
 ```
 
 ### 2. Disaggregated Deployment

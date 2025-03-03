@@ -23,10 +23,12 @@ import uvloop
 from common.base_engine import BaseTensorrtLLMEngine
 from common.parser import LLMAPIConfig, parse_tensorrt_llm_args
 from common.processor import merge_promises, parse_chat_message_content
-from common.protocol import nvChatCompletionRequest
+
+# from common.protocol import nvChatCompletionRequest
 from tensorrt_llm.executor import CppExecutorError
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (
+    ChatCompletionRequest,
     ChatCompletionStreamResponse,
     CompletionRequest,
     CompletionStreamResponse,
@@ -49,7 +51,7 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
     def __init__(self, engine_config: LLMAPIConfig):
         super().__init__(engine_config)
 
-    @triton_endpoint(nvChatCompletionRequest, ChatCompletionStreamResponse)
+    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
     async def generate_chat(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
@@ -83,16 +85,12 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
                 sampling_params,
                 streaming=request.stream,
             )
-            if request.stream:
-                response_generator = self.chat_processor.stream_response(
-                    request, request_id, conversation, promise
-                )
-                async for response in response_generator:
-                    print(f"[worker] Sending response {response}")
-                    yield response
-            else:
-                # TODO: Implement non-streaming chat completion
-                raise RuntimeError("Non-streaming is not supported")
+            # NOTE: somehow stream and non-stream is working with the same path
+            response_generator = self.chat_processor.stream_response(
+                request, request_id, conversation, promise
+            )
+            async for response in response_generator:
+                yield response
 
             self._ongoing_request_count -= 1
         except CppExecutorError:
@@ -132,15 +130,13 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
             num_choices = (
                 len(prompts) if request.n is None else len(prompts) * request.n
             )
+
+            # NOTE: somehow stream and non-stream is working with the same path
             response_generator = self.completions_processor.create_completion_generator(
                 request, generator, num_choices
             )
-            if request.stream:
-                async for response in response_generator:
-                    yield json.loads(response)
-            else:
-                # TODO: non stream
-                raise RuntimeError("Non-streaming is not supported")
+            async for response in response_generator:
+                yield json.loads(response)
 
             self._ongoing_request_count -= 1
         except CppExecutorError:
