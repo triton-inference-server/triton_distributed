@@ -26,6 +26,7 @@ pre-commit
 protobuf==5.27.3
 pydantic==2.7.1
 pyright
+PyYAML
 sentencepiece
 transformers
 tritonclient==2.53.0
