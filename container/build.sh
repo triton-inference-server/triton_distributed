@@ -175,6 +175,9 @@ get_options() {
         --no-cache)
             NO_CACHE=" --no-cache"
             ;;
+        --plain-progress)
+            PLAIN_PROGRESS=" --progress=plain"
+            ;;
         --cache-from)
             if [ "$2" ]; then
                 CACHE_FROM="--cache-from $2"
@@ -293,7 +296,9 @@ show_help() {
     echo "  [--cache-from cache location to start from]"
     echo "  [--cache-to location where to cache the build output]"
     echo "  [--tag tag for image]"
+    echo "  [--target target for docker build: runtime, dev, (default: runtime)]"
     echo "  [--no-cache disable docker build cache]"
+    echo "  [--plain-progress print docker outputs without progress bar]"
     echo "  [--dry-run print docker commands without running]"
     echo "  [--build-context name=path to add build context]"
     exit 0
@@ -351,7 +356,7 @@ if [ -z "$RUN_PREFIX" ]; then
     set -x
 fi
 
-$RUN_PREFIX docker buildx build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $CACHE_TO --output type=docker $TAG $LATEST_TAG $BUILD_CONTEXT_ARG $BUILD_CONTEXT $NO_CACHE
+$RUN_PREFIX docker buildx build -f $DOCKERFILE $TARGET_STR $PLATFORM $BUILD_ARGS $CACHE_FROM $CACHE_TO --output type=docker $TAG $LATEST_TAG $BUILD_CONTEXT_ARG $BUILD_CONTEXT $NO_CACHE $PLAIN_PROGRESS
 
 { set +x; } 2>/dev/null
 
