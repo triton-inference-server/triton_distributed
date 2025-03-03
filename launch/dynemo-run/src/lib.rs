@@ -39,7 +39,7 @@ pub use opt::{Input, Output};
 /// How we identify a namespace/component/endpoint URL.
 /// Technically the '://' is not part of the scheme but it eliminates several string
 /// concatenations.
-const ENDPOINT_SCHEME: &str = "tdr://";
+const ENDPOINT_SCHEME: &str = "dyn://";
 
 /// Required options depend on the in and out choices
 #[derive(clap::Parser, Debug, Clone)]
