@@ -96,7 +96,7 @@ By default the server will run on port 8080.
 
 Add model to the server:
 ```bash
-llmctl http add chat DeepSeek/DeepSeek-R1-FP4 triton-init.tensorrt-llm.chat/completions
+llmctl http add chat TinyLlama/TinyLlama-1.1B-Chat-v1.0 triton-init.tensorrt-llm.chat/completions
 llmctl http add completion TinyLlama/TinyLlama-1.1B-Chat-v1.0 triton-init.tensorrt-llm.completions
 ```
 
@@ -127,14 +127,7 @@ Upon successful launch, the output should look similar to:
 
 ##### Option 1.2 Single-Node Multi-GPU
 
-Update `tensor_parallel_size` in the `model.json` to load the model with the desired number of GPUs.
-For this example, we will load the model with 4 GPUs.
-
-```bash
-# Launch worker
-cd /workspace/examples/python_rs/llm/tensorrt_llm
-mpirun --allow-run-as-root -n 1 --oversubscribe python3 -m monolith.worker --engine_args model.json 1>agg_worker.log 2>&1 &
-```
+Update `tensor_parallel_size` in the `llm_api_config.yaml` to load the model with the desired number of GPUs.
 `nvidia-smi` can be used to check the GPU usage and the model is loaded on 4 GPUs.
 
 ##### Option 1.3 Multi-Node Multi-GPU
@@ -152,17 +145,6 @@ curl localhost:8080/v1/chat/completions \
     "messages": [
       {"role": "user", "content": "What is the capital of France?"}
     ]
-  }'
-
-# completion
-curl localhost:8080/v1/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-    "prompt": "NVIDIA is a great company because",
-    "max_tokens": 16,
-    "temperature": 0,
-    "stream": true
   }'
 ```
 
@@ -199,8 +181,6 @@ curl localhost:8080/v1/completions \
         "temperature": 0
     }' -w "\n"
 ```
-
-TODO: Fix the failure in the completion endpoint. application-logic-mismatch with CompletionStreamResponse.
 
 ### 2. Disaggregated Deployment
 

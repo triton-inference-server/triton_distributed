@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import time
-from typing import Any, AsyncIterator, Dict, List, Tuple, TypedDict
+from typing import Any, Dict, List, TypedDict
 
 from common.protocol import DisaggregatedResponse
 from openai.types.chat import ChatCompletionMessageParam
@@ -28,11 +27,6 @@ from tensorrt_llm.serve.openai_protocol import (
     ChatCompletionResponseChoice,
     ChatCompletionResponseStreamChoice,
     ChatMessage,
-    CompletionRequest,
-    CompletionResponse,
-    CompletionResponseChoice,
-    CompletionResponseStreamChoice,
-    CompletionStreamResponse,
     DeltaMessage,
     FunctionCall,
     ToolCall,
@@ -287,107 +281,5 @@ class ChatProcessor:
             model=model,
             choices=choices,
             usage=usage,
-        )
-        return response
-
-
-def merge_promises(
-    promises: List[RequestOutput],
-) -> AsyncIterator[Tuple[int, RequestOutput]]:
-    outputs = asyncio.Queue()
-    finished = [False] * len(promises)
-
-    async def producer(i: int, promise: RequestOutput):
-        async for output in promise:
-            await outputs.put((i, output))
-        finished[i] = True
-
-    _tasks = [
-        asyncio.create_task(producer(i, promise)) for i, promise in enumerate(promises)
-    ]
-
-    async def consumer():
-        while not all(finished) or not outputs.empty():
-            item = await outputs.get()
-            yield item
-        await asyncio.gather(*_tasks)
-
-    return consumer()
-
-
-class CompletionsProcessor:
-    def __init__(self, model: str):
-        self.model = model
-
-    async def create_completion_generator(
-        self,
-        request: CompletionRequest,
-        generator: AsyncIterator[Tuple[int, RequestOutput]],
-        num_choices: int,
-    ):
-        num_repsonse_per_request = 1 if request.n is None else request.n
-        echoed = [False] * num_choices
-        async for prompt_idx, requst_output in generator:
-            prompt = requst_output.prompt
-            for gen_idx, output in enumerate(requst_output.outputs):
-                response_idx = prompt_idx * num_repsonse_per_request + gen_idx
-                delta_text = output.text_diff
-                if request.echo and not echoed[response_idx]:
-                    delta_text = prompt + delta_text
-                    echoed[response_idx] = True
-                response = CompletionStreamResponse(
-                    model=self.model,
-                    choices=[
-                        CompletionResponseStreamChoice(
-                            index=response_idx,
-                            text=delta_text,
-                            stop_reason=output.stop_reason,
-                            finish_reason=output.finish_reason,
-                        )
-                    ],
-                )
-                response_json = response.model_dump_json(exclude_unset=False)
-                yield f"{response_json}\n\n"
-        yield "[DONE]\n\n"
-
-    async def create_completion_response(
-        self,
-        request: CompletionRequest,
-        generator: AsyncIterator[Tuple[int, RequestOutput]],
-        num_choices: int,
-    ):
-        choices = [None] * num_choices
-        num_repsonse_per_request = 1 if request.n is None else request.n
-        num_prompt_tokens = num_gen_tokens = 0
-        async for prompt_idx, request_output in generator:
-            num_prompt_tokens += len(request_output.prompt_token_ids)
-            for gen_idx, output in enumerate(request_output.outputs):
-                num_gen_tokens += len(output.token_ids)
-                output_text = output.text
-                if request.echo:
-                    output_text = request_output.prompt + output_text
-                idx = prompt_idx * num_repsonse_per_request + gen_idx
-
-                disaggregated_params = CompletionResponseChoice.to_disaggregated_params(
-                    output.disaggregated_params
-                )
-                choice = CompletionResponseChoice(
-                    index=idx,
-                    text=output_text,
-                    stop_reason=output.stop_reason,
-                    finish_reason=output.finish_reason,
-                    disaggregated_params=disaggregated_params,
-                )
-                choices[idx] = choice
-
-        usage_info = UsageInfo(
-            prompt_tokens=num_prompt_tokens,
-            completion_tokens=num_gen_tokens,
-            total_tokens=num_gen_tokens + num_prompt_tokens,
-        )
-        response = CompletionResponse(
-            model=self.model,
-            choices=choices,
-            usage=usage_info,
         )
         return response

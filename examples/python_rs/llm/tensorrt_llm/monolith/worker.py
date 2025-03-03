@@ -18,8 +18,6 @@ import asyncio
 import json
 import signal
 import uuid
-from enum import Enum
-from typing import List
 
 import uvloop
 from common.base_engine import BaseTensorrtLLMEngine
@@ -27,7 +25,6 @@ from common.parser import LLMAPIConfig, parse_tensorrt_llm_args
 from common.processor import merge_promises, parse_chat_message_content
 from common.protocol import nvChatCompletionRequest
 from tensorrt_llm.executor import CppExecutorError
-from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (
     ChatCompletionStreamResponse,
@@ -42,11 +39,6 @@ from triton_distributed.runtime import (
 )
 
 logger.set_level("debug")
-
-
-class RequestType(Enum):
-    CHAT = "chat"
-    COMPLETION = "completion"
 
 
 class TensorrtLLMEngine(BaseTensorrtLLMEngine):
@@ -64,6 +56,7 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
 
         logger.debug(f"Received chat request: {request}")
         request_id = str(uuid.uuid4())
+        self._ongoing_request_count += 1
 
         try:
             conversation = []
@@ -85,22 +78,23 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
             )
             sampling_params = request.to_sampling_params()
 
-            if self._llm_engine is not None:
-                promise = self._llm_engine.generate_async(
-                    prompt,
-                    sampling_params,
-                    streaming=request.stream,
+            promise = self._llm_engine.generate_async(
+                prompt,
+                sampling_params,
+                streaming=request.stream,
+            )
+            if request.stream:
+                response_generator = self.chat_processor.stream_response(
+                    request, request_id, conversation, promise
                 )
-                if request.stream:
-                    response_generator = self.chat_processor.stream_response(
-                        request, request_id, conversation, promise
-                    )
-                    async for response in response_generator:
-                        print(f"[worker] Sending response {response}")
-                        yield response
-                else:
-                    # TODO: Implement non-streaming chat completion
-                    raise RuntimeError("Non-streaming is not supported")
+                async for response in response_generator:
+                    print(f"[worker] Sending response {response}")
+                    yield response
+            else:
+                # TODO: Implement non-streaming chat completion
+                raise RuntimeError("Non-streaming is not supported")
+
+            self._ongoing_request_count -= 1
         except CppExecutorError:
             # If internal executor error is raised, shutdown the server
             signal.raise_signal(signal.SIGINT)
@@ -122,29 +116,38 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
         else:
             prompts = request.prompt
 
-        promises: List[RequestOutput] = []
+        promises = []
         sampling_params = request.to_sampling_params()
-        disaggregated_params = request.to_llm_disaggregated_params()
 
-        for prompt in prompts:
-            promise = self._llm_engine.generate_async(
-                prompt,
-                sampling_params,
-                streaming=request.stream,
-                disaggregated_params=disaggregated_params,
+        try:
+            for prompt in prompts:
+                promise = self._llm_engine.generate_async(
+                    prompt,
+                    sampling_params,
+                    streaming=request.stream,
+                )
+                promises.append(promise)
+
+            generator = merge_promises(promises)
+            num_choices = (
+                len(prompts) if request.n is None else len(prompts) * request.n
             )
-            promises.append(promise)
+            response_generator = self.completions_processor.create_completion_generator(
+                request, generator, num_choices
+            )
+            if request.stream:
+                async for response in response_generator:
+                    yield json.loads(response)
+            else:
+                # TODO: non stream
+                raise RuntimeError("Non-streaming is not supported")
 
-        generator = merge_promises(promises)
-        num_choices = len(prompts) if request.n is None else len(prompts) * request.n
-        response_generator = self.completions_processor.create_completion_generator(
-            request, generator, num_choices
-        )
-        async for response in response_generator:
-            yield json.loads(response)
-
-        # TODO: non stream
-        self._ongoing_request_count -= 1
+            self._ongoing_request_count -= 1
+        except CppExecutorError:
+            # If internal executor error is raised, shutdown the server
+            signal.raise_signal(signal.SIGINT)
+        except Exception as e:
+            raise RuntimeError("Failed to generate: " + str(e))
 
 
 @triton_worker()
@@ -157,10 +160,14 @@ async def worker(runtime: DistributedRuntime, engine_config: LLMAPIConfig):
     await component.create_service()
 
     completions_endpoint = component.endpoint("completions")
+    chat_completions_endpoint = component.endpoint("chat/completions")
 
     engine = TensorrtLLMEngine(engine_config)
 
-    await completions_endpoint.serve_endpoint(engine.generate_completion)
+    await asyncio.gather(
+        completions_endpoint.serve_endpoint(engine.generate_completion),
+        chat_completions_endpoint.serve_endpoint(engine.generate_chat),
+    )
 
 
 if __name__ == "__main__":
