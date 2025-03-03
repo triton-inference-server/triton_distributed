@@ -296,6 +296,7 @@ show_help() {
     echo "  [--cache-from cache location to start from]"
     echo "  [--cache-to location where to cache the build output]"
     echo "  [--tag tag for image]"
+    echo "  [--target target for docker build: runtime, dev, (default: runtime)]"
     echo "  [--no-cache disable docker build cache]"
     echo "  [--plain-progress print docker outputs without progress bar]"
     echo "  [--dry-run print docker commands without running]"
