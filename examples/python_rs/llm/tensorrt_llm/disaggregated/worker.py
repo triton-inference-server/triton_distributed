@@ -53,8 +53,13 @@ from triton_distributed.runtime import (
 logger.set_level("debug")
 
 
-def update_args_from_disagg_config(engine_config, server_config: CtxGenServerConfig):
+def update_args_from_disagg_config(
+    engine_config: LLMAPIConfig, server_config: CtxGenServerConfig
+):
+    # Overwrite the LLM API config with the disaggregated config
+    # Allows for different configs for context and generation servers
     engine_config.extra_args.update(**server_config.other_args)
+    engine_config.update_sub_configs(server_config.other_args)
     return engine_config
 
 
@@ -75,9 +80,11 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
         self.server_config: CtxGenServerConfig = disagg_config.server_configs[
             instance_idx
         ]
+        print("Before ", engine_config)
         engine_config = update_args_from_disagg_config(
             engine_config, self.server_config
         )
+        print("After ", engine_config)
 
         # needed for disagg
         self.mpi_session = MpiCommSession(sub_comm, n_workers=sub_comm.Get_size())

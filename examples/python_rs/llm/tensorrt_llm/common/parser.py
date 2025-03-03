@@ -55,6 +55,17 @@ class LLMAPIConfig:
             data.update(self.extra_args)
         return data
 
+    def update_sub_configs(self, other_config: Dict[str, Any]):
+        if "pytorch_backend_config" in other_config:
+            self.pytorch_backend_config = PyTorchConfig(
+                **other_config["pytorch_backend_config"]
+            )
+            self.extra_args.pop("pytorch_backend_config", None)
+
+        if "kv_cache_config" in other_config:
+            self.kv_cache_config = KvCacheConfig(**other_config["kv_cache_config"])
+            self.extra_args.pop("kv_cache_config", None)
+
 
 def _get_llm_args(engine_config):
     # Only do model validation checks and leave other checks to LLMAPI
@@ -67,17 +78,13 @@ def _get_llm_args(engine_config):
         else:
             raise ValueError(f"Model path {engine_config['model_path']} does not exist")
     # We can initialize the sub configs needed
-    if "pytorch_backend_config" in engine_config:
-        engine_config["pytorch_backend_config"] = PyTorchConfig(
-            **engine_config["pytorch_backend_config"]
-        )
+    llm_api_config = LLMAPIConfig(
+        model_name=engine_config["model_name"],
+        model_path=engine_config.get("model_path", None),
+    )
+    llm_api_config.update_sub_configs(engine_config)
 
-    if "kv_cache_config" in engine_config:
-        engine_config["kv_cache_config"] = KvCacheConfig(
-            **engine_config["kv_cache_config"]
-        )
-
-    return LLMAPIConfig(**engine_config)
+    return llm_api_config
 
 
 def _init_engine_args(engine_args_filepath):

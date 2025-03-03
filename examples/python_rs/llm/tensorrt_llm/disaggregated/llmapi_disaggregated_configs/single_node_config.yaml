@@ -21,11 +21,21 @@ context_servers:
   num_instances: 1
   tensor_parallel_size: 1
   moe_expert_parallel_size: 1
+  kv_cache_config:
+    free_gpu_memory_fraction: 0.45
+  pytorch_backend_config:
+    enable_overlap_scheduler: false
+    use_cuda_graph: false
   urls:
       - "localhost:8001"
 generation_servers:
   num_instances: 1
   tensor_parallel_size: 1
   moe_expert_parallel_size: 1
+  kv_cache_config:
+    free_gpu_memory_fraction: 0.95
+  pytorch_backend_config:
+    enable_overlap_scheduler: true
+    use_cuda_graph: true
   urls:
       - "localhost:8002"
