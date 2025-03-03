@@ -82,6 +82,12 @@ class Processor(ProcessMixIn):
         raw_request: Union[CompletionRequest, ChatCompletionRequest],
         request_type: RequestType,
     ):
+        if request_type == RequestType.COMPLETION and isinstance(raw_request, list):
+            # A prompt can be Union[List[int], List[List[int]], str, List[str]]
+            # If its a list of prompts, we only support one prompt
+            if len(raw_request.prompt) > 1:
+                raise ValueError("Only one prompt is supported for completion requests")
+
         request_id = str(uuid.uuid4())
         vllm_logger.debug(f"Got raw request: {raw_request}")
         (
