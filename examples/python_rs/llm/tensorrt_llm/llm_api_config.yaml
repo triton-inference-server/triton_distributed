@@ -1,8 +1,11 @@
-model_name: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-model_path: null
-tensor_parallel_size: 1
-moe_expert_parallel_size: 1
-enable_attention_dp: false
+# In the case of disaggregated deployment, this config will apply to each server
+# and will be overwritten by the disaggregated config file
+
+model_name: "DeepSeek/DeepSeek-R1" # model name on HF
+model_path: "/home/scratch.weimingc_sw/models/DeepSeek-R1-nvfp4_allmoe"
+tensor_parallel_size: 8
+moe_expert_parallel_size: 8
+enable_attention_dp: true
 max_num_tokens: 10240
 max_batch_size: 16
 trust_remote_code: true
@@ -13,4 +16,4 @@ kv_cache_config:
 
 pytorch_backend_config:
   enable_overlap_scheduler: true
-  use_cuda_graph: false
+  use_cuda_graph: true
