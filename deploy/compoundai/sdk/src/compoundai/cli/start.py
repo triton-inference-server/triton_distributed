@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import sys
+from typing import Optional
 from urllib.parse import urlparse
 
 import click
@@ -139,27 +140,27 @@ def build_start_command() -> click.Group:
         default=False,
     )
     @add_experimental_docstring
-    def start(  # type: ignore (unused warning)
+    def start(
         bento: str,
         service_name: str,
-        depends: list[str] | None,
-        runner_map: str | None,
-        bind: str | None,
-        port: int | None,
-        host: str | None,
-        backlog: int | None,
-        working_dir: str | None,
-        api_workers: int | None,
-        timeout: int | None,
-        ssl_certfile: str | None,
-        ssl_keyfile: str | None,
-        ssl_keyfile_password: str | None,
-        ssl_version: int | None,
-        ssl_cert_reqs: int | None,
-        ssl_ca_certs: str | None,
-        ssl_ciphers: str | None,
-        timeout_keep_alive: int | None,
-        timeout_graceful_shutdown: int | None,
+        depends: Optional[list[str]],
+        runner_map: Optional[str],
+        bind: Optional[str],
+        port: Optional[int],
+        host: Optional[str],
+        backlog: Optional[int],
+        working_dir: Optional[str],
+        api_workers: Optional[int],
+        timeout: Optional[int],
+        ssl_certfile: Optional[str],
+        ssl_keyfile: Optional[str],
+        ssl_keyfile_password: Optional[str],
+        ssl_version: Optional[int],
+        ssl_cert_reqs: Optional[int],
+        ssl_ca_certs: Optional[str],
+        ssl_ciphers: Optional[str],
+        timeout_keep_alive: Optional[int],
+        timeout_graceful_shutdown: Optional[int],
         reload: bool = False,
     ) -> None:
         """

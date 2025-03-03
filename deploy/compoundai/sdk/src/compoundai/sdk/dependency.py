@@ -45,7 +45,7 @@ class NovaClient:
 
             # Create async generator function that uses Queue for streaming
             async def get_stream(*args, **kwargs):
-                queue = asyncio.Queue()
+                queue: asyncio.Queue = asyncio.Queue()
 
                 if self._runtime is not None:
                     # Use existing runtime if available

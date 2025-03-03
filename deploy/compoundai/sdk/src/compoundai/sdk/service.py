@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 from _bentoml_sdk import Service, ServiceConfig
 from _bentoml_sdk.images import Image
@@ -31,8 +31,8 @@ class NovaConfig:
     """Configuration for Nova components"""
 
     enabled: bool = False
-    name: str = None
-    namespace: str = None
+    name: str | None = None
+    namespace: str | None = None
 
 
 class CompoundService(Service[T]):
@@ -43,8 +43,8 @@ class CompoundService(Service[T]):
         config: ServiceConfig,
         inner: type[T],
         image: Optional[Image] = None,
-        envs: list[dict[str, Any]] = None,
-        nova_config: NovaConfig | None = None,
+        envs: Optional[list[dict[str, Any]]] = None,
+        nova_config: Optional[NovaConfig] = None,
     ):
         super().__init__(config=config, inner=inner, image=image, envs=envs or [])
 
@@ -91,10 +91,12 @@ class CompoundService(Service[T]):
             except (json.JSONDecodeError, ValueError) as e:
                 raise ValueError(f"Failed to parse BENTOML_RUNNER_MAP: {str(e)}") from e
 
-        print(
-            f"Using default Nova address: {self._nova_config.namespace}/{self._nova_config.name}"
-        )
-        return (self._nova_config.namespace, self._nova_config.name)
+        # Ensure namespace and name are not None
+        namespace = self._nova_config.namespace or "default"
+        name = self._nova_config.name or self.inner.__name__
+
+        print(f"Using default Nova address: {namespace}/{name}")
+        return (namespace, name)
 
     def get_nova_endpoints(self) -> Dict[str, NovaEndpoint]:
         """Get all registered Nova endpoints"""
@@ -114,12 +116,12 @@ class CompoundService(Service[T]):
 
 
 def service(
-    inner: type[T] | None = None,
+    inner: Optional[type[T]] = None,
     /,
     *,
-    image: Image | None = None,
-    envs: list[dict[str, Any]] | None = None,
-    nova: Dict[str, Any] | NovaConfig | None = None,
+    image: Optional[Image] = None,
+    envs: Optional[list[dict[str, Any]]] = None,
+    nova: Optional[Union[Dict[str, Any], NovaConfig]] = None,
     **kwargs: Any,
 ) -> Any:
     """Enhanced service decorator that supports Nova configuration
@@ -134,8 +136,12 @@ def service(
     config = kwargs
 
     # Parse dict into NovaConfig object
-    if nova and isinstance(nova, dict):
-        nova = NovaConfig(**nova)
+    nova_config: Optional[NovaConfig] = None
+    if nova is not None:
+        if isinstance(nova, dict):
+            nova_config = NovaConfig(**nova)
+        else:
+            nova_config = nova
 
     def decorator(inner: type[T]) -> CompoundService[T]:
         if isinstance(inner, Service):
@@ -145,7 +151,7 @@ def service(
             inner=inner,
             image=image,
             envs=envs or [],
-            nova_config=nova,
+            nova_config=nova_config,
         )
 
     return decorator(inner) if inner is not None else decorator
