@@ -15,7 +15,7 @@
 import time
 from typing import Any, Dict, List, TypedDict
 
-from common.protocol import DisaggregatedResponse
+from common.protocol import DisaggChatCompletionStreamResponse
 from openai.types.chat import ChatCompletionMessageParam
 from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.serve.openai_protocol import (
@@ -124,7 +124,7 @@ class ChatProcessor:
         request_id: str,
         res: RequestOutput,
         first_iteration: bool,
-    ) -> DisaggregatedResponse:
+    ) -> DisaggChatCompletionStreamResponse:
         def get_first_chat(num_tokens: int, role: str = None, content: str = None):
             for i in range(self.num_choices):
                 choice_data = ChatCompletionResponseStreamChoice(
@@ -132,7 +132,7 @@ class ChatProcessor:
                     delta=DeltaMessage(role=role, content=content),
                     finish_reason=None,
                 )
-                chunk = DisaggregatedResponse(
+                chunk = DisaggChatCompletionStreamResponse(
                     id=request_id,
                     created=int(time.time()),
                     object="chat.completion.chunk",
@@ -182,7 +182,7 @@ class ChatProcessor:
                 choice.finish_reason = output.finish_reason
                 choice.stop_reason = output.stop_reason
                 self.finish_reason_sent[i] = True
-            chunk = DisaggregatedResponse(
+            chunk = DisaggChatCompletionStreamResponse(
                 id=request_id,
                 created=int(time.time()),
                 object="chat.completion.chunk",
@@ -198,7 +198,7 @@ class ChatProcessor:
         self,
         request_id: str,
         final_result: RequestOutput,
-    ) -> DisaggregatedResponse:
+    ) -> DisaggChatCompletionStreamResponse:
         prompt_tokens = len(final_result.prompt_token_ids)
         completion_tokens = sum(output.length for output in final_result.outputs)
         final_usage = UsageInfo(
@@ -207,7 +207,7 @@ class ChatProcessor:
             total_tokens=prompt_tokens + completion_tokens,
         )
 
-        final_usage_chunk = DisaggregatedResponse(
+        final_usage_chunk = DisaggChatCompletionStreamResponse(
             id=request_id,
             created=int(time.time()),
             object="chat.completion",

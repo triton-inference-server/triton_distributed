@@ -16,13 +16,13 @@
 import asyncio
 import copy
 import json
-from enum import Enum
 
 import uvloop
 from common.protocol import (
     ChatCompletionStreamResponse,
-    nvChatCompletionRequest,
-    nvCompletionStreamResponse,
+    DisaggChatCompletionRequest,
+    DisaggChatCompletionStreamResponse,
+    DisaggCompletionStreamResponse,
 )
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import CompletionRequest, DisaggregatedParams
@@ -33,12 +33,7 @@ from triton_distributed.runtime import (
     triton_worker,
 )
 
-logger.set_level("info")
-
-
-class RequestType(Enum):
-    CHAT = "chat"
-    COMPLETION = "completion"
+logger.set_level("debug")
 
 
 class Router:
@@ -55,7 +50,7 @@ class Router:
         self.gen_completion_client = gen_completion_client
         logger.info("INITIALIZED ROUTER")
 
-    @triton_endpoint(CompletionRequest, nvCompletionStreamResponse)
+    @triton_endpoint(CompletionRequest, DisaggCompletionStreamResponse)
     async def generate_completion(self, request):
         # These settings are needed to satisfy request checks.
         request.skip_special_tokens = False
@@ -80,7 +75,7 @@ class Router:
                 "Context server returned more than one response. This is currently not supported in disaggregated server."
             )
 
-        ctx_resp_obj = nvCompletionStreamResponse.model_validate(ctx_resp[0].data())
+        ctx_resp_obj = DisaggCompletionStreamResponse.model_validate(ctx_resp[0].data())
         logger.debug(f"[router] received response from context server: {ctx_resp_obj}")
 
         gen_req.disaggregated_params = DisaggregatedParams.model_validate(
@@ -96,12 +91,64 @@ class Router:
         async for response in await self.gen_completion_client.round_robin(
             gen_req.model_dump_json()
         ):
-            gen_resp_obj = nvCompletionStreamResponse.model_validate(response.data())
+            gen_resp_obj = DisaggCompletionStreamResponse.model_validate(
+                response.data()
+            )
             yield json.loads(gen_resp_obj.model_dump_json())
 
-    @triton_endpoint(nvChatCompletionRequest, ChatCompletionStreamResponse)
+    @triton_endpoint(DisaggChatCompletionRequest, DisaggChatCompletionStreamResponse)
     async def generate_chat(self, request):
-        pass
+        # Send request to context serve
+        # These settings are needed to satisfy request checks.
+        request.skip_special_tokens = False
+        request.add_special_tokens = False
+        request.spaces_between_special_tokens = False
+
+        logger.debug(f"[router] received request: {request}")
+
+        gen_req = copy.deepcopy(request)
+
+        request.max_tokens = 1
+        request.disaggregated_params = DisaggregatedParams(request_type="context_only")
+        logger.debug(f"[router] Sending request to context server: {request}")
+        ctx_resp = [
+            resp
+            async for resp in await self.ctx_chat_client.round_robin(
+                request.model_dump_json()
+            )
+        ]
+        if len(ctx_resp) > 1:
+            raise ValueError(
+                "Context server returned more than one response. This is currently not supported in disaggregated server."
+            )
+
+        logger.debug(f"[router] Got response from context server: {ctx_resp}")
+        ctx_resp_obj = DisaggChatCompletionStreamResponse.model_validate_json(
+            ctx_resp[0].data()
+        )
+
+        gen_req.disaggregated_params = DisaggregatedParams.model_validate(
+            ctx_resp_obj.disaggregated_params
+        )
+        gen_req.disaggregated_params.request_type = "generation_only"
+
+        if request.stream:
+            data = ctx_resp_obj.model_dump_json(
+                exclude_unset=True, exclude={"disaggregated_params"}
+            )
+            logger.debug(f"[router] Sending response from context server: {data}")
+            yield json.loads(data)
+
+        logger.debug(f"[router] Sending request to generation server: {gen_req}")
+        async for response in await self.gen_chat_client.round_robin(
+            gen_req.model_dump_json()
+        ):
+            logger.debug(f"[router] Got response from generation server: {response}")
+            data = ChatCompletionStreamResponse.parse_raw(
+                response.data()
+            ).model_dump_json(exclude_unset=True)
+            logger.debug(f"[router] Sending response from generation server: {data}")
+            yield json.loads(data)
 
 
 @triton_worker()
@@ -145,7 +192,7 @@ async def worker(runtime: DistributedRuntime):
     )
     await asyncio.gather(
         completions_endpoint.serve_endpoint(router.generate_completion),
-        chat_endpoint.serve_endpoint(router.generate_chat),  # TODO
+        chat_endpoint.serve_endpoint(router.generate_chat),
     )
 
 

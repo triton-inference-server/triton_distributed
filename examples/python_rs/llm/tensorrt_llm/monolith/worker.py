@@ -23,8 +23,6 @@ import uvloop
 from common.base_engine import BaseTensorrtLLMEngine
 from common.parser import LLMAPIConfig, parse_tensorrt_llm_args
 from common.processor import merge_promises, parse_chat_message_content
-
-# from common.protocol import nvChatCompletionRequest
 from tensorrt_llm.executor import CppExecutorError
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (

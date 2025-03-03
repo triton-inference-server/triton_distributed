@@ -17,7 +17,11 @@ import json
 import time
 from typing import Any, AsyncGenerator, AsyncIterator, Dict, List, Tuple, TypedDict
 
-from common.protocol import nvCompletionResponseStreamChoice, nvCompletionStreamResponse
+from common.protocol import (
+    DisaggCompletionResponseStreamChoice,
+    DisaggCompletionStreamResponse,
+    DisaggregatedTypeConverter,
+)
 from openai.types.chat import ChatCompletionMessageParam
 from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
@@ -361,7 +365,7 @@ class CompletionsProcessor:
             if request.echo and not echoed[response_idx]:
                 delta_text = request.prompt + delta_text
                 echoed[response_idx] = True
-            choice = nvCompletionResponseStreamChoice(
+            choice = DisaggCompletionResponseStreamChoice(
                 index=response_idx,
                 text=delta_text,
                 stop_reason=output.stop_reason,
@@ -369,11 +373,11 @@ class CompletionsProcessor:
             )
             if output.disaggregated_params is not None:
                 choice.disaggregated_params = (
-                    nvCompletionResponseStreamChoice.to_disaggregated_params(
+                    DisaggregatedTypeConverter.to_oai_disaggregated_params(
                         output.disaggregated_params
                     )
                 )
-            chunk = nvCompletionStreamResponse(
+            chunk = DisaggCompletionStreamResponse(
                 model=self.model,
                 choices=[choice],
             )

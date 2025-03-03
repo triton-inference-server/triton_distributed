@@ -23,47 +23,35 @@ from tensorrt_llm.llmapi import DisaggregatedParams as LlmDisaggregatedParams
 from tensorrt_llm.serve.openai_protocol import (
     ChatCompletionRequest,
     ChatCompletionStreamResponse,
-    CompletionRequest,
     CompletionResponseStreamChoice,
-    CompletionStreamResponse,
     DisaggregatedParams,
     UsageInfo,
 )
 
 
-class nvChatCompletionRequest(ChatCompletionRequest):
-    model_config = ConfigDict(extra="allow")
+class DisaggregatedTypeConverter:
+    @staticmethod
+    def to_llm_disaggregated_params(
+        disaggregated_params: DisaggregatedParams,
+    ) -> LlmDisaggregatedParams:
+        if disaggregated_params is None:
+            return None
+        else:
+            opaque_state = (
+                base64.b64decode(disaggregated_params.encoded_opaque_state)
+                if disaggregated_params.encoded_opaque_state is not None
+                else None
+            )
 
-
-class DisaggChatCompletionRequest(nvChatCompletionRequest):
-    disaggregated_params: dict = {}
-    model_config = ConfigDict(extra="allow")
-
-
-class DisaggChatStreamCompletionResponse(ChatCompletionStreamResponse):
-    disaggregated_params: dict = {}
-    model_config = ConfigDict(extra="allow")
-
-
-class DisaggregatedResponse(ChatCompletionStreamResponse):
-    text: str
-    disaggregated_params: DisaggregatedParams = {}
-
-
-class nvCompletionRequest(CompletionRequest):
-    model_config = ConfigDict(extra="allow")
-
-
-class DisaggCompletionResponse(CompletionStreamResponse):
-    model_config = ConfigDict(extra="allow")
-    disaggregated_params: DisaggregatedParams = {}
-
-
-class nvCompletionResponseStreamChoice(CompletionResponseStreamChoice):
-    disaggregated_params: Optional[DisaggregatedParams] = Field(default=None)
+            return LlmDisaggregatedParams(
+                request_type=disaggregated_params.request_type,
+                first_gen_tokens=disaggregated_params.first_gen_tokens,
+                ctx_request_id=disaggregated_params.ctx_request_id,
+                opaque_state=opaque_state,
+            )
 
     @staticmethod
-    def to_disaggregated_params(
+    def to_oai_disaggregated_params(
         tllm_disagg_params: LlmDisaggregatedParams,
     ) -> DisaggregatedParams:
         if tllm_disagg_params is None:
@@ -82,11 +70,30 @@ class nvCompletionResponseStreamChoice(CompletionResponseStreamChoice):
             )
 
 
-class nvCompletionStreamResponse(BaseModel):
+# Chat Completions
+
+
+class DisaggChatCompletionRequest(ChatCompletionRequest):
+    id: str = Field(default_factory=lambda: f"cmpl-{str(uuid.uuid4().hex)}")
+    disaggregated_params: Optional[DisaggregatedParams] = Field(default=None)
+
+
+class DisaggChatCompletionStreamResponse(ChatCompletionStreamResponse):
+    disaggregated_params: Optional[DisaggregatedParams] = Field(default=None)
+
+
+## Completions
+
+
+class DisaggCompletionResponseStreamChoice(CompletionResponseStreamChoice):
+    disaggregated_params: Optional[DisaggregatedParams] = Field(default=None)
+
+
+class DisaggCompletionStreamResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str = Field(default_factory=lambda: f"cmpl-{str(uuid.uuid4().hex)}")
     object: str = "text_completion"
     created: int = Field(default_factory=lambda: int(time.time()))
     model: str
-    choices: List[nvCompletionResponseStreamChoice]
+    choices: List[DisaggCompletionResponseStreamChoice]
     usage: Optional[UsageInfo] = Field(default=None)

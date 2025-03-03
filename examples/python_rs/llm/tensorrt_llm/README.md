@@ -183,7 +183,7 @@ curl localhost:8080/v1/completions \
 ```
 
 Output:
-```
+```json
 {
   "id":"cmpl-e0d75aca1bd540399809c9b609eaf010",
   "choices":[
@@ -240,7 +240,7 @@ For example, 2 TP2 generation servers are 2 servers but 4 workers/mpi executor.
 
 ```bash
 cd /workspace/examples/python_rs/llm/tensorrt_llm/
-mpirun --allow-run-as-root --oversubscribe -n WORLD_SIZE python3 -m disaggregated.worker --engine_args llm_api_config.yaml -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml 1>disagg_workers.log 2>&1 &
+mpirun --allow-run-as-root --oversubscribe -n 2 python3 -m disaggregated.worker --engine_args llm_api_config.yaml -c disaggregated/llmapi_disaggregated_configs/single_node_config.yaml 1>disagg_workers.log 2>&1 &
 ```
 If using the provided [single_node_config.yaml](disaggregated/llmapi_disaggregated_configs/single_node_config.yaml), WORLD_SIZE should be 3 as it has 2 context servers(TP=1) and 1 generation server(TP=1).
 
@@ -252,59 +252,7 @@ python3 -m disaggregated.router 1>router.log 2>&1 &
 ```
 
 3. **Send Requests**
-
-```bash
-# Chat Completion
-curl localhost:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "DeepSeek/DeepSeek-R1-FP4",
-    "messages": [
-      {"role": "user", "content": "What is the capital of France?"}
-    ]
-  }'
-
-# Completions
-curl localhost:8080/v1/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-    "prompt": "NVIDIA is a great company because",
-    "max_tokens": 16,
-    "temperature": 0,
-    "stream": true
-  }'
-```
-
-The output should look similar to:
-```json
-{
-  "id": "8e3d8d1d-01c8-4c57-9031-f17559f4ea83",
-  "choices": [
-    {
-      "index": 0,
-      "message": {
-        "content": "The capital of France is Paris.",
-        "refusal": null,
-        "tool_calls": null,
-        "role": "assistant",
-        "function_call": null,
-        "audio": null
-      },
-      "finish_reason": "stop",
-      "logprobs": null
-    }
-  ],
-  "created": 1740870209,
-  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-  "service_tier": null,
-  "system_fingerprint": null,
-  "object": "chat.completion",
-  "usage": null
-}
-```
-
-***Completion disaggregated deployment is WIP.***
+Follow the instructions in the [Monolithic Deployment](#3-client) section to send requests to the router.
 
 
 For more details on the disaggregated deployment, please refer to the [TRT-LLM example](#TODO).

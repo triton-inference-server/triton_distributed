@@ -26,14 +26,14 @@ from common.parser import LLMAPIConfig, parse_tensorrt_llm_args
 from common.processor import merge_promises
 from common.protocol import (
     DisaggChatCompletionRequest,
-    DisaggCompletionResponse,
-    DisaggregatedResponse,
+    DisaggChatCompletionStreamResponse,
+    DisaggCompletionStreamResponse,
+    DisaggregatedTypeConverter,
 )
 from mpi4py.futures import MPICommExecutor
 from mpi4py.MPI import COMM_WORLD
 from tensorrt_llm._utils import set_mpi_comm
 from tensorrt_llm.executor import CppExecutorError
-from tensorrt_llm.llmapi import DisaggregatedParams as LlmDisaggregatedParams
 from tensorrt_llm.llmapi import MpiCommSession
 from tensorrt_llm.llmapi.disagg_utils import (
     CtxGenServerConfig,
@@ -42,7 +42,7 @@ from tensorrt_llm.llmapi.disagg_utils import (
     split_world_comm,
 )
 from tensorrt_llm.logger import logger
-from tensorrt_llm.serve.openai_protocol import CompletionRequest, DisaggregatedParams
+from tensorrt_llm.serve.openai_protocol import CompletionRequest
 
 from triton_distributed.runtime import (
     DistributedRuntime,
@@ -50,7 +50,7 @@ from triton_distributed.runtime import (
     triton_worker,
 )
 
-logger.set_level("info")
+logger.set_level("debug")
 
 
 def update_args_from_disagg_config(engine_config, server_config: CtxGenServerConfig):
@@ -84,16 +84,15 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
         engine_config.extra_args["_mpi_session"] = self.mpi_session
         super().__init__(engine_config)
 
-    @triton_endpoint(DisaggChatCompletionRequest, DisaggregatedResponse)
-    async def generate_chat(self, raw_request):
+    @triton_endpoint(DisaggChatCompletionRequest, DisaggChatCompletionStreamResponse)
+    async def generate_chat(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
 
-        request = DisaggChatCompletionRequest(**raw_request.model_dump())
+        logger.debug(f"Received request: {request}")
         chat_processor = ChatProcessor(self.model, self.tokenizer, request)
 
         self._ongoing_request_count += 1
-        logger.debug(f"Received request: {request}")
 
         try:
             conversation = []
@@ -114,16 +113,11 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
                 **(request.chat_template_kwargs or {}),
             )
             sampling_params = request.to_sampling_params()
-            disaggregated_params = DisaggregatedParams(**request.disaggregated_params)
-
-            # Opaque state is  described as an additional state needing to be exchanged
-            # between context and gen instances
-            if disaggregated_params.opaque_state is not None:
-                disaggregated_params.opaque_state = (
-                    disaggregated_params.opaque_state.encode("utf-8")
-                    .decode("unicode_escape")
-                    .encode("latin1")
+            disaggregated_params = (
+                DisaggregatedTypeConverter.to_llm_disaggregated_params(
+                    request.disaggregated_params
                 )
+            )
 
             final_result = None
             async for result in self._llm_engine.generate_async(
@@ -140,9 +134,11 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
                         result,
                         first_iteration=True,
                     )
-                    disaggregated_response.disaggregated_params = result.outputs[
-                        0
-                    ].disaggregated_params
+                    disaggregated_response.disaggregated_params = (
+                        DisaggregatedTypeConverter.to_oai_disaggregated_params(
+                            result.outputs[0].disaggregated_params
+                        )
+                    )
                     yield disaggregated_response.model_dump_json()
                 else:
                     yield chat_processor.get_chat_stream_response(
@@ -167,7 +163,7 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
 
         self._ongoing_request_count -= 1
 
-    @triton_endpoint(CompletionRequest, DisaggCompletionResponse)
+    @triton_endpoint(CompletionRequest, DisaggCompletionStreamResponse)
     async def generate_completions(self, request):
         if self._llm_engine is None:
             raise RuntimeError("Engine not initialized")
@@ -187,8 +183,10 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
                 )
 
         sampling_params = request.to_sampling_params()
-        llm_disaggregated_params: LlmDisaggregatedParams = (
-            request.to_llm_disaggregated_params()
+        llm_disaggregated_params = (
+            DisaggregatedTypeConverter.to_llm_disaggregated_params(
+                request.disaggregated_params
+            )
         )
 
         # only 1 prompt is supported for now
@@ -206,6 +204,8 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
             )
             async for response in response_generator:
                 yield json.loads(response)
+        else:
+            raise RuntimeError("Non-streaming is not supported")
 
         self._ongoing_request_count -= 1
 
@@ -235,7 +235,7 @@ async def worker(
     engine = TensorrtLLMEngine(engine_config, disagg_config, instance_idx, sub_comm)
     await asyncio.gather(
         completions_endpoint.serve_endpoint(engine.generate_completions),
-        chat_endpoint.serve_endpoint(engine.generate_chat),  # TODO
+        chat_endpoint.serve_endpoint(engine.generate_chat),
     )
 
 
