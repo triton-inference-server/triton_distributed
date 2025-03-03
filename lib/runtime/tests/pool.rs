@@ -14,14 +14,29 @@
 // limitations under the License.
 
 use async_trait::async_trait;
-use std::sync::Arc;
-use tokio::sync::{Mutex, Notify};
-use triton_distributed_runtime::utils::pool::{PoolExt, PoolItem, PoolValue, Returnable};
+use std::sync::{Arc, Mutex};
+use tokio::sync::Notify;
+use triton_distributed_runtime::utils::pool::{
+    PoolExt, PoolItem, PoolValue, ReturnHandle, Returnable,
+};
+
+pub struct IndexedPoolState<T: Returnable + Ord + Eq + PartialEq> {
+    pool: Arc<Mutex<Vec<PoolValue<T>>>>,
+    available: Arc<Notify>,
+}
+
+impl<T: Returnable + Ord + Eq + PartialEq> ReturnHandle<T> for IndexedPoolState<T> {
+    fn return_to_pool(&self, value: PoolValue<T>) {
+        let mut pool = self.pool.lock().unwrap();
+        pool.push(value);
+        pool.sort_by(|a, b| a.get().cmp(b.get()));
+        self.available.notify_one();
+    }
+}
 
 /// A pool that maintains items in sorted order
 pub struct IndexedPool<T: Returnable + Ord + Eq + PartialEq> {
-    pool: Arc<Mutex<Vec<PoolValue<T>>>>, // Using Vec instead of VecDeque for sorting
-    available: Arc<Notify>,
+    state: Arc<IndexedPoolState<T>>,
     capacity: usize,
 }
 
@@ -33,11 +48,12 @@ impl<T: Returnable + Ord + Eq + PartialEq> IndexedPool<T> {
         // Sort the initial elements
         initial_elements.sort_by(|a, b| a.get().cmp(b.get()));
 
-        Self {
+        let state = Arc::new(IndexedPoolState {
             pool: Arc::new(Mutex::new(initial_elements)),
             available: Arc::new(Notify::new()),
-            capacity,
-        }
+        });
+
+        Self { state, capacity }
     }
 
     /// Create a new pool with initial boxed elements
@@ -63,15 +79,12 @@ impl<T: Returnable + Ord + Eq + PartialEq> IndexedPool<T> {
     where
         T: Clone,
     {
-        let pool = self.pool.lock().await;
+        let pool = self.state.pool.lock().unwrap();
         pool.iter().map(|v| v.get().clone()).collect()
     }
-}
 
-#[async_trait]
-impl<T: Returnable + Ord + Eq + PartialEq + Send + Sync + 'static> PoolExt<T> for IndexedPool<T> {
-    async fn try_acquire(&self) -> Option<PoolItem<T, Self>> {
-        let mut pool = self.pool.lock().await;
+    async fn try_acquire(&self) -> Option<PoolItem<T>> {
+        let mut pool = self.state.pool.lock().unwrap();
         if pool.is_empty() {
             return None;
         }
@@ -79,43 +92,25 @@ impl<T: Returnable + Ord + Eq + PartialEq + Send + Sync + 'static> PoolExt<T> fo
         // Take the first (smallest) element
         let value = pool.remove(0);
         // Use the factory method instead of direct construction
-        Some(self.create_pool_item(value))
+        Some(self.create_pool_item(value, self.state.clone()))
     }
 
-    async fn acquire(&self) -> PoolItem<T, Self> {
+    async fn acquire(&self) -> PoolItem<T> {
         loop {
             if let Some(guard) = self.try_acquire().await {
                 return guard;
             }
-            self.available.notified().await;
+            self.state.available.notified().await;
         }
     }
-
-    async fn return_to_pool(&self, value: PoolValue<T>) {
-        let mut pool = self.pool.lock().await;
-
-        // Find the correct position to insert the value to maintain sorted order
-        let pos = pool
-            .binary_search_by(|probe| probe.get().cmp(value.get()))
-            .unwrap_or_else(|e| e);
-
-        pool.insert(pos, value);
-    }
-
-    fn notify_return(&self) {
-        self.available.notify_one();
-    }
-
-    fn capacity(&self) -> usize {
-        self.capacity
-    }
 }
+
+impl<T: Returnable + Ord + Eq + PartialEq + Send + Sync + 'static> PoolExt<T> for IndexedPool<T> {}
 
 impl<T: Returnable + Ord + Eq + PartialEq> Clone for IndexedPool<T> {
     fn clone(&self) -> Self {
         IndexedPool {
-            pool: Arc::clone(&self.pool),
-            available: Arc::clone(&self.available),
+            state: self.state.clone(),
             capacity: self.capacity,
         }
     }
@@ -203,18 +198,18 @@ async fn test_indexed_pool_sorting() {
             NonResettableInt(10)
         ]
     );
-    // Test returning to a different pool
-    let pool2 = IndexedPool::new(vec![PoolValue::Direct(NonResettableInt(42))]);
+    // // Test returning to a different pool
+    // let pool2 = IndexedPool::new(vec![PoolValue::Direct(NonResettableInt(42))]);
 
-    // Acquire from first pool
-    let mut item = pool.acquire().await;
-    assert_eq!(*item, NonResettableInt(3));
+    // // Acquire from first pool
+    // let mut item = pool.acquire().await;
+    // assert_eq!(*item, NonResettableInt(3));
 
-    // Modify and return to second pool
-    *item = NonResettableInt(8);
-    item.return_to_different_pool(&pool2).await;
+    // // Modify and return to second pool
+    // *item = NonResettableInt(8);
+    // item.return_to_different_pool(&pool2).await;
 
-    // Verify item is in the second pool in sorted order
-    let contents = pool2.get_contents().await;
-    assert_eq!(contents, vec![NonResettableInt(8), NonResettableInt(42)]);
+    // // Verify item is in the second pool in sorted order
+    // let contents = pool2.get_contents().await;
+    // assert_eq!(contents, vec![NonResettableInt(8), NonResettableInt(42)]);
 }

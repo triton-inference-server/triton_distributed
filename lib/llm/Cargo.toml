@@ -45,8 +45,10 @@ anyhow = { version = "1" }
 async-stream = { version = "0.3" }
 async-trait = { version = "0.1" }
 bytes = "1"
+bytemuck = "1.21"
 derive_builder = "0.20"
 futures = "0.3"
+rayon = "1"
 serde = { version = "1", features = ["derive"] }
 thiserror = { version = "2.0.11" }
 tokio = { version = "1", features = ["full"] }
@@ -68,8 +70,10 @@ anyhow = { workspace = true }
 async-stream = { workspace = true }
 async-trait = { workspace = true }
 bytes = { workspace = true }
+bytemuck = { workspace = true }
 derive_builder = {workspace = true }
 futures =  { workspace = true }
+rayon = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -83,6 +87,7 @@ strum = { workspace = true }
 
 async-openai = "0.27.2"
 blake3 = "1"
+derive-getters = "0.5"
 regex = "1"
 
 # protocols
