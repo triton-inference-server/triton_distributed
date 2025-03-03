@@ -4057,6 +4057,8 @@ dependencies = [
 name = "triton-distributed-py3"
 version = "0.2.1"
 dependencies = [
+ "anyhow",
+ "async-once-cell",
  "futures",
  "once_cell",
  "pyo3",
