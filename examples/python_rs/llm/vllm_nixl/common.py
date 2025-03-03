@@ -94,11 +94,16 @@ class NixlMetadataStore:
 
             key_values = await self._client.kv_get_prefix(key)
 
+            deserialized_metadata = None
+
             for item in key_values:
                 deserialized_metadata = msgspec.msgpack.decode(
                     item["value"], type=NixlMetadata
                 )
                 break
+
+            if deserialized_metadata is None:
+                raise Exception("metadata not found in etcd")
 
             self._cached[engine_id] = deserialized_metadata
 
@@ -110,6 +115,6 @@ class NixlMetadataStore:
             # )
 
         except Exception as e:
-            print(e)
+            raise Exception("Error retrieving metadata for engine {engine_id}") from e
 
         return deserialized_metadata
