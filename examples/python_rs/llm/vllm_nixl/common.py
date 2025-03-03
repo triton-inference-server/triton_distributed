@@ -17,7 +17,6 @@
 import os
 from contextlib import contextmanager
 
-# import etcd3
 import msgspec
 from vllm.distributed.device_communicators.nixl import NixlMetadata
 from vllm.engine.arg_utils import AsyncEngineArgs
@@ -103,10 +102,13 @@ class NixlMetadataStore:
 
             self._cached[engine_id] = deserialized_metadata
 
+            # TODO watch for changes and update cache
+
             # self._client.add_watch_callback(
-            #     f"{self._namespace}/{NixlMetadataStore.NIXL_METADATA_KEY}/{engine_id}",
+            #     key,
             #     self._watch_callback,
             # )
+
         except Exception as e:
             print(e)
 

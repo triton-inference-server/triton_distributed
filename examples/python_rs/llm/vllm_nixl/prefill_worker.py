@@ -51,7 +51,8 @@ class RequestHandler:
             decode_engine_id=request.engine_id,
         )
 
-        # get meta data
+        # TODO check if metadata has changed
+        # and reload - currently only loading once
 
         if request.engine_id not in self._loaded_metadata:
             remote_metadata = await self._metadata_store.get(request.engine_id)
