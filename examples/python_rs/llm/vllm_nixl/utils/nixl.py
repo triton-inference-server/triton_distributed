@@ -19,22 +19,8 @@ from contextlib import contextmanager
 
 import msgspec
 from vllm.distributed.device_communicators.nixl import NixlMetadata
-from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.utils import FlexibleArgumentParser
 
 METADATA_DIR = "/tmp/nixl"
-
-
-def parse_vllm_args() -> AsyncEngineArgs:
-    parser = FlexibleArgumentParser()
-    parser.add_argument(
-        "--remote-prefill", action="store_true", help="Enable remote prefill"
-    )
-    parser = AsyncEngineArgs.add_cli_args(parser)
-    args = parser.parse_args()
-    engine_args = AsyncEngineArgs.from_cli_args(args)
-    engine_args.remote_prefill = args.remote_prefill
-    return engine_args
 
 
 @contextmanager

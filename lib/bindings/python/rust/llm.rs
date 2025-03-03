@@ -16,3 +16,4 @@
 use super::*;
 
 pub mod kv;
+pub mod disagg_router;

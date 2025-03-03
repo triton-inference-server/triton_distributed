@@ -15,24 +15,23 @@
 
 
 import asyncio
-import json
+import os
 
-import msgspec
 import uvloop
-from common import parse_vllm_args, temp_metadata_file
+from utils.nixl import temp_metadata_file
+from utils.prefill_queue import PrefillQueue
+from utils.protocol import MyRequestOutput, vLLMGenerateRequest
+from utils.vllm import parse_vllm_args
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.multiprocessing.client import EngineClient
 from vllm.entrypoints.openai.api_server import (
     build_async_engine_client_from_engine_args,
 )
-from vllm.entrypoints.openai.protocol import (
-    ChatCompletionRequest,
-    ChatCompletionStreamResponse,
-)
-from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
-from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
+from vllm.logger import logger as vllm_logger
 from vllm.remote_prefill import RemotePrefillParams, RemotePrefillRequest
+from vllm.sampling_params import RequestOutputKind
 
+from triton_distributed.llm import DisaggregatedRouter, KvMetricsPublisher
 from triton_distributed.runtime import (
     DistributedRuntime,
     triton_endpoint,
@@ -47,97 +46,142 @@ class RequestHandler:
         engine_client: EngineClient,
         prefill_client,
         do_remote_prefill: bool,
+        disaggregated_router: DisaggregatedRouter = None,
     ):
         self.model_name = model_name
-        self.engine_client = engine_client
+        self.client = engine_client
         self.prefill_client = prefill_client
         self.openai_serving_chat = None
         self.initialized = False
         self.do_remote_prefill = (
-            do_remote_prefill  # TODO: this should be decided by the algorithm
+            do_remote_prefill  # remote prefill is still controlled by the router
         )
+        self.disaggregated_router = disaggregated_router
+        if do_remote_prefill:
+            assert (
+                disaggregated_router is not None
+            ), "Disaggregated router is required for remote prefill"
+
+        self.prefill_queue_nats_server = os.getenv(
+            "NATS_SERVER", "nats://localhost:4222"
+        )
+        self.prefill_queue_stream_name = model_name
+        vllm_logger.info(
+            f"Prefill queue: {self.prefill_queue_nats_server}:{self.prefill_queue_stream_name}"
+        )
+
         print("RequestHandler initialized")
 
-    async def init(self):
-        models = OpenAIServingModels(
-            engine_client=self.engine_client,
-            model_config=await self.engine_client.get_model_config(),
-            base_model_paths=[
-                BaseModelPath(
-                    name=self.model_name,
-                    model_path=self.model_name,
-                )
-            ],
-        )
-        self.openai_serving_chat = OpenAIServingChat(
-            engine_client=self.engine_client,
-            model_config=await self.engine_client.get_model_config(),
-            models=models,
-            request_logger=None,
-            response_role="assistant",
-            chat_template=None,
-            chat_template_content_format="auto",
-        )
-        self.initialized = True
-
     def get_remote_prefill_request_callback(self):
+        # TODO: integrate prefill_queue to an triton_distributed endpoint
         async def callback(request: RemotePrefillRequest):
-            json_request = msgspec.json.encode(request).decode("utf-8")
-            self.prefill_client.generate(json_request)
+            async with PrefillQueue.get_instance(
+                nats_server=self.prefill_queue_nats_server,
+                stream_name=self.prefill_queue_stream_name,
+            ) as prefill_queue:
+                await prefill_queue.enqueue_prefill_request(request)
 
         return callback
 
-    @triton_endpoint(ChatCompletionRequest, ChatCompletionStreamResponse)
+    @triton_endpoint(vLLMGenerateRequest, MyRequestOutput)
     async def generate(self, request):
-        if not self.initialized:
-            await self.init()
-        assert self.openai_serving_chat is not None
-
-        if self.do_remote_prefill:
+        # TODO: consider prefix hit when deciding prefill locally or remotely
+        if self.do_remote_prefill and self.disaggregated_router.prefill_remote(
+            len(request.engine_prompt["prompt_token_ids"]), 0
+        ):
             remote_prefill_params = RemotePrefillParams(
                 is_remote_prefill=True,
                 remote_prefill_request_callback=self.get_remote_prefill_request_callback(),
             )
+            vllm_logger.info(
+                f"Prefilling remotely for request {request.request_id} with length {len(request.engine_prompt['prompt_token_ids'])}"
+            )
         else:
             remote_prefill_params = None
+            vllm_logger.info(
+                f"Prefilling locally for request {request.request_id} with length {len(request.engine_prompt['prompt_token_ids'])}"
+            )
 
-        async for raw_response in await self.openai_serving_chat.create_chat_completion(
-            request,
+        # rust HTTP requires Delta streaming
+        request.sampling_params.output_kind = RequestOutputKind.DELTA
+
+        async for response in self.client.generate(
+            prompt=request.engine_prompt,
+            sampling_params=request.sampling_params,
+            request_id=request.request_id,
             remote_prefill_params=remote_prefill_params,
         ):
-            if raw_response.startswith("data: [DONE]"):
-                break
-            response = json.loads(raw_response.lstrip("data: "))
-            yield response
+            yield MyRequestOutput(
+                request_id=response.request_id,
+                prompt=response.prompt,
+                prompt_token_ids=response.prompt_token_ids,
+                prompt_logprobs=response.prompt_logprobs,
+                outputs=response.outputs,
+                finished=response.finished,
+            ).model_dump_json()
 
 
 @triton_worker()
 async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
-    component = runtime.namespace("test-nixl").component("vllm")
+    component = runtime.namespace("triton-init").component("vllm")
     await component.create_service()
 
     endpoint = component.endpoint("generate")
 
     prefill_client = (
-        await runtime.namespace("test-nixl")
+        await runtime.namespace("triton-init")
         .component("prefill")
         .endpoint("generate")
         .client()
     )
 
-    async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
-        # This should be replaced with etcd
+    VLLM_WORKER_ID = endpoint.lease_id()
+    os.environ["VLLM_WORKER_ID"] = str(VLLM_WORKER_ID)
+    vllm_logger.info(f"Generate endpoint ID: {VLLM_WORKER_ID}")
 
+    VLLM_KV_NAMESPACE = "triton-init"
+    os.environ["VLLM_KV_NAMESPACE"] = str(VLLM_KV_NAMESPACE)
+
+    VLLM_KV_COMPONENT = "vllm"
+    os.environ["VLLM_KV_COMPONENT"] = str(VLLM_KV_COMPONENT)
+
+    metrics_publisher = KvMetricsPublisher()
+
+    async with build_async_engine_client_from_engine_args(engine_args) as engine_client:
+        disaggregated_router = DisaggregatedRouter(
+            runtime,
+            engine_args.model,
+            100,  # note: this max_local_prefill_length will be updated by etcd
+        )
+
+        engine_client.set_metrics_publisher(metrics_publisher)
+
+        print("--------------------------------")
+        print(f"VLLM_WORKER_ID: {os.environ['VLLM_WORKER_ID']}")
+        # Initially send dummy metrics to kick start,
+        # vLLM will not update stat until forward pass is triggered
+        metrics_publisher.publish(
+            0,
+            1024,
+            0,
+            1024,
+        )
+
+        # This should be replaced with etcd
         if engine_args.remote_prefill:
             metadata = engine_client.nixl_metadata
             with temp_metadata_file(metadata.engine_id, metadata):
-                await endpoint.serve_endpoint(
-                    RequestHandler(
-                        model_name=engine_args.model,
-                        engine_client=engine_client,
-                        prefill_client=prefill_client,
-                        do_remote_prefill=True,
-                    ).generate
+                await asyncio.gather(
+                    endpoint.serve_endpoint(
+                        RequestHandler(
+                            model_name=engine_args.model,
+                            engine_client=engine_client,
+                            prefill_client=prefill_client,
+                            do_remote_prefill=True,
+                            disaggregated_router=disaggregated_router,
+                        ).generate
+                    ),
+                    metrics_publisher.create_endpoint(component),
                 )
         else:
             await endpoint.serve_endpoint(
