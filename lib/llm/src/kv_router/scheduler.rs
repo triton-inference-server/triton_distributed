@@ -35,6 +35,13 @@ pub enum KvSchedulerError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlexibleEndpoint {
+    pub name: String,
+    pub subject: String,
+    pub data: Option<ForwardPassMetrics>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Endpoint {
     pub name: String,
     pub subject: String,
@@ -62,7 +69,7 @@ pub struct Service {
     pub id: String,
     pub version: String,
     pub started: String,
-    pub endpoints: Vec<Endpoint>,
+    pub endpoints: Vec<FlexibleEndpoint>,
 }
 
 pub struct SchedulingRequest {

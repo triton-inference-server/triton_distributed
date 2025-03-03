@@ -34,6 +34,8 @@ mistralrs = ["dep:mistralrs"]
 llamacpp = ["dep:llama-cpp-2"]
 sglang = ["dep:async_zmq"]
 sentencepiece = ["dep:sentencepiece"]
+vllm = ["dep:async_zmq"]
+trtllm = []
 
 cuda = ["mistralrs/cuda", "llama-cpp-2/cuda"]
 metal = ["mistralrs/metal", "llama-cpp-2/metal"]
@@ -142,6 +144,9 @@ minijinja = { version = "2.3.1", features = ["loader"] }
 minijinja-contrib = { version = "2.3.1", features = ["pycompat"] }
 semver = { version = "1", features = ["serde"] }
 
+# trtllm
+serde_repr = "0.1"
+
 [dev-dependencies]
 proptest = "1.5.0"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
@@ -154,6 +159,10 @@ insta = { version = "1.41", features = [
   "redactions",
   "filters",
 ] }
+
+[build-dependencies]
+bindgen = "0.70"
+cmake = "0.1"
 
 [profile.dev.package]
 insta.opt-level = 3

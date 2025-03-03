@@ -82,9 +82,8 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     """
     Serve the triton-init.vllm.generate endpoint.
     """
-    metrics_publisher = KvMetricsPublisher()
     worker_component = runtime.namespace("triton-init").component("vllm")
-    await metrics_publisher.create_service(worker_component)
+    await worker_component.create_service()
 
     worker_endpoint = worker_component.endpoint("generate")
 
@@ -98,6 +97,7 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
     VLLM_KV_COMPONENT = "vllm"
     os.environ["VLLM_KV_COMPONENT"] = str(VLLM_KV_COMPONENT)
 
+    metrics_publisher = KvMetricsPublisher()
     vllm_engine = VllmEngine(engine_args, metrics_publisher)
     await vllm_engine.initialize()
     # Initially send dummy metrics to kick start,
@@ -109,7 +109,10 @@ async def worker(runtime: DistributedRuntime, engine_args: AsyncEngineArgs):
         1024,
     )
 
-    await worker_endpoint.serve_endpoint(vllm_engine.generate)
+    await asyncio.gather(
+        worker_endpoint.serve_endpoint(vllm_engine.generate),
+        metrics_publisher.create_endpoint(worker_component),
+    )
 
 
 if __name__ == "__main__":
