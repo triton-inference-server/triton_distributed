@@ -96,55 +96,55 @@ impl Returnable for KvBlock {
     fn on_return(&mut self) {}
 }
 
-pub struct KvBlockManager {
-    available_blocks: AvailableBlocks,
-    inflight_blocks: ReservedBlocks,
-    block_size: usize,
-}
+// pub struct KvBlockManager {
+//     available_blocks: AvailableBlocks,
+//     inflight_blocks: ReservedBlocks,
+//     block_size: usize,
+// }
 
-impl KvBlockManager {
-    pub async fn new(block_size: usize) -> Self {
-        Self {
-            available_blocks: AvailableBlocks::new().await,
-            inflight_blocks: ReservedBlocks::new(block_size),
-            block_size,
-        }
-    }
+// impl KvBlockManager {
+//     pub async fn new(block_size: usize) -> Self {
+//         Self {
+//             available_blocks: AvailableBlocks::new().await,
+//             inflight_blocks: ReservedBlocks::new(block_size),
+//             block_size,
+//         }
+//     }
 
-    pub fn prepare_prefill_sequence(&mut self, tokens: Tokens) -> Result<PrefillMatched> {
-        log::debug!("adding request with {} tokens", tokens.len());
+//     pub fn prepare_prefill_sequence(&mut self, tokens: Tokens) -> Result<PrefillMatched> {
+//         log::debug!("adding request with {} tokens", tokens.len());
 
-        let seq = TokenSequence::new(tokens, self.block_size);
-        let (blocks, tail_block) = seq.into_parts();
-        log::debug!("request translates to {} blocks", blocks.len());
+//         let seq = TokenSequence::new(tokens, self.block_size);
+//         let (blocks, tail_block) = seq.into_parts();
+//         log::debug!("request translates to {} blocks", blocks.len());
 
-        // first match blocks to inflight blocks
-        let mut inflight_blocks = self.inflight_blocks.match_token_blocks(&blocks)?;
-        log::debug!("matched {} inflight blocks", inflight_blocks.len());
+//         // first match blocks to inflight blocks
+//         let mut inflight_blocks = self.inflight_blocks.match_token_blocks(&blocks)?;
+//         log::debug!("matched {} inflight blocks", inflight_blocks.len());
 
-        // shift the blocks to the left by the number of inflight blocks
-        let unmatched_blocks = &blocks[inflight_blocks.len()..];
+//         // shift the blocks to the left by the number of inflight blocks
+//         let unmatched_blocks = &blocks[inflight_blocks.len()..];
 
-        // match the remaining blocks to freed gpu blocks (available_blocks)
-        let unregistered_blocks = self.available_blocks.match_token_blocks(unmatched_blocks);
-        log::debug!("matched {} freed blocks", unregistered_blocks.len());
+//         // match the remaining blocks to freed gpu blocks (available_blocks)
+//         let unregistered_blocks = self.available_blocks.match_token_blocks(unmatched_blocks);
+//         log::debug!("matched {} freed blocks", unregistered_blocks.len());
 
-        // the blocks from the freed blocks pool must be registered as inflight blocks
-        // todo - we might have to register the list of unregistered blocks as a single transaction
-        for block in unregistered_blocks {
-            inflight_blocks.push(self.inflight_blocks.register(block)?);
-        }
+//         // the blocks from the freed blocks pool must be registered as inflight blocks
+//         // todo - we might have to register the list of unregistered blocks as a single transaction
+//         for block in unregistered_blocks {
+//             inflight_blocks.push(self.inflight_blocks.register(block)?);
+//         }
 
-        // the remaining blocks are the unmatched blocks
-        let remaining_blocks = blocks.into_iter().skip(inflight_blocks.len()).collect();
+//         // the remaining blocks are the unmatched blocks
+//         let remaining_blocks = blocks.into_iter().skip(inflight_blocks.len()).collect();
 
-        Ok(PrefillMatched {
-            inflight_blocks,
-            remaining_blocks,
-            tail_block,
-        })
-    }
-}
+//         Ok(PrefillMatched {
+//             inflight_blocks,
+//             remaining_blocks,
+//             tail_block,
+//         })
+//     }
+// }
 
 /// State of the prefill sequence that is not inflight
 pub struct PrefillPending {

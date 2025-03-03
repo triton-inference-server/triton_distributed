@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
@@ -10,11 +12,22 @@ pub struct AvailableBlocks {
     match_tx: mpsc::UnboundedSender<MatchRequest>,
     return_tx: mpsc::UnboundedSender<PoolValue<KvBlock>>,
     control_tx: mpsc::UnboundedSender<ControlRequest>,
+    fence_tx: mpsc::UnboundedSender<oneshot::Sender<()>>,
     join_handle: JoinHandle<()>,
     return_handle: Arc<ReturnHandleImpl>,
+    total_blocks: Arc<AtomicU64>,
+    available_blocks: Arc<AtomicU64>,
 }
 
 impl AvailableBlocks {
+    pub fn total_blocks(&self) -> u64 {
+        self.total_blocks.load(Ordering::SeqCst)
+    }
+
+    pub fn available_blocks(&self) -> u64 {
+        self.available_blocks.load(Ordering::SeqCst)
+    }
+
     pub async fn match_blocks(&self, hashes: Vec<SequenceHash>) -> Result<Vec<PoolItem<KvBlock>>> {
         let (tx, rx) = oneshot::channel();
         if self
@@ -51,13 +64,88 @@ impl AvailableBlocks {
         Ok(matched_blocks)
     }
 
-    // pub async fn reset_all(&self) -> Result<()> {
-    //     let (tx, rx) = oneshot::channel();
-    //     if self.control_tx.send(ControlRequest::ResetAll).is_err() {
-    //         raise!("failed to send reset all request; channel closed");
-    //     }
+    pub async fn insert(&self, block: KvBlock) -> Result<()> {
+        let (tx, rx) = oneshot::channel();
+        if self
+            .control_tx
+            .send(ControlRequest::Insert(InsertControl { block, tx }))
+            .is_err()
+        {
+            raise!("failed to send insert request; channel closed");
+        }
+        rx.await?;
+        Ok(())
+    }
 
-    // }
+    pub async fn update_single(&self, update: UpdateBlock) -> Result<()> {
+        let (tx, rx) = oneshot::channel();
+        if self
+            .control_tx
+            .send(ControlRequest::UpdateSingle(UpdateSingleControl {
+                update,
+                tx,
+            }))
+            .is_err()
+        {
+            raise!("failed to send update single request; channel closed");
+        }
+        rx.await?;
+        Ok(())
+    }
+
+    pub async fn update_multiple(&self, updates: Vec<UpdateBlock>) -> Result<()> {
+        let (tx, rx) = oneshot::channel();
+        if self
+            .control_tx
+            .send(ControlRequest::UpdateMultiple(UpdateMultipleControl {
+                updates,
+                tx,
+            }))
+            .is_err()
+        {
+            raise!("failed to send update multiple request; channel closed");
+        }
+        rx.await?;
+        Ok(())
+    }
+
+    pub async fn reset(&self, sequence_hashes: Vec<SequenceHash>) -> Result<()> {
+        let (tx, rx) = oneshot::channel();
+        if self
+            .control_tx
+            .send(ControlRequest::Reset(ResetControl {
+                sequence_hashes,
+                tx,
+            }))
+            .is_err()
+        {
+            raise!("failed to send reset request; channel closed");
+        }
+        rx.await?;
+        Ok(())
+    }
+
+    pub async fn reset_all(&self) -> Result<()> {
+        let (tx, rx) = oneshot::channel();
+        if self
+            .control_tx
+            .send(ControlRequest::ResetAll(ResetAllControl { tx }))
+            .is_err()
+        {
+            raise!("failed to send reset all request; channel closed");
+        }
+        rx.await?;
+        Ok(())
+    }
+
+    pub async fn fence(&self) -> Result<()> {
+        let (tx, rx) = oneshot::channel();
+        if self.fence_tx.send(tx).is_err() {
+            raise!("failed to send fence request; channel closed");
+        }
+        rx.await?;
+        Ok(())
+    }
 }
 
 struct ReturnHandleImpl {
@@ -77,20 +165,34 @@ impl AvailableBlocks {
         let (match_tx, match_rx) = mpsc::unbounded_channel();
         let (return_tx, return_rx) = mpsc::unbounded_channel();
         let (control_tx, control_rx) = mpsc::unbounded_channel();
+        let (fence_tx, fence_rx) = mpsc::unbounded_channel();
+
+        let total_blocks = Arc::new(AtomicU64::new(0));
+        let available_blocks = Arc::new(AtomicU64::new(0));
 
         let return_tx_clone = return_tx.clone();
         let return_handle = Arc::new(ReturnHandleImpl {
             return_tx: return_tx_clone,
         });
 
-        let join_handle = tokio::spawn(progress_engine(match_rx, return_rx, control_rx));
+        let join_handle = tokio::spawn(progress_engine(
+            match_rx,
+            return_rx,
+            control_rx,
+            fence_rx,
+            total_blocks.clone(),
+            available_blocks.clone(),
+        ));
 
         Self {
             match_tx,
             return_tx,
             control_tx,
+            fence_tx,
             join_handle,
             return_handle,
+            total_blocks,
+            available_blocks,
         }
     }
 }
@@ -120,17 +222,11 @@ impl Ord for PriorityKey {
 impl From<&KvBlock> for PriorityKey {
     fn from(block: &KvBlock) -> Self {
         Self {
-            priority: 0,
+            priority: block.priority,
             return_tick: block.return_tick,
             sequence_hash: block.token_block.sequence_hash(),
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct DeadlineKey {
-    deadline: Instant,
-    priority: PriorityKey,
 }
 
 #[derive(Default)]
@@ -148,13 +244,23 @@ struct AvailableBlocksState {
     return_tick: u64,
 
     // Total blocks
-    total_blocks: u64,
+    total_blocks: Arc<AtomicU64>,
 
     // Available blocks
-    available_blocks: u64,
+    available_blocks: Arc<AtomicU64>,
 }
 
 impl AvailableBlocksState {
+    fn new(total_blocks: Arc<AtomicU64>, available_blocks: Arc<AtomicU64>) -> Self {
+        Self {
+            lookup_map: HashMap::new(),
+            priority_set: BTreeMap::new(),
+            uninitialized_set: VecDeque::new(),
+            return_tick: 0,
+            total_blocks,
+            available_blocks,
+        }
+    }
     // Insert an item with a given key and sequence_hash
     fn insert(&mut self, block: PoolValue<KvBlock>) {
         let sequence_hash = block.token_block.sequence_hash();
@@ -213,7 +319,8 @@ impl AvailableBlocksState {
             }
         }
 
-        self.available_blocks -= matched_blocks.len() as u64;
+        self.available_blocks
+            .fetch_sub(matched_blocks.len() as u64, Ordering::SeqCst);
 
         matched_blocks
     }
@@ -277,7 +384,10 @@ impl AvailableBlocksState {
             }
         }
 
-        self.available_blocks -= taken_blocks.len() as u64;
+        self.available_blocks.fetch_sub(
+            taken_blocks.len() as u64,
+            std::sync::atomic::Ordering::SeqCst,
+        );
 
         // Send the result back through the channel
         if tx.send(taken_blocks).is_err() {
@@ -297,24 +407,65 @@ impl AvailableBlocksState {
 
     fn handle_control_request(&mut self, control_request: ControlRequest) {
         match control_request {
-            ControlRequest::Insert(block) => self.handle_insert(block),
-            ControlRequest::UpdateSingle(update_single) => self.handle_update_single(update_single),
-            ControlRequest::UpdateMultiple(update_multiple) => {
-                self.handle_update_multiple(update_multiple)
+            ControlRequest::Insert(insert) => {
+                let (block, tx) = insert.dissolve();
+                self.handle_insert(block);
+                if tx.send(()).is_err() {
+                    log::trace!("Failed to send insert ack; receiver dropped");
+                }
             }
-            ControlRequest::Reset(sequence_hash) => self.handle_reset(sequence_hash),
-            ControlRequest::ResetAll => self.handle_reset_all(),
+            ControlRequest::UpdateSingle(update_single) => {
+                let (update, tx) = update_single.dissolve();
+                self.handle_update_single(update);
+                if tx.send(()).is_err() {
+                    log::trace!("Failed to send update single ack; receiver dropped");
+                }
+            }
+            ControlRequest::UpdateMultiple(update_multiple) => {
+                let (updates, tx) = update_multiple.dissolve();
+                self.handle_update_multiple(updates);
+                if tx.send(()).is_err() {
+                    log::trace!("Failed to send update multiple ack; receiver dropped");
+                }
+            }
+            ControlRequest::Reset(reset) => {
+                let (sequence_hashes, tx) = reset.dissolve();
+                self.handle_reset(sequence_hashes);
+                if tx.send(()).is_err() {
+                    log::trace!("Failed to send reset ack; receiver dropped");
+                }
+            }
+            ControlRequest::ResetAll(reset_all) => {
+                let tx = reset_all.dissolve();
+                self.handle_reset_all();
+                if tx.send(()).is_err() {
+                    log::trace!("Failed to send reset all ack; receiver dropped");
+                }
+            }
         }
     }
-
     fn handle_insert(&mut self, block: KvBlock) {
-        self.available_blocks += 1;
-        self.total_blocks += 1;
+        self.available_blocks
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.total_blocks
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.return_tick += 1;
+
+        // update the return tick
+        let mut block = block;
+        block.return_tick = self.return_tick;
+
         self.insert(PoolValue::Direct(block));
     }
-
     fn handle_return(&mut self, block: PoolValue<KvBlock>) {
-        self.available_blocks += 1;
+        self.available_blocks
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.return_tick += 1;
+
+        // update the return tick
+        let mut block = block;
+        block.return_tick = self.return_tick;
+
         self.insert(block);
     }
     fn handle_update_single(&mut self, update: UpdateBlock) {
@@ -399,24 +550,57 @@ pub struct UpdateBlock {
     deadline: Option<Instant>,
 }
 
+#[derive(Dissolve)]
+pub struct InsertControl {
+    block: KvBlock,
+    tx: oneshot::Sender<()>,
+}
+
+#[derive(Dissolve)]
+pub struct UpdateSingleControl {
+    update: UpdateBlock,
+    tx: oneshot::Sender<()>,
+}
+
+#[derive(Dissolve)]
+pub struct UpdateMultipleControl {
+    updates: Vec<UpdateBlock>,
+    tx: oneshot::Sender<()>,
+}
+
+#[derive(Dissolve)]
+pub struct ResetControl {
+    sequence_hashes: Vec<SequenceHash>,
+    tx: oneshot::Sender<()>,
+}
+
+#[derive(Dissolve)]
+pub struct ResetAllControl {
+    tx: oneshot::Sender<()>,
+}
+
 pub enum ControlRequest {
-    Insert(KvBlock),
-    UpdateSingle(UpdateBlock),
-    UpdateMultiple(Vec<UpdateBlock>),
-    Reset(Vec<SequenceHash>),
-    ResetAll,
+    Insert(InsertControl),
+    UpdateSingle(UpdateSingleControl),
+    UpdateMultiple(UpdateMultipleControl),
+    Reset(ResetControl),
+    ResetAll(ResetAllControl),
 }
 
 pub async fn progress_engine(
     match_rx: mpsc::UnboundedReceiver<MatchRequest>,
     return_rx: mpsc::UnboundedReceiver<PoolValue<KvBlock>>,
     ctrl_rx: mpsc::UnboundedReceiver<ControlRequest>,
+    fence_rx: mpsc::UnboundedReceiver<oneshot::Sender<()>>,
+    total_blocks: Arc<AtomicU64>,
+    available_blocks: Arc<AtomicU64>,
 ) {
     let mut match_rx = match_rx;
     let mut return_rx = return_rx;
     let mut ctrl_rx = ctrl_rx;
+    let mut fence_rx = fence_rx;
 
-    let mut state = AvailableBlocksState::default();
+    let mut state = AvailableBlocksState::new(total_blocks, available_blocks);
 
     loop {
         tokio::select! {
@@ -430,14 +614,13 @@ pub async fn progress_engine(
                 state.handle_return(block);
             }
 
-            ctrl_req = ctrl_rx.recv() => {
-                match ctrl_req {
-                    Some(req) => state.handle_control_request(req),
-                    None => {
-                        // always flush the control channel before exiting
-                        log::trace!("ctrl channel closed, exiting reuse progress loop");
-                        break;
-                    }
+            Some(req) = ctrl_rx.recv(), if !ctrl_rx.is_closed() => {
+                state.handle_control_request(req);
+            }
+
+            Some(tx) = fence_rx.recv() => {
+                if tx.send(()).is_err() {
+                    log::trace!("Failed to send fence ack; receiver dropped");
                 }
             }
         }
@@ -446,6 +629,8 @@ pub async fn progress_engine(
 
 #[cfg(test)]
 mod tests {
+    use crate::tokens::{Token, TokenSequence};
+
     use super::*;
 
     #[test]
@@ -513,4 +698,218 @@ mod tests {
         // Map should now be empty
         assert!(map.is_empty());
     }
+
+    // Helper function to create a sequence of tokens
+    fn create_token_sequence(values: &[u32]) -> Tokens {
+        let tokens: Vec<Token> = values.iter().map(|&v| Token::from(v)).collect();
+        Tokens::from(tokens)
+    }
+
+    // Helper to create blocks from a sequence with given size
+    fn create_blocks(sequence: Tokens, block_size: usize) -> Vec<KvBlock> {
+        let (blocks, _) = sequence.into_sequence(block_size).into_parts();
+        blocks
+            .into_iter()
+            .map(|token_block| KvBlock {
+                token_block,
+                return_tick: 0,
+                priority: 0,
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn test_basic_sequence_matching() {
+        let pool = AvailableBlocks::new().await;
+
+        // Create a sequence of 4 tokens split into blocks of 2
+        let sequence = create_token_sequence(&[1, 2, 3, 4]);
+        let blocks = create_blocks(sequence, 2);
+        assert_eq!(blocks.len(), 2);
+
+        // Match the blocks in sequence
+        let hashes: Vec<_> = blocks
+            .iter()
+            .map(|b| b.token_block.sequence_hash())
+            .collect();
+
+        // Insert blocks into pool
+        for block in blocks {
+            pool.insert(block).await.unwrap();
+        }
+
+        assert_eq!(pool.total_blocks(), 2);
+        assert_eq!(pool.available_blocks(), 2);
+
+        // Match the blocks in sequence
+        let matched = pool.match_blocks(hashes.clone()).await.unwrap();
+        assert_eq!(matched.len(), 2);
+
+        assert_eq!(pool.total_blocks(), 2);
+        assert_eq!(pool.available_blocks(), 0);
+
+        // Validate the blocks are in the correct order and match the sequence hashes
+        assert_eq!(matched[0].token_block.sequence_hash(), hashes[0]);
+        assert_eq!(matched[1].token_block.sequence_hash(), hashes[1]);
+
+        // Return blocks in reverse order (tail to root)
+        for block in matched.into_iter().rev() {
+            drop(block); // This will trigger return_to_pool
+        }
+
+        pool.fence().await.unwrap();
+
+        assert_eq!(pool.total_blocks(), 2);
+        assert_eq!(pool.available_blocks(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_equal_priority_taking() {
+        let pool = AvailableBlocks::new().await;
+
+        // Create two sequences with different priorities
+        let seq1 = create_token_sequence(&[1, 2, 3, 4]);
+        let seq2 = create_token_sequence(&[5, 6, 7, 8]);
+
+        let mut blocks1 = create_blocks(seq1, 2);
+        let mut blocks2 = create_blocks(seq2, 2);
+
+        for block in blocks1.iter_mut() {
+            block.priority = 1;
+        }
+        for block in blocks2.iter_mut() {
+            block.priority = 1;
+        }
+
+        // If priorities were equal, first in, first out would apply
+
+        // Insert Sequence 2
+        for block in blocks2.into_iter().rev() {
+            pool.insert(block).await.unwrap();
+        }
+
+        // Insert Sequence 1
+        for block in blocks1.into_iter().rev() {
+            pool.insert(block).await.unwrap();
+        }
+
+        let blocks = pool.take_blocks(4).await.unwrap();
+        assert_eq!(blocks.len(), 4);
+
+        // Validate the blocks are in the correct order
+        assert_eq!(blocks[0].token_block.tokens()[0], 7);
+        assert_eq!(blocks[1].token_block.tokens()[0], 5);
+        assert_eq!(blocks[2].token_block.tokens()[0], 3);
+        assert_eq!(blocks[3].token_block.tokens()[0], 1);
+    }
+
+    #[tokio::test]
+    async fn test_priority_taking() {
+        let pool = AvailableBlocks::new().await;
+
+        // Create two sequences with different priorities
+        let seq1 = create_token_sequence(&[1, 2, 3, 4]);
+        let seq2 = create_token_sequence(&[5, 6, 7, 8]);
+
+        let mut blocks1 = create_blocks(seq1, 2);
+        let mut blocks2 = create_blocks(seq2, 2);
+
+        for block in blocks1.iter_mut() {
+            block.priority = 1;
+        }
+        for block in blocks2.iter_mut() {
+            block.priority = 2;
+        }
+
+        // If priorities were equal, first in, first out would apply
+        // but here we have a higher priority block first (which are taken last)
+        // returned first, but lower priority blocks inserted after
+        // we expect the lower priority blocks to be taken first
+
+        // Insert Sequence 2
+        for block in blocks2.into_iter().rev() {
+            pool.insert(block).await.unwrap();
+        }
+
+        // Insert Sequence 1
+        for block in blocks1.into_iter().rev() {
+            pool.insert(block).await.unwrap();
+        }
+
+        let blocks = pool.take_blocks(4).await.unwrap();
+        assert_eq!(blocks.len(), 4);
+
+        // Validate the blocks are in the correct order
+        assert_eq!(blocks[0].token_block.tokens()[0], 3);
+        assert_eq!(blocks[1].token_block.tokens()[0], 1);
+        assert_eq!(blocks[2].token_block.tokens()[0], 7);
+        assert_eq!(blocks[3].token_block.tokens()[0], 5);
+    }
+
+    // #[tokio::test]
+    // async fn test_sequence_order_return() {
+    //     let pool = AvailableBlocks::new().await;
+
+    //     // Create sequence of 6 tokens in blocks of 2
+    //     let sequence = create_token_sequence(&[1, 2, 3, 4, 5, 6]);
+    //     let blocks = create_blocks(sequence, 2);
+    //     assert_eq!(blocks.len(), 3);
+
+    //     // Insert blocks
+    //     for block in blocks.iter() {
+    //         pool.insert(block.clone()).await.unwrap();
+    //     }
+
+    //     // Match all blocks
+    //     let hashes: Vec<_> = blocks
+    //         .iter()
+    //         .map(|b| b.token_block.sequence_hash())
+    //         .collect();
+    //     let matched = pool.match_blocks(hashes).await.unwrap();
+    //     assert_eq!(matched.len(), 3);
+
+    //     // Return blocks in reverse order (tail to root)
+    //     // This ensures proper priority when reusing blocks
+    //     for block in matched.into_iter().rev() {
+    //         drop(block);
+    //     }
+
+    //     // Now take blocks one by one - they should come out in the original sequence order
+    //     for i in 0..3 {
+    //         let taken = pool.take_blocks(1).await.unwrap();
+    //         assert_eq!(taken.len(), 1);
+    //         assert_eq!(
+    //             taken[0].token_block.sequence_hash(),
+    //             blocks[i].token_block.sequence_hash()
+    //         );
+    //         drop(taken[0]);
+    //     }
+    // }
+
+    // #[tokio::test]
+    // async fn test_priority_inheritance() {
+    //     let pool = AvailableBlocks::new().await;
+
+    //     // Create a sequence where each subsequent block has lower or equal priority
+    //     let sequence = create_token_sequence(&[1, 2, 3, 4]);
+    //     let mut blocks = create_blocks(sequence, 2);
+
+    //     // Set descending priorities (parent must have >= priority than children)
+    //     blocks[0].priority = 1;
+    //     blocks[1].priority = 2; // Lower priority for tail block
+
+    //     // Insert and verify priority-based retrieval
+    //     for block in blocks.iter() {
+    //         pool.insert(block.clone()).await.unwrap();
+    //     }
+
+    //     // Take blocks - should get higher priority (root) block first
+    //     let taken = pool.take_blocks(1).await.unwrap();
+    //     assert_eq!(taken[0].priority, 1);
+    //     drop(taken[0]);
+
+    //     let taken = pool.take_blocks(1).await.unwrap();
+    //     assert_eq!(taken[0].priority, 2);
+    //     drop(taken[0]);
+    // }
 }

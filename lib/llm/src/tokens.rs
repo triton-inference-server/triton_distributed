@@ -79,7 +79,11 @@ impl From<Tokens> for Vec<Token> {
     }
 }
 
-impl Tokens {}
+impl Tokens {
+    pub fn into_sequence(self, block_size: usize) -> TokenSequence {
+        TokenSequence::new(self, block_size)
+    }
+}
 
 pub struct PartialTokenBlock {
     tokens: Tokens,
