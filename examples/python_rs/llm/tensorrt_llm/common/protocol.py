@@ -29,6 +29,12 @@ from tensorrt_llm.serve.openai_protocol import (
 )
 
 
+class Request(BaseModel):
+    prompt: str
+    sampling_params: dict
+    streaming: bool
+
+
 class DisaggregatedTypeConverter:
     @staticmethod
     def to_llm_disaggregated_params(

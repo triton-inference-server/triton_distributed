@@ -16,7 +16,16 @@
 import asyncio
 import json
 import time
-from typing import Any, AsyncGenerator, AsyncIterator, Dict, List, Tuple, TypedDict
+from typing import (
+    Any,
+    AsyncGenerator,
+    AsyncIterator,
+    Dict,
+    List,
+    Tuple,
+    TypedDict,
+    Union,
+)
 
 from common.protocol import (
     DisaggCompletionResponseStreamChoice,
@@ -56,7 +65,7 @@ class ConversationMessage(TypedDict):
 
 def parse_chat_message_content(
     message: ChatCompletionMessageParam,
-) -> ConversationMessage:
+) -> Union[ConversationMessage, List[ConversationMessage], List[None]]:
     role = message["role"]
     content = message.get("content")
 
@@ -65,7 +74,6 @@ def parse_chat_message_content(
     if isinstance(content, str):
         return [ConversationMessage(role=role, content=content)]
 
-    # for Iterable[ChatCompletionContentPartTextParam]
     texts: List[str] = []
     for part in content:
         part_type = part["type"]
@@ -139,7 +147,9 @@ class ChatProcessor:
         finish_reason_sent = [False] * num_choices
         role = self._get_role(request)
 
-        def yield_first_chat(num_tokens: int, role: str = None, content: str = None):
+        def yield_first_chat(
+            num_tokens: int, role: str | None = None, content: str | None = None
+        ):
             for i in range(num_choices):
                 choice_data = ChatCompletionResponseStreamChoice(
                     index=i,

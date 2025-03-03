@@ -49,7 +49,7 @@ class Router:
         self.gen_completion_client = gen_completion_client
         logger.info("INITIALIZED ROUTER")
 
-    def _get_ctx_resp(self, request, ctx_client):
+    async def _get_ctx_resp(self, request, ctx_client):
         # These settings are needed to satisfy request checks.
         request.skip_special_tokens = False
         request.add_special_tokens = False
@@ -71,7 +71,7 @@ class Router:
         logger.debug(
             f"[router] received response from context server: {ctx_resp[0].data()}"
         )
-        return ctx_resp[0].data()
+        yield ctx_resp[0].data()
 
     # TODO (shreyasm): The only reason we cant further combine the two methods below is
     # because the disagg params are in different locations.
@@ -82,7 +82,7 @@ class Router:
     async def generate_completion(self, request):
         gen_req = copy.deepcopy(request)
 
-        ctx_resp = self._get_ctx_resp(request, self.ctx_completion_client)
+        ctx_resp = await self._get_ctx_resp(request, self.ctx_completion_client)
         ctx_resp_obj = DisaggCompletionStreamResponse.model_validate(ctx_resp)
 
         gen_req.disaggregated_params = DisaggregatedParams.model_validate(
@@ -110,7 +110,7 @@ class Router:
     async def generate_chat(self, request):
         gen_req = copy.deepcopy(request)
 
-        ctx_resp = self._get_ctx_resp(request, self.ctx_chat_client)
+        ctx_resp = await self._get_ctx_resp(request, self.ctx_chat_client)
         ctx_resp_obj = DisaggChatCompletionStreamResponse.model_validate_json(ctx_resp)
 
         gen_req.disaggregated_params = DisaggregatedParams.model_validate(

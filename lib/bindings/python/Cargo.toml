@@ -42,6 +42,7 @@ tokio = { version = "1", features = ["full"] }
 tokio-stream = "0"
 tracing = "0"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+types-PyYAML = "6.0.12.12"
 
 # "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
 # "abi3-py39" tells pyo3 (and maturin) to build using the stable ABI with minimum Python version 3.9
