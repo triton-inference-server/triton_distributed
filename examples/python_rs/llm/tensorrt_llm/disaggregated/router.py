@@ -33,7 +33,7 @@ from triton_distributed.runtime import (
     triton_worker,
 )
 
-logger.set_level("debug")
+logger.set_level("info")
 
 
 class RequestType(Enum):

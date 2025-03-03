@@ -278,6 +278,37 @@ curl localhost:8080/v1/completions \
   }'
 ```
 
+The output should look similar to:
+```json
+{
+  "id": "8e3d8d1d-01c8-4c57-9031-f17559f4ea83",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "content": "The capital of France is Paris.",
+        "refusal": null,
+        "tool_calls": null,
+        "role": "assistant",
+        "function_call": null,
+        "audio": null
+      },
+      "finish_reason": "stop",
+      "logprobs": null
+    }
+  ],
+  "created": 1740870209,
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "service_tier": null,
+  "system_fingerprint": null,
+  "object": "chat.completion",
+  "usage": null
+}
+```
+
+***Completion disaggregated deployment is WIP.***
+
+
 For more details on the disaggregated deployment, please refer to the [TRT-LLM example](#TODO).
 
 

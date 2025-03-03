@@ -200,6 +200,29 @@ class ChatProcessor:
             )
             return chunk
 
+    def create_final_stream_response(
+        self,
+        request_id: str,
+        final_result: RequestOutput,
+    ) -> DisaggregatedResponse:
+        prompt_tokens = len(final_result.prompt_token_ids)
+        completion_tokens = sum(output.length for output in final_result.outputs)
+        final_usage = UsageInfo(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens,
+        )
+
+        final_usage_chunk = DisaggregatedResponse(
+            id=request_id,
+            created=int(time.time()),
+            object="chat.completion",
+            choices=[],
+            model=self.model,
+            usage=final_usage,
+        )
+        return final_usage_chunk
+
     async def create_chat_response(
         self,
         request: ChatCompletionRequest,

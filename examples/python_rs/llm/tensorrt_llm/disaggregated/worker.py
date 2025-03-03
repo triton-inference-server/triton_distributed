@@ -50,7 +50,7 @@ from triton_distributed.runtime import (
     triton_worker,
 )
 
-logger.set_level("debug")
+logger.set_level("info")
 
 
 def update_args_from_disagg_config(engine_config, server_config: CtxGenServerConfig):
@@ -93,8 +93,7 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
         chat_processor = ChatProcessor(self.model, self.tokenizer, request)
 
         self._ongoing_request_count += 1
-        logger.debug(f"Received request Tanmyyyyy: {request}")
-        logger.debug(f"Received request Tanmyyyyy: {type(request)}")
+        logger.debug(f"Received request: {request}")
 
         try:
             conversation = []
@@ -126,29 +125,39 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
                     .encode("latin1")
                 )
 
-            async for response in self._llm_engine.generate_async(
+            final_result = None
+            async for result in self._llm_engine.generate_async(
                 prompt,
                 sampling_params,
                 streaming=request.stream,
                 disaggregated_params=disaggregated_params,
             ):
-                logger.debug(f"Generated response: {response}")
+                final_result = result
+                logger.debug(f"Generated result: {result}")
                 if self.server_config.type == "ctx":
                     disaggregated_response = chat_processor.get_chat_stream_response(
                         request.id,
-                        response,
+                        result,
                         first_iteration=True,
                     )
-                    disaggregated_response.disaggregated_params = response.outputs[
+                    disaggregated_response.disaggregated_params = result.outputs[
                         0
                     ].disaggregated_params
                     yield disaggregated_response.model_dump_json()
                 else:
                     yield chat_processor.get_chat_stream_response(
                         request.id,
-                        response,
-                        first_iteration=True,
-                    ).model_dump_json(exclude={"disaggregated_params"})
+                        result,
+                        first_iteration=False,
+                    ).model_dump_json(
+                        exclude_unset=True, exclude={"disaggregated_params"}
+                    )
+
+            if request.stream_options and request.stream_options.include_usage:
+                yield chat_processor.create_final_stream_response(
+                    request.id,
+                    final_result,
+                ).model_dump_json(exclude_unset=True, exclude={"disaggregated_params"})
 
         except CppExecutorError:
             # If internal executor error is raised, shutdown the server

@@ -16,16 +16,21 @@
 
 import asyncio
 import json
+import signal
+import uuid
 from enum import Enum
 from typing import List
 
 import uvloop
 from common.base_engine import BaseTensorrtLLMEngine
 from common.parser import LLMAPIConfig, parse_tensorrt_llm_args
-from common.processor import merge_promises
+from common.processor import merge_promises, parse_chat_message_content
+from common.protocol import nvChatCompletionRequest
+from tensorrt_llm.executor import CppExecutorError
 from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
 from tensorrt_llm.serve.openai_protocol import (
+    ChatCompletionStreamResponse,
     CompletionRequest,
     CompletionStreamResponse,
 )
@@ -51,6 +56,56 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
 
     def __init__(self, engine_config: LLMAPIConfig):
         super().__init__(engine_config)
+
+    @triton_endpoint(nvChatCompletionRequest, ChatCompletionStreamResponse)
+    async def generate_chat(self, request):
+        if self._llm_engine is None:
+            raise RuntimeError("Engine not initialized")
+
+        logger.debug(f"Received chat request: {request}")
+        request_id = str(uuid.uuid4())
+
+        try:
+            conversation = []
+            for message in request.messages:
+                conversation.extend(parse_chat_message_content(message))
+            tool_dicts = (
+                None
+                if request.tools is None
+                else [tool.model_dump() for tool in request.tools]
+            )
+            prompt: str = self.tokenizer.apply_chat_template(
+                conversation=conversation,
+                tokenize=False,
+                add_generation_prompt=request.add_generation_prompt,
+                tools=tool_dicts,
+                documents=request.documents,
+                chat_template=request.chat_template,
+                **(request.chat_template_kwargs or {}),
+            )
+            sampling_params = request.to_sampling_params()
+
+            if self._llm_engine is not None:
+                promise = self._llm_engine.generate_async(
+                    prompt,
+                    sampling_params,
+                    streaming=request.stream,
+                )
+                if request.stream:
+                    response_generator = self.chat_processor.stream_response(
+                        request, request_id, conversation, promise
+                    )
+                    async for response in response_generator:
+                        print(f"[worker] Sending response {response}")
+                        yield response
+                else:
+                    # TODO: Implement non-streaming chat completion
+                    raise RuntimeError("Non-streaming is not supported")
+        except CppExecutorError:
+            # If internal executor error is raised, shutdown the server
+            signal.raise_signal(signal.SIGINT)
+        except Exception as e:
+            raise RuntimeError("Failed to generate: " + str(e))
 
     @triton_endpoint(CompletionRequest, CompletionStreamResponse)
     async def generate_completion(self, request):
