@@ -26,20 +26,33 @@ import shutil
 import socket
 import tempfile
 import typing as t
+from typing import Any, Dict, Optional, Protocol, TypeVar
 
 from _bentoml_sdk import Service
 from bentoml._internal.container import BentoMLContainer
 from bentoml._internal.utils.circus import Server
 from bentoml.exceptions import BentoMLConfigException
+from circus.sockets import CircusSocket
+from circus.watcher import Watcher
 from simple_di import Provide, inject
-
-AnyService = Service[t.Any]
 
 if t.TYPE_CHECKING:
     from _bentoml_impl.server.allocator import ResourceAllocator
-    from circus.sockets import CircusSocket
-    from circus.watcher import Watcher
 
+
+# Define a Protocol for services to ensure type safety
+class ServiceProtocol(Protocol):
+    name: str
+    inner: Any
+    models: list[Any]
+    bento: Any
+
+    def is_nova_component(self) -> bool:
+        ...
+
+
+# Use Protocol as the base for type alias
+AnyService = TypeVar("AnyService", bound=ServiceProtocol)
 
 POSIX = os.name == "posix"
 WINDOWS = os.name == "nt"
@@ -52,7 +65,7 @@ logger = logging.getLogger("bentoml.serve")
 if POSIX and not IS_WSL:
 
     def _get_server_socket(
-        service: AnyService,
+        service: ServiceProtocol,
         uds_path: str,
         port_stack: contextlib.ExitStack,
         backlog: int,
@@ -69,7 +82,7 @@ if POSIX and not IS_WSL:
 elif WINDOWS or IS_WSL:
 
     def _get_server_socket(
-        service: AnyService,
+        service: ServiceProtocol,
         uds_path: str,
         port_stack: contextlib.ExitStack,
         backlog: int,
@@ -90,8 +103,8 @@ elif WINDOWS or IS_WSL:
 else:
 
     def _get_server_socket(
-        service: AnyService,
-        uds_path: str | None,
+        service: ServiceProtocol,
+        uds_path: str,
         port_stack: contextlib.ExitStack,
         backlog: int,
     ) -> tuple[str, CircusSocket]:
@@ -105,13 +118,13 @@ _SERVICE_WORKER_SCRIPT = "_bentoml_impl.worker.service"
 
 def create_dependency_watcher(
     bento_identifier: str,
-    svc: AnyService,
+    svc: ServiceProtocol,
     uds_path: str,
     port_stack: contextlib.ExitStack,
     backlog: int,
     scheduler: ResourceAllocator,
-    working_dir: str | None = None,
-    env: dict[str, str] | None = None,
+    working_dir: Optional[str] = None,
+    env: Optional[Dict[str, str]] = None,
 ) -> tuple[Watcher, CircusSocket, str]:
     from bentoml.serving import create_watcher
 
@@ -144,13 +157,13 @@ def create_dependency_watcher(
 
 def create_nova_watcher(
     bento_identifier: str,
-    svc: AnyService,
+    svc: ServiceProtocol,
     uds_path: str,
     port_stack: contextlib.ExitStack,
     backlog: int,
     scheduler: ResourceAllocator,
-    working_dir: str | None = None,
-    env: dict[str, str] | None = None,
+    working_dir: Optional[str] = None,
+    env: Optional[Dict[str, str]] = None,
 ) -> tuple[Watcher, CircusSocket, str]:
     """Create a watcher for a Nova service in the dependency graph"""
     from bentoml.serving import create_watcher
@@ -189,19 +202,25 @@ def create_nova_watcher(
 
 @inject
 def server_on_deployment(
-    svc: AnyService, result_file: str = Provide[BentoMLContainer.result_store_file]
+    svc: ServiceProtocol, result_file: str = Provide[BentoMLContainer.result_store_file]
 ) -> None:
     # Resolve models before server starts.
-    if bento := svc.bento:
+    if hasattr(svc, "bento") and (bento := getattr(svc, "bento")):
         for model in bento.info.all_models:
             model.to_model().resolve()
-    else:
+    elif hasattr(svc, "models"):
         for model in svc.models:
             model.resolve()
-    for name in dir(svc.inner):
-        member = getattr(svc.inner, name)
-        if callable(member) and getattr(member, "__bentoml_deployment_hook__", False):
-            member()
+
+    if hasattr(svc, "inner"):
+        inner = svc.inner
+        for name in dir(inner):
+            member = getattr(inner, name)
+            if callable(member) and getattr(
+                member, "__bentoml_deployment_hook__", False
+            ):
+                member()
+
     if os.path.exists(result_file):
         os.remove(result_file)
 
@@ -245,21 +264,20 @@ def serve_http(
     )
     from circus.sockets import CircusSocket
 
+    bento_id: str = ""
     env = {"PROMETHEUS_MULTIPROC_DIR": ensure_prometheus_dir()}
     if isinstance(bento_identifier, Service):
         svc = bento_identifier
-        bento_identifier = svc.import_string
+        bento_id = svc.import_string
         assert (
             working_dir is None
         ), "working_dir should not be set when passing a service in process"
         # use cwd
         bento_path = pathlib.Path(".")
     else:
-        bento_identifier, bento_path = normalize_identifier(
-            bento_identifier, working_dir
-        )
+        bento_id, bento_path = normalize_identifier(bento_identifier, working_dir)
 
-        svc = import_service(bento_identifier, bento_path)
+        svc = import_service(bento_id, bento_path)
 
     watchers: list[Watcher] = []
     sockets: list[CircusSocket] = []
@@ -294,7 +312,7 @@ def serve_http(
                         and dep_svc.is_nova_component()
                     ):
                         new_watcher, new_socket, uri = create_nova_watcher(
-                            bento_identifier,
+                            bento_id,
                             dep_svc,
                             uds_path,
                             port_stack,
@@ -306,7 +324,7 @@ def serve_http(
                     else:
                         # Regular BentoML service
                         new_watcher, new_socket, uri = create_dependency_watcher(
-                            bento_identifier,
+                            bento_id,
                             dep_svc,
                             uds_path,
                             port_stack,
