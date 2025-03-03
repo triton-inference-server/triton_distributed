@@ -10,7 +10,6 @@ use super::*;
 
 pub struct AvailableBlocks {
     match_tx: mpsc::UnboundedSender<MatchRequest>,
-    return_tx: mpsc::UnboundedSender<PoolValue<KvBlock>>,
     control_tx: mpsc::UnboundedSender<ControlRequest>,
     fence_tx: mpsc::UnboundedSender<oneshot::Sender<()>>,
     join_handle: JoinHandle<()>,
@@ -186,7 +185,6 @@ impl AvailableBlocks {
 
         Self {
             match_tx,
-            return_tx,
             control_tx,
             fence_tx,
             join_handle,
