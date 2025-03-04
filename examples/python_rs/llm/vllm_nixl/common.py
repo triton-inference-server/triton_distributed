@@ -72,8 +72,11 @@ class NixlMetadataStore:
 
     def __init__(self, namespace: str, runtime: DistributedRuntime) -> None:
         self._namespace = namespace
-        self._stored = set()
-        self._cached = {}
+
+        # TODO Remove metadata from etcd on delete
+        self._stored: set[str] = set()
+
+        self._cached: dict[str, NixlMetadata] = {}
         self._client = runtime.etcd_client()
         self._key_prefix = f"{self._namespace}/{NixlMetadataStore.NIXL_METADATA_KEY}"
 
