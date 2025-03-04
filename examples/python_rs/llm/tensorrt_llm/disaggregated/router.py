@@ -50,11 +50,6 @@ class Router:
         logger.info("INITIALIZED ROUTER")
 
     async def _get_ctx_resp(self, request, ctx_client):
-        # These settings are needed to satisfy request checks.
-        request.skip_special_tokens = False
-        request.add_special_tokens = False
-        request.spaces_between_special_tokens = False
-
         logger.debug(f"Received request {request}")
 
         request.max_tokens = 1
@@ -71,7 +66,7 @@ class Router:
         logger.debug(
             f"[router] received response from context server: {ctx_resp[0].data()}"
         )
-        yield ctx_resp[0].data()
+        return ctx_resp[0].data()
 
     # TODO (shreyasm): The only reason we cant further combine the two methods below is
     # because the disagg params are in different locations.
@@ -80,6 +75,11 @@ class Router:
 
     @triton_endpoint(CompletionRequest, DisaggCompletionStreamResponse)
     async def generate_completion(self, request):
+        # These settings are needed to satisfy request checks.
+        request.skip_special_tokens = False
+        request.add_special_tokens = False
+        request.spaces_between_special_tokens = False
+
         gen_req = copy.deepcopy(request)
 
         ctx_resp = await self._get_ctx_resp(request, self.ctx_completion_client)
@@ -108,6 +108,11 @@ class Router:
 
     @triton_endpoint(DisaggChatCompletionRequest, DisaggChatCompletionStreamResponse)
     async def generate_chat(self, request):
+        # These settings are needed to satisfy request checks.
+        request.skip_special_tokens = False
+        request.add_special_tokens = False
+        request.spaces_between_special_tokens = False
+
         gen_req = copy.deepcopy(request)
 
         ctx_resp = await self._get_ctx_resp(request, self.ctx_chat_client)

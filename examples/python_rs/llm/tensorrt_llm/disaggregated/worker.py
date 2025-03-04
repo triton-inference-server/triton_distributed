@@ -80,11 +80,9 @@ class TensorrtLLMEngine(BaseTensorrtLLMEngine):
         self.server_config: CtxGenServerConfig = disagg_config.server_configs[
             instance_idx
         ]
-        print("Before ", engine_config)
         engine_config = update_args_from_disagg_config(
             engine_config, self.server_config
         )
-        print("After ", engine_config)
 
         # needed for disagg
         self.mpi_session = MpiCommSession(sub_comm, n_workers=sub_comm.Get_size())
