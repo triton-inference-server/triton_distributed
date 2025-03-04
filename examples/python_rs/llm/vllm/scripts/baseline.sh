@@ -18,13 +18,13 @@
 # - Must use a single GPU for workers as CUDA_VISIBLE_DEVICES is set to a fixed value
 # - Must use a single node
 
-if [ $# -lt 3 ]; then
+if [ $# -lt 2 ]; then
     echo "Usage: $0 <number_of_workers> <routing_strategy> <log_dir_name> [model_name] [model_args] [chat_endpoint_name] [completions_endpoint_name]"
-    echo "Error: Must specify at least number of workers, routing strategy, and log_dir_name"
+    echo "Error: Must specify at least number of workers and routing strategy and log_dir_name"
     echo "Optional: model_name (default: deepseek-ai/DeepSeek-R1-Distill-Llama-8B)"
     echo "Optional: model_args (quoted string with model arguments)"
-    echo "Optional: chat_endpoint_name (default: triton-init.process.chat/completions)"
-    echo "Optional: completions_endpoint_name (default: triton-init.process.completions)"
+    echo "Optional: chat_endpoint_name (default: triton-init.vllm.chat/completions)"
+    echo "Optional: completions_endpoint_name (default: triton-init.vllm.completions)"
     exit 1
 fi
 
@@ -40,14 +40,12 @@ ROUTING_STRATEGY=$2
 LOG_DIR_NAME=$3
 MODEL_NAME=${4:-"deepseek-ai/DeepSeek-R1-Distill-Llama-8B"}
 CUSTOM_MODEL_ARGS=$5
-CHAT_ENDPOINT_NAME=${6:-"triton-init.process.chat/completions"}
-COMPLETIONS_ENDPOINT_NAME=${7:-"triton-init.process.completions"}
-VALID_STRATEGIES=("prefix")
+CHAT_ENDPOINT_NAME=${6:-"triton-init.vllm.chat/completions"}
+COMPLETIONS_ENDPOINT_NAME=${7:-"triton-init.vllm.completions"}
+VALID_STRATEGIES=("random")
 SESSION_NAME="v"
 WORKDIR="/workspace/examples/python_rs/llm/vllm"
 INIT_CMD="source /opt/triton/venv/bin/activate && cd $WORKDIR"
-
-
 # Default model args
 DEFAULT_MODEL_ARGS="--model $MODEL_NAME \
     --tokenizer $MODEL_NAME \
@@ -92,32 +90,14 @@ tmux new-session -d -s "$SESSION_NAME-llmctl"
 tmux send-keys -t "$SESSION_NAME-llmctl" "$INIT_CMD && $LLMCTL_CMD" C-m
 
 ########################################################
-# Processor
-########################################################
-PROCESSOR_CMD="RUST_LOG=info python3 -m kv_router.processor $MODEL_ARGS |& tee $LOGS_DIR/processor.log"
-tmux new-session -d -s "$SESSION_NAME-processor"
-tmux send-keys -t "$SESSION_NAME-processor" "$INIT_CMD && $PROCESSOR_CMD" C-m
-
-########################################################
-# Router
-########################################################
-ROUTER_CMD="RUST_LOG=info python3 -m kv_router.router \
-    --model $MODEL_NAME \
-    --routing-strategy $ROUTING_STRATEGY \
-    --min-workers $NUM_WORKERS |& tee $LOGS_DIR/router.log"
-
-tmux new-session -d -s "$SESSION_NAME-router"
-tmux send-keys -t "$SESSION_NAME-router" "$INIT_CMD && $ROUTER_CMD" C-m
-
-########################################################
 # Workers
 ########################################################
-WORKER_CMD="RUST_LOG=info python3 -m kv_router.worker $MODEL_ARGS"
+WORKER_CMD="RUST_LOG=info python3 -m monolith.worker $MODEL_ARGS"
 
 for i in $(seq 1 $NUM_WORKERS); do
-    tmux new-session -d -s "$SESSION_NAME-$i"
+        tmux new-session -d -s "$SESSION_NAME-$i"
 done
 
 for i in $(seq 1 $NUM_WORKERS); do
-    tmux send-keys -t "$SESSION_NAME-$i" "$INIT_CMD && CUDA_VISIBLE_DEVICES=$((i-1)) $WORKER_CMD |& tee $LOGS_DIR/worker-$i.log" C-m
+        tmux send-keys -t "$SESSION_NAME-$i" "$INIT_CMD && CUDA_VISIBLE_DEVICES=$((i-1)) $WORKER_CMD |& tee $LOGS_DIR/worker-$i.log" C-m
 done
