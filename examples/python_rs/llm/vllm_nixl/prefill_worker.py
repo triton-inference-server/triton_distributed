@@ -96,4 +96,12 @@ if __name__ == "__main__":
         print("Pipeline parallel size is not supported yet, setting to 1")
         engine_args.pipeline_parallel_size = 1
 
+    if engine_args.disable_async_output_proc is not True:
+        print("Async output processing is not supported yet, setting to True")
+        engine_args.disable_async_output_proc = True
+
+    if engine_args.enforce_eager is not True:
+        print("Prefill must be done eagerly, setting to True")
+        engine_args.enforce_eager = True
+
     asyncio.run(worker(engine_args))
