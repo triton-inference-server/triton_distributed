@@ -77,11 +77,20 @@ def _get_llm_args(engine_config):
             engine_config["model_path"] = Path(engine_config["model_path"])
         else:
             raise ValueError(f"Model path {engine_config['model_path']} does not exist")
-    # We can initialize the sub configs needed
+
+    model_name = engine_config["model_name"]
+    model_path = engine_config.get("model_path", None)
+
+    engine_config.pop("model_name")
+    engine_config.pop("model_path", None)
+
+    # Store all other args as kwargs
     llm_api_config = LLMAPIConfig(
-        model_name=engine_config["model_name"],
-        model_path=engine_config.get("model_path", None),
+        model_name=model_name,
+        model_path=model_path,
+        **engine_config,
     )
+    # Parse supported sub configs and remove from kwargs
     llm_api_config.update_sub_configs(engine_config)
 
     return llm_api_config

@@ -29,6 +29,8 @@ from transformers import AutoTokenizer
 class BaseTensorrtLLMEngine:
     def __init__(self, engine_config: LLMAPIConfig):
         self.engine_config = engine_config
+        logger.info(f"Using LLM API config: {self.engine_config}")
+
         # model name for chat processor
         self.model_name = self.engine_config.model_name
         logger.info(f"Set model name: {self.model_name}")
