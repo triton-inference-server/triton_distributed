@@ -607,10 +607,10 @@ index f507847a..ee20d50c 100644
                        seq_group: SequenceGroup,
 diff --git a/vllm/distributed/device_communicators/nixl.py b/vllm/distributed/device_communicators/nixl.py
 new file mode 100644
-index 00000000..bc962726
+index 00000000..7134c3ce
 --- /dev/null
 +++ b/vllm/distributed/device_communicators/nixl.py
-@@ -0,0 +1,249 @@
+@@ -0,0 +1,260 @@
 +import torch
 +from typing import List, Tuple
 +from vllm.config import VllmConfig
@@ -620,6 +620,15 @@ index 00000000..bc962726
 +import uuid
 +
 +logger = init_logger(__name__)
++
++# Lazy import nixl_wrapper to avoid loading nixl_bindings if nixl is not used
++try:
++    from nixl_wrapper import nixl_wrapper as NixlWrapper # type: ignore
++    logger.info("NIXL is available")
++    NixlWrapper.__init__ = nixl_wrapper_init_patch
++except ImportError:
++    logger.warning("NIXL is not available")
++    NixlWrapper = None
 +
 +def nixl_wrapper_init_patch(self, agent_name, nixl_config):
 +    logger.info("Initializing patched NixlWrapper")
@@ -644,17 +653,9 @@ index 00000000..bc962726
 +                        "WRITE_NOTIF": nixl.NIXL_WR_NOTIF,
 +                        "READ_NOTIF":  nixl.NIXL_RD_NOTIF}
 +
-+    logger.info("Initializied NIXL agent: %s", agent_name)
++    print("Initializied NIXL agent:", agent_name)
 +
-+
-+# Lazy import nixl_wrapper to avoid loading nixl_bindings if nixl is not used
-+try:
-+    from nixl_wrapper import nixl_wrapper as NixlWrapper # type: ignore
-+    logger.info("NIXL is available")
-+    NixlWrapper.__init__ = nixl_wrapper_init_patch
-+except ImportError:
-+    logger.warning("NIXL is not available")
-+    NixlWrapper = None
++NixlWrapper.__init__ = nixl_wrapper_init_patch
 +
 +
 +
