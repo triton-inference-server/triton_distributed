@@ -26,12 +26,6 @@ from tensorrt_llm.llmapi import KvCacheConfig
 
 @dataclass
 class LLMAPIConfig:
-    model_name: str
-    model_path: str | None = None
-    pytorch_backend_config: PyTorchConfig | None = None
-    kv_cache_config: KvCacheConfig | None = None
-    extra_args: Dict[str, Any] | None = None
-
     def __init__(
         self,
         model_name: str,
