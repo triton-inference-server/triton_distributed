@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import AsyncGenerator, AsyncIterator, Callable, List, Optional, Dict
+from typing import AsyncGenerator, AsyncIterator, Callable, Dict, List, Optional
 
 class JsonLike:
     """
@@ -58,7 +58,7 @@ class EtcdClient:
         Put a key-value pair into etcd
         """
         ...
-    
+
     async def kv_get_prefix(self, prefix: str) -> List[Dict[str, JsonLike]]:
         """
         Get all keys with a given prefix
