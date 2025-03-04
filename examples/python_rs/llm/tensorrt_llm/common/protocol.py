@@ -16,6 +16,7 @@
 import base64
 import time
 import uuid
+from enum import Enum
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -27,6 +28,19 @@ from tensorrt_llm.serve.openai_protocol import (
     DisaggregatedParams,
     UsageInfo,
 )
+
+
+class RoutingStrategy(Enum):
+    PREFIX = "prefix"
+    ROUND_ROBIN = "round_robin"
+    RANDOM = "random"
+
+
+WorkerId = str
+
+
+class Tokens(BaseModel):
+    tokens: list[int]
 
 
 class Request(BaseModel):

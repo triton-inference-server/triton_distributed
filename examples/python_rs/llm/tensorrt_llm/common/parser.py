@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Dict, Tuple
 
 import yaml
+from common.protocol import RoutingStrategy
 from tensorrt_llm._torch.pyexecutor.config import PyTorchConfig
 from tensorrt_llm.llmapi import KvCacheConfig
 
@@ -117,6 +118,13 @@ def parse_tensorrt_llm_args() -> Tuple[Any, Tuple[Dict[str, Any], Dict[str, Any]
         type=str,
         help="Path to the llmapi disaggregated config file",
         default=None,
+    )
+    parser.add_argument(
+        "--routing-strategy",
+        type=RoutingStrategy,
+        default=RoutingStrategy.PREFIX,
+        choices=list(RoutingStrategy),
+        help="Routing strategy to use",
     )
     args = parser.parse_args()
     return (args, _init_engine_args(args.engine_args))
