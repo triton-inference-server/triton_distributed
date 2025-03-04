@@ -8,44 +8,6 @@ FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS dev
 
 USER root
 
-# Install utilities
-RUN apt update -y && apt install -y git wget curl nvtop tmux vim
-# nats
-RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
-# etcd
-ENV ETCD_VERSION="v3.5.18"
-RUN wget https://github.com/etcd-io/etcd/releases/download/$ETCD_VERSION/etcd-$ETCD_VERSION-linux-amd64.tar.gz -O /tmp/etcd.tar.gz && \
-mkdir -p /usr/local/bin/etcd && \
-tar -xvf /tmp/etcd.tar.gz -C /usr/local/bin/etcd --strip-components=1
-ENV PATH=/usr/local/bin/etcd/:$PATH
-
-
-### VIRTUAL ENVIRONMENT SETUP ###
-
-# Install uv and create virtualenv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-RUN mkdir /opt/triton && \
-    uv venv /opt/triton/venv --python 3.12
-
-# Activate virtual environment
-ENV VIRTUAL_ENV=/opt/triton/venv
-ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
-
-# Install patched vllm - keep this early in Dockerfile to avoid
-# rebuilds from unrelated source code changes
-ARG VLLM_REF="v0.7.2"
-ARG VLLM_PATCH="vllm_${VLLM_REF}-triton-kv-disagg-patch.patch"
-RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
-    bash /tmp/deps/vllm/install.sh --patch /tmp/deps/vllm/${VLLM_PATCH} --ref ${VLLM_REF} --install-cmd "uv pip install --editable" --use-precompiled --installation-dir /opt/vllm
-
-# Install genai-perf for benchmarking
-ARG GENAI_PERF_TAG="r25.01"
-RUN uv pip install "git+https://github.com/triton-inference-server/perf_analyzer.git@${GENAI_PERF_TAG}#subdirectory=genai-perf"
-
-# Install test dependencies
-RUN --mount=type=bind,source=./container/deps/requirements.test.txt,target=/tmp/requirements.txt \
-    uv pip install --requirement /tmp/requirements.txt
-
 ### NIXL SETUP ###
 
 ARG MOFED_VERSION=24.10-1.1.4.0
@@ -171,6 +133,44 @@ RUN ls -l /usr/local/nixl/include/
 RUN ls -l /usr/local/nixl/include/internal/
 
 RUN ls /opt/nixl
+
+# Install utilities
+RUN apt update -y && apt install -y git wget curl nvtop tmux vim
+# nats
+RUN wget https://github.com/nats-io/nats-server/releases/download/v2.10.24/nats-server-v2.10.24-amd64.deb && dpkg -i nats-server-v2.10.24-amd64.deb
+# etcd
+ENV ETCD_VERSION="v3.5.18"
+RUN wget https://github.com/etcd-io/etcd/releases/download/$ETCD_VERSION/etcd-$ETCD_VERSION-linux-amd64.tar.gz -O /tmp/etcd.tar.gz && \
+mkdir -p /usr/local/bin/etcd && \
+tar -xvf /tmp/etcd.tar.gz -C /usr/local/bin/etcd --strip-components=1
+ENV PATH=/usr/local/bin/etcd/:$PATH
+
+
+### VIRTUAL ENVIRONMENT SETUP ###
+
+# Install uv and create virtualenv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN mkdir /opt/triton && \
+    uv venv /opt/triton/venv --python 3.12
+
+# Activate virtual environment
+ENV VIRTUAL_ENV=/opt/triton/venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+
+# Install patched vllm - keep this early in Dockerfile to avoid
+# rebuilds from unrelated source code changes
+ARG VLLM_REF="v0.7.2"
+ARG VLLM_PATCH="vllm_${VLLM_REF}-triton-kv-disagg-patch.patch"
+RUN --mount=type=bind,source=./container/deps/,target=/tmp/deps \
+    bash /tmp/deps/vllm/install.sh --patch /tmp/deps/vllm/${VLLM_PATCH} --ref ${VLLM_REF} --install-cmd "uv pip install --editable" --use-precompiled --installation-dir /opt/vllm
+
+# Install genai-perf for benchmarking
+ARG GENAI_PERF_TAG="r25.01"
+RUN uv pip install "git+https://github.com/triton-inference-server/perf_analyzer.git@${GENAI_PERF_TAG}#subdirectory=genai-perf"
+
+# Install test dependencies
+RUN --mount=type=bind,source=./container/deps/requirements.test.txt,target=/tmp/requirements.txt \
+    uv pip install --requirement /tmp/requirements.txt
 
 # ### MISC UTILITY SETUP ###
 
