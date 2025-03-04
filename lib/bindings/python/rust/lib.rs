@@ -16,6 +16,7 @@
 use futures::StreamExt;
 use once_cell::sync::OnceCell;
 use pyo3::exceptions::PyStopAsyncIteration;
+use pyo3::types::PyBytes;
 use pyo3::types::{PyDict, PyList, PyString};
 use pyo3::IntoPyObjectExt;
 use pyo3::{exceptions::PyException, prelude::*};
@@ -23,7 +24,6 @@ use rs::pipeline::network::Ingress;
 use std::{fmt::Display, sync::Arc};
 use tokio::sync::Mutex;
 use tracing_subscriber::FmtSubscriber;
-use pyo3::types::PyBytes;
 
 use triton_distributed_runtime::{
     self as rs,
